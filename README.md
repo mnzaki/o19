@@ -1,32 +1,49 @@
-# Turborepo Svelte starter
+# O19 (née October19)
 
-This Turborepo starter is maintained by the Turborepo core team.
-
-## Using this example
-
-Run the following command:
+## Create a new Tauri app
 
 ```sh
-npx create-turbo@latest -e with-svelte
+cd apps
+pnpm create tauri-app -t svelte-ts AnAwesomeApp
 ```
 
-## What's inside?
+Then add these scripts to `apps/AnAwesomeApp/package.json`:
 
-This Turborepo includes the following packages/apps:
+```json
+...
+  "scripts": {
+    ...,
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  }
+...
+```
 
-### Apps and Packages
+And add any packages you need from the monorepo to
+`apps/AnAwesomeApp/package.json`:
 
-- `docs`: a [svelte-kit](https://kit.svelte.dev/) app
-- `web`: another [svelte-kit](https://kit.svelte.dev/) app
-- `ui`: a stub Svelte component library shared by both `web` and `docs` applications
-- `eslint-config-custom`: `eslint` configurations (includes `eslint-plugin-svelte` and `eslint-config-prettier`)
+```json
+  ...,
+  "dependencies": {
+    ...,
+    "@repo/ui": "workspace:*"
+  }
+```
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+And update `turbo.json` to add these `tasks` if missing:
 
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+```json
+{
+  ...,
+  "tasks": {
+    ...,
+    "tauri:dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "tauri:build": {
+      "outputs": ["src-tauri/target/**"]
+    }
+  }
+}
+```

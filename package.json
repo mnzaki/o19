@@ -1,5 +1,5 @@
 {
-  "name": "with-svelte",
+  "name": "o19",
   "private": true,
   "scripts": {
     "build": "turbo run build",
