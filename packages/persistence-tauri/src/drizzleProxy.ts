@@ -35,8 +35,7 @@ export function createDrizzleProxy(dbName: string) {
     },
     {
       schema,
-      logger: true,
-      dbCredentials: { path: dbName }
+      logger: true
     }
   );
 }

@@ -131,6 +131,20 @@ export interface Person {
   updatedAt?: Date;      // When this person was last updated
 }
 
+/**
+ * Cached link preview - stored in database for reuse
+ */
+export interface CachedLinkPreview {
+  url: string;
+  title?: string;
+  description?: string;
+  imageUrl?: string;
+  images?: string[];  // All images found (up to 10)
+  siteName?: string;
+  fetchedAt: Date;
+  error?: string;
+}
+
 // Helper to commit an accumulation to a real post
 export function commitAccumulation(
   accumulation: AccumulatingPost,

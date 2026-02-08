@@ -61,3 +61,17 @@ export const people = sqliteTable('people', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
 });
+
+// Link previews - cached webpage metadata
+export const linkPreviews = sqliteTable('link_previews', {
+  url: text('url').primaryKey(),
+  title: text('title'),
+  description: text('description'),
+  imageUrl: text('image_url'),  // Primary/main image
+  images: text('images', { mode: 'json' }),  // Array of all images (up to 10)
+  siteName: text('site_name'),
+  // When this preview was fetched (for cache invalidation)
+  fetchedAt: integer('fetched_at', { mode: 'timestamp_ms' }).notNull(),
+  // Error message if fetch failed
+  error: text('error')
+});

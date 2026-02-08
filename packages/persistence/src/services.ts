@@ -4,7 +4,7 @@
  * Business logic contracts for persistence services.
  */
 
-import type { Post, AccumulatingPost, View, ViewFilters, InputType, Person } from './types.js';
+import type { Post, AccumulatingPost, View, ViewFilters, InputType, Person, CachedLinkPreview } from './types.js';
 
 // Post Service
 
@@ -87,6 +87,32 @@ export interface IPersonService {
   getAll(limit?: number): Promise<Person[]>;
 }
 
+// Link Preview Service
+
+export interface ILinkPreviewService {
+  /**
+   * Get a preview for a URL.
+   * Returns cached preview if available and fresh, otherwise fetches new.
+   * Multiple concurrent requests for the same URL share the same promise.
+   */
+  getForURL(url: string): Promise<CachedLinkPreview>;
+  
+  /**
+   * Get cached preview without fetching
+   */
+  getCached(url: string): Promise<CachedLinkPreview | null>;
+  
+  /**
+   * Store a preview in the cache
+   */
+  store(preview: CachedLinkPreview): Promise<void>;
+  
+  /**
+   * Delete old previews (cache invalidation)
+   */
+  deleteOlderThan(maxAgeMs: number): Promise<void>;
+}
+
 // All together now
 
 export interface IPersistenceServices {
@@ -94,4 +120,5 @@ export interface IPersistenceServices {
   view: IViewService;
   session: ISessionService;
   person: IPersonService;
+  linkPreview: ILinkPreviewService;
 };
