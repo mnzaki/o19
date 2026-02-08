@@ -1,0 +1,27 @@
+{
+  "name": "@repo/persistence-tauri",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsc --watch",
+    "tauri:dev": "tsc --watch",
+    "build": "tsc",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@repo/persistence": "workspace:*",
+    "@tauri-apps/plugin-sql": "~2.2.0"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "5.9.2"
+  }
+}

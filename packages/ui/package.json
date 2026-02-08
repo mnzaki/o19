@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "svelte-kit sync && svelte-package --watch --input=src",
+    "tauri:dev": "pnpm run dev",
     "build": "svelte-kit sync && svelte-package --input=src",
     "lint": "eslint .",
     "check-types": "svelte-check --tsconfig ./tsconfig.json"
