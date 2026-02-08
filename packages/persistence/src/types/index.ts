@@ -119,6 +119,18 @@ export function createEmptyAccumulation(): AccumulatingPost {
   };
 }
 
+/**
+ * Person entity (for mentions/tagging)
+ */
+export interface Person {
+  did: string;           // Decentralized identifier
+  displayName: string;   // Display name
+  avatarUri?: string;    // Avatar image URL
+  bio?: string;          // Short bio/description
+  createdAt: Date;       // When this person was first added
+  updatedAt?: Date;      // When this person was last updated
+}
+
 // Helper to commit an accumulation to a real post
 export function commitAccumulation(
   accumulation: AccumulatingPost,

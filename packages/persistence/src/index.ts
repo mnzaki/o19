@@ -12,7 +12,8 @@ export type {
   AccumulatingPost,
   ViewFilters,
   SortBy,
-  View
+  View,
+  Person
 } from './types/index.js';
 
 export {
@@ -28,11 +29,13 @@ export type {
   IPostService,
   PostServiceFilters,
   IViewService,
-  ISessionService
+  ISessionService,
+  IPersonService
 } from './services/index.js';
 
 export {
   PostService,
   ViewService,
-  SessionService
+  SessionService,
+  PersonService
 } from './services/index.js';

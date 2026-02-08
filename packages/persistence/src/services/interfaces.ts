@@ -4,7 +4,7 @@
  * Business logic contracts for persistence services.
  */
 
-import type { Post, AccumulatingPost, View, ViewFilters, InputType } from '../types/index.js';
+import type { Post, AccumulatingPost, View, ViewFilters, InputType, Person } from '../types/index.js';
 
 // Post Service
 
@@ -74,4 +74,15 @@ export interface ISessionService {
   setPersonDraft(draft: { did: string; displayName: string; avatarUri?: string } | null): Promise<void>;
   
   clearAllDrafts(): Promise<void>;
+}
+
+// Person Service
+
+export interface IPersonService {
+  search(query: string, limit?: number): Promise<Person[]>;
+  getByDid(did: string): Promise<Person | null>;
+  create(person: Omit<Person, 'createdAt'>): Promise<Person>;
+  update(did: string, updates: Partial<Person>): Promise<void>;
+  delete(did: string): Promise<void>;
+  getAll(limit?: number): Promise<Person[]>;
 }
