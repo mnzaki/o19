@@ -17,7 +17,10 @@
   },
   "dependencies": {
     "@repo/persistence": "workspace:*",
-    "@tauri-apps/plugin-sql": "~2.2.0"
+    "@repo/persistence-drizzle": "workspace:*",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-sql": "~2.2.0",
+    "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

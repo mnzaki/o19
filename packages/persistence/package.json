@@ -15,12 +15,12 @@
       "import": "./dist/index.js"
     },
     "./types": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/types/index.js"
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
     },
     "./services": {
-      "types": "./dist/services/index.d.ts",
-      "import": "./dist/services/index.js"
+      "types": "./dist/services.d.ts",
+      "import": "./dist/services.js"
     }
   },
   "devDependencies": {
