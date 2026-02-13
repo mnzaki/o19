@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">O19 Activities</string>
+    
+    <!-- Share Receive Screen -->
+    <string name="receive_share_title">Add to DearDiary</string>
+    <string name="edit_share_hint">Add a note…</string>
+    <string name="add">Add</string>
+    <string name="add_and_see">Add and See</string>
+    <string name="cancel">Cancel</string>
+    
+    <!-- Preview labels -->
+    <string name="video_preview">Video preview</string>
+    <string name="file_icon">File</string>
+    <string name="image_preview">Image preview</string>
+    
+    <!-- Toast messages -->
+    <string name="share_added">Added to your stream</string>
+    <string name="share_cancelled">Cancelled</string>
+    <string name="share_error">Could not add share</string>
+</resources>

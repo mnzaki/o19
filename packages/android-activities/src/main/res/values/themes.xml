@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        O19 Receive Share Theme
+        
+        A transparent theme that allows the activity to show a bottom sheet
+        or dialog-like UI over the sharing app, following modern Android
+        share UX patterns.
+    -->
+    <style name="O19.ReceiveShareTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.5</item>
+        <item name="android:windowAnimationStyle">@style/O19.ReceiveShareAnimation</item>
+    </style>
+    
+    <style name="O19.ReceiveShareAnimation" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/slide_up</item>
+        <item name="android:activityOpenExitAnimation">@anim/slide_down</item>
+        <item name="android:activityCloseEnterAnimation">@anim/slide_up</item>
+        <item name="android:activityCloseExitAnimation">@anim/slide_down</item>
+    </style>
+</resources>

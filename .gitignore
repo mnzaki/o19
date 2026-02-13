@@ -30,3 +30,6 @@ yarn-error.log*
 .turbo
 
 dist
+build
+dist-js
+.gradle
