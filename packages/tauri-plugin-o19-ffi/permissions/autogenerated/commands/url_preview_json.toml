@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-url-preview-json"
+description = "Enables the url_preview_json command without any pre-configured scope."
+commands.allow = ["url_preview_json"]
+
+[[permission]]
+identifier = "deny-url-preview-json"
+description = "Denies the url_preview_json command without any pre-configured scope."
+commands.deny = ["url_preview_json"]

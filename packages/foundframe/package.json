@@ -1,0 +1,36 @@
+{
+  "name": "@o19/foundframe",
+  "version": "0.1.0",
+  "description": "Foundational framework for o19 apps - domain layer",
+  "type": "module",
+  "scripts": {
+    "dev": "tsc --watch",
+    "tauri:dev": "tsc --watch",
+    "build": "tsc",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./domain": {
+      "types": "./dist/domain/entities/index.d.ts",
+      "import": "./dist/domain/entities/index.js"
+    },
+    "./ports": {
+      "types": "./dist/ports/index.d.ts",
+      "import": "./dist/ports/index.js"
+    },
+    "./services": {
+      "types": "./dist/services/index.d.ts",
+      "import": "./dist/services/index.js"
+    }
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "5.9.2"
+  }
+}

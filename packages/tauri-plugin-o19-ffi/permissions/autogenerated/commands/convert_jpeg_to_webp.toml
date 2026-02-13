@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-convert-jpeg-to-webp"
+description = "Enables the convert_jpeg_to_webp command without any pre-configured scope."
+commands.allow = ["convert_jpeg_to_webp"]
+
+[[permission]]
+identifier = "deny-convert-jpeg-to-webp"
+description = "Denies the convert_jpeg_to_webp command without any pre-configured scope."
+commands.deny = ["convert_jpeg_to_webp"]

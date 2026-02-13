@@ -1,0 +1,11 @@
+{
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "target": "es2021",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "outDir": "js-dist"
+  },
+  "include": ["ts/*.ts"],
+  "exclude": ["js-dist", "node_modules"]
+}

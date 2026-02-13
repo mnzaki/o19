@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-compress-webp-to-size"
+description = "Enables the compress_webp_to_size command without any pre-configured scope."
+commands.allow = ["compress_webp_to_size"]
+
+[[permission]]
+identifier = "deny-compress-webp-to-size"
+description = "Denies the compress_webp_to_size command without any pre-configured scope."
+commands.deny = ["compress_webp_to_size"]

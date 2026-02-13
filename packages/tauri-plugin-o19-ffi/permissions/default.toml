@@ -1,0 +1,13 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Default permissions for the plugin"
+permissions = [
+  "allow-ping",
+  "allow-url-preview-json",
+  "allow-html-preview-json",
+  "allow-media-preview-json",
+  "allow-compress-webp-to-size",
+  "allow-convert-jpeg-to-webp",
+  "allow-request-permissions",
+]

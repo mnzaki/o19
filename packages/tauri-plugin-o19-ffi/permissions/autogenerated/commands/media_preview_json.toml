@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-media-preview-json"
+description = "Enables the media_preview_json command without any pre-configured scope."
+commands.allow = ["media_preview_json"]
+
+[[permission]]
+identifier = "deny-media-preview-json"
+description = "Denies the media_preview_json command without any pre-configured scope."
+commands.deny = ["media_preview_json"]

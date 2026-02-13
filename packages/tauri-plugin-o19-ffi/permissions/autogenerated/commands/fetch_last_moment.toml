@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-fetch-last-moment"
+description = "Enables the fetch_last_moment command without any pre-configured scope."
+commands.allow = ["fetch_last_moment"]
+
+[[permission]]
+identifier = "deny-fetch-last-moment"
+description = "Denies the fetch_last_moment command without any pre-configured scope."
+commands.deny = ["fetch_last_moment"]
