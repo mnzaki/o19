@@ -7,6 +7,7 @@ const COMMANDS: &[&str] = &[
   "convert_jpeg_to_webp",
   "compress_webp_to_size",
   "request_permissions",
+  "add_bootstrap_node",
 ];
 
 fn main() {

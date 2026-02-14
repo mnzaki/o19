@@ -295,6 +295,18 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the add_bootstrap_node command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-add-bootstrap-node",
+          "markdownDescription": "Enables the add_bootstrap_node command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the add_bootstrap_node command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-add-bootstrap-node",
+          "markdownDescription": "Denies the add_bootstrap_node command without any pre-configured scope."
+        },
+        {
           "description": "Enables the clear_auth_details command without any pre-configured scope.",
           "type": "string",
           "const": "allow-clear-auth-details",
@@ -499,10 +511,10 @@
           "markdownDescription": "Denies the url_preview_json command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-url-preview-json`\n- `allow-html-preview-json`\n- `allow-media-preview-json`\n- `allow-compress-webp-to-size`\n- `allow-convert-jpeg-to-webp`\n- `allow-request-permissions`",
+          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-url-preview-json`\n- `allow-html-preview-json`\n- `allow-media-preview-json`\n- `allow-compress-webp-to-size`\n- `allow-convert-jpeg-to-webp`\n- `allow-request-permissions`\n- `allow-add-bootstrap-node`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-url-preview-json`\n- `allow-html-preview-json`\n- `allow-media-preview-json`\n- `allow-compress-webp-to-size`\n- `allow-convert-jpeg-to-webp`\n- `allow-request-permissions`"
+          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-url-preview-json`\n- `allow-html-preview-json`\n- `allow-media-preview-json`\n- `allow-compress-webp-to-size`\n- `allow-convert-jpeg-to-webp`\n- `allow-request-permissions`\n- `allow-add-bootstrap-node`"
         }
       ]
     }

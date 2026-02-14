@@ -10,4 +10,5 @@ permissions = [
   "allow-compress-webp-to-size",
   "allow-convert-jpeg-to-webp",
   "allow-request-permissions",
+  "allow-add-bootstrap-node"
 ]

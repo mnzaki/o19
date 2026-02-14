@@ -11,6 +11,7 @@ Default permissions for the plugin
 - `allow-compress-webp-to-size`
 - `allow-convert-jpeg-to-webp`
 - `allow-request-permissions`
+- `allow-add-bootstrap-node`
 
 ## Permission Table
 
@@ -20,6 +21,32 @@ Default permissions for the plugin
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`o19-ffi:allow-add-bootstrap-node`
+
+</td>
+<td>
+
+Enables the add_bootstrap_node command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-ffi:deny-add-bootstrap-node`
+
+</td>
+<td>
+
+Denies the add_bootstrap_node command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>
