@@ -1,24 +1,13 @@
-use crate::{AppState, Error, InternalApiExtension, Result, models::*};
+use crate::{models::*, InternalApiExtension, Result};
 use caesium::{
   compress_to_size_in_memory, convert_in_memory, parameters::CSParameters, SupportedFileTypes,
 };
 use tauri::{AppHandle, Runtime, Manager};
-use o19_foundframeimpl::{Foundframe, preview, sql_proxy, log};
+use o19_foundframeimpl::{preview, sql_proxy};
 
 #[tauri::command]
-pub(crate) async fn ping<R: Runtime>(_app: AppHandle<R>) -> Result<String> {
-    Ok("pong".to_string())
-}
-
-#[tauri::command]
-pub(crate) async fn add_bootstrap_node<R: Runtime>(app: AppHandle<R>, pub_key: String) -> Result<()> {
-    let app_state = app.state::<AppState<R>>();
-    if let Err(e) = app_state.foundframe.network.add_bootstrap_node(pub_key.clone()).await {
-        log::error!("Failed to add bootstrap node: {}\n{}", pub_key, e);
-        Err(Error::from(e))
-    } else {
-        Ok(())
-    }
+pub(crate) async fn ping() -> String {
+    "pong".to_string()
 }
 
 #[tauri::command]
@@ -26,21 +15,21 @@ pub(crate) async fn run_sql<R: Runtime>(app: AppHandle<R>, query: sql_proxy::Sql
     let db_path = app.path()
         .app_config_dir()
         .map(|p| p.join("deardiary.db"))?;
-
+    
     Ok(sql_proxy::execute_sql(&db_path, query).await?)
 }
 
 #[tauri::command]
 pub(crate) async fn url_preview_json<R: Runtime>(app: AppHandle<R>, url: String) -> Result<preview::PreviewType> {
     let app_data_dir = app.path().app_data_dir()?;
-
+    
     let media_dir = app_data_dir.join("media");
     let thumb_dir = app_data_dir.join("thumbnails");
-
+    
     // Ensure directories exist
     std::fs::create_dir_all(&media_dir)?;
     std::fs::create_dir_all(&thumb_dir)?;
-
+    
     Ok(preview::get_for_url(&media_dir, &thumb_dir, &url).await?)
 }
 
@@ -52,14 +41,14 @@ pub(crate) async fn html_preview_json(url: String) -> Result<preview::html::Html
 #[tauri::command]
 pub(crate) async fn media_preview_json<R: Runtime>(app: AppHandle<R>, url: String) -> Result<preview::media::MediaPreviewJSON> {
     let app_data_dir = app.path().app_data_dir()?;
-
+    
     let media_dir = app_data_dir.join("media");
     let thumb_dir = app_data_dir.join("thumbnails");
-
+    
     // Ensure directories exist
     std::fs::create_dir_all(&media_dir)?;
     std::fs::create_dir_all(&thumb_dir)?;
-
+    
     Ok(preview::media::process_url(&media_dir, &thumb_dir, &url).await?)
 }
 

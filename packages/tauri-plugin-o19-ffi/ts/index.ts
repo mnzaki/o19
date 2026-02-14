@@ -18,13 +18,6 @@ export type NotificationPermissionStatus = {
   status: 'prompt' | 'denied' | 'granted'
 }
 
-export async function addBootstrapNode(pubKey: string) {
-  const result = await invoke('plugin:o19-ffi|add_bootstrap_node', {
-    pubKey
-  });
-  return result
-}
-
 export async function convertJpegToWebp(jpeg: Uint8Array): Promise<Uint8Array> {
   const bytes = await invoke<number[]>('plugin:o19-ffi|convert_jpeg_to_webp', {
     payload: { jpeg }
