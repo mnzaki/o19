@@ -5,6 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "tauri:android:dev": "./scripts/adb_logcat.sh",
+    "tauri:android:dev:verbose": "./scripts/adb_logcat.sh",
     "tauri:android:dev:tokio_debug": "./scripts/adb_logcat.sh"
   },
   "author": "",

@@ -8,12 +8,12 @@ use crate::models::*;
 pub fn init<R: Runtime, C: DeserializeOwned>(
   app: &AppHandle<R>,
   _api: PluginApi<R, C>,
-) -> crate::Result<InternalApi<R>> {
-  Ok(InternalApi(app.clone()))
+) -> crate::Result<Platform<R>> {
+  Ok(Platform(app.clone()))
 }
 
-pub struct InternalApi<R: Runtime>(AppHandle<R>);
-impl<R: Runtime> InternalApi<R> {
+pub struct Platform<R: Runtime>(AppHandle<R>);
+impl<R: Runtime> Platform<R> {
   fn data_dir(&self) -> PathBuf {
     self.0.path().app_local_data_dir().unwrap()
   }

@@ -3,7 +3,7 @@ use caesium::{
   compress_to_size_in_memory, convert_in_memory, parameters::CSParameters, SupportedFileTypes,
 };
 use tauri::{AppHandle, Runtime, Manager};
-use o19_foundframeimpl::{preview, sql_proxy};
+use o19_foundframe::{preview, sql_proxy};
 
 #[tauri::command]
 pub(crate) async fn ping() -> String {

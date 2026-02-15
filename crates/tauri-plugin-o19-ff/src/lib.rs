@@ -1,3 +1,4 @@
+use o19_foundframe::Foundframe;
 use tauri::{
   plugin::{Builder, TauriPlugin},
   Manager, Runtime,
@@ -17,22 +18,27 @@ mod models;
 pub use error::{Error, Result};
 
 #[cfg(desktop)]
-use desktop::InternalApi;
+use desktop::Platform;
 #[cfg(mobile)]
-use mobile::InternalApi;
+use mobile::Platform;
 
 pub trait InternalApiExtension<R: Runtime> {
-  fn api(&self) -> &InternalApi<R>;
+  fn api(&self) -> &Platform<R>;
 }
 
 impl<R: Runtime, T: Manager<R>> InternalApiExtension<R> for T {
-  fn api(&self) -> &InternalApi<R> {
-    self.state::<InternalApi<R>>().inner()
+  fn api(&self) -> &Platform<R> {
+    self.state::<Platform<R>>().inner()
   }
 }
 
+pub struct AppState<R: Runtime> {
+  platform: Platform<R>,
+  foundframe: Foundframe
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-  Builder::new("o19-ffi")
+  Builder::new("o19-ff")
     .invoke_handler(tauri::generate_handler![
       commands::ping,
       commands::run_sql,
@@ -45,12 +51,19 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     ])
     .setup(|app, api| {
       #[cfg(mobile)]
-      let o19_ffi = mobile::init(app, api)?;
+      let platform = mobile::init(app, api)?;
 
       #[cfg(desktop)]
-      let o19_ffi = desktop::init(app, api)?;
+      let platform = desktop::init(app, api)?;
 
-      app.manage(o19_ffi);
+      let foundframe = tauri::async_runtime::block_on(async move {
+          o19_foundframe::init().await
+      }).unwrap();
+
+      app.manage(AppState {
+          platform,
+          foundframe
+      });
 
       Ok(())
     })

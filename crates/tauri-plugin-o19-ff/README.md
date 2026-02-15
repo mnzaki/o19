@@ -1,4 +1,4 @@
-# tauri-plugin-o19-ffi
+# tauri-plugin-o19-ff
 
 > *Tauri bindings and Foreign Function Interface (and foundframe implementation!) for o19*
 
@@ -30,7 +30,7 @@ foundframe-drizzle (TypeScript adaptor)
     ↓ FFI calls
     ↓ Tauri IPC
     ↓ Native functions
-tauri-plugin-o19-ffi (Tauri adaptor) ← you are here
+tauri-plugin-o19-ff (Tauri adaptor) ← you are here
     ↓ Rust function calls
 foundframeimpl (Rust implementation)
     ↓ Native libraries

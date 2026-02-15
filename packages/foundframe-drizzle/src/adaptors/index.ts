@@ -1,6 +1,6 @@
 /**
  * Drizzle ORM implementations of foundframe ports
- * 
+ *
  * These adaptors implement the repository interfaces defined in @o19/foundframe
  * using Drizzle ORM for SQLite.
  */
@@ -29,7 +29,7 @@ import type { DatabasePorts } from '@o19/foundframe/ports';
 export function createDrizzleAdaptors(db: BaseSQLiteDatabase<any, any> | any): DatabasePorts {
   const stream = new DrizzleStreamAdaptor(db);
   const view = new DrizzleViewAdaptor(db, stream);
-  
+
   return {
     person: new DrizzlePersonAdaptor(db),
     media: new DrizzleMediaAdaptor(db),

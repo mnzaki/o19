@@ -63,16 +63,16 @@ Plus: Rust's type system enforces the same discipline we value in the TypeScript
 
 ## Relationship to Tauri
 
-This crate is `crate-type = ["dylib"]` because it's designed to be loaded as a native extension. The [`tauri-plugin-o19-ffi`](../tauri-plugin-o19-ffi/) wraps this crate in Tauri's plugin system, exposing its functionality to the webview.
+This crate is `crate-type = ["dylib"]` because it's designed to be loaded as a native extension. The [`tauri-plugin-o19-ff`](../tauri-plugin-o19-ff/) wraps this crate in Tauri's plugin system, exposing its functionality to the webview.
 
 But the core logic is Tauri-agnostic. You could use this crate in a CLI tool, a background service, or a different GUI framework. The `sql_proxy::execute_sql` function takes a `&Path` to the database, not a Tauri `AppHandle`.
 
 ## Conservation of Structure
 
-The same port-adaptor pattern that governs `foundframe`→`foundframe-drizzle` also governs `foundframeimpl`→`tauri-plugin-o19-ffi`:
+The same port-adaptor pattern that governs `foundframe`→`foundframe-drizzle` also governs `foundframeimpl`→`tauri-plugin-o19-ff`:
 
 - **foundframeimpl** defines the native *ports* (the Rust functions that must be implemented)
-- **tauri-plugin-o19-ffi** provides the *adaptor* (the Tauri-specific glue)
+- **tauri-plugin-o19-ff** provides the *adaptor* (the Tauri-specific glue)
 
 This recursive structure—ports and adaptors at every boundary—is how we maintain consistency across the stack.
 
@@ -80,7 +80,7 @@ This recursive structure—ports and adaptors at every boundary—is how we main
 
 - [`foundframe`](../foundframe/): The domain layer, ports, and services
 - [`foundframe-drizzle`](../foundframe-drizzle/): The TypeScript Drizzle implementation
-- [`tauri-plugin-o19-ffi`](../tauri-plugin-o19-ffi/): The Tauri plugin that wraps this crate
+- [`tauri-plugin-o19-ff`](../tauri-plugin-o19-ff/): The Tauri plugin that wraps this crate
 
 ---
 

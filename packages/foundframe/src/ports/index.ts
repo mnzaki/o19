@@ -1,6 +1,6 @@
 /**
  * Ports - repository interfaces (the "what", not the "how")
- * 
+ *
  * These define the contract that database implementations must fulfill.
  * Each Port interface defines operations for one entity type.
  * Each Adaptor abstract class provides default "not implemented" implementations.
@@ -55,5 +55,4 @@ export interface DatabasePorts {
   conversation: ConversationPort;
   stream: StreamPort;
   view: ViewPort;
-  preview: PreviewPort;
 }

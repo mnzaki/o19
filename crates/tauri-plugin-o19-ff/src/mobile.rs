@@ -12,19 +12,19 @@ tauri::ios_plugin_binding!(init_plugin_internal_api);
 pub fn init<R: Runtime, C: DeserializeOwned>(
   _app: &AppHandle<R>,
   api: PluginApi<R, C>,
-) -> crate::Result<InternalApi<R>> {
+) -> crate::Result<Platform<R>> {
   #[cfg(target_os = "android")]
   let handle = api.register_android_plugin("ty.circulari.o19.ffi", "ApiPlugin")?;
 
   #[cfg(target_os = "ios")]
   let handle = api.register_ios_plugin(init_plugin_internal_api)?;
 
-  Ok(InternalApi(handle))
+  Ok(Platform(handle))
 }
 
-pub struct InternalApi<R: Runtime>(PluginHandle<R>);
+pub struct Platform<R: Runtime>(PluginHandle<R>);
 
-impl<R: Runtime> InternalApi<R> {
+impl<R: Runtime> Platform<R> {
   pub fn request_permissions(&self) -> crate::Result<NotificationPermissionStatus> {
     self
       .0

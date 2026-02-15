@@ -1,16 +1,16 @@
 /**
  * @o19/foundframe-drizzle
- * 
+ *
  * Drizzle ORM implementation of foundframe ports.
- * 
+ *
  * This package provides concrete database implementations using Drizzle ORM
  * for SQLite. It implements all the ports defined in @o19/foundframe.
- * 
+ *
  * Usage:
  * ```typescript
  * import { createDrizzleAdaptors } from '@o19/foundframe-drizzle';
  * import { createServices } from '@o19/foundframe';
- * 
+ *
  * const adaptors = createDrizzleAdaptors(db);
  * const services = createServices(adaptors);
  * ```
@@ -70,16 +70,16 @@ export {
 } from './adaptors/index.js';
 
 // Factory that combines everything
-import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import { createDrizzleAdaptors } from './adaptors/index.js';
-import { createServices } from '@o19/foundframe';
-import type { DomainServices } from '@o19/foundframe';
-
-/**
- * Create all services with Drizzle implementations
- * Convenience factory that wires everything together
- */
-export function createDrizzleServices(db: BaseSQLiteDatabase<any, any>): DomainServices {
-  const adaptors = createDrizzleAdaptors(db);
-  return createServices(adaptors);
-}
+//import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+//import { createDrizzleAdaptors } from './adaptors/index.js';
+//import { createServices } from '@o19/foundframe';
+//import type { DatabaseServices } from '@o19/foundframe';
+//
+///**
+// * Create all services with Drizzle implementations
+// * Convenience factory that wires everything together
+// */
+//export function createDrizzleServices(db: BaseSQLiteDatabase<any, any>): DatabaseServices {
+//  const adaptors = createDrizzleAdaptors(db);
+//  return createServices(adaptors);
+//}

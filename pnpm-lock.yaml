@@ -219,7 +219,7 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
-  packages/tauri-plugin-o19-ffi:
+  packages/tauri-plugin-o19-ff:
     dependencies:
       '@o19/foundframe':
         specifier: workspace:*

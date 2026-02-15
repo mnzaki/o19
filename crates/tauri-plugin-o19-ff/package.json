@@ -1,8 +1,8 @@
 {
-  "name": "tauri-plugin-o19-ffi",
+  "name": "tauri-plugin-o19-ff",
   "version": "0.1.0",
   "author": "Circulari.ty",
-  "description": "Tauri bindings and foundframe implementation FFI for o19 apps",
+  "description": "Tauri bindings and foundframe implementation for o19 apps",
   "type": "module",
   "types": "./js-dist/index.d.ts",
   "main": "./js-dist/index.cjs",

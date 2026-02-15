@@ -1,10 +1,10 @@
 /**
  * Domain services
- * 
+ *
  * Services contain business logic and orchestrate domain operations.
  * Each service extends its corresponding Port (adaptor base class)
  * and receives a concrete Port implementation in its constructor.
- * 
+ *
  * Pattern: Service(port) -> delegates to port for persistence
  */
 
@@ -23,7 +23,7 @@ export { PreviewService } from './preview.service.js';
  */
 import type { DatabasePorts } from '../ports/index.js';
 
-export interface DomainServices {
+export interface DatabaseServices {
   person: import('./person.service.js').PersonService;
   media: import('./media.service.js').MediaService;
   post: import('./post.service.js').PostService;
@@ -31,11 +31,18 @@ export interface DomainServices {
   conversation: import('./conversation.service.js').ConversationService;
   stream: import('./stream.service.js').StreamService;
   view: import('./view.service.js').ViewService;
+}
+
+export type DomainServices = DatabaseServices & {
   preview: import('./preview.service.js').PreviewService;
 }
 
+export type Ports = DatabasePorts & {
+  preview: import('../ports/preview.port.js').PreviewPort;
+}
+
 // Async version for dynamic imports (if needed)
-export async function createDomainServicesAsync(ports: DatabasePorts): Promise<DomainServices> {
+export async function createDomainServicesAsync(ports: Ports): Promise<DomainServices> {
   const [
     { PersonService },
     { MediaService },
@@ -55,7 +62,7 @@ export async function createDomainServicesAsync(ports: DatabasePorts): Promise<D
     import('./view.service.js'),
     import('./preview.service.js'),
   ]);
-  
+
   return {
     person: new PersonService(ports.person),
     media: new MediaService(ports.media),
@@ -78,7 +85,7 @@ import { StreamService } from './stream.service.js';
 import { ViewService } from './view.service.js';
 import { PreviewService } from './preview.service.js';
 
-export function createServices(ports: DatabasePorts): DomainServices {
+export function createServices(ports: Ports): DomainServices {
   return {
     person: new PersonService(ports.person),
     media: new MediaService(ports.media),

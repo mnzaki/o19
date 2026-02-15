@@ -1,0 +1,23 @@
+[package]
+name = "tauri-plugin-o19-ff"
+description = "The Tauri bindings (and foundframe implementation FFI) for o19 Circulari.ty apps."
+version = "0.1.0"
+edition = "2024"
+authors = ["Circulari.ty"]
+
+links = "tauri-plugin-o19-ff"
+
+[dependencies]
+tauri = {workspace = true }
+o19-foundframe = { workspace = true }
+thiserror = { workspace = true }
+reqwest = {workspace = true, features = ["json", "stream"] }
+libcaesium = {workspace = true, features = ["jpg", "webp"] }
+serde = {workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+jni = { workspace = true }
+rustls-platform-verifier = { workspace = true }
+
+[build-dependencies]
+tauri-plugin = { workspace = true, features = ["build"] }
+tauri-build = { workspace = true }

@@ -195,6 +195,7 @@ export {
 
 export type {
   DomainServices,
+  DatabaseServices
 } from './services/index.js';
 
 // ============================================

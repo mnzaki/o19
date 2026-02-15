@@ -3,9 +3,15 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
+    #[error("Hex decoding error: {0}")]
+    BadHex(#[from] hex::FromHexError),
+
+    #[error("Sync error: {0}")]
+    Sync(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("HTTP request failed: {0}")]
     Reqwest(#[from] reqwest::Error),
     

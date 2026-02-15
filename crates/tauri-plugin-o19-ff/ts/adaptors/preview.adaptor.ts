@@ -36,7 +36,7 @@ type PreviewType =
 
 export class TauriPreviewAdaptor extends PreviewAdaptor implements PreviewPort {
   async getForURL(url: string): Promise<PreviewMetadata> {
-    const result = await invoke<PreviewType>('plugin:o19-ffi|url_preview_json', { url });
+    const result = await invoke<PreviewType>('plugin:o19-ff|url_preview_json', { url });
 
     // Convert PreviewType to PreviewMetadata
     if (result.type === 'html') {

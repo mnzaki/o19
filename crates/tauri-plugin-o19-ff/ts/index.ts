@@ -19,7 +19,7 @@ export type NotificationPermissionStatus = {
 }
 
 export async function convertJpegToWebp(jpeg: Uint8Array): Promise<Uint8Array> {
-  const bytes = await invoke<number[]>('plugin:o19-ffi|convert_jpeg_to_webp', {
+  const bytes = await invoke<number[]>('plugin:o19-ff|convert_jpeg_to_webp', {
     payload: { jpeg }
   });
 
@@ -27,7 +27,7 @@ export async function convertJpegToWebp(jpeg: Uint8Array): Promise<Uint8Array> {
 }
 
 export async function compressWebpToSize(webp: Uint8Array, maxSize: number): Promise<Uint8Array> {
-  const bytes = await invoke<number[]>('plugin:o19-ffi|compress_webp_to_size', {
+  const bytes = await invoke<number[]>('plugin:o19-ff|compress_webp_to_size', {
     payload: { webp, maxSize }
   });
 
@@ -35,5 +35,5 @@ export async function compressWebpToSize(webp: Uint8Array, maxSize: number): Pro
 }
 
 export async function requestPermissions(): Promise<NotificationPermissionStatus> {
-  return await invoke('plugin:o19-ffi|request_permissions')
+  return await invoke('plugin:o19-ff|request_permissions')
 }
