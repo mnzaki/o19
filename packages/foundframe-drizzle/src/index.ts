@@ -41,7 +41,7 @@ export type {
   StreamPort,
   ViewPort,
   // Services
-  DomainServices,
+  DomainServices
 } from '@o19/foundframe';
 
 export {
@@ -54,7 +54,7 @@ export {
   StreamService,
   ViewService,
   createServices,
-  createDomainServicesAsync,
+  createDomainServicesAsync
 } from '@o19/foundframe';
 
 // Drizzle-specific exports
@@ -66,20 +66,5 @@ export {
   DrizzleConversationAdaptor,
   DrizzleStreamAdaptor,
   DrizzleViewAdaptor,
-  createDrizzleAdaptors,
+  createDrizzleAdaptors
 } from './adaptors/index.js';
-
-// Factory that combines everything
-//import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-//import { createDrizzleAdaptors } from './adaptors/index.js';
-//import { createServices } from '@o19/foundframe';
-//import type { DatabaseServices } from '@o19/foundframe';
-//
-///**
-// * Create all services with Drizzle implementations
-// * Convenience factory that wires everything together
-// */
-//export function createDrizzleServices(db: BaseSQLiteDatabase<any, any>): DatabaseServices {
-//  const adaptors = createDrizzleAdaptors(db);
-//  return createServices(adaptors);
-//}

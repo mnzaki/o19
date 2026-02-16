@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*"]
+members = ["crates/*", "heartwood/crates/radicle-node"]
 resolver = "2"
 
 [workspace.package]
@@ -14,7 +14,7 @@ rust-version = "1.85.0"
 [workspace.dependencies]
 serde = { version = "1.0", default-features = false }
 serde_json = "1.0"
-thiserror = "1.0"
+thiserror = { version = ">=1.0.50", default-features = false }
 
 reqwest = { version = "0.13.2", features = ["json", "stream"] }
 scraper = "0.22"
@@ -36,13 +36,77 @@ hex = "0.4.3"
 tauri = { version = "2" }
 o19-foundframe = { path = "crates/foundframe" }
 libcaesium = { version = "0.17", features = ["jpg", "webp"] }
-jni = "0.21.1"
 rustls-platform-verifier = "0.6.2"
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio-rustls"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 tauri-plugin = { version = "2", features = ["build"] }
 tauri-build = "2"
+
+amplify = { version = "4.0.0", default-features = false }
+bstr = "1.3"
+bytes = "1.11.1"
+chrono = { version = "0.4.26", default-features = false }
+colored = "2.1.0"
+crossbeam-channel = "0.5.6"
+cyphernet = "0.5.2"
+dunce = "1.0.5"
+fastrand = { version = "2.0.0", default-features = false }
+git2 = { version = "0.19.0", default-features = false, features = ["vendored-libgit2"] }
+gix-hash = { version = "0.19.0", default-features = false }
+human-panic = "2"
+itertools = "0.14"
+lexopt = "0.3.0"
+libc = "0.2.137"
+localtime = "1.2.0"
+log = "0.4.17"
+multibase = "0.9.1"
+nonempty = "0.9.0"
+pretty_assertions = "1.3.0"
+proptest = "1.9"
+qcheck = { version = "1", default-features = false }
+qcheck-macros = { version = "1", default-features = false }
+
+radicle-node = { path = "heartwood/crates/radicle-node" }
+radicle-core = { path = "heartwood/crates/radicle-core" }
+
+radicle = { path = "heartwood/crates/radicle" }
+radicle-fetch = { path = "heartwood/crates/radicle-fetch" }
+radicle-protocol = { path = "heartwood/crates/radicle-protocol" }
+radicle-signals = { path = "heartwood/crates/radicle-signals" }
+radicle-localtime = { path = "heartwood/crates/radicle-localtime" }
+radicle-cli = { path = "heartwood/crates/radicle-cli" }
+radicle-cob = { path = "heartwood/crates/radicle-cob" }
+radicle-crypto = { path = "heartwood/crates/radicle-crypto" }
+radicle-dag = { path = "heartwood/crates/radicle-dag" }
+radicle-git-metadata = { path = "heartwood/crates/radicle-git-metadata", default-features = false }
+radicle-git-ref-format = { path = "heartwood/crates/radicle-git-ref-format", default-features = false }
+radicle-oid = { path = "heartwood/crates/radicle-oid", default-features = false }
+radicle-ssh = { path = "heartwood/crates/radicle-ssh", default-features = false }
+radicle-systemd = { path = "heartwood/crates/radicle-systemd" }
+radicle-term = { path = "heartwood/crates/radicle-term" }
+
+radicle-windows = { path = "heartwood/crates/radicle-windows" }
+uds_windows = "1.1.0"
+windows = "0.62"
+winsplit = "0.1.0"
+
+schemars = { version = "1.0.4", default-features = false }
+shlex = "1.1.0"
+signature = "2.2"
+snapbox = "0.4.3"
+sqlite = { version = "0.37.0", features = ["bundled"] }
+tempfile = "3.3.0"
+winpipe = "0.1.1"
+zeroize = "1.5.7"
+sqlite3-sys = { version = "0.18", features = ["bundled"] }
+
+# Crates from the "radicle-git" workspace. These should be synced manually.
+# When updating, start from `radicle-surf`:
+# `radicle-surf` → `radicle-git-ext` → `git-ref-format` → `git-ref-format-core`
+# Also note that `radicle-surf → git2` so try to also sync with `git2`.
+git-ref-format-core = { version = "0.5.0", default-features = false }
+radicle-surf = "0.25.0"
 
 [workspace.lints]
 clippy.type_complexity = "allow"

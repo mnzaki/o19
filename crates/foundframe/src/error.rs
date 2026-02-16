@@ -15,8 +15,8 @@ pub enum Error {
     #[error("HTTP request failed: {0}")]
     Reqwest(#[from] reqwest::Error),
     
-    #[error("SQL error: {0}")]
-    Sql(#[from] sqlx::Error),
+    #[error("SQLite error: {0}")]
+    Sqlite(String),
     
     #[error("Image processing error: {0}")]
     Image(String),
@@ -47,6 +47,12 @@ pub enum Error {
     
     #[error("Path resolution failed: {0}")]
     PathResolution(String),
+    
+    #[error("Radicle node runtime error: {0}")]
+    Runtime(String),
+    
+    #[error("{0}")]
+    Other(String),
 }
 
 impl From<image::ImageError> for Error {
@@ -54,3 +60,77 @@ impl From<image::ImageError> for Error {
         Error::Image(e.to_string())
     }
 }
+
+impl From<sqlite::Error> for Error {
+    fn from(e: sqlite::Error) -> Self {
+        Error::Sqlite(e.to_string())
+    }
+}
+
+impl From<radicle_node::runtime::Error> for Error {
+    fn from(e: radicle_node::runtime::Error) -> Self {
+        Error::Runtime(e.to_string())
+    }
+}
+
+impl From<radicle::storage::Error> for Error {
+    fn from(e: radicle::storage::Error) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+impl From<radicle::profile::Error> for Error {
+    fn from(e: radicle::profile::Error) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+impl From<radicle::node::Error> for Error {
+    fn from(e: radicle::node::Error) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+impl From<radicle::identity::project::ProjectError> for Error {
+    fn from(e: radicle::identity::project::ProjectError) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+impl From<radicle::git::raw::Error> for Error {
+    fn from(e: radicle::git::raw::Error) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+impl From<radicle::storage::RepositoryError> for Error {
+    fn from(e: radicle::storage::RepositoryError) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+impl From<radicle::profile::config::LoadError> for Error {
+    fn from(e: radicle::profile::config::LoadError) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+impl From<radicle_node::fingerprint::Error> for Error {
+    fn from(e: radicle_node::fingerprint::Error) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+impl From<radicle::node::policy::config::Error> for Error {
+    fn from(e: radicle::node::policy::config::Error) -> Self {
+        Error::Other(e.to_string())
+    }
+}
+
+

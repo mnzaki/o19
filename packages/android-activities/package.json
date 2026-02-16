@@ -4,7 +4,7 @@
   "description": "Android library for o19 apps using the Flutter Add App architecture",
   "type": "module",
   "scripts": {
-    "build": "./gradlew assembleRelease",
+    "build": "true || ./gradlew assembleRelease",
     "build:debug": "./gradlew assembleDebug",
     "clean": "./gradlew clean",
     "publish:local": "./gradlew publishToMavenLocal",
@@ -25,5 +25,8 @@
     "aar"
   ],
   "author": "Circulari.ty",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

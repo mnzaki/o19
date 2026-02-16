@@ -14,9 +14,19 @@ bench = false
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+
+# Radicle dependencies
+radicle = { workspace = true }
+radicle-node = { workspace = true }
+radicle-crypto = { workspace = true }
+radicle-signals = { workspace = true }
+crossbeam-channel = { workspace = true }
+zeroize = { workspace = true }
+walkdir = "2.5"
+log = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 reqwest = { workspace = true, features = ["json", "stream"] }
-sqlx = { workspace = true, features = ["sqlite", "runtime-tokio-rustls"] }
+sqlite = { workspace = true, features = ["bundled"] }
 
 # for media scraping and previewing
 scraper = { workspace = true }
@@ -34,3 +44,6 @@ rand_chacha = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 hex = { workspace = true }
+
+# Emoji identity encoding
+emoji-from-entropy = { path = "../emoji-from-entropy" }

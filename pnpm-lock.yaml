@@ -18,40 +18,6 @@ importers:
         specifier: ^2.8.3
         version: 2.8.3
 
-  apps/DearDiary:
-    dependencies:
-      '@tauri-apps/api':
-        specifier: ^2
-        version: 2.10.1
-      '@tauri-apps/plugin-opener':
-        specifier: ^2
-        version: 2.5.3
-    devDependencies:
-      '@sveltejs/adapter-static':
-        specifier: ^3.0.6
-        version: 3.0.10(@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@5.1.0(svelte@5.46.0)(vite@6.3.5))(svelte@5.46.0)(vite@6.3.5))
-      '@sveltejs/kit':
-        specifier: ^2.9.0
-        version: 2.49.0(@sveltejs/vite-plugin-svelte@5.1.0(svelte@5.46.0)(vite@6.3.5))(svelte@5.46.0)(vite@6.3.5)
-      '@sveltejs/vite-plugin-svelte':
-        specifier: ^5.0.0
-        version: 5.1.0(svelte@5.46.0)(vite@6.3.5)
-      '@tauri-apps/cli':
-        specifier: ^2
-        version: 2.10.0
-      svelte:
-        specifier: ^5.0.0
-        version: 5.46.0
-      svelte-check:
-        specifier: ^4.0.0
-        version: 4.3.0(picomatch@4.0.3)(svelte@5.46.0)(typescript@5.6.3)
-      typescript:
-        specifier: ~5.6.2
-        version: 5.6.3
-      vite:
-        specifier: ^6.0.3
-        version: 6.3.5
-
   apps/docs:
     dependencies:
       '@repo/ui':
@@ -150,7 +116,51 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
 
-  packages/android-activities: {}
+  crates/tauri-plugin-o19-ff:
+    dependencies:
+      '@o19/foundframe':
+        specifier: workspace:*
+        version: link:../../packages/foundframe
+      '@o19/foundframe-drizzle':
+        specifier: workspace:*
+        version: link:../../packages/foundframe-drizzle
+      '@tauri-apps/api':
+        specifier: ^2
+        version: 2.10.1
+      '@tauri-apps/plugin-sql':
+        specifier: ~2.2.0
+        version: 2.2.1
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(better-sqlite3@12.6.2)
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@rollup/plugin-typescript':
+        specifier: ^12.1.2
+        version: 12.3.0(rollup@4.41.1)(tslib@2.8.1)(typescript@5.9.2)
+      concurrently:
+        specifier: ^9.2.1
+        version: 9.2.1
+      rollup:
+        specifier: ^4.40.1
+        version: 4.41.1
+      tslib:
+        specifier: ^2.8.1
+        version: 2.8.1
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.2
+
+  packages/android-activities:
+    devDependencies:
+      concurrently:
+        specifier: ^9.2.1
+        version: 9.2.1
 
   packages/debug:
     dependencies:
@@ -217,46 +227,6 @@ importers:
         version: 0.45.1(better-sqlite3@12.6.2)
       typescript:
         specifier: 5.9.2
-        version: 5.9.2
-
-  packages/tauri-plugin-o19-ff:
-    dependencies:
-      '@o19/foundframe':
-        specifier: workspace:*
-        version: link:../foundframe
-      '@o19/foundframe-drizzle':
-        specifier: workspace:*
-        version: link:../foundframe-drizzle
-      '@tauri-apps/api':
-        specifier: ^2
-        version: 2.10.1
-      '@tauri-apps/plugin-sql':
-        specifier: ~2.2.0
-        version: 2.2.1
-      drizzle-orm:
-        specifier: ^0.45.1
-        version: 0.45.1(better-sqlite3@12.6.2)
-    devDependencies:
-      '@repo/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      '@rollup/plugin-typescript':
-        specifier: ^12.1.2
-        version: 12.3.0(rollup@4.41.1)(tslib@2.8.1)(typescript@5.9.2)
-      concurrently:
-        specifier: ^9.2.1
-        version: 9.2.1
-      rollup:
-        specifier: ^4.40.1
-        version: 4.41.1
-      tslib:
-        specifier: ^2.8.1
-        version: 2.8.1
-      typescript:
-        specifier: ^5.8.3
         version: 5.9.2
 
   packages/typescript-config: {}
@@ -814,11 +784,6 @@ packages:
     peerDependencies:
       '@sveltejs/kit': ^2.0.0
 
-  '@sveltejs/adapter-static@3.0.10':
-    resolution: {integrity: sha512-7D9lYFWJmB7zxZyTE/qxjksvMqzMuYrrsyh1f4AlZqeZeACPRySjbC3aFiY55wb1tWUaKOQG9PVbm74JcN2Iew==}
-    peerDependencies:
-      '@sveltejs/kit': ^2.0.0
-
   '@sveltejs/kit@2.49.0':
     resolution: {integrity: sha512-oH8tXw7EZnie8FdOWYrF7Yn4IKrqTFHhXvl8YxXxbKwTMcD/5NNCryUSEXRk2ZR4ojnub0P8rNrsVGHXWqIDtA==}
     engines: {node: '>=18.13'}
@@ -856,80 +821,6 @@ packages:
 
   '@tauri-apps/api@2.10.1':
     resolution: {integrity: sha512-hKL/jWf293UDSUN09rR69hrToyIXBb8CjGaWC7gfinvnQrBVvnLr08FeFi38gxtugAVyVcTa5/FD/Xnkb1siBw==}
-
-  '@tauri-apps/cli-darwin-arm64@2.10.0':
-    resolution: {integrity: sha512-avqHD4HRjrMamE/7R/kzJPcAJnZs0IIS+1nkDP5b+TNBn3py7N2aIo9LIpy+VQq0AkN8G5dDpZtOOBkmWt/zjA==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@tauri-apps/cli-darwin-x64@2.10.0':
-    resolution: {integrity: sha512-keDmlvJRStzVFjZTd0xYkBONLtgBC9eMTpmXnBXzsHuawV2q9PvDo2x6D5mhuoMVrJ9QWjgaPKBBCFks4dK71Q==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [darwin]
-
-  '@tauri-apps/cli-linux-arm-gnueabihf@2.10.0':
-    resolution: {integrity: sha512-e5u0VfLZsMAC9iHaOEANumgl6lfnJx0Dtjkd8IJpysZ8jp0tJ6wrIkto2OzQgzcYyRCKgX72aKE0PFgZputA8g==}
-    engines: {node: '>= 10'}
-    cpu: [arm]
-    os: [linux]
-
-  '@tauri-apps/cli-linux-arm64-gnu@2.10.0':
-    resolution: {integrity: sha512-YrYYk2dfmBs5m+OIMCrb+JH/oo+4FtlpcrTCgiFYc7vcs6m3QDd1TTyWu0u01ewsCtK2kOdluhr/zKku+KP7HA==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [linux]
-
-  '@tauri-apps/cli-linux-arm64-musl@2.10.0':
-    resolution: {integrity: sha512-GUoPdVJmrJRIXFfW3Rkt+eGK9ygOdyISACZfC/bCSfOnGt8kNdQIQr5WRH9QUaTVFIwxMlQyV3m+yXYP+xhSVA==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [linux]
-
-  '@tauri-apps/cli-linux-riscv64-gnu@2.10.0':
-    resolution: {integrity: sha512-JO7s3TlSxshwsoKNCDkyvsx5gw2QAs/Y2GbR5UE2d5kkU138ATKoPOtxn8G1fFT1aDW4LH0rYAAfBpGkDyJJnw==}
-    engines: {node: '>= 10'}
-    cpu: [riscv64]
-    os: [linux]
-
-  '@tauri-apps/cli-linux-x64-gnu@2.10.0':
-    resolution: {integrity: sha512-Uvh4SUUp4A6DVRSMWjelww0GnZI3PlVy7VS+DRF5napKuIehVjGl9XD0uKoCoxwAQBLctvipyEK+pDXpJeoHng==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-
-  '@tauri-apps/cli-linux-x64-musl@2.10.0':
-    resolution: {integrity: sha512-AP0KRK6bJuTpQ8kMNWvhIpKUkQJfcPFeba7QshOQZjJ8wOS6emwTN4K5g/d3AbCMo0RRdnZWwu67MlmtJyxC1Q==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [linux]
-
-  '@tauri-apps/cli-win32-arm64-msvc@2.10.0':
-    resolution: {integrity: sha512-97DXVU3dJystrq7W41IX+82JEorLNY+3+ECYxvXWqkq7DBN6FsA08x/EFGE8N/b0LTOui9X2dvpGGoeZKKV08g==}
-    engines: {node: '>= 10'}
-    cpu: [arm64]
-    os: [win32]
-
-  '@tauri-apps/cli-win32-ia32-msvc@2.10.0':
-    resolution: {integrity: sha512-EHyQ1iwrWy1CwMalEm9z2a6L5isQ121pe7FcA2xe4VWMJp+GHSDDGvbTv/OPdkt2Lyr7DAZBpZHM6nvlHXEc4A==}
-    engines: {node: '>= 10'}
-    cpu: [ia32]
-    os: [win32]
-
-  '@tauri-apps/cli-win32-x64-msvc@2.10.0':
-    resolution: {integrity: sha512-NTpyQxkpzGmU6ceWBTY2xRIEaS0ZLbVx1HE1zTA3TY/pV3+cPoPPOs+7YScr4IMzXMtOw7tLw5LEXo5oIG3qaQ==}
-    engines: {node: '>= 10'}
-    cpu: [x64]
-    os: [win32]
-
-  '@tauri-apps/cli@2.10.0':
-    resolution: {integrity: sha512-ZwT0T+7bw4+DPCSWzmviwq5XbXlM0cNoleDKOYPFYqcZqeKY31KlpoMW/MOON/tOFBPgi31a2v3w9gliqwL2+Q==}
-    engines: {node: '>= 10'}
-    hasBin: true
-
-  '@tauri-apps/plugin-opener@2.5.3':
-    resolution: {integrity: sha512-CCcUltXMOfUEArbf3db3kCE7Ggy1ExBEBl51Ko2ODJ6GDYHRp1nSNlQm5uNCFY5k7/ufaK5Ib3Du/Zir19IYQQ==}
 
   '@tauri-apps/plugin-sql@2.2.1':
     resolution: {integrity: sha512-+pUl3uNRcIWWhU42bJVf8IUrQ2dCGyi6XUI+RZqyr0xer8BoVc1Gj7WpVvjniL73a5lpXCzs0WYdJuiPUm9gCA==}
@@ -2072,11 +1963,6 @@ packages:
       eslint: ^8.57.0 || ^9.0.0
       typescript: '>=4.8.4 <6.0.0'
 
-  typescript@5.6.3:
-    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
-
   typescript@5.9.2:
     resolution: {integrity: sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==}
     engines: {node: '>=14.17'}
@@ -2550,10 +2436,6 @@ snapshots:
       '@sveltejs/kit': 2.49.0(@sveltejs/vite-plugin-svelte@5.1.0(svelte@5.46.0)(vite@6.3.5))(svelte@5.46.0)(vite@6.3.5)
       import-meta-resolve: 4.1.0
 
-  '@sveltejs/adapter-static@3.0.10(@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@5.1.0(svelte@5.46.0)(vite@6.3.5))(svelte@5.46.0)(vite@6.3.5))':
-    dependencies:
-      '@sveltejs/kit': 2.49.0(@sveltejs/vite-plugin-svelte@5.1.0(svelte@5.46.0)(vite@6.3.5))(svelte@5.46.0)(vite@6.3.5)
-
   '@sveltejs/kit@2.49.0(@sveltejs/vite-plugin-svelte@5.1.0(svelte@5.46.0)(vite@6.3.5))(svelte@5.46.0)(vite@6.3.5)':
     dependencies:
       '@standard-schema/spec': 1.0.0
@@ -2607,57 +2489,6 @@ snapshots:
       - supports-color
 
   '@tauri-apps/api@2.10.1': {}
-
-  '@tauri-apps/cli-darwin-arm64@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-darwin-x64@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-linux-arm-gnueabihf@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-linux-arm64-gnu@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-linux-arm64-musl@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-linux-riscv64-gnu@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-linux-x64-gnu@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-linux-x64-musl@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-win32-arm64-msvc@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-win32-ia32-msvc@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli-win32-x64-msvc@2.10.0':
-    optional: true
-
-  '@tauri-apps/cli@2.10.0':
-    optionalDependencies:
-      '@tauri-apps/cli-darwin-arm64': 2.10.0
-      '@tauri-apps/cli-darwin-x64': 2.10.0
-      '@tauri-apps/cli-linux-arm-gnueabihf': 2.10.0
-      '@tauri-apps/cli-linux-arm64-gnu': 2.10.0
-      '@tauri-apps/cli-linux-arm64-musl': 2.10.0
-      '@tauri-apps/cli-linux-riscv64-gnu': 2.10.0
-      '@tauri-apps/cli-linux-x64-gnu': 2.10.0
-      '@tauri-apps/cli-linux-x64-musl': 2.10.0
-      '@tauri-apps/cli-win32-arm64-msvc': 2.10.0
-      '@tauri-apps/cli-win32-ia32-msvc': 2.10.0
-      '@tauri-apps/cli-win32-x64-msvc': 2.10.0
-
-  '@tauri-apps/plugin-opener@2.5.3':
-    dependencies:
-      '@tauri-apps/api': 2.10.1
 
   '@tauri-apps/plugin-sql@2.2.1':
     dependencies:
@@ -3630,18 +3461,6 @@ snapshots:
     transitivePeerDependencies:
       - picomatch
 
-  svelte-check@4.3.0(picomatch@4.0.3)(svelte@5.46.0)(typescript@5.6.3):
-    dependencies:
-      '@jridgewell/trace-mapping': 0.3.29
-      chokidar: 4.0.3
-      fdir: 6.4.6(picomatch@4.0.3)
-      picocolors: 1.1.1
-      sade: 1.8.1
-      svelte: 5.46.0
-      typescript: 5.6.3
-    transitivePeerDependencies:
-      - picomatch
-
   svelte-check@4.3.0(picomatch@4.0.3)(svelte@5.46.0)(typescript@5.9.2):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.29
@@ -3779,8 +3598,6 @@ snapshots:
       typescript: 5.9.2
     transitivePeerDependencies:
       - supports-color
-
-  typescript@5.6.3: {}
 
   typescript@5.9.2: {}
 

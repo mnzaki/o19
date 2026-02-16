@@ -1,7 +1,7 @@
-use std::{path::PathBuf};
+use std::path::PathBuf;
 
 use serde::de::DeserializeOwned;
-use tauri::{plugin::PluginApi, AppHandle, Runtime, Manager};
+use tauri::{AppHandle, Manager, Runtime, plugin::PluginApi};
 
 use crate::models::*;
 

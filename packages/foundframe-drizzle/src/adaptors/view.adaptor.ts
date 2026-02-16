@@ -8,7 +8,7 @@ import { ViewAdaptor } from '@o19/foundframe/ports';
 import type { ViewPort } from '@o19/foundframe/ports';
 import type { View, CreateView, UpdateView } from '@o19/foundframe/domain';
 import type { StreamEntry } from '@o19/foundframe/domain';
-import { view } from '../schema/index.js';
+import { view } from '../schema.js';
 import type { DrizzleStreamAdaptor } from './stream.adaptor.js';
 
 export class DrizzleViewAdaptor extends ViewAdaptor implements ViewPort {
@@ -23,17 +23,20 @@ export class DrizzleViewAdaptor extends ViewAdaptor implements ViewPort {
     const countResult = await this.db.select({ count: sql<number>`COUNT(*)` }).from(view);
     const viewIndex = countResult[0]?.count ?? 0;
 
-    const result = await this.db.insert(view).values({
-      viewIndex: data.index ?? viewIndex,
-      label: data.label,
-      badge: data.badge,
-      filters: data.filters,
-      sortBy: data.sortBy,
-      isPinned: data.isPinned,
-      isThestream: data.isTheStream,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }).returning();
+    const result = await this.db
+      .insert(view)
+      .values({
+        viewIndex: data.index ?? viewIndex,
+        label: data.label,
+        badge: data.badge,
+        filters: data.filters,
+        sortBy: data.sortBy,
+        isPinned: data.isPinned,
+        isThestream: data.isTheStream,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
 
     return this.toDomain(result[0]);
   }
@@ -45,12 +48,12 @@ export class DrizzleViewAdaptor extends ViewAdaptor implements ViewPort {
 
   async getAll(): Promise<View[]> {
     const results = await this.db.select().from(view).orderBy(asc(view.viewIndex));
-    return results.map(r => this.toDomain(r));
+    return results.map((r) => this.toDomain(r));
   }
 
   async update(id: number, data: UpdateView): Promise<void> {
     const updateData: Partial<typeof view.$inferInsert> = {};
-    
+
     if (data.filters) updateData.filters = data.filters;
     if (data.sortBy) updateData.sortBy = data.sortBy;
     if (data.label !== undefined) updateData.label = data.label;
@@ -86,7 +89,7 @@ export class DrizzleViewAdaptor extends ViewAdaptor implements ViewPort {
   async reorder(viewIds: number[]): Promise<void> {
     const allViews = await this.getAll();
     for (let newIndex = 0; newIndex < viewIds.length; newIndex++) {
-      const viewToMove = allViews.find(v => v.id === viewIds[newIndex]);
+      const viewToMove = allViews.find((v) => v.id === viewIds[newIndex]);
       if (viewToMove) {
         await this.update(viewToMove.id, { index: newIndex });
       }
@@ -101,22 +104,28 @@ export class DrizzleViewAdaptor extends ViewAdaptor implements ViewPort {
     }
 
     // Create TheStream (View 0)
-    const thestream = await this.db.insert(view).values({
-      viewIndex: 0,
-      label: 'Stream',
-      badge: 'FEED',
-      filters: {},
-      sortBy: 'recent',
-      isPinned: true,
-      isThestream: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }).returning();
+    const thestream = await this.db
+      .insert(view)
+      .values({
+        viewIndex: 0,
+        label: 'Stream',
+        badge: 'FEED',
+        filters: {},
+        sortBy: 'recent',
+        isPinned: true,
+        isThestream: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
 
     return this.toDomain(thestream[0]);
   }
 
-  async queryStream(viewId: number, pagination?: { limit?: number; offset?: number }): Promise<StreamEntry[]> {
+  async queryStream(
+    viewId: number,
+    pagination?: { limit?: number; offset?: number }
+  ): Promise<StreamEntry[]> {
     if (!this.streamAdaptor) {
       throw new Error('StreamAdaptor not provided to ViewAdaptor');
     }
@@ -130,7 +139,7 @@ export class DrizzleViewAdaptor extends ViewAdaptor implements ViewPort {
       dateRange: viewConfig.filters.dateRange,
       chunkTypes: viewConfig.filters.chunkTypes,
       sortBy: viewConfig.sortBy,
-      pagination,
+      pagination
     });
   }
 
@@ -145,7 +154,7 @@ export class DrizzleViewAdaptor extends ViewAdaptor implements ViewPort {
       isPinned: row.isPinned,
       isTheStream: row.isThestream,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt ?? undefined,
+      updatedAt: row.updatedAt ?? undefined
     };
   }
 }

@@ -1,5 +1,5 @@
 use caesium::error::CaesiumError;
-use serde::{ser::Serializer, Serialize};
+use serde::{Serialize, ser::Serializer};
 use std::path::PathBuf;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -41,6 +41,21 @@ pub enum Error {
 
   #[error("Core error: {0}")]
   Core(#[from] o19_foundframe::Error),
+
+  #[error("Database error: {0}")]
+  Database(#[from] foundframe_to_sql::error::Error),
+
+  #[error("SQL error: {0}")]
+  Sql(String),
+
+  #[error("{0}")]
+  Other(String),
+}
+
+impl From<sqlite::Error> for Error {
+  fn from(e: sqlite::Error) -> Self {
+    Error::Sql(e.to_string())
+  }
 }
 
 impl Serialize for Error {

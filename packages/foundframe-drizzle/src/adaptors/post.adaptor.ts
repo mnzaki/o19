@@ -7,7 +7,7 @@ import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { PostAdaptor } from '@o19/foundframe/ports';
 import type { PostPort } from '@o19/foundframe/ports';
 import type { Post, CreatePost, UpdatePost, PostFilters } from '@o19/foundframe/domain';
-import { post } from '../schema/index.js';
+import { post } from '../schema.js';
 
 export class DrizzlePostAdaptor extends PostAdaptor implements PostPort {
   constructor(private db: BaseSQLiteDatabase<any, any>) {
@@ -15,12 +15,15 @@ export class DrizzlePostAdaptor extends PostAdaptor implements PostPort {
   }
 
   async create(data: CreatePost): Promise<Post> {
-    const result = await this.db.insert(post).values({
-      bits: data.bits,
-      links: data.links ?? [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }).returning();
+    const result = await this.db
+      .insert(post)
+      .values({
+        bits: data.bits,
+        links: data.links ?? [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
 
     return this.toDomain(result[0]);
   }
@@ -32,10 +35,10 @@ export class DrizzlePostAdaptor extends PostAdaptor implements PostPort {
 
   async update(id: number, data: UpdatePost): Promise<void> {
     const updateData: Partial<typeof post.$inferInsert> = {};
-    
+
     if (data.bits) updateData.bits = data.bits;
     if (data.links) updateData.links = data.links;
-    
+
     updateData.updatedAt = new Date();
 
     await this.db.update(post).set(updateData).where(eq(post.id, id));
@@ -65,22 +68,24 @@ export class DrizzlePostAdaptor extends PostAdaptor implements PostPort {
     let query2 = query.orderBy(desc(post.createdAt));
 
     const results = await query2;
-    return results.map(r => this.toDomain(r));
+    return results.map((r) => this.toDomain(r));
   }
 
   async searchByKeyword(keyword: string): Promise<Post[]> {
     const all = await this.query();
     const lowerKeyword = keyword.toLowerCase();
 
-    return all.filter(post =>
+    return all.filter((post) =>
       post.bits.some((bit: any) => {
         if (bit.type === 'text') {
           return bit.content?.toLowerCase().includes(lowerKeyword);
         }
         if (bit.type === 'link') {
-          return bit.url?.toLowerCase().includes(lowerKeyword) ||
-                 bit.preview?.title?.toLowerCase().includes(lowerKeyword) ||
-                 bit.preview?.description?.toLowerCase().includes(lowerKeyword);
+          return (
+            bit.url?.toLowerCase().includes(lowerKeyword) ||
+            bit.preview?.title?.toLowerCase().includes(lowerKeyword) ||
+            bit.preview?.description?.toLowerCase().includes(lowerKeyword)
+          );
         }
         return false;
       })
@@ -101,7 +106,7 @@ export class DrizzlePostAdaptor extends PostAdaptor implements PostPort {
       authorDid: row.authorDid ?? undefined,
       signature: row.signature ?? undefined,
       createdAt: row.createdAt,
-      modifiedAt: row.updatedAt ?? undefined,
+      modifiedAt: row.updatedAt ?? undefined
     };
   }
 }

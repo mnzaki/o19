@@ -88,6 +88,17 @@ CREATE TABLE `session_state` (
 	`updated_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `sync_log` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`directory` text NOT NULL,
+	`started_at` integer NOT NULL,
+	`completed_at` integer,
+	`entries_pulled` integer DEFAULT 0,
+	`entries_pushed` integer DEFAULT 0,
+	`error` text,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `thestream` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`seen_at` integer NOT NULL,
@@ -96,8 +107,10 @@ CREATE TABLE `thestream` (
 	`media_id` integer,
 	`bookmark_id` integer,
 	`conversation_id` integer,
-	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL,
-	`updated_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL
+	`directory` text,
+	`kind` text,
+	`content_hash` text,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5)*86400000 as integer)) NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `view` (
