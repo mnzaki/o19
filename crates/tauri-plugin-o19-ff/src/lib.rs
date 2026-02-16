@@ -1,46 +1,38 @@
-//! tauri-plugin-o19-ff: The thinnest possible Tauri layer.
+//! tauri-plugin-o19-ff: Platform-agnostic Tauri layer.
 //!
-//! This plugin is glue. It contains no domain logic, no business rules, no decisions.
-//! It only wires together components that do:
-//!
-//! - `o19_foundframe`: The domain layer (PKB, TheStream™, events)
-//! - `foundframe_to_sql`: The database adapter (event listener → SQLite)
+//! This plugin is glue. It contains no domain logic - all operations are
+//! delegated to the Platform implementation:
+//! - Desktop: Direct foundframe integration
+//! - Android: Binder IPC to RemoteFoundframe service
+//! - iOS: Not implemented (stub)
 //!
 //! # Architecture
 //!
 //! ```text
 //! Frontend (Svelte/Drizzle)
-//!     ↓ SQL queries
-//! tauri-plugin-o19-ff (this crate)
-//!     ↓ EventBus
-//! o19_foundframe::TheStream™
-//!     ↓ converts
-//! TheStreamEvent
-//!     ↓
-//! foundframe_to_sql
-//!     ↓
-//! SQLite
+//!     ↓ Tauri commands
+//! tauri-plugin-o19-ff
+//!     ↓ Platform trait
+//! ┌─────────────┬─────────────┬─────────────┐
+//! │   Desktop   │   Android   │    iOS      │
+//! │  (direct)   │  (Binder)   │  (stub)     │
+//! └─────────────┴─────────────┴─────────────┘
 //! ```
-//!
-//! # Philosophy
-//!
-//! > "The plugin is the foreigner; the domain is native."
-//!
-//! This layer exists only because Tauri requires it. All meaningful code lives
-//! in foundframe crates. This plugin is the thinnest possible wrapper that
-//! bridges Tauri's world to our domain.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use tauri::{
-  Manager, Runtime,
+  Emitter, Manager, Runtime,
   plugin::{Builder, TauriPlugin},
 };
-use tracing::info;
+use tracing::{debug, error, info};
 
 use o19_foundframe::signal::EventBus;
+use o19_foundframe::thestream::TheStream;
 
 pub use models::*;
+pub use platform::{Platform, PairingQrResponse, ScannedPairingData, PairedDeviceInfo};
 
 #[cfg(desktop)]
 mod desktop;
@@ -50,46 +42,57 @@ mod mobile;
 mod commands;
 mod error;
 mod models;
+mod platform;
 pub mod sql_proxy;
 
 pub use error::{Error, Result};
 
-#[cfg(desktop)]
-use desktop::Platform;
-#[cfg(mobile)]
-use mobile::Platform;
+
 
 /// Extension trait for accessing plugin state.
 pub trait O19Extension<R: Runtime> {
-  /// Access the platform-specific implementation.
-  fn platform(&self) -> &Platform<R>;
+  /// Access the platform implementation.
+  fn platform(&self) -> &dyn Platform;
 
   /// Access the event bus.
   fn events(&self) -> &EventBus;
 
   /// Access the database.
   fn db(&self) -> &foundframe_to_sql::Database;
+
+  /// Access TheStream for adding content.
+  fn stream(&self) -> &TheStream;
+
+  /// Get the database path.
+  fn db_path(&self) -> PathBuf;
 }
 
 impl<R: Runtime, T: Manager<R>> O19Extension<R> for T {
-  fn platform(&self) -> &Platform<R> {
-    &self.state::<AppState<R>>().inner().platform
+  fn platform(&self) -> &dyn Platform {
+    &*self.state::<AppState>().inner().platform
   }
 
   fn events(&self) -> &EventBus {
-    &self.state::<AppState<R>>().inner().events
+    &self.state::<AppState>().inner().events
   }
 
   fn db(&self) -> &foundframe_to_sql::Database {
-    &self.state::<AppState<R>>().inner().db
+    &self.state::<AppState>().inner().db
+  }
+
+  fn stream(&self) -> &TheStream {
+    self.state::<AppState>().inner().platform.stream()
+  }
+
+  fn db_path(&self) -> PathBuf {
+    self.state::<AppState>().inner().db_path.clone()
   }
 }
 
 /// Application state managed by the plugin.
-pub struct AppState<R: Runtime> {
-  /// Platform-specific functionality.
-  #[allow(dead_code)]
-  platform: Arc<Platform<R>>,
+pub struct AppState {
+  /// Platform-specific implementation.
+  platform: Arc<dyn Platform>,
 
   /// Event bus for component communication.
   events: EventBus,
@@ -97,9 +100,8 @@ pub struct AppState<R: Runtime> {
   /// Database connection.
   db: foundframe_to_sql::Database,
 
-  /// Handle to keep TheStream listener alive.
-  #[allow(dead_code)]
-  _stream_listener: o19_foundframe::thestream::ListenerHandle,
+  /// Database path for SQL proxy.
+  db_path: PathBuf,
 
   /// Handle to keep SQL adapter listener alive.
   #[allow(dead_code)]
@@ -112,75 +114,115 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     .invoke_handler(tauri::generate_handler![
       commands::ping,
       commands::run_sql,
+      commands::add_text_note,
+      commands::add_post,
+      commands::add_bookmark,
+      commands::add_media_link,
+      commands::subscribe_stream_events,
       commands::url_preview_json,
       commands::html_preview_json,
       commands::media_preview_json,
       commands::convert_jpeg_to_webp,
       commands::compress_webp_to_size,
-      commands::request_permissions
+      commands::request_permissions,
+      // Device pairing commands
+      commands::generate_pairing_qr,
+      commands::parse_pairing_url,
+      commands::confirm_pairing,
+      commands::check_followers_and_pair,
+      commands::list_paired_devices,
+      commands::unpair_device,
     ])
     .setup(|app, api| {
+      // Initialize logging first
+      o19_foundframe::setup_logging();
+
       info!("Initializing o19-ff plugin...");
 
-      // Initialize platform layer
+      // Initialize platform implementation
       #[cfg(mobile)]
       let platform = mobile::init(app, api)?;
       #[cfg(desktop)]
       let platform = desktop::init(app, api)?;
 
-      // Set up paths
       let app_data_dir = app.path().app_data_dir()?;
-      let pkb_path = app_data_dir.join("pkb");
       let db_path = app_data_dir.join("deardiary.db");
-
-      info!("PKB path: {:?}", pkb_path);
       info!("Database path: {:?}", db_path);
 
-      // Create shared event bus
-      let events = EventBus::new();
-
-      // Initialize database and run migrations
+      // Initialize database (same on all platforms)
       let db = foundframe_to_sql::Database::open(&db_path)?;
-      let sql_adapter = foundframe_to_sql::StreamToSql::new(db.clone(), events.clone());
+      let sql_adapter = foundframe_to_sql::StreamToSql::new(db.clone(), platform.event_bus().clone());
       sql_adapter.migrate()?;
       info!("Database migrations complete");
 
-      // Start SQL adapter listening to TheStream events
+      // Start SQL adapter listening to events
       let sql_listener = sql_adapter.start();
       info!("SQL adapter started");
 
-      // TODO: Initialize foundframe PKB service properly
-      // This requires setting up the Radicle node, device pairing, etc.
-      // For now, we create a minimal TheStream that only emits local events
+      // Clone event bus before moving platform
+      let events = platform.event_bus().clone();
 
-      // Create a dummy PkbService for now - this will be replaced
-      // when we have proper device initialization
-      // let pkb = o19_foundframe::pkb::PkbService::new(...)?;
-
-      // For now, TheStream is not fully initialized
-      // TODO: Once PkbService is ready:
-      // let stream = TheStream::with_pubkey(pkb, events.clone(), device_pubkey);
-      // let stream_listener = stream.start_listening();
-
-      // Placeholder listener that does nothing
-      let stream_listener = o19_foundframe::thestream::ListenerHandle {
-        _handle: std::thread::spawn(|| {}),
-      };
-      info!("TheStream placeholder initialized");
+      // Set up event forwarding to frontend
+      setup_event_forwarding(app, &events)?;
 
       // Manage all state
-      app.manage(AppState::<R> {
+      app.manage(AppState {
         platform: Arc::new(platform),
         events,
         db,
-        _stream_listener: stream_listener,
+        db_path: db_path.clone(),
         _sql_listener: sql_listener,
       });
 
       info!("o19-ff plugin initialized successfully");
       Ok(())
     })
+    .on_event(|app: &tauri::AppHandle<R>, event| {
+      if let tauri::RunEvent::Exit = event {
+        info!("Received Exit event, shutting down...");
+
+        if let Some(state) = app.try_state::<AppState>() {
+          if let Err(e) = state.platform.shutdown() {
+            error!("Error during platform shutdown: {}", e);
+          } else {
+            info!("Platform shut down successfully");
+          }
+        }
+      }
+    })
     .build()
+}
+
+/// Set up forwarding of events to the frontend via Tauri events.
+fn setup_event_forwarding<R: Runtime>(
+  app: &tauri::AppHandle<R>,
+  events: &EventBus,
+) -> Result<()> {
+  use o19_foundframe::thestream::TheStreamEvent;
+
+  let rx = events.subscribe::<TheStreamEvent>();
+  let app_handle = app.clone();
+
+  std::thread::spawn(move || {
+    while let Ok(event) = rx.recv() {
+      let event_type = match &event {
+        TheStreamEvent::ChunkAdded { .. } => "chunk-added",
+        TheStreamEvent::EntryPulled { .. } => "entry-pulled",
+        TheStreamEvent::ChunkUpdated { .. } => "chunk-updated",
+        TheStreamEvent::ChunkRemoved { .. } => "chunk-removed",
+        TheStreamEvent::SyncStarted { .. } => "sync-started",
+        TheStreamEvent::SyncCompleted { .. } => "sync-completed",
+        TheStreamEvent::SyncFailed { .. } => "sync-failed",
+      };
+
+      if let Err(e) = app_handle.emit(event_type, event) {
+        error!("Failed to emit stream event to frontend: {}", e);
+      }
+    }
+  });
+
+  debug!("Event forwarding to frontend set up");
+  Ok(())
 }
 
 // Android JNI initialization

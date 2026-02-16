@@ -23,6 +23,10 @@ rustls-platform-verifier = { workspace = true }
 sqlite = { workspace = true, features = ["bundled"] }
 tracing = { workspace = true }
 
+# Android-only: connect to FoundframeRadicle singleton service
+[target.'cfg(target_os = "android")'.dependencies]
+android-activities = { path = "../../crates/android-activities" }
+
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }
 tauri-build = { workspace = true }

@@ -1,5 +1,4 @@
-use crate::sql_proxy;
-use crate::{Error, O19Extension, Result, models::*};
+use crate::{Error, O19Extension, Result, models::*, sql_proxy};
 use caesium::{
   SupportedFileTypes, compress_to_size_in_memory, convert_in_memory, parameters::CSParameters,
 };
@@ -16,18 +15,108 @@ pub(crate) async fn run_sql<R: Runtime>(
   app: AppHandle<R>,
   query: sql_proxy::SqlQuery,
 ) -> Result<Vec<sql_proxy::SqlRow>> {
-  let db_path = app
-    .path()
-    .app_config_dir()
-    .map(|p| p.join("deardiary.db"))?;
+  let db = app.db().clone();
 
-  // Execute SQL synchronously (sqlite crate is sync) then return result
-  let result = std::thread::spawn(move || sql_proxy::execute_sql(&db_path, query))
+  let result = std::thread::spawn(move || sql_proxy::execute_sql_with_db(db, query))
     .join()
     .map_err(|e| Error::Other(format!("SQL execution panicked: {:?}", e)))?;
 
   Ok(result?)
 }
+
+// ============================================================================
+// TheStream Commands - Adding content to the stream
+// ============================================================================
+
+#[tauri::command]
+pub(crate) async fn add_text_note<R: Runtime>(
+  app: AppHandle<R>,
+  directory: String,
+  content: String,
+  title: Option<String>,
+  subpath: Option<String>,
+) -> Result<StreamEntryResult> {
+  let stream = app.stream();
+
+  let entry = stream.add_text_note(directory, subpath.as_deref(), content, title.as_deref())?;
+
+  Ok(StreamEntryResult {
+    id: entry.id,
+    seen_at: entry.seen_at,
+    reference: entry.reference,
+  })
+}
+
+#[tauri::command]
+pub(crate) async fn add_post<R: Runtime>(
+  app: AppHandle<R>,
+  content: String,
+  title: Option<String>,
+) -> Result<StreamEntryResult> {
+  let stream = app.stream();
+
+  let entry = stream.add_post(content, title.as_deref())?;
+
+  Ok(StreamEntryResult {
+    id: entry.id,
+    seen_at: entry.seen_at,
+    reference: entry.reference,
+  })
+}
+
+#[tauri::command]
+pub(crate) async fn add_bookmark<R: Runtime>(
+  app: AppHandle<R>,
+  url: String,
+  title: Option<String>,
+  notes: Option<String>,
+) -> Result<StreamEntryResult> {
+  let stream = app.stream();
+
+  let entry = stream.add_bookmark(url, title.as_deref(), notes.as_deref())?;
+
+  Ok(StreamEntryResult {
+    id: entry.id,
+    seen_at: entry.seen_at,
+    reference: entry.reference,
+  })
+}
+
+#[tauri::command]
+pub(crate) async fn add_media_link<R: Runtime>(
+  app: AppHandle<R>,
+  directory: String,
+  url: String,
+  title: Option<String>,
+  mime_type: Option<String>,
+  subpath: Option<String>,
+) -> Result<StreamEntryResult> {
+  let stream = app.stream();
+
+  let entry = stream.add_media_link(
+    directory,
+    subpath.as_deref(),
+    url,
+    title.as_deref(),
+    mime_type.as_deref(),
+  )?;
+
+  Ok(StreamEntryResult {
+    id: entry.id,
+    seen_at: entry.seen_at,
+    reference: entry.reference,
+  })
+}
+
+/// Subscribe to stream events from the frontend.
+#[tauri::command]
+pub(crate) async fn subscribe_stream_events<R: Runtime>(_app: AppHandle<R>) -> Result<String> {
+  Ok("Subscribed to stream events".to_string())
+}
+
+// ============================================================================
+// Preview Commands
+// ============================================================================
 
 #[tauri::command]
 pub(crate) async fn url_preview_json<R: Runtime>(
@@ -39,7 +128,6 @@ pub(crate) async fn url_preview_json<R: Runtime>(
   let media_dir = app_data_dir.join("media");
   let thumb_dir = app_data_dir.join("thumbnails");
 
-  // Ensure directories exist
   std::fs::create_dir_all(&media_dir)?;
   std::fs::create_dir_all(&thumb_dir)?;
 
@@ -61,12 +149,15 @@ pub(crate) async fn media_preview_json<R: Runtime>(
   let media_dir = app_data_dir.join("media");
   let thumb_dir = app_data_dir.join("thumbnails");
 
-  // Ensure directories exist
   std::fs::create_dir_all(&media_dir)?;
   std::fs::create_dir_all(&thumb_dir)?;
 
   Ok(preview::media::process_url(&media_dir, &thumb_dir, &url).await?)
 }
+
+// ============================================================================
+// Media Processing Commands
+// ============================================================================
 
 #[tauri::command]
 pub(crate) async fn convert_jpeg_to_webp<R: Runtime>(
@@ -92,9 +183,64 @@ pub(crate) async fn compress_webp_to_size<R: Runtime>(
   Ok(compressed)
 }
 
+// ============================================================================
+// Permission Commands
+// ============================================================================
+
 #[tauri::command]
 pub(crate) async fn request_permissions<R: Runtime>(
-  app_handle: AppHandle<R>,
+  app: AppHandle<R>,
 ) -> Result<NotificationPermissionStatus> {
-  app_handle.platform().request_permissions()
+  app.platform().request_permissions()
+}
+
+// ============================================================================
+// Device Pairing Commands - Delegated to Platform
+// ============================================================================
+
+#[tauri::command]
+pub(crate) async fn generate_pairing_qr<R: Runtime>(
+  app: AppHandle<R>,
+  device_name: String,
+) -> Result<PairingQrResponse> {
+  app.platform().generate_pairing_qr(device_name)
+}
+
+#[tauri::command]
+pub(crate) async fn parse_pairing_url<R: Runtime>(
+  app: AppHandle<R>,
+  url: String,
+) -> Result<ScannedPairingData> {
+  app.platform().parse_pairing_url(url)
+}
+
+#[tauri::command]
+pub(crate) async fn confirm_pairing<R: Runtime>(
+  app: AppHandle<R>,
+  node_id_hex: String,
+  alias: String,
+) -> Result<PairedDeviceInfo> {
+  app.platform().confirm_pairing(node_id_hex, alias)
+}
+
+#[tauri::command]
+pub(crate) async fn list_paired_devices<R: Runtime>(
+  app: AppHandle<R>,
+) -> Result<Vec<PairedDeviceInfo>> {
+  app.platform().list_paired_devices()
+}
+
+#[tauri::command]
+pub(crate) async fn check_followers_and_pair<R: Runtime>(
+  app: AppHandle<R>,
+) -> Result<Vec<PairedDeviceInfo>> {
+  app.platform().check_followers_and_pair()
+}
+
+#[tauri::command]
+pub(crate) async fn unpair_device<R: Runtime>(
+  app: AppHandle<R>,
+  node_id_hex: String,
+) -> Result<()> {
+  app.platform().unpair_device(node_id_hex)
 }

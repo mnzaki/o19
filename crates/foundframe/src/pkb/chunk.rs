@@ -66,7 +66,8 @@ impl MediaLink {
 }
 
 /// Types of StreamChunks that can be ingested.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum StreamChunk {
     /// Media link - stored as .mln file.
     MediaLink {

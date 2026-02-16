@@ -6,3 +6,10 @@ description = "Emoji-encoded public key identities for Circulari.ty"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+rand = "0.8"
+
+[dev-dependencies]
+
+[[bin]]
+name = "emoji-from-entropy"
+path = "src/main.rs"

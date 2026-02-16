@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-  namespace = "ty.circulari.o19.ffi"
+  namespace = "ty.circulari.o19.ff"
   compileSdk = 34
 
   defaultConfig {

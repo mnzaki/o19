@@ -41,3 +41,25 @@ peer-to-peer applications, and this is its Tauri adaptor.
 │                 The ViewModel for the UI                    │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+
+## Flow of Setup
+
+```
+  Tauri Plugin Setup
+      ↓
+  o19_foundframe::init()          ← Single entry point
+      ↓
+  Starts Radicle node runtime     ← In background thread
+      ↓
+  Returns Foundframe { node_handle, events, ... }
+      ↓
+  foundframe.create_pkb_service() ← Uses node's profile for PKB path
+      ↓
+  TheStream::with_pubkey(pkb, events, pubkey)
+      ↓
+  StreamToSql adapter             ← Listens to TheStream events
+      ↓
+  SQLite                          ← Drizzle queries this
+```
+

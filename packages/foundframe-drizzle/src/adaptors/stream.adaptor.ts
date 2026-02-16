@@ -285,7 +285,6 @@ export class DrizzleStreamAdaptor extends StreamAdaptor implements StreamPort {
       seenAt: row.seenAt,
       chunk,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt ?? undefined
     };
   }
 }

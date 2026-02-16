@@ -7,6 +7,17 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    
+    <!-- Permission for binding to the Radicle service -->
+    <permission
+        android:name="ty.circulari.o19.BIND_FOUNDFRAME_RADICLE"
+        android:label="Bind to Foundframe Radicle Service"
+        android:description="Allows apps to bind to the o19 Foundframe Radicle singleton service"
+        android:protectionLevel="signature|normal" />
+    
+    <uses-permission android:name="ty.circulari.o19.BIND_FOUNDFRAME_RADICLE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application>
         <!--
@@ -90,5 +101,24 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+        
+        <!--
+            FoundframeRadicleService
+            
+            Singleton service running the Radicle node in a separate process.
+            Provides Binder IPC access to o19-foundframe functionality.
+            Auto-restarts if killed (START_STICKY).
+        -->
+        <service
+            android:name=".service.FoundframeRadicleService"
+            android:process=":foundframe"
+            android:exported="true"
+            android:permission="ty.circulari.o19.BIND_FOUNDFRAME_RADICLE"
+            android:foregroundServiceType="dataSync"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="ty.circulari.o19.IFoundframeRadicle" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

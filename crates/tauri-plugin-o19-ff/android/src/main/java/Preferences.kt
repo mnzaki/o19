@@ -1,4 +1,4 @@
-package ty.circulari.o19.ffi
+package ty.circulari.o19.ff
 
 import android.content.Context
 

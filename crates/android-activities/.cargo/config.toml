@@ -1,0 +1,14 @@
+# Cargo configuration for Android builds
+# This ensures we build for Android targets, not host
+
+[build]
+# Don't set a default target - we'll specify via cargo-ndk
+
+[target.aarch64-linux-android]
+linker = "aarch64-linux-android27-clang"
+
+[target.armv7-linux-androideabi]
+linker = "armv7a-linux-androideabi27-clang"
+
+[target.x86_64-linux-android]
+linker = "x86_64-linux-android27-clang"

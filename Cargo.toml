@@ -42,6 +42,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 tauri-plugin = { version = "2", features = ["build"] }
 tauri-build = "2"
+rsbinder = { version = "0.6.0", features = ["android_11_plus"] }
 
 amplify = { version = "4.0.0", default-features = false }
 bstr = "1.3"

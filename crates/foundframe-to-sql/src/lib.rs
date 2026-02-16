@@ -27,19 +27,28 @@ use o19_foundframe::thestream::{StreamEntry, TheStreamEvent};
 pub mod error;
 pub use error::{Error, Result};
 
+include!(concat!(env!("OUT_DIR"), "/generated_migrations.rs"));
+
 /// Database connection wrapper.
 #[derive(Clone)]
 pub struct Database {
   db: Arc<sql::ConnectionThreadSafe>,
+  path: Option<std::path::PathBuf>,
 }
 
 impl Database {
   /// Open a database at the given path.
   pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
-    let db = sql::Connection::open_thread_safe(path)?;
+    let path = path.as_ref();
+    info!("Opening database at: {:?}", path);
+    let db = sql::Connection::open_thread_safe(&path)?;
     db.execute("PRAGMA foreign_keys = ON")?;
+    info!("Database opened successfully");
 
-    Ok(Self { db: Arc::new(db) })
+    Ok(Self {
+      db: Arc::new(db),
+      path: Some(path.to_path_buf()),
+    })
   }
 
   /// Create an in-memory database (for testing).
@@ -47,7 +56,15 @@ impl Database {
     let db = sql::Connection::open_thread_safe(":memory:")?;
     db.execute("PRAGMA foreign_keys = ON")?;
 
-    Ok(Self { db: Arc::new(db) })
+    Ok(Self {
+      db: Arc::new(db),
+      path: None,
+    })
+  }
+
+  /// Get the database path (if not in-memory).
+  pub fn db_path(&self) -> Option<&std::path::Path> {
+    self.path.as_deref()
   }
 
   /// Get database version.
@@ -171,8 +188,8 @@ impl StreamToSql {
     source_device: Option<&str>,
   ) -> Result<()> {
     let mut stmt = db.db.prepare(
-      "INSERT INTO thestream 
-             (seen_at, directory, commit_hash, reference, from_remote, source_device, 
+      "INSERT INTO thestream
+             (seen_at, directory, commit_hash, reference, from_remote, source_device,
               kind, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )?;
@@ -203,7 +220,7 @@ impl StreamToSql {
     // For now, just update the commit_hash and updated_at
     // In the future, this could update polymorphic FKs based on chunk type
     let mut stmt = db.db.prepare(
-      "UPDATE thestream 
+      "UPDATE thestream
              SET commit_hash = ?, updated_at = ?
              WHERE reference = ?",
     )?;
@@ -232,16 +249,72 @@ impl StreamToSql {
   /// Run migrations to create/update schema.
   pub fn migrate(&self) -> Result<()> {
     let migrations = MIGRATIONS;
+
+    // Defensive: check if migrations are actually loaded
+    if migrations.is_empty() {
+      warn!("No migrations found! Database schema will not be created.");
+      return Ok(());
+    }
+
     let current_version = self.db.version()?;
 
+    info!(
+      "Starting migrations. Current DB version: {}, Available migrations: {}",
+      current_version,
+      migrations.len()
+    );
+
+    // Debug: print first migration size
+    info!("First migration size: {} bytes", migrations[0].len());
+
     for (i, migration) in migrations.iter().enumerate() {
-      let version = i as i64;
+      let version = i as i64 + 1;
       if version > current_version {
-        info!("Running migration {}...", version);
-        self.db.db.execute(migration)?;
+        info!(
+          "Running migration {} ({} bytes)...",
+          version,
+          migration.len()
+        );
+
+        // Split migration by statement breakpoints and execute each statement
+        // Drizzle generates migrations with "--> statement-breakpoint" comments
+        let statements: Vec<&str> = migration
+          .split("--> statement-breakpoint")
+          .map(|s| s.trim())
+          .filter(|s| !s.is_empty())
+          .collect();
+
+        info!(
+          "Migration {} contains {} statements",
+          version,
+          statements.len()
+        );
+
+        for (j, stmt) in statements.iter().enumerate() {
+          debug!("Executing statement {} in migration {}", j, version);
+          if let Err(e) = self.db.db.execute(stmt) {
+            error!(
+              "Failed to execute statement {} in migration {}: {}",
+              j, version, e
+            );
+            return Err(e.into());
+          }
+        }
+
         self.db.set_version(version)?;
+        info!(
+          "Migration {} complete. DB version now: {}",
+          version, version
+        );
+      } else {
+        debug!("Skipping migration {} (already applied)", version);
       }
     }
+
+    info!(
+      "Migrations complete. Final DB version: {}",
+      self.db.version()?
+    );
 
     Ok(())
   }
@@ -259,9 +332,6 @@ fn now_millis() -> i64 {
     .unwrap_or_default()
     .as_millis() as i64
 }
-
-/// SQL migrations.
-include!(concat!(env!("OUT_DIR"), "/generated_migrations.rs"));
 
 #[cfg(test)]
 mod tests {
