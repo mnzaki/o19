@@ -116,13 +116,13 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
 
-  crates/android-activities:
+  crates/android:
     devDependencies:
       concurrently:
         specifier: ^9.2.1
         version: 9.2.1
 
-  crates/tauri-plugin-o19-ff:
+  crates/foundframe-tauri:
     dependencies:
       '@o19/foundframe-drizzle':
         specifier: workspace:*

@@ -1,0 +1,159 @@
+/**
+ * o19-android
+ * 
+ * Android library package for o19 apps
+ * Provides activities for handling platform-specific intents (share, etc.)
+ * that can be launched from Tauri-based apps.
+ */
+
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'ty.circulari.o19'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "0.1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+        
+        // Only include 64-bit ABIs (rsbinder has issues on 32-bit)
+        ndk {
+            abiFilters 'arm64-v8a', 'x86_64'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    
+    // CameraX
+    def camerax_version = "1.3.3"
+    implementation "androidx.camera:camera-core:$camerax_version"
+    implementation "androidx.camera:camera-camera2:$camerax_version"
+    implementation "androidx.camera:camera-lifecycle:$camerax_version"
+    implementation "androidx.camera:camera-view:$camerax_version"
+    
+    // ML Kit for QR scanning
+    implementation 'com.google.mlkit:barcode-scanning:17.2.0'
+    
+    // Tauri Android bindings
+    compileOnly project(':tauri-android')
+    
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
+
+// Rust/Cargo integration
+// Requires cargo-ndk: cargo install cargo-ndk
+// NOTE: rsbinder only compiles for Android targets, not host!
+android {
+    sourceSets {
+        main {
+            // Java/Kotlin sources are in android/java (not src/main/java)
+            java.srcDirs = ['./android/java']
+            // Resources are in android/res
+            res.srcDirs = ['./android/res']
+            // AIDL files are in android/aidl
+            aidl.srcDirs = ['./android/aidl']
+            // JNI libs
+            jniLibs.srcDirs = ['./android/jniLibs']
+            // Assets
+            assets.srcDirs = ['./android/assets']
+            // Manifest
+            manifest.srcFile './android/AndroidManifest.xml'
+        }
+    }
+}
+
+// Task to build Rust code using cargo-ndk
+// IMPORTANT: Only builds for Android targets, never for host
+tasks.register('buildRust', Exec) {
+    group = 'build'
+    description = 'Build Rust code for Android targets (rsbinder requires Android ABI)'
+    
+    // Check prerequisites
+    doFirst {
+        if (!System.getenv('ANDROID_NDK_HOME') && !System.getenv('ANDROID_NDK_ROOT')) {
+            throw new GradleException(
+                'ANDROID_NDK_HOME or ANDROID_NDK_ROOT not set!\n' +
+                'Install NDK: sdkmanager "ndk;27.0.12077973"\n' +
+                'Then set: export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973'
+            )
+        }
+    }
+    
+    // Build for 64-bit Android targets only
+    // rsbinder has platform-specific code that fails on 32-bit targets
+    commandLine 'cargo', 'ndk',
+        '-t', 'arm64-v8a',      // Most modern Android devices (64-bit ARM)
+        '-t', 'x86_64',         // Emulators (64-bit x86)
+        '-o', './android/jniLibs',
+        'build', '--release'
+    
+    // Ensure Cargo.toml exists
+    onlyIf {
+        file('Cargo.toml').exists()
+    }
+    
+    // Rerun when Rust source changes
+    inputs.files(fileTree('src').include('**/*.rs'))
+    inputs.file('Cargo.toml')
+    outputs.dir('./android/jniLibs')
+}
+
+// Run Rust build before Java build
+preBuild.dependsOn buildRust
+
+// Clean Rust build when cleaning project
+tasks.register('cleanRust', Delete) {
+    group = 'build'
+    description = 'Clean Rust build artifacts'
+    delete './android/jniLibs'
+    delete './target'
+}
+clean.dependsOn cleanRust
+
+// AAR publishing configuration
+//afterEvaluate {
+//    publishing {
+//        publications {
+//            release(MavenPublication) {
+//                from components.release
+//                groupId = 'ty.circulari'
+//                artifactId = 'o19-android'
+//                version = '0.1.0'
+//            }
+//        }
+//    }
+//}

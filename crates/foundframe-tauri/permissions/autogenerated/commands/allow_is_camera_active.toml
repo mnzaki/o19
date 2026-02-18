@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-allow-is-camera-active"
+description = "Enables the allow_is_camera_active command without any pre-configured scope."
+commands.allow = ["allow_is_camera_active"]
+
+[[permission]]
+identifier = "deny-allow-is-camera-active"
+description = "Denies the allow_is_camera_active command without any pre-configured scope."
+commands.deny = ["allow_is_camera_active"]

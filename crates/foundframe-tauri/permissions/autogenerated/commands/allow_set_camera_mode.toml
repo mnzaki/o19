@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-allow-set-camera-mode"
+description = "Enables the allow_set_camera_mode command without any pre-configured scope."
+commands.allow = ["allow_set_camera_mode"]
+
+[[permission]]
+identifier = "deny-allow-set-camera-mode"
+description = "Denies the allow_set_camera_mode command without any pre-configured scope."
+commands.deny = ["allow_set_camera_mode"]

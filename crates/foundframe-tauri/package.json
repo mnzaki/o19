@@ -1,0 +1,42 @@
+{
+  "name": "@o19/foundframe-tauri",
+  "version": "0.1.0",
+  "author": "Circulari.ty",
+  "description": "Tauri bindings and foundframe implementation for o19 apps",
+  "type": "module",
+  "types": "./js-dist/index.d.ts",
+  "main": "./js-dist/index.cjs",
+  "module": "./js-dist/index.js",
+  "exports": {
+    "types": "./js-dist/index.d.ts",
+    "import": "./js-dist/index.js",
+    "require": "./js-dist/index.cjs"
+  },
+  "files": [
+    "js-dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "command -v bacon || cargo install bacon && bacon dev",
+    "tauri:dev": "rollup -cw",
+    "tauri:android:dev": "rollup -cw",
+    "tauri:android:dev:verbose": "rollup -cw",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@o19/foundframe-front": "workspace:*",
+    "@o19/foundframe-drizzle": "workspace:*",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-sql": "~2.2.0",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "concurrently": "^9.2.1",
+    "rollup": "^4.40.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.3"
+  }
+}

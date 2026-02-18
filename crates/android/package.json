@@ -1,0 +1,32 @@
+{
+  "name": "@o19/android",
+  "version": "0.1.0",
+  "description": "Android library for o19 apps using the Flutter Add App architecture",
+  "type": "module",
+  "scripts": {
+    "build": "true || ./gradlew assembleRelease",
+    "build:debug": "./gradlew assembleDebug",
+    "clean": "./gradlew clean",
+    "publish:local": "./gradlew publishToMavenLocal",
+    "tauri:android:dev:tokio_debug": "../debug/scripts/android_tokio_console.sh"
+  },
+  "files": [
+    "build/outputs/aar/*.aar",
+    "src/",
+    "build.gradle",
+    "settings.gradle",
+    "README.md"
+  ],
+  "keywords": [
+    "android",
+    "tauri",
+    "share",
+    "intent",
+    "aar"
+  ],
+  "author": "Circulari.ty",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

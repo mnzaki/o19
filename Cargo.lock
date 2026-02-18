@@ -137,7 +137,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "android-activities"
+name = "android"
 version = "0.9.0"
 dependencies = [
  "async-trait",
@@ -4112,6 +4112,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "o19-foundframe-tauri"
+version = "0.1.0"
+dependencies = [
+ "android",
+ "base64 0.22.1",
+ "foundframe-to-sql",
+ "jni",
+ "libcaesium",
+ "o19-foundframe",
+ "radicle",
+ "reqwest",
+ "rustls-platform-verifier",
+ "serde",
+ "serde_json",
+ "sqlite",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
 name = "objc2"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7068,29 +7091,6 @@ dependencies = [
  "tauri-utils",
  "toml 0.9.12+spec-1.1.0",
  "walkdir",
-]
-
-[[package]]
-name = "tauri-plugin-o19-ff"
-version = "0.1.0"
-dependencies = [
- "android-activities",
- "base64 0.22.1",
- "foundframe-to-sql",
- "jni",
- "libcaesium",
- "o19-foundframe",
- "radicle",
- "reqwest",
- "rustls-platform-verifier",
- "serde",
- "serde_json",
- "sqlite",
- "tauri",
- "tauri-build",
- "tauri-plugin",
- "thiserror 2.0.18",
- "tracing",
 ]
 
 [[package]]

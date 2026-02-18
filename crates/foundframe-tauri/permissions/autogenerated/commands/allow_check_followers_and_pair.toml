@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-allow-check-followers-and-pair"
+description = "Enables the allow_check_followers_and_pair command without any pre-configured scope."
+commands.allow = ["allow_check_followers_and_pair"]
+
+[[permission]]
+identifier = "deny-allow-check-followers-and-pair"
+description = "Denies the allow_check_followers_and_pair command without any pre-configured scope."
+commands.deny = ["allow_check_followers_and_pair"]

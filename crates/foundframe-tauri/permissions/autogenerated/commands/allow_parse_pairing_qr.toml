@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-allow-parse-pairing-qr"
+description = "Enables the allow_parse_pairing_qr command without any pre-configured scope."
+commands.allow = ["allow_parse_pairing_qr"]
+
+[[permission]]
+identifier = "deny-allow-parse-pairing-qr"
+description = "Denies the allow_parse_pairing_qr command without any pre-configured scope."
+commands.deny = ["allow_parse_pairing_qr"]

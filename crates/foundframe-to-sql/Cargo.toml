@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 # Our crates
 o19-foundframe = { path = "../foundframe" }
 
-# SQLite (same as tauri-plugin-o19-ff uses)
+# SQLite (same as @o19/foundframe-tauri uses)
 sqlite = { workspace = true }
 
 # Async runtime

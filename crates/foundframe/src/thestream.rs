@@ -155,7 +155,7 @@ pub struct TheStream {
 /// When dropped, the listener thread will be joined (blocking until complete).
 pub struct ListenerHandle {
   /// The underlying thread handle.
-  /// This is pub(crate) so tauri-plugin-o19-ff can create placeholder handles.
+  /// This is pub(crate) so @o19/foundframe-tauri can create placeholder handles.
   #[doc(hidden)]
   pub _handle: std::thread::JoinHandle<()>,
 }

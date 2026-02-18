@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-allow-list-paired-devices"
+description = "Enables the allow_list_paired_devices command without any pre-configured scope."
+commands.allow = ["allow_list_paired_devices"]
+
+[[permission]]
+identifier = "deny-allow-list-paired-devices"
+description = "Denies the allow_list_paired_devices command without any pre-configured scope."
+commands.deny = ["allow_list_paired_devices"]

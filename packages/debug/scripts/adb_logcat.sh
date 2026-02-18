@@ -1,5 +1,9 @@
 #!/bin/bash
 
 # TODO grab app names from turbo
-#exec adb logcat -T 1 | grep --color=always -E "(RustStdoutStderr|DearDiary|MeStreamm)"
-exec adb logcat -T 1 | grep --color=always -E "RustStdoutStderr"
+
+if [ "$1" = "-f" ]; then
+  exec adb logcat -T 1 | grep --color=always -E "(RustStdoutStderr|DearDiary|MeStreamm)"
+else
+  exec adb logcat -T 1 | grep --color=always -E "RustStdoutStderr"
+fi

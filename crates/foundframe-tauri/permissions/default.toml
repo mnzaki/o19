@@ -1,0 +1,26 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Default permissions for the plugin"
+permissions = [
+  "allow-ping",
+  "allow-url-preview-json",
+  "allow-html-preview-json",
+  "allow-media-preview-json",
+  "allow-compress-webp-to-size",
+  "allow-convert-jpeg-to-webp",
+  "allow-request-permissions",
+  "allow-start-camera",
+  "allow-stop-camera",
+  "allow-capture-photo",
+  "allow-set-camera-mode",
+  "allow-is-camera-active",
+  "allow-request-camera-permissions",
+  "allow-check-camera-permissions",
+  "allow-generate-pairing-qr",
+  "allow-parse-pairing-qr",
+  "allow-confirm-pairing",
+  "allow-list-paired-devices",
+  "allow-check-followers-and-pair",
+  "allow-unpair-device",
+]
