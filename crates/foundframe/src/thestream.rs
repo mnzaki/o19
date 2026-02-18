@@ -142,13 +142,13 @@ pub enum TheStreamEvent {
 /// 3. Provides the API for adding content
 pub struct TheStream {
   /// Reference to the PKB service.
-  pkb: PkbService,
+  pub(crate) pkb: PkbService,
 
   /// Event bus for emitting TheStream™ events.
-  events: EventBus,
+  pub(crate) events: EventBus,
 
   /// This device's emoji identity (for URL generation).
-  identity: EmojiIdentity,
+  pub(crate) identity: EmojiIdentity,
 }
 
 /// Handle to a running listener.
@@ -182,7 +182,7 @@ impl TheStream {
   }
 
   /// Get the filesystem path for a directory.
-  fn dir_path(&self, directory: &DirectoryId) -> Result<std::path::PathBuf> {
+  pub(crate) fn dir_path(&self, directory: &DirectoryId) -> Result<std::path::PathBuf> {
     // Access through the base
     // TODO: This is a temporary workaround - PkbService needs to expose this
     Ok(std::path::PathBuf::from(format!(
@@ -193,7 +193,7 @@ impl TheStream {
   }
 
   /// Get the current HEAD commit hash.
-  fn get_head_commit(&self, directory: &DirectoryId) -> Result<String> {
+  pub(crate) fn get_head_commit(&self, directory: &DirectoryId) -> Result<String> {
     use radicle::git;
 
     let dir_path = self.dir_path(directory)?;
@@ -370,209 +370,8 @@ impl TheStream {
     Ok((entry, entry_id))
   }
 
-  //===========================================================================
-  // Specialized addition methods
-  //===========================================================================
-
-  /// Add a text note to the PKB.
-  ///
-  /// # Arguments
-  /// * `directory` - Which directory (e.g., "notes", "diary")
-  /// * `subpath` - Optional subdirectory path (e.g., "2024/January")
-  /// * `content` - The note content (markdown)
-  /// * `title` - Optional title for the filename
-  pub fn add_text_note(
-    &self,
-    directory: DirectoryId,
-    subpath: Option<&str>,
-    content: impl Into<String>,
-    title: Option<&str>,
-  ) -> Result<StreamEntry> {
-    let chunk = StreamChunk::TextNote {
-      content: content.into(),
-      title: title.map(|s| s.to_string()),
-    };
-
-    let filename = chunk.generate_filename(crate::pkb::now_timestamp(), title);
-
-    let path = match subpath {
-      Some(sub) => PathBuf::from(sub).join(filename),
-      None => PathBuf::from(filename),
-    };
-
-    self.add_chunk(directory, path, chunk)
-  }
-
-  /// Add a media link to the PKB.
-  ///
-  /// # Arguments
-  /// * `directory` - Which directory (e.g., "screenshots", "memes")
-  /// * `subpath` - Optional subdirectory path
-  /// * `url` - The media URL
-  /// * `title` - Optional title/description
-  /// * `mime_type` - Optional MIME type hint
-  pub fn add_media_link(
-    &self,
-    directory: DirectoryId,
-    subpath: Option<&str>,
-    url: impl Into<String>,
-    title: Option<&str>,
-    mime_type: Option<&str>,
-  ) -> Result<StreamEntry> {
-    let chunk = StreamChunk::MediaLink {
-      url: url.into(),
-      mime_type: mime_type.map(|s| s.to_string()),
-      title: title.map(|s| s.to_string()),
-    };
-
-    let filename = chunk.generate_filename(crate::pkb::now_timestamp(), title);
-
-    let path = match subpath {
-      Some(sub) => PathBuf::from(sub).join(filename),
-      None => PathBuf::from(filename),
-    };
-
-    self.add_chunk(directory, path, chunk)
-  }
-
-  /// Add structured data to the PKB.
-  ///
-  /// This is the escape hatch for any data type that maps to a database table.
-  ///
-  /// # Arguments
-  /// * `directory` - Which directory
-  /// * `subpath` - Optional subdirectory path
-  /// * `db_type` - The database type (e.g., "Post", "Bookmark", "Person")
-  /// * `data` - The data as JSON (should match the db_type schema)
-  /// * `title` - Optional title for filename
-  pub fn add_structured_data(
-    &self,
-    directory: DirectoryId,
-    subpath: Option<&str>,
-    db_type: impl Into<String>,
-    data: serde_json::Value,
-    title: Option<&str>,
-  ) -> Result<StreamEntry> {
-    let chunk = StreamChunk::StructuredData {
-      db_type: db_type.into(),
-      data,
-    };
-
-    let filename = chunk.generate_filename(crate::pkb::now_timestamp(), title);
-
-    let path = match subpath {
-      Some(sub) => PathBuf::from(sub).join(filename),
-      None => PathBuf::from(filename),
-    };
-
-    self.add_chunk(directory, path, chunk)
-  }
-
-  /// Add a post to the PKB (convenience wrapper).
-  ///
-  /// Posts go to the "posts" directory by default.
-  pub fn add_post(&self, content: impl Into<String>, title: Option<&str>) -> Result<StreamEntry> {
-    // TODO: Get the posts directory ID
-    // For now, use a default
-    let directory = DirectoryId::from("posts");
-
-    let content = content.into();
-    let data = serde_json::json!({
-        "bits": [{"type": "text", "content": content}],
-        "links": [],
-    });
-
-    self.add_structured_data(directory, None, "Post", data, title)
-  }
-
-  /// Add a bookmark to the PKB (convenience wrapper).
-  pub fn add_bookmark(
-    &self,
-    url: impl Into<String>,
-    title: Option<&str>,
-    notes: Option<&str>,
-  ) -> Result<StreamEntry> {
-    let directory = DirectoryId::from("bookmarks");
-
-    let data = serde_json::json!({
-        "url": url.into(),
-        "title": title,
-        "notes": notes,
-        "creation_context": {},
-    });
-
-    self.add_structured_data(directory, None, "Bookmark", data, title)
-  }
-
-  /// Add a person to the PKB (convenience wrapper).
-  pub fn add_person(
-    &self,
-    display_name: impl Into<String>,
-    handle: Option<&str>,
-  ) -> Result<StreamEntry> {
-    let directory = DirectoryId::from("people");
-
-    let data = serde_json::json!({
-        "display_name": display_name.into(),
-        "handle": handle,
-        "metadata": {},
-    });
-
-    self.add_structured_data(directory, None, "Person", data, None)
-  }
-
-  /// Add a media entry to the PKB (convenience wrapper).
-  ///
-  /// This creates both a media file AND a media link entry.
-  pub fn add_media(&self, file_path: &std::path::Path, title: Option<&str>) -> Result<StreamEntry> {
-    // TODO: Copy file to media directory, generate content hash
-    // For now, just create a media link
-    let directory = DirectoryId::from("media");
-    let url = format!("file://{}", file_path.display());
-
-    self.add_media_link(directory, None, url, title, None)
-  }
-
-  /// Record that "I saw this thing" - creates a StreamEntry referencing existing content.
-  ///
-  /// This is how content from other repos enters TheStream™.
-  ///
-  /// # Arguments
-  /// * `reference` - PKB URL to the content (e.g., "pkb://🌲😀🍕/notes/diary/2024/My Day.js.md")
-  pub fn see(&self, reference: &str) -> Result<StreamEntry> {
-    // Parse the reference to extract directory and path
-    let (directory, path, commit_hash) = self.parse_pkb_url(reference)?;
-
-    // Create a stream entry without ingesting new content
-    let entry = StreamEntry {
-      id: None,
-      seen_at: crate::pkb::now_timestamp() * 1000,
-      commit_hash,
-      reference: reference.to_string(),
-      summary: None, // Could fetch and extract from referenced content
-    };
-
-    // Emit event
-    // Note: We don't have the actual chunk here, just the reference
-    // The database layer will need to resolve this
-    self.events.emit(TheStreamEvent::ChunkAdded {
-      entry: entry.clone(),
-      chunk: StreamChunk::TextNote {
-        content: String::new(), // Placeholder - reference only
-        title: None,
-      },
-      directory,
-    });
-
-    Ok(entry)
-  }
-
-  //===========================================================================
-  // Helpers
-  //===========================================================================
-
   /// Build a PKB URL for a given path.
-  fn build_pkb_url(
+  pub(crate) fn build_pkb_url(
     &self,
     directory: &DirectoryId,
     path: &std::path::Path,
@@ -589,7 +388,7 @@ impl TheStream {
   }
 
   /// Parse a PKB URL into components.
-  fn parse_pkb_url(&self, url: &str) -> Result<(DirectoryId, PathBuf, String)> {
+  pub(crate) fn parse_pkb_url(&self, url: &str) -> Result<(DirectoryId, PathBuf, String)> {
     let parsed = emoji_from_entropy::url::PkbUrl::parse(url)
       .map_err(|e| Error::Other(format!("Failed to parse PKB URL: {}", e)))?;
 
@@ -601,7 +400,7 @@ impl TheStream {
   }
 
   /// Extract a summary from a chunk for quick display.
-  fn extract_summary(chunk: &StreamChunk) -> Option<StreamSummary> {
+  pub(crate) fn extract_summary(chunk: &StreamChunk) -> Option<StreamSummary> {
     match chunk {
       StreamChunk::MediaLink { url, title, .. } => Some(StreamSummary {
         title: title.clone().unwrap_or_else(|| "Media".to_string()),
@@ -637,6 +436,40 @@ impl TheStream {
   pub fn events(&self) -> &EventBus {
     &self.events
   }
+}
+
+/// Record that "I saw this thing" - creates a StreamEntry referencing existing content.
+///
+/// This is how content from other repos enters TheStream™.
+///
+/// # Arguments
+/// * `reference` - PKB URL to the content (e.g., "pkb://🌲😀🍕/notes/diary/2024/My Day.js.md")
+pub fn see(thestream: &TheStream, reference: &str) -> Result<StreamEntry> {
+  // Parse the reference to extract directory and path
+  let (directory, path, commit_hash) = thestream.parse_pkb_url(reference)?;
+
+  // Create a stream entry without ingesting new content
+  let entry = StreamEntry {
+    id: None,
+    seen_at: crate::pkb::now_timestamp() * 1000,
+    commit_hash,
+    reference: reference.to_string(),
+    summary: None, // Could fetch and extract from referenced content
+  };
+
+  // Emit event
+  // Note: We don't have the actual chunk here, just the reference
+  // The database layer will need to resolve this
+  thestream.events.emit(TheStreamEvent::ChunkAdded {
+    entry: entry.clone(),
+    chunk: StreamChunk::TextNote {
+      content: String::new(), // Placeholder - reference only
+      title: None,
+    },
+    directory,
+  });
+
+  Ok(entry)
 }
 
 //===========================================================================

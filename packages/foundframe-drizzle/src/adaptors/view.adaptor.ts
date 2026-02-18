@@ -4,10 +4,10 @@
 
 import { eq, asc, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import { ViewAdaptor } from '@o19/foundframe/ports';
-import type { ViewPort } from '@o19/foundframe/ports';
-import type { View, CreateView, UpdateView } from '@o19/foundframe/domain';
-import type { StreamEntry } from '@o19/foundframe/domain';
+import { ViewAdaptor } from '@o19/foundframe-front/ports';
+import type { ViewPort } from '@o19/foundframe-front/ports';
+import type { View, CreateView, UpdateView } from '@o19/foundframe-front/domain';
+import type { StreamEntry } from '@o19/foundframe-front/domain';
 import { view } from '../schema.js';
 import type { DrizzleStreamAdaptor } from './stream.adaptor.js';
 

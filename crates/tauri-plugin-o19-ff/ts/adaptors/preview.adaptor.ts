@@ -4,8 +4,8 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { PreviewAdaptor } from '@o19/foundframe';
-import type { PreviewPort, PreviewMetadata } from '@o19/foundframe';
+import { PreviewAdaptor } from '@o19/foundframe-front';
+import type { PreviewPort, PreviewMetadata } from '@o19/foundframe-front';
 
 type HtmlPreviewJSON = {
   title?: string;

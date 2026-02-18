@@ -4,9 +4,9 @@
 
 import { eq, desc, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import { PersonAdaptor } from '@o19/foundframe/ports';
-import type { PersonPort } from '@o19/foundframe/ports';
-import type { Person, CreatePerson, UpdatePerson } from '@o19/foundframe/domain';
+import { PersonAdaptor } from '@o19/foundframe-front/ports';
+import type { PersonPort } from '@o19/foundframe-front/ports';
+import type { Person, CreatePerson, UpdatePerson } from '@o19/foundframe-front/domain';
 import { person } from '../schema.js';
 
 export class DrizzlePersonAdaptor extends PersonAdaptor implements PersonPort {

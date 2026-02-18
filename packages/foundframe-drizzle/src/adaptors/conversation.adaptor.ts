@@ -4,10 +4,10 @@
 
 import { eq, and } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import { ConversationAdaptor } from '@o19/foundframe/ports';
-import type { ConversationPort } from '@o19/foundframe/ports';
-import type { Conversation, CreateConversation, UpdateConversation } from '@o19/foundframe/domain';
-import type { ConversationRole } from '@o19/foundframe';
+import { ConversationAdaptor } from '@o19/foundframe-front/ports';
+import type { ConversationPort } from '@o19/foundframe-front/ports';
+import type { Conversation, CreateConversation, UpdateConversation } from '@o19/foundframe-front/domain';
+import type { ConversationRole } from '@o19/foundframe-front';
 import { conversation, conversationParticipant, conversationMedia } from '../schema.js';
 
 export class DrizzleConversationAdaptor extends ConversationAdaptor implements ConversationPort {

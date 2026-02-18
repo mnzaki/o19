@@ -25,7 +25,7 @@ pub(crate) async fn run_sql<R: Runtime>(
 }
 
 // ============================================================================
-// TheStream Commands - Adding content to the stream
+// TheStream Commands - Adding content to the stream (via Platform)
 // ============================================================================
 
 #[tauri::command]
@@ -36,15 +36,7 @@ pub(crate) async fn add_text_note<R: Runtime>(
   title: Option<String>,
   subpath: Option<String>,
 ) -> Result<StreamEntryResult> {
-  let stream = app.stream();
-
-  let entry = stream.add_text_note(directory, subpath.as_deref(), content, title.as_deref())?;
-
-  Ok(StreamEntryResult {
-    id: entry.id,
-    seen_at: entry.seen_at,
-    reference: entry.reference,
-  })
+  app.platform().add_text_note(directory, content, title, subpath)
 }
 
 #[tauri::command]
@@ -53,15 +45,7 @@ pub(crate) async fn add_post<R: Runtime>(
   content: String,
   title: Option<String>,
 ) -> Result<StreamEntryResult> {
-  let stream = app.stream();
-
-  let entry = stream.add_post(content, title.as_deref())?;
-
-  Ok(StreamEntryResult {
-    id: entry.id,
-    seen_at: entry.seen_at,
-    reference: entry.reference,
-  })
+  app.platform().add_post(content, title)
 }
 
 #[tauri::command]
@@ -71,15 +55,7 @@ pub(crate) async fn add_bookmark<R: Runtime>(
   title: Option<String>,
   notes: Option<String>,
 ) -> Result<StreamEntryResult> {
-  let stream = app.stream();
-
-  let entry = stream.add_bookmark(url, title.as_deref(), notes.as_deref())?;
-
-  Ok(StreamEntryResult {
-    id: entry.id,
-    seen_at: entry.seen_at,
-    reference: entry.reference,
-  })
+  app.platform().add_bookmark(url, title, notes)
 }
 
 #[tauri::command]
@@ -91,21 +67,25 @@ pub(crate) async fn add_media_link<R: Runtime>(
   mime_type: Option<String>,
   subpath: Option<String>,
 ) -> Result<StreamEntryResult> {
-  let stream = app.stream();
+  app.platform().add_media_link(directory, url, title, mime_type, subpath)
+}
 
-  let entry = stream.add_media_link(
-    directory,
-    subpath.as_deref(),
-    url,
-    title.as_deref(),
-    mime_type.as_deref(),
-  )?;
+#[tauri::command]
+pub(crate) async fn add_person<R: Runtime>(
+  app: AppHandle<R>,
+  display_name: String,
+  handle: Option<String>,
+) -> Result<StreamEntryResult> {
+  app.platform().add_person(display_name, handle)
+}
 
-  Ok(StreamEntryResult {
-    id: entry.id,
-    seen_at: entry.seen_at,
-    reference: entry.reference,
-  })
+#[tauri::command]
+pub(crate) async fn add_conversation<R: Runtime>(
+  app: AppHandle<R>,
+  conversation_id: String,
+  title: Option<String>,
+) -> Result<StreamEntryResult> {
+  app.platform().add_conversation(conversation_id, title)
 }
 
 /// Subscribe to stream events from the frontend.

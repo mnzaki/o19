@@ -186,7 +186,7 @@ export {
   PostService,
   BookmarkService,
   ConversationService,
-  StreamService,
+  TheStreamService,
   ViewService,
   PreviewService,
   createServices,
@@ -203,4 +203,4 @@ export type {
 // ============================================
 
 export const FOUNDFRAME_VERSION = '0.1.0';
-export const FOUNDFRAME_NAME = '@o19/foundframe';
+export const FOUNDFRAME_NAME = '@o19/foundframe-front';

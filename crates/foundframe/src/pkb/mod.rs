@@ -34,6 +34,7 @@ pub mod chunk;
 pub mod directory;
 pub mod entry;
 pub mod merge;
+pub mod radicle;
 pub mod service;
 
 pub use chunk::{ChunkId, EntryId, MediaLink, StreamChunk};
@@ -44,8 +45,8 @@ pub use service::PkbService;
 
 /// Timestamp helper - current time in seconds since epoch.
 pub(crate) fn now_timestamp() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
+  std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap_or_default()
+    .as_secs()
 }

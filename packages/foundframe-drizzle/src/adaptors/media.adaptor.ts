@@ -4,9 +4,9 @@
 
 import { eq } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import { MediaAdaptor } from '@o19/foundframe/ports';
-import type { MediaPort } from '@o19/foundframe/ports';
-import type { Media, CreateMedia, UpdateMedia } from '@o19/foundframe/domain';
+import { MediaAdaptor } from '@o19/foundframe-front/ports';
+import type { MediaPort } from '@o19/foundframe-front/ports';
+import type { Media, CreateMedia, UpdateMedia } from '@o19/foundframe-front/domain';
 import { media } from '../schema.js';
 
 export class DrizzleMediaAdaptor extends MediaAdaptor implements MediaPort {

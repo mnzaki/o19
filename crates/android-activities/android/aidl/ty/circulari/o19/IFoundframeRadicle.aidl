@@ -22,6 +22,27 @@ interface IFoundframeRadicle {
     boolean confirmPairing(String deviceId, String code);
     void unpairDevice(String deviceId);
     
+    // Write operations - Content creation
+    // All return the PKB URL reference to the created content
+    
+    // Add a post to the stream
+    String addPost(String content, String title);
+    
+    // Add a bookmark to the stream
+    String addBookmark(String url, String title, String notes);
+    
+    // Add a media link to the stream
+    String addMediaLink(String directory, String url, String title, String mimeType, String subpath);
+    
+    // Add a person to the stream
+    String addPerson(String displayName, String handle);
+    
+    // Add a conversation to the stream
+    String addConversation(String conversationId, String title);
+    
+    // Add a text note to a specific directory
+    String addTextNote(String directory, String content, String title, String subpath);
+    
     // Event subscription (serialized callbacks for simplicity)
     oneway void subscribeEvents(IEventCallback callback);
     oneway void unsubscribeEvents(IEventCallback callback);

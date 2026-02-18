@@ -22,7 +22,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@o19/foundframe": "workspace:*",
+    "@o19/foundframe-front": "workspace:*",
     "@o19/foundframe-drizzle": "workspace:*",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-sql": "~2.2.0",

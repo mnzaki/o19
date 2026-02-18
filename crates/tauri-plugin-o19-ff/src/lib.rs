@@ -118,6 +118,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::add_post,
       commands::add_bookmark,
       commands::add_media_link,
+      commands::add_person,
+      commands::add_conversation,
       commands::subscribe_stream_events,
       commands::url_preview_json,
       commands::html_preview_json,

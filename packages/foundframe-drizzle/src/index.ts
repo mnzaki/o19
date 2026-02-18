@@ -4,19 +4,19 @@
  * Drizzle ORM implementation of foundframe ports.
  *
  * This package provides concrete database implementations using Drizzle ORM
- * for SQLite. It implements all the ports defined in @o19/foundframe.
+ * for SQLite. It implements all the ports defined in @o19/foundframe-front.
  *
  * Usage:
  * ```typescript
  * import { createDrizzleAdaptors } from '@o19/foundframe-drizzle';
- * import { createServices } from '@o19/foundframe';
+ * import { createServices } from '@o19/foundframe-front';
  *
  * const adaptors = createDrizzleAdaptors(db);
  * const services = createServices(adaptors);
  * ```
  */
 
-// Re-export from foundframe for convenience
+// Re-export from foundframe-front for convenience
 export type {
   // Domain entities
   Person,
@@ -42,7 +42,7 @@ export type {
   ViewPort,
   // Services
   DomainServices
-} from '@o19/foundframe';
+} from '@o19/foundframe-front';
 
 export {
   // Service classes
@@ -51,11 +51,11 @@ export {
   PostService,
   BookmarkService,
   ConversationService,
-  StreamService,
+  TheStreamService,
   ViewService,
   createServices,
   createDomainServicesAsync
-} from '@o19/foundframe';
+} from '@o19/foundframe-front';
 
 // Drizzle-specific exports
 export {

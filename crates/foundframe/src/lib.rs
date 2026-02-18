@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
 
 use tracing::{debug, error, info};
@@ -8,13 +8,21 @@ pub mod device;
 pub mod error;
 pub mod pkb;
 pub mod preview;
-pub mod radicle;
 pub mod signal;
+
+// TheStream™ and entity modules
+pub mod bookmark;
+pub mod conversation;
+pub mod media;
+pub mod person;
+pub mod post;
 pub mod thestream;
 
 pub mod log;
 
 pub use error::{Error, Result};
+
+use pkb::radicle;
 
 /// Configuration for initializing Foundframe.
 #[derive(Debug, Clone)]
@@ -81,6 +89,9 @@ pub struct Foundframe {
 
   /// PKB base path (if configured).
   pkb_base: Option<std::path::PathBuf>,
+
+  /// TheStream instance (lazily initialized).
+  thestream: Mutex<Option<thestream::TheStream>>,
 }
 
 impl Foundframe {
@@ -129,13 +140,60 @@ impl Foundframe {
       self.events.clone(),
     )
   }
+
+  /// Execute a function with TheStream (lazily initialized on first call).
+  ///
+  /// This provides access to content creation operations like adding posts,
+  /// bookmarks, media links, etc.
+  ///
+  /// # Example
+  /// ```
+  /// let entry = foundframe.with_thestream(|stream| {
+  ///   stream.add_post("Hello world", None)
+  /// })?;
+  /// ```
+  ///
+  /// # Errors
+  /// Returns an error if PKB base path was not configured during initialization,
+  /// or if the provided function returns an error.
+  pub fn with_thestream<T, E, F>(&self, f: F) -> std::result::Result<T, E>
+  where
+    F: FnOnce(&thestream::TheStream) -> std::result::Result<T, E>,
+    E: From<Error>,
+  {
+    let mut guard = self.thestream.lock().unwrap();
+
+    if guard.is_none() {
+      // Initialize TheStream lazily
+      let pkb = self.create_pkb_service().map_err(|e| E::from(e))?;
+      let device_pubkey = [0u8; 32]; // TODO: Get from KERI when available
+      let stream = thestream::TheStream::with_pubkey(pkb, self.events.clone(), device_pubkey);
+      *guard = Some(stream);
+    }
+
+    let stream = guard
+      .as_ref()
+      .ok_or_else(|| E::from(Error::Other("Failed to initialize TheStream".into())))?;
+
+    f(stream)
+  }
+
+  /// Get TheStream reference if already initialized.
+  ///
+  /// This is a lower-level API that doesn't initialize TheStream.
+  /// Use `with_thestream` for lazy initialization.
+  pub fn thestream_if_initialized(
+    &self,
+  ) -> Option<std::sync::MutexGuard<'_, Option<thestream::TheStream>>> {
+    self.thestream.lock().ok()
+  }
 }
 
 /// Initialize the Foundframe runtime.
 ///
 /// This starts the Radicle node in a background thread and sets up event forwarding.
 /// The returned Foundframe holds handles to all components.
-/// 
+///
 /// The optional `on_runtime_exit` callback is called when the Radicle runtime stops
 /// (e.g., due to SIGINT). This can be used to trigger application exit.
 pub fn init(
@@ -175,11 +233,11 @@ pub fn init(
   let runtime_thread = std::thread::spawn(move || {
     info!("Starting Radicle node runtime...");
     let result = runtime.run();
-    
+
     match result {
       Ok(()) => {
         info!("Radicle node runtime stopped cleanly");
-        
+
         // Only exit the app on clean shutdown (e.g., from SIGINT/SIGTERM)
         // Don't exit if the runtime crashed - let the app handle that
         if let Some(callback) = on_runtime_exit {
@@ -208,6 +266,7 @@ pub fn init(
     node_handle,
     events,
     pkb_base: options.pkb_base,
+    thestream: Mutex::new(None),
   })
 }
 
@@ -219,22 +278,22 @@ impl Foundframe {
   /// to avoid hanging the process.
   pub fn shutdown(mut self) -> Result<()> {
     use std::time::Duration;
-    
+
     ::log::info!("Shutting down Foundframe...");
-    
+
     // Drop the node handle to close any connections
     drop(self.node_handle);
-    
+
     // Wait for the runtime thread to finish, but with a timeout
     if let Some(thread) = self.runtime_thread.take() {
       ::log::info!("Waiting for runtime thread to finish (max 3s)...");
-      
+
       // Use a channel-based timeout approach since JoinHandle::join() doesn't have timeout
       let (tx, rx) = std::sync::mpsc::channel();
       std::thread::spawn(move || {
         let _ = tx.send(thread.join());
       });
-      
+
       match rx.recv_timeout(Duration::from_secs(3)) {
         Ok(Ok(())) => ::log::info!("Runtime thread finished cleanly"),
         Ok(Err(_)) => ::log::warn!("Runtime thread panicked"),
@@ -246,7 +305,7 @@ impl Foundframe {
         }
       }
     }
-    
+
     ::log::info!("Foundframe shutdown complete");
     Ok(())
   }
@@ -444,7 +503,7 @@ pub fn setup_logging() {
     .with(EnvFilter::try_new("info").unwrap_or_else(|_| EnvFilter::from_default_env()))
     .try_init()
     .ok();
-  
+
   // Also set the log crate's max level for radicle and other dependencies
   // that use the log crate instead of tracing
   // Note: using ::log to refer to the external crate, not our log module

@@ -4,14 +4,14 @@
 
 import { eq, desc, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import { BookmarkAdaptor } from '@o19/foundframe/ports';
-import type { BookmarkPort } from '@o19/foundframe/ports';
+import { BookmarkAdaptor } from '@o19/foundframe-front/ports';
+import type { BookmarkPort } from '@o19/foundframe-front/ports';
 import type {
   Bookmark,
   CreateBookmark,
   UpdateBookmark,
   BookmarkFilters
-} from '@o19/foundframe/domain';
+} from '@o19/foundframe-front/domain';
 import { bookmark } from '../schema.js';
 
 export class DrizzleBookmarkAdaptor extends BookmarkAdaptor implements BookmarkPort {

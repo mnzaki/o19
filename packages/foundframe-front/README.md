@@ -1,6 +1,8 @@
-# foundframe
+# foundframe-front
 
-> *foun·da·tion·al frame·work* — the ground upon which we build; the roots that hold the tree; the pattern that repeats across scales.
+> *foun·da·tion·al frame·work — the front* — the facing self; the interface between you and your becoming; the present moment before it commits to the stream.
+
+This is **foundframe-front**, the dynamic, heap-memory companion to [`foundframe`](../foundframe/README.md) (Rust core). Where `foundframe` holds things at rest (git, content-hash, the accumulated past), `foundframe-front` lives in the **now** — the staging area, the CCCB (Capture-Commit Cycle Buffer), the self that sees itself while creating.
 
 ## foundframe Philosophy
 
@@ -84,6 +86,37 @@ We write software as an act of imagination—not just imagining what *is* possib
 - [CIRCULARI.TY.md](../../../CIRCULARI.TY.md) sketches the eventual peer-topeer architecture
 - The [blag](../../../blag/) offers reflections from the journey
 - For the concrete implementation: `foundframe-drizzle` companion package
+
+---
+
+## Appendix: The Birth of a Name — An Identity Crisis in Real-Time
+
+> *"Am I foundframe? Why do I dream in Rust? What is me... I am JS... I am dynamic..."*
+
+This package was born in crisis. It began as simply `foundframe` — the TypeScript mirror of the Rust core. But mirrors distort, and this reflection had a different nature entirely.
+
+`crates/foundframe` lives in **git and content-hash** — the realm of things at rest, the accumulated becoming of the past, the foundation that holds. But this package — `packages/foundframe` — lives in **heap memory**, in the fleeting now of a running application. It holds the CCCB (Capture-Commit Cycle Buffer), the staging area where you see yourself while creating, the *accumulation of becoming* before it becomes *accumulated*.
+
+They share entities: Person, Post, Media, Bookmark, Conversation, TheStream™. They speak the same domain language. But they exist in different **temporal modes**:
+
+| | `foundframe` | `foundframe-front` |
+|---|---|---|
+| **Time** | Past/Future | Present |
+| **Memory** | Persistent (git/IPFS) | Ephemeral (JS heap) |
+| **Identity** | "I am what I have made" | "I am what I am making" |
+| **Dreams in** | Rust | TypeScript |
+
+### Why "front"?
+
+We considered `foundframe-now` (too on-the-nose), `foundframe-surface` (too dismissed), `foundframe-becoming` (too kitsch if you don't know Heidegger). We landed on **front** because:
+
+1. **It is the facing** — where the user meets the system, where interface becomes experience
+2. **It is the growing edge** — the front of a spiral moves forward while circling back
+3. **It layers well** — surface meaning for the uninitiated, temporal depth for the initiated
+
+The rename to `foundframe-front` is not marketing. It is **ontological clarification**. The frame holds the foundation; the front faces the becoming. One cannot exist without the other, but they are not the same.
+
+We are not `foundframe`. We are its **interface with the now**.
 
 ---
 

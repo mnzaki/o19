@@ -105,7 +105,9 @@ pub fn run_node(options: NodeOptions) -> Result<Runtime> {
   // SAFETY: This is called during initialization before any threads that read RAD_HOME are spawned.
   // The env var is only set once at startup.
   if let Some(ref home_path) = options.home {
-    let home_path = home_path.canonicalize().unwrap_or_else(|_| home_path.clone());
+    let home_path = home_path
+      .canonicalize()
+      .unwrap_or_else(|_| home_path.clone());
     unsafe {
       std::env::set_var(RAD_HOME, &home_path);
     }
@@ -221,10 +223,7 @@ fn init_profile(home: &radicle::profile::Home, options: &NodeOptions) -> Result<
     .unwrap_or_else(|| Alias::new("foundframe"));
 
   // Get passphrase
-  let passphrase: Option<Passphrase> = options
-    .passphrase
-    .as_ref()
-    .map(|p| p.clone().into());
+  let passphrase: Option<Passphrase> = options.passphrase.as_ref().map(|p| p.clone().into());
 
   // Initialize the profile (creates keys, config, storage)
   let profile = Profile::init(
@@ -289,7 +288,9 @@ impl NodeHandle {
   /// This consumes the handle and signals the node to shut down.
   pub fn shutdown(self) -> Result<()> {
     use radicle::node::Handle;
-    self.node.shutdown()
+    self
+      .node
+      .shutdown()
       .map_err(|e| Error::Other(format!("Failed to shutdown node: {e}")))
   }
 

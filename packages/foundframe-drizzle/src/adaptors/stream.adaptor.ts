@@ -4,11 +4,11 @@
 
 import { eq, desc, asc, and, gte, lte, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import { StreamAdaptor } from '@o19/foundframe/ports';
-import type { StreamPort } from '@o19/foundframe/ports';
-import type { StreamEntry, StreamFilters, StreamChunkType } from '@o19/foundframe/domain';
+import { StreamAdaptor } from '@o19/foundframe-front/ports';
+import type { StreamPort } from '@o19/foundframe-front/ports';
+import type { StreamEntry, StreamFilters, StreamChunkType } from '@o19/foundframe-front/domain';
 import { thestream, person, post, media, bookmark, conversation } from '../schema.js';
-import type { ConversationRole } from '@o19/foundframe';
+import type { ConversationRole } from '@o19/foundframe-front';
 
 export class DrizzleStreamAdaptor extends StreamAdaptor implements StreamPort {
   constructor(private db: BaseSQLiteDatabase<any, any>) {

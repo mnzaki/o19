@@ -38,3 +38,5 @@ target
 *.so
 *.dylib
 *.dll
+
+for_kimi.md

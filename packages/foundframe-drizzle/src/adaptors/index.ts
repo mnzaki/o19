@@ -1,7 +1,7 @@
 /**
  * Drizzle ORM implementations of foundframe ports
  *
- * These adaptors implement the repository interfaces defined in @o19/foundframe
+ * These adaptors implement the repository interfaces defined in @o19/foundframe-front
  * using Drizzle ORM for SQLite.
  */
 
@@ -21,7 +21,7 @@ import { DrizzleBookmarkAdaptor } from './bookmark.adaptor.js';
 import { DrizzleConversationAdaptor } from './conversation.adaptor.js';
 import { DrizzleStreamAdaptor } from './stream.adaptor.js';
 import { DrizzleViewAdaptor } from './view.adaptor.js';
-import type { DatabasePorts } from '@o19/foundframe/ports';
+import type { DatabasePorts } from '@o19/foundframe-front/ports';
 
 /**
  * Create all Drizzle adaptors

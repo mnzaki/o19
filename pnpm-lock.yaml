@@ -116,14 +116,20 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
 
+  crates/android-activities:
+    devDependencies:
+      concurrently:
+        specifier: ^9.2.1
+        version: 9.2.1
+
   crates/tauri-plugin-o19-ff:
     dependencies:
-      '@o19/foundframe':
-        specifier: workspace:*
-        version: link:../../packages/foundframe
       '@o19/foundframe-drizzle':
         specifier: workspace:*
         version: link:../../packages/foundframe-drizzle
+      '@o19/foundframe-front':
+        specifier: workspace:*
+        version: link:../../packages/foundframe-front
       '@tauri-apps/api':
         specifier: ^2
         version: 2.10.1
@@ -156,12 +162,6 @@ importers:
         specifier: ^5.8.3
         version: 5.9.2
 
-  packages/android-activities:
-    devDependencies:
-      concurrently:
-        specifier: ^9.2.1
-        version: 9.2.1
-
   packages/debug:
     dependencies:
       concurrently:
@@ -192,23 +192,11 @@ importers:
         specifier: ^8.50.0
         version: 8.50.0(eslint@9.39.1)(typescript@5.9.2)
 
-  packages/foundframe:
-    devDependencies:
-      '@repo/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      typescript:
-        specifier: 5.9.2
-        version: 5.9.2
-
   packages/foundframe-drizzle:
     dependencies:
-      '@o19/foundframe':
+      '@o19/foundframe-front':
         specifier: workspace:*
-        version: link:../foundframe
+        version: link:../foundframe-front
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*
@@ -225,6 +213,18 @@ importers:
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(better-sqlite3@12.6.2)
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/foundframe-front:
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       typescript:
         specifier: 5.9.2
         version: 5.9.2

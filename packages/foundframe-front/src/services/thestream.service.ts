@@ -1,12 +1,12 @@
 /**
- * Stream service
+ * TheStream service
  * Domain service for TheStream™ - temporal experience log
  */
 
 import { StreamAdaptor, type StreamPort } from '../ports/stream.port.js';
 import type { StreamEntry, StreamFilters, StreamChunkType } from '../domain/entities/stream.js';
 
-export class StreamService extends StreamAdaptor implements StreamPort {
+export class TheStreamService extends StreamAdaptor implements StreamPort {
   constructor(private adaptor: StreamPort) {
     super();
   }

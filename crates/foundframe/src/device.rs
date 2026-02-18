@@ -403,9 +403,9 @@ impl PairingQrData {
   /// The emoji identity is derived from a hash of the NodeId for visual consistency,
   /// but cannot be reversed to recover the original NodeId.
   pub fn new(node_id: NodeId, device_name: impl Into<String>) -> Self {
-    use emoji_from_entropy::EmojiIdentity;
     use blake3::Hasher;
-    
+    use emoji_from_entropy::EmojiIdentity;
+
     // Hash the node_id string to get consistent 32 bytes for emoji identity
     // The node_id string is the canonical representation (base58btc multicodec)
     let node_id_str = node_id.to_string();
@@ -413,16 +413,16 @@ impl PairingQrData {
     hasher.update(node_id_str.as_bytes());
     let hash = hasher.finalize();
     let node_bytes: [u8; 32] = hash.into();
-    
+
     let identity = EmojiIdentity::from_256_bits(node_bytes);
-    
+
     Self {
       emoji_identity: identity.to_string(),
       device_name: device_name.into(),
       node_id: node_id_str,
     }
   }
-  
+
   /// Generate the o19:// pairing URL for QR code.
   ///
   /// Format: `o19://{emojiIdentity}/pair?deviceName={name}&nodeId={base58}`
@@ -435,22 +435,22 @@ impl PairingQrData {
       self.emoji_identity, encoded_name, self.node_id
     )
   }
-  
+
   /// Parse a pairing URL back into structured data.
   ///
   /// Returns the emoji identity (for display), device name, and node ID.
   pub fn from_url(url: &str) -> Result<PairingUrl> {
     PairingUrl::parse(url)
   }
-  
+
   /// Verify that the emoji identity is consistent with the node ID.
   ///
   /// This is a sanity check to detect tampering - the emoji should match
   /// what we'd generate from the same node ID.
   pub fn verify_identity(&self) -> bool {
-    use emoji_from_entropy::EmojiIdentity;
     use blake3::Hasher;
-    
+    use emoji_from_entropy::EmojiIdentity;
+
     // Parse the node ID
     if let Ok(nid) = NodeId::from_str(&self.node_id) {
       // Hash the node_id string (same as in new())
@@ -459,7 +459,7 @@ impl PairingQrData {
       hasher.update(node_id_str.as_bytes());
       let hash = hasher.finalize();
       let node_bytes: [u8; 32] = hash.into();
-      
+
       // Generate emoji identity from node ID hash
       let expected = EmojiIdentity::from_256_bits(node_bytes);
       // Compare with claimed identity
@@ -489,50 +489,52 @@ impl PairingUrl {
   /// Format: `o19://{emoji}/pair?deviceName={name}&nodeId={base58}`
   pub fn parse(url: &str) -> Result<Self> {
     let url = url.trim();
-    
+
     if !url.starts_with("o19://") {
       return Err(Error::Other(format!(
         "Invalid pairing URL: must start with o19://, got: {}",
         &url[..url.len().min(20)]
       )));
     }
-    
+
     // Remove o19:// prefix
     let without_scheme = &url[6..];
-    
+
     // Split path and query
     let (emoji_part, query_part) = without_scheme
       .split_once("/pair?")
       .ok_or_else(|| Error::Other("Invalid pairing URL format: missing /pair?".into()))?;
-    
+
     // Parse query params
     let mut device_name = None;
     let mut node_id = None;
-    
+
     for param in query_part.split('&') {
       if let Some((key, value)) = param.split_once('=') {
         match key {
-          "deviceName" => device_name = Some(urlencoding::decode(value)
-            .map_err(|_| Error::Other("Invalid URL encoding in deviceName".into()))?
-            .to_string()),
+          "deviceName" => {
+            device_name = Some(
+              urlencoding::decode(value)
+                .map_err(|_| Error::Other("Invalid URL encoding in deviceName".into()))?
+                .to_string(),
+            )
+          }
           "nodeId" => node_id = Some(value.to_string()),
           _ => {}
         }
       }
     }
-    
-    let device_name = device_name.ok_or_else(|| {
-      Error::Other("Missing deviceName parameter in pairing URL".into())
-    })?;
-    
-    let node_id = node_id.ok_or_else(|| {
-      Error::Other("Missing nodeId parameter in pairing URL".into())
-    })?;
-    
+
+    let device_name = device_name
+      .ok_or_else(|| Error::Other("Missing deviceName parameter in pairing URL".into()))?;
+
+    let node_id =
+      node_id.ok_or_else(|| Error::Other("Missing nodeId parameter in pairing URL".into()))?;
+
     // Parse the node ID to verify it's valid
     let node_id_parsed = NodeId::from_str(&node_id)
       .map_err(|e| Error::Other(format!("Invalid nodeId in pairing URL: {}", e)))?;
-    
+
     Ok(Self {
       emoji_identity: emoji_part.to_string(),
       device_name,
@@ -555,8 +557,8 @@ pub enum PairingState {
   /// Showing our QR code (we are initiator).
   ShowingQr { data: PairingQrData },
   /// Scanned initiator's QR, waiting for them to scan ours.
-  AwaitingConfirmation { 
-    their_nid: NodeId, 
+  AwaitingConfirmation {
+    their_nid: NodeId,
     their_name: String,
     their_emoji: String,
   },

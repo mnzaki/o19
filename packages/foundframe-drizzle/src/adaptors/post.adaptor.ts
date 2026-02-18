@@ -4,9 +4,9 @@
 
 import { eq, desc, and, gte, lte, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import { PostAdaptor } from '@o19/foundframe/ports';
-import type { PostPort } from '@o19/foundframe/ports';
-import type { Post, CreatePost, UpdatePost, PostFilters } from '@o19/foundframe/domain';
+import { PostAdaptor } from '@o19/foundframe-front/ports';
+import type { PostPort } from '@o19/foundframe-front/ports';
+import type { Post, CreatePost, UpdatePost, PostFilters } from '@o19/foundframe-front/domain';
 import { post } from '../schema.js';
 
 export class DrizzlePostAdaptor extends PostAdaptor implements PostPort {

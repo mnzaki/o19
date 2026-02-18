@@ -28,7 +28,7 @@
     }
   },
   "dependencies": {
-    "@o19/foundframe": "workspace:*"
+    "@o19/foundframe-front": "workspace:*"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

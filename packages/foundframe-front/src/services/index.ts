@@ -13,7 +13,7 @@ export { MediaService } from './media.service.js';
 export { PostService, createEmptyAccumulation } from './post.service.js';
 export { BookmarkService } from './bookmark.service.js';
 export { ConversationService } from './conversation.service.js';
-export { StreamService } from './stream.service.js';
+export { TheStreamService } from './thestream.service.js';
 export { ViewService } from './view.service.js';
 export { PreviewService } from './preview.service.js';
 
@@ -29,7 +29,7 @@ export interface DatabaseServices {
   post: import('./post.service.js').PostService;
   bookmark: import('./bookmark.service.js').BookmarkService;
   conversation: import('./conversation.service.js').ConversationService;
-  stream: import('./stream.service.js').StreamService;
+  stream: import('./thestream.service.js').TheStreamService;
   view: import('./view.service.js').ViewService;
 }
 
@@ -49,7 +49,7 @@ export async function createDomainServicesAsync(ports: Ports): Promise<DomainSer
     { PostService },
     { BookmarkService },
     { ConversationService },
-    { StreamService },
+    { TheStreamService },
     { ViewService },
     { PreviewService },
   ] = await Promise.all([
@@ -58,7 +58,7 @@ export async function createDomainServicesAsync(ports: Ports): Promise<DomainSer
     import('./post.service.js'),
     import('./bookmark.service.js'),
     import('./conversation.service.js'),
-    import('./stream.service.js'),
+    import('./thestream.service.js'),
     import('./view.service.js'),
     import('./preview.service.js'),
   ]);
@@ -69,7 +69,7 @@ export async function createDomainServicesAsync(ports: Ports): Promise<DomainSer
     post: new PostService(ports.post),
     bookmark: new BookmarkService(ports.bookmark),
     conversation: new ConversationService(ports.conversation),
-    stream: new StreamService(ports.stream),
+    stream: new TheStreamService(ports.stream),
     view: new ViewService(ports.view),
     preview: new PreviewService(ports.preview),
   };
@@ -81,7 +81,7 @@ import { MediaService } from './media.service.js';
 import { PostService } from './post.service.js';
 import { BookmarkService } from './bookmark.service.js';
 import { ConversationService } from './conversation.service.js';
-import { StreamService } from './stream.service.js';
+import { TheStreamService } from './thestream.service.js';
 import { ViewService } from './view.service.js';
 import { PreviewService } from './preview.service.js';
 
@@ -92,7 +92,7 @@ export function createServices(ports: Ports): DomainServices {
     post: new PostService(ports.post),
     bookmark: new BookmarkService(ports.bookmark),
     conversation: new ConversationService(ports.conversation),
-    stream: new StreamService(ports.stream),
+    stream: new TheStreamService(ports.stream),
     view: new ViewService(ports.view),
     preview: new PreviewService(ports.preview),
   };

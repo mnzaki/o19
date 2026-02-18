@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
-import * as schema from "@o19/foundframe-drizzle/schema";
+import * as schema from "@o19/foundframe-front-drizzle/schema";
 
 type Row = {
   columns: string[];

@@ -92,13 +92,143 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
   }
 
   // ===========================================================================
+  // Write Operations - Direct TheStream calls
+  // ===========================================================================
+
+  fn add_post(&self, content: String, title: Option<String>) -> Result<StreamEntryResult> {
+    use o19_foundframe::post::PostStream;
+    
+    let entry = self.stream.add_post(content, title.as_deref())
+      .map_err(|e| Error::Other(format!("Failed to add post: {e}")))?;
+    
+    Ok(StreamEntryResult {
+      id: entry.id,
+      seen_at: entry.seen_at,
+      reference: entry.reference,
+    })
+  }
+
+  fn add_bookmark(
+    &self,
+    url: String,
+    title: Option<String>,
+    notes: Option<String>,
+  ) -> Result<StreamEntryResult> {
+    use o19_foundframe::bookmark::BookmarkStream;
+    
+    let entry = self.stream.add_bookmark(url, title.as_deref(), notes.as_deref())
+      .map_err(|e| Error::Other(format!("Failed to add bookmark: {e}")))?;
+    
+    Ok(StreamEntryResult {
+      id: entry.id,
+      seen_at: entry.seen_at,
+      reference: entry.reference,
+    })
+  }
+
+  fn add_media_link(
+    &self,
+    directory: String,
+    url: String,
+    title: Option<String>,
+    mime_type: Option<String>,
+    subpath: Option<String>,
+  ) -> Result<StreamEntryResult> {
+    use o19_foundframe::media::MediaStream;
+    use o19_foundframe::pkb::DirectoryId;
+    
+    let dir_id = DirectoryId::from(directory);
+    let entry = self.stream.add_media_link(
+      dir_id,
+      subpath.as_deref(),
+      url,
+      title.as_deref(),
+      mime_type.as_deref(),
+    ).map_err(|e| Error::Other(format!("Failed to add media link: {e}")))?;
+    
+    Ok(StreamEntryResult {
+      id: entry.id,
+      seen_at: entry.seen_at,
+      reference: entry.reference,
+    })
+  }
+
+  fn add_person(
+    &self,
+    display_name: String,
+    handle: Option<String>,
+  ) -> Result<StreamEntryResult> {
+    use o19_foundframe::person::PersonStream;
+    
+    let entry = self.stream.add_person(display_name, handle.as_deref())
+      .map_err(|e| Error::Other(format!("Failed to add person: {e}")))?;
+    
+    Ok(StreamEntryResult {
+      id: entry.id,
+      seen_at: entry.seen_at,
+      reference: entry.reference,
+    })
+  }
+
+  fn add_conversation(
+    &self,
+    conversation_id: String,
+    title: Option<String>,
+  ) -> Result<StreamEntryResult> {
+    use o19_foundframe::conversation::ConversationStream;
+    
+    let entry = self.stream.add_conversation(conversation_id, title.as_deref())
+      .map_err(|e| Error::Other(format!("Failed to add conversation: {e}")))?;
+    
+    Ok(StreamEntryResult {
+      id: entry.id,
+      seen_at: entry.seen_at,
+      reference: entry.reference,
+    })
+  }
+
+  fn add_text_note(
+    &self,
+    directory: String,
+    content: String,
+    title: Option<String>,
+    subpath: Option<String>,
+  ) -> Result<StreamEntryResult> {
+    use o19_foundframe::pkb::{DirectoryId, StreamChunk};
+    
+    let dir_id = DirectoryId::from(directory);
+    let chunk = StreamChunk::TextNote {
+      content,
+      title: title.clone(),
+    };
+    
+    let timestamp = std::time::SystemTime::now()
+      .duration_since(std::time::UNIX_EPOCH)
+      .unwrap_or_default()
+      .as_secs();
+    let filename = chunk.generate_filename(timestamp, title.as_deref());
+    let path = match subpath {
+      Some(sub) => std::path::PathBuf::from(sub).join(filename),
+      None => std::path::PathBuf::from(filename),
+    };
+    
+    let entry = self.stream.add_chunk(dir_id, path, chunk)
+      .map_err(|e| Error::Other(format!("Failed to add text note: {e}")))?;
+    
+    Ok(StreamEntryResult {
+      id: entry.id,
+      seen_at: entry.seen_at,
+      reference: entry.reference,
+    })
+  }
+
+  // ===========================================================================
   // Device Pairing
   // ===========================================================================
 
   fn generate_pairing_qr(&self, device_name: String) -> Result<PairingQrResponse> {
     use o19_foundframe::device::PairingQrData;
     use o19_foundframe::radicle::NodeHandle;
-    use std::str::FromStr;
 
     let mut node_handle = NodeHandle::new()
       .map_err(|e| Error::Other(format!("Failed to create node handle: {e}")))?;
@@ -165,16 +295,14 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
       .list()
       .map_err(|e| Error::Other(format!("Failed to list devices: {e}")))?;
 
-    Ok(
-      devices
-        .into_iter()
-        .map(|d| PairedDeviceInfo {
-          node_id: d.nid.to_string(),
-          alias: d.alias.unwrap_or_else(|| "Unnamed".to_string()),
-          paired: true,
-        })
-        .collect(),
-    )
+    Ok(devices
+      .into_iter()
+      .map(|d| PairedDeviceInfo {
+        node_id: d.nid.to_string(),
+        alias: d.alias.unwrap_or_else(|| "Unnamed".to_string()),
+        paired: true,
+      })
+      .collect())
   }
 
   fn check_followers_and_pair(&self) -> Result<Vec<PairedDeviceInfo>> {
