@@ -5,7 +5,15 @@ import { createTauriAdaptors } from './adaptors/index.js';
 import { TauriPreviewAdaptor } from './adaptors/preview.adaptor.js';
 
 export { createTauriAdaptors, type StreamEntryResult, type AddMediaLinkParams, type AddTextNoteParams } from './adaptors/index.js';
-export { TauriBookmarkAdaptor, TauriPostAdaptor, TauriMediaAdaptor, TauriPersonAdaptor, TauriConversationAdaptor, TauriStreamAdaptor } from './adaptors/index.js';
+export { TauriBookmarkAdaptor, TauriPostAdaptor, TauriMediaAdaptor, TauriPersonAdaptor, TauriConversationAdaptor, TauriStreamAdaptor, TauriDeviceAdaptor } from './adaptors/index.js';
+
+// Re-export device types from foundframe-front for convenience
+export type { 
+  PairedDevice, 
+  PairingQrData, 
+  ScannedPairingData,
+  DevicePort
+} from '@o19/foundframe-front/ports';
 
 export function createServices(dbName = "database.db") {
   const db = createDrizzleProxy(dbName);
@@ -128,8 +136,10 @@ export interface CameraPermissionResult {
  */
 export async function startCamera(options: CameraOptions = {}): Promise<CameraResult> {
   return await invoke('plugin:o19-foundframe-tauri|start_camera', {
-    mode: options.mode || 'preview',
-    cameraDirection: options.cameraDirection || 'back'
+    options: {
+      mode: options.mode || 'preview',
+      cameraDirection: options.cameraDirection || 'back'
+    }
   });
 }
 
@@ -153,8 +163,10 @@ export async function capturePhoto(): Promise<CameraResult> {
  */
 export async function setCameraMode(options: CameraOptions): Promise<CameraResult> {
   return await invoke('plugin:o19-foundframe-tauri|set_camera_mode', {
-    mode: options.mode || 'preview',
-    cameraDirection: options.cameraDirection || 'back'
+    options: {
+      mode: options.mode || 'preview',
+      cameraDirection: options.cameraDirection || 'back'
+    }
   });
 }
 

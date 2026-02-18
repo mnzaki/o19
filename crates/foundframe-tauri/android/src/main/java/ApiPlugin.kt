@@ -3,8 +3,12 @@ package ty.circulari.o19.ff
 import android.content.Context
 import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import app.tauri.PermissionState
+import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.Permission
@@ -15,6 +19,7 @@ import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import ty.circulari.o19.CameraPlugin
 import ty.circulari.o19.CameraMode
+import ty.circulari.o19.service.FoundframeRadicleClient
 
 @InvokeArg
 class CameraOptions {
@@ -24,9 +29,7 @@ class CameraOptions {
 
 @TauriPlugin(
   permissions = [
-    Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = "postNotification"),
-    Permission(strings = [Manifest.permission.CAMERA], alias = "camera"),
-    Permission(strings = [Manifest.permission.WRITE_EXTERNAL_STORAGE], alias = "writeStorage")
+    Permission(strings = [Manifest.permission.CAMERA], alias = "camera")
   ]
 )
 
@@ -41,6 +44,12 @@ class ApiPlugin(private val activity: Activity) : Plugin(activity) {
   
   override fun load(webView: android.webkit.WebView) {
     super.load(webView)
+    
+    // Start the FoundframeRadicle background service (runs in :foundframe process)
+    // This must happen before Rust code tries to connect via binder
+    android.util.Log.i("O19-ANDROID", "[ApiPlugin] Starting FoundframeRadicleService...")
+    FoundframeRadicleClient(activity).ensureStarted("deardiary")
+    
     // Initialize camera plugin with same activity and webview
     cameraPlugin = CameraPlugin(activity)
     cameraPlugin?.load(webView)
@@ -118,39 +127,70 @@ class ApiPlugin(private val activity: Activity) : Plugin(activity) {
   // Camera Permissions (handled directly by ApiPlugin since it's a Tauri Plugin)
   // ============================================================================
   
+  private val CAMERA_PERMISSION_REQUEST_CODE = 1001
+  private var pendingCameraPermissionInvoke: Invoke? = null
+
   @Command
   fun requestCameraPermissions(invoke: Invoke) {
-    val cameraState = getPermissionState("camera")
-    if (cameraState == PermissionState.GRANTED) {
-      val result = JSObject().apply {
-        put("camera", "granted")
-        put("granted", true)
+    android.util.Log.d("O19-ANDROID", "Requesting camera permission...")
+    
+    when {
+      ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
+        android.util.Log.d("O19-ANDROID", "Camera permission already granted")
+        val result = JSObject().apply {
+          put("camera", "granted")
+          put("granted", true)
+        }
+        invoke.resolve(result)
       }
-      invoke.resolve(result)
-    } else {
-      requestPermissionForAlias("camera", invoke, "cameraPermissionCallback")
+      ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA) -> {
+        // User denied before but didn't check "Don't ask again"
+        android.util.Log.d("O19-ANDROID", "Showing permission rationale, then requesting...")
+        pendingCameraPermissionInvoke = invoke
+        ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST_CODE)
+      }
+      else -> {
+        // First time request
+        android.util.Log.d("O19-ANDROID", "First time camera permission request...")
+        pendingCameraPermissionInvoke = invoke
+        ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.CAMERA), CAMERA_PERMISSION_REQUEST_CODE)
+      }
     }
   }
-  
+
   @Command
   fun checkCameraPermissions(invoke: Invoke) {
-    val cameraState = getPermissionState("camera")
+    val granted = ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    android.util.Log.d("O19-ANDROID", "Camera permission check: granted=$granted")
+    
     val result = JSObject().apply {
-      put("camera", cameraState?.name?.lowercase() ?: "prompt")
+      put("camera", if (granted) "granted" else "prompt")
     }
     invoke.resolve(result)
   }
+
+  // ============================================================================
+  // Permission Result Handling
+  // ============================================================================
   
-  @PermissionCallback
-  fun cameraPermissionCallback(invoke: Invoke) {
-    val cameraState = getPermissionState("camera")
-    val granted = cameraState == PermissionState.GRANTED
+  @Suppress("UNUSED_PARAMETER")
+  @ActivityCallback
+  fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    android.util.Log.d("O19-ANDROID", "onRequestPermissionsResult: code=$requestCode")
     
-    val result = JSObject().apply {
-      put("camera", cameraState?.name?.lowercase() ?: "denied")
-      put("granted", granted)
+    if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
+      val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+      android.util.Log.d("O19-ANDROID", "Camera permission result: granted=$granted")
+      
+      pendingCameraPermissionInvoke?.let { invoke ->
+        val result = JSObject().apply {
+          put("camera", if (granted) "granted" else "denied")
+          put("granted", granted)
+        }
+        invoke.resolve(result)
+        pendingCameraPermissionInvoke = null
+      }
     }
-    invoke.resolve(result)
   }
   
   // ============================================================================

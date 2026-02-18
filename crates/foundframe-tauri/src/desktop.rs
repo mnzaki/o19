@@ -401,6 +401,38 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
     }
     Ok(())
   }
+
+  // ===========================================================================
+  // Camera Operations - Not available on desktop
+  // ===========================================================================
+
+  fn start_camera(&self, _mode: String, _camera_direction: String) -> Result<serde_json::Value> {
+    Err(Error::Other("Camera not available on desktop".into()))
+  }
+
+  fn stop_camera(&self) -> Result<serde_json::Value> {
+    Err(Error::Other("Camera not available on desktop".into()))
+  }
+
+  fn capture_photo(&self) -> Result<serde_json::Value> {
+    Err(Error::Other("Camera not available on desktop".into()))
+  }
+
+  fn set_camera_mode(&self, _mode: String, _camera_direction: String) -> Result<serde_json::Value> {
+    Err(Error::Other("Camera not available on desktop".into()))
+  }
+
+  fn is_camera_active(&self) -> Result<serde_json::Value> {
+    Ok(serde_json::json!({ "active": false, "mode": "none" }))
+  }
+
+  fn request_camera_permissions(&self) -> Result<serde_json::Value> {
+    Ok(serde_json::json!({ "camera": "granted", "granted": true }))
+  }
+
+  fn check_camera_permissions(&self) -> Result<serde_json::Value> {
+    Ok(serde_json::json!({ "camera": "granted" }))
+  }
 }
 
 /// Get the default PKB path for desktop: $HOME/pkb

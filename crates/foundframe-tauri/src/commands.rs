@@ -176,7 +176,7 @@ pub(crate) async fn request_permissions<R: Runtime>(
 }
 
 // ============================================================================
-// Camera Commands
+// Camera Commands - Routed through Platform trait
 // ============================================================================
 
 #[derive(Debug, Deserialize)]
@@ -187,54 +187,58 @@ pub struct CameraOptions {
     camera_direction: Option<String>,
 }
 
-// NOTE: On Android, camera commands are handled directly by ApiPlugin.kt
-// which delegates to CameraPlugin from android.
-// These Rust handlers are only called on desktop.
-
 /// Start the camera with specified mode
 #[tauri::command]
-pub(crate) async fn start_camera(
-    _options: CameraOptions,
+pub(crate) async fn start_camera<R: Runtime>(
+  app: AppHandle<R>,
+  options: CameraOptions,
 ) -> Result<serde_json::Value> {
-    Err(Error::Other("Camera not available on desktop".into()))
+  app.platform().start_camera(
+    options.mode,
+    options.camera_direction.unwrap_or_else(|| "back".to_string())
+  )
 }
 
 /// Stop the camera
 #[tauri::command]
-pub(crate) async fn stop_camera() -> Result<serde_json::Value> {
-    Err(Error::Other("Camera not available on desktop".into()))
+pub(crate) async fn stop_camera<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value> {
+  app.platform().stop_camera()
 }
 
 /// Capture a photo
 #[tauri::command]
-pub(crate) async fn capture_photo() -> Result<serde_json::Value> {
-    Err(Error::Other("Camera not available on desktop".into()))
+pub(crate) async fn capture_photo<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value> {
+  app.platform().capture_photo()
 }
 
 /// Set camera mode
 #[tauri::command]
-pub(crate) async fn set_camera_mode(
-    _options: CameraOptions,
+pub(crate) async fn set_camera_mode<R: Runtime>(
+  app: AppHandle<R>,
+  options: CameraOptions,
 ) -> Result<serde_json::Value> {
-    Err(Error::Other("Camera not available on desktop".into()))
+  app.platform().set_camera_mode(
+    options.mode,
+    options.camera_direction.unwrap_or_else(|| "back".to_string())
+  )
 }
 
 /// Check if camera is active
 #[tauri::command]
-pub(crate) async fn is_camera_active() -> Result<serde_json::Value> {
-    Ok(serde_json::json!({ "active": false, "mode": "none" }))
+pub(crate) async fn is_camera_active<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value> {
+  app.platform().is_camera_active()
 }
 
 /// Request camera permissions
 #[tauri::command]
-pub(crate) async fn request_camera_permissions() -> Result<serde_json::Value> {
-    Ok(serde_json::json!({ "camera": "granted", "granted": true }))
+pub(crate) async fn request_camera_permissions<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value> {
+  app.platform().request_camera_permissions()
 }
 
 /// Check camera permissions
 #[tauri::command]
-pub(crate) async fn check_camera_permissions() -> Result<serde_json::Value> {
-    Ok(serde_json::json!({ "camera": "granted" }))
+pub(crate) async fn check_camera_permissions<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value> {
+  app.platform().check_camera_permissions()
 }
 
 // ============================================================================
@@ -286,4 +290,90 @@ pub(crate) async fn unpair_device<R: Runtime>(
   node_id_hex: String,
 ) -> Result<()> {
   app.platform().unpair_device(node_id_hex)
+}
+
+// ============================================================================
+// Service Status Command - Check if background service is connected
+// ============================================================================
+
+use serde::Serialize;
+
+#[derive(Serialize)]
+pub struct ServiceStatus {
+  connected: bool,
+  error: Option<String>,
+}
+
+#[tauri::command]
+pub(crate) async fn check_service_status<R: Runtime>(
+  app: AppHandle<R>,
+) -> Result<ServiceStatus> {
+  // On Android, check if we can execute a simple platform operation
+  // On desktop, service is always "connected" (direct implementation)
+  #[cfg(target_os = "android")]
+  {
+    // Try to list paired devices - this will fail if service is not connected
+    match app.platform().list_paired_devices() {
+      Ok(_) => Ok(ServiceStatus {
+        connected: true,
+        error: None,
+      }),
+      Err(e) => {
+        let error_msg = format!("{}", e);
+        // Check if it's a "not connected" error
+        if error_msg.contains("not connected") || error_msg.contains("Service not connected") {
+          Ok(ServiceStatus {
+            connected: false,
+            error: Some("Service not connected".to_string()),
+          })
+        } else {
+          // Some other error, but service might be connected
+          Ok(ServiceStatus {
+            connected: false,
+            error: Some(error_msg),
+          })
+        }
+      }
+    }
+  }
+  
+  #[cfg(not(target_os = "android"))]
+  {
+    // On desktop, service is always connected
+    Ok(ServiceStatus {
+      connected: true,
+      error: None,
+    })
+  }
+}
+
+#[derive(Serialize)]
+pub struct StartServiceResult {
+  success: bool,
+  error: Option<String>,
+}
+
+#[tauri::command]
+pub(crate) async fn start_service<R: Runtime>(
+  _app: AppHandle<R>,
+) -> Result<StartServiceResult> {
+  // On Android, the service is started by the plugin's load() method
+  // This command is mainly for explicit restart attempts from UI
+  #[cfg(target_os = "android")]
+  {
+    // The service should auto-start via FoundframeRadicleClient.ensureStarted() in ApiPlugin.load()
+    // If it failed, the UI should restart the app
+    Ok(StartServiceResult {
+      success: true,
+      error: Some("Service auto-starts on Android. If not running, restart the app.".to_string()),
+    })
+  }
+  
+  #[cfg(not(target_os = "android"))]
+  {
+    Ok(StartServiceResult {
+      success: true,
+      error: None,
+    })
+  }
 }

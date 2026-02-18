@@ -15,6 +15,7 @@ import type { ConversationPort } from './conversation.port.js';
 import type { StreamPort } from './stream.port.js';
 import type { ViewPort } from './view.port.js';
 import type { PreviewPort } from './preview.port.js';
+import type { DevicePort } from './device.port.js';
 
 export { BasePort } from './base.port.js';
 export type { BaseCrudPort } from './base.port.js';
@@ -43,6 +44,9 @@ export type { ViewPort } from './view.port.js';
 export { PreviewAdaptor } from './preview.port.js';
 export type { PreviewPort, PreviewMetadata } from './preview.port.js';
 
+export { DeviceAdaptor } from './device.port.js';
+export type { DevicePort, PairedDevice, PairingQrData, ScannedPairingData } from './device.port.js';
+
 /**
  * Aggregate port - all database operations
  * Implementations provide this to the application layer
@@ -55,4 +59,5 @@ export interface DatabasePorts {
   conversation: ConversationPort;
   stream: StreamPort;
   view: ViewPort;
+  //device: DevicePort;
 }

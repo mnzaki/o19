@@ -24,6 +24,8 @@ Default permissions for the plugin
 - `allow-list-paired-devices`
 - `allow-check-followers-and-pair`
 - `allow-unpair-device`
+- `allow-check-service-status`
+- `allow-start-service`
 
 ## Permission Table
 
@@ -453,6 +455,32 @@ Denies the check_followers_and_pair command without any pre-configured scope.
 <tr>
 <td>
 
+`o19-foundframe-tauri:allow-check-service-status`
+
+</td>
+<td>
+
+Enables the check_service_status command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-check-service-status`
+
+</td>
+<td>
+
+Denies the check_service_status command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `o19-foundframe-tauri:allow-compress-webp-to-size`
 
 </td>
@@ -836,6 +864,32 @@ Enables the start_camera command without any pre-configured scope.
 <td>
 
 Denies the start_camera command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-start-service`
+
+</td>
+<td>
+
+Enables the start_service command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-start-service`
+
+</td>
+<td>
+
+Denies the start_service command without any pre-configured scope.
 
 </td>
 </tr>

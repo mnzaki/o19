@@ -43,7 +43,7 @@ import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-private const val TAG = "O19-Camera"
+private const val TAG = "O19-ANDROID"
 
 /// Camera operation modes
 enum class CameraMode {
@@ -70,6 +70,8 @@ class CameraPlugin(private val activity: android.app.Activity) {
     // QR scanning
     private var scanner: com.google.mlkit.vision.barcode.BarcodeScanner? = null
     private var isScanningForQr = false
+    private var lastAnalyzedTimestamp = 0L
+    private val ANALYSIS_INTERVAL_MS = 200L  // 5 fps for QR scanning
 
     // State
     private var currentMode = CameraMode.PREVIEW
@@ -78,7 +80,13 @@ class CameraPlugin(private val activity: android.app.Activity) {
 
     fun load(webView: WebView) {
         this.webView = webView
-        Log.d(TAG, "CameraPlugin loaded")
+        
+        // Configure WebView for transparency support
+        // Note: LAYER_TYPE_SOFTWARE is needed for transparency to work reliably
+        webView.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+        webView.setBackgroundColor(Color.TRANSPARENT)
+        
+        Log.d(TAG, "CameraPlugin loaded. WebView hardware accelerated: ${webView.isHardwareAccelerated}")
     }
 
     // ============================================================================
@@ -108,9 +116,12 @@ class CameraPlugin(private val activity: android.app.Activity) {
             val parent = webView.parent as ViewGroup
             parent.addView(previewView, 0)  // Add at index 0 (behind WebView)
 
-            // Make WebView transparent so camera shows through
+            // Bring WebView to front and make it transparent so camera shows through
+            webView.bringToFront()
             webViewBackground = webView.background
             webView.setBackgroundColor(Color.TRANSPARENT)
+            
+            Log.d(TAG, "WebView transparency set. WebView parent: ${parent.javaClass.simpleName}, child count: ${parent.childCount}")
 
             // Initialize CameraX
             cameraProviderFuture = ProcessCameraProvider.getInstance(activity).apply {
@@ -134,18 +145,27 @@ class CameraPlugin(private val activity: android.app.Activity) {
         mode: CameraMode,
         cameraDirection: String
     ) {
-        // Unbind any existing use cases
-        provider.unbindAll()
-
-        // Select camera
+        // Check if we can optimize by only rebinding changing use cases
+        val isAlreadyRunning = camera != null && currentMode != CameraMode.PREVIEW
         val lensFacing = when (cameraDirection) {
             "front" -> CameraSelector.LENS_FACING_FRONT
             else -> CameraSelector.LENS_FACING_BACK
         }
         val cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
 
-        // Preview use case
+        // If switching modes and camera is running, try to preserve preview
+        if (isAlreadyRunning) {
+            // Just rebind use cases without destroying preview
+            rebindUseCases(provider, mode)
+            return
+        }
+
+        // Full bind - unbind everything first
+        provider.unbindAll()
+
+        // Preview use case - use low resolution for performance
         val preview = Preview.Builder()
+            .setTargetResolution(Size(640, 480))  // Low res for smooth preview
             .build()
             .apply {
                 setSurfaceProvider(previewView?.surfaceProvider)
@@ -154,12 +174,75 @@ class CameraPlugin(private val activity: android.app.Activity) {
         // Build use cases list (always include preview)
         val useCases = mutableListOf<UseCase>(preview)
 
+        // Add mode-specific use cases
+        addModeUseCases(mode, useCases)
+
+        try {
+            camera = provider.bindToLifecycle(
+                activity as LifecycleOwner,
+                cameraSelector,
+                *useCases.toTypedArray()
+            )
+            currentMode = mode
+            Log.d(TAG, "Camera use cases bound: $mode")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to bind camera use cases", e)
+        }
+    }
+
+    private fun rebindUseCases(provider: ProcessCameraProvider, mode: CameraMode) {
+        Log.d(TAG, "Rebinding use cases for mode: $mode (current: $currentMode)")
+
+        // Unbind only the changing use cases, keep preview
+        when (currentMode) {
+            CameraMode.QR_SCAN -> {
+                imageAnalysis?.let { provider.unbind(it) }
+                isScanningForQr = false
+                scanner = null
+            }
+            CameraMode.PHOTO_CAPTURE -> {
+                imageCapture?.let { provider.unbind(it) }
+                imageCapture = null
+            }
+            else -> {}
+        }
+
+        // Bind new use cases
+        val newUseCases = mutableListOf<UseCase>()
+        addModeUseCases(mode, newUseCases)
+
+        if (newUseCases.isNotEmpty()) {
+            try {
+                provider.bindToLifecycle(
+                    activity as LifecycleOwner,
+                    camera?.cameraInfo?.let { 
+                        // Use same camera selector
+                        CameraSelector.Builder().requireLensFacing(
+                            if (it.hasFlashUnit()) CameraSelector.LENS_FACING_BACK else CameraSelector.LENS_FACING_FRONT
+                        ).build()
+                    } ?: CameraSelector.DEFAULT_BACK_CAMERA,
+                    *newUseCases.toTypedArray()
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to rebind use cases, doing full rebind", e)
+                // Fall back to full rebind
+                bindCameraUseCases(provider, mode, "back")
+                return
+            }
+        }
+
+        currentMode = mode
+        Log.d(TAG, "Use cases rebound to: $mode")
+    }
+
+    private fun addModeUseCases(mode: CameraMode, useCases: MutableList<UseCase>) {
         when (mode) {
             CameraMode.QR_SCAN -> {
-                // ImageAnalysis for QR scanning
+                // ImageAnalysis for QR scanning - higher res but throttled
                 val analysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setTargetResolution(Size(1280, 720))
+                    .setImageQueueDepth(1)  // Only keep 1 frame to reduce lag
                     .build()
                     .apply {
                         setAnalyzer(cameraExecutor, QrAnalyzer())
@@ -179,6 +262,7 @@ class CameraPlugin(private val activity: android.app.Activity) {
                 // ImageCapture for taking photos
                 val capture = ImageCapture.Builder()
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                    .setTargetResolution(Size(1920, 1080))  // 1080p for photos
                     .build()
                 imageCapture = capture
                 useCases.add(capture)
@@ -186,19 +270,8 @@ class CameraPlugin(private val activity: android.app.Activity) {
 
             CameraMode.PREVIEW -> {
                 // Just preview, no additional use cases
+                isScanningForQr = false
             }
-        }
-
-        try {
-            camera = provider.bindToLifecycle(
-                activity as LifecycleOwner,
-                cameraSelector,
-                *useCases.toTypedArray()
-            )
-            currentMode = mode
-            Log.d(TAG, "Camera use cases bound: $mode")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to bind camera use cases", e)
         }
     }
 
@@ -243,6 +316,14 @@ class CameraPlugin(private val activity: android.app.Activity) {
     
     private inner class QrAnalyzer : ImageAnalysis.Analyzer {
         override fun analyze(imageProxy: ImageProxy) {
+        // Frame rate limiting - skip frames to maintain ~5fps
+        val currentTimestamp = System.currentTimeMillis()
+        if (currentTimestamp - lastAnalyzedTimestamp < ANALYSIS_INTERVAL_MS) {
+            imageProxy.close()
+            return
+        }
+        lastAnalyzedTimestamp = currentTimestamp
+
         if (!isScanningForQr || scanner == null) {
             imageProxy.close()
             return

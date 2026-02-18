@@ -25,12 +25,18 @@ import android.util.Log
 class FoundframeRadicleService : Service() {
     
     companion object {
-        private const val TAG = "FoundframeRadicle"
+        private const val TAG = "O19-ANDROID"
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "foundframe_radicle"
         
         init {
-            System.loadLibrary("android")
+            try {
+                Log.i(TAG, "[FoundframeRadicleService] Loading native library...")
+                System.loadLibrary("android")
+                Log.i(TAG, "[FoundframeRadicleService] Native library loaded successfully")
+            } catch (e: Throwable) {
+                Log.e(TAG, "[FoundframeRadicleService] FAILED to load native library: ${e.message}", e)
+            }
         }
     }
     
@@ -38,7 +44,8 @@ class FoundframeRadicleService : Service() {
     
     override fun onCreate() {
         super.onCreate()
-        Log.i(TAG, "Service creating in pid ${Process.myPid()}")
+        Log.i(TAG, "[FoundframeRadicleService] Service creating in pid ${Process.myPid()}")
+        Log.i(TAG, "[FoundframeRadicleService] Process name: ${applicationInfo.processName}")
         
         // Create notification channel for foreground service
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -53,31 +60,57 @@ class FoundframeRadicleService : Service() {
             
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
+            Log.d(TAG, "[FoundframeRadicleService] Notification channel created")
         }
         
         // Start as foreground service
         startForeground(NOTIFICATION_ID, createNotification())
+        Log.i(TAG, "[FoundframeRadicleService] Started as foreground service")
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.i(TAG, "Service starting (startId=$startId)")
+        Log.i(TAG, "[FoundframeRadicleService] Service starting (startId=$startId, flags=$flags)")
+        
+        val radicleHome = getDir(".radicle", Context.MODE_PRIVATE).absolutePath
+        val alias = intent?.getStringExtra("alias") ?: "android"
+        
+        Log.i(TAG, "[FoundframeRadicleService] Radicle home: $radicleHome")
+        Log.i(TAG, "[FoundframeRadicleService] Using alias: $alias")
+        
+        // Check if directory exists
+        val radicleDir = java.io.File(radicleHome)
+        if (!radicleDir.exists()) {
+            Log.i(TAG, "[FoundframeRadicleService] Creating radicle home directory")
+            radicleDir.mkdirs()
+        }
+        Log.i(TAG, "[FoundframeRadicleService] Radicle home exists: ${radicleDir.exists()}, writable: ${radicleDir.canWrite()}")
         
         // Start the Rust service in a background thread
         Thread {
-            val radicleHome = getDir(".radicle", Context.MODE_PRIVATE).absolutePath
-            val alias = intent?.getStringExtra("alias") ?: "android"
+            Log.i(TAG, "[FoundframeRadicleService] Native service thread starting")
             
-            Log.i(TAG, "Starting native service with alias: $alias")
-            nativeStartService(radicleHome, alias)
+            try {
+                Log.i(TAG, "[FoundframeRadicleService] About to call nativeStartService...")
+                nativeStartService(radicleHome, alias)
+                Log.w(TAG, "[FoundframeRadicleService] Native service exited (this shouldn't happen normally)")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "[FoundframeRadicleService] Native method not found - library not loaded or symbol missing: ${e.message}", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "[FoundframeRadicleService] Native service crashed: ${e.message}", e)
+            } catch (e: Error) {
+                Log.e(TAG, "[FoundframeRadicleService] Native service error (not exception): ${e.message}", e)
+            }
             
-            Log.w(TAG, "Native service exited unexpectedly!")
             // The native service blocks on the thread pool, so if we get here,
             // something went wrong. We should restart.
+            Log.w(TAG, "[FoundframeRadicleService] Stopping service due to native exit")
             stopSelf(startId)
         }.apply {
-            name = "FoundframeService-Thread"
+            name = "FoundframeService-Thread-$startId"
             start()
         }
+        
+        Log.i(TAG, "[FoundframeRadicleService] Native service thread started")
         
         // STICKY = restart service if killed by system
         return START_STICKY

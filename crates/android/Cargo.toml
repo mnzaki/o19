@@ -16,11 +16,11 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
-rsbinder = { workspace = true }
 async-trait = "0.1.89"
+jni = "0.21"
+log = { workspace = true }
 
 [build-dependencies]
-rsbinder-aidl = "0.6.0"
 
 [lints]
 workspace = true

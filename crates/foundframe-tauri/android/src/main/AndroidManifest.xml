@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- 
+    This is the Tauri plugin manifest for o19-foundframe-tauri.
+    
+    Note: FoundframeRadicleService is declared in o19-android's manifest
+    (where the service class is defined). Since this plugin depends on
+    :o19-android, the service declaration is merged automatically.
+    
+    Foreground service permissions are also in o19-android's manifest.
+  -->
+  
+  <!-- Network permissions -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <uses-permission android:name="android.permission.INTERNET" />
+  
+  <!-- Camera permissions for the Tauri plugin -->
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-permission android:name="android.permission.VIBRATE" />
+  <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 </manifest>

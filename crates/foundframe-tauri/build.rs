@@ -20,6 +20,8 @@ const COMMANDS: &[&str] = &[
   "list_paired_devices",
   "check_followers_and_pair",
   "unpair_device",
+  "check_service_status",
+  "start_service",
 ];
 
 fn main() {

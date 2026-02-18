@@ -388,6 +388,13 @@ impl PkbService {
     // Merge using history-less strategy
     let merge_result = super::merge::MergeStrategy::merge_all_remotes(&git_repo)?;
 
+    // Push merged state to Radicle storage
+    if let Ok(mut remote) = git_repo.find_remote("rad") {
+      if let Err(e) = remote.push::<&str>(&["refs/heads/main:refs/heads/main"], None) {
+        log::warn!("Failed to push merged state to rad remote for '{}': {}", name, e);
+      }
+    }
+
     // Emit events for pulled entries (from the 'added' list in merge_result)
     for path in &merge_result.added {
       // Compute entry ID from the file content
@@ -524,7 +531,7 @@ impl PkbService {
   // Internal Helpers
   //=========================================================================
 
-  /// Commit changes to the directory's git repo.
+  /// Commit changes to the directory's git repo and push to Radicle.
   fn commit_changes(&self, dir: &Directory, relative_path: &Path, message: &str) -> Result<()> {
     let git_repo = git::raw::Repository::open(&dir.path)?;
     let sig = git::raw::Signature::now("PKB", "pkb@localhost")?;
@@ -537,7 +544,16 @@ impl PkbService {
     let tree = git_repo.find_tree(tree_id)?;
     let parent = git_repo.head()?.peel_to_commit()?;
 
+    // Commit to local working directory
     git_repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[&parent])?;
+
+    // Push to Radicle storage via the 'rad' remote
+    // This syncs working directory commits to Radicle's internal storage
+    if let Ok(mut remote) = git_repo.find_remote("rad") {
+      remote.push::<&str>(&["refs/heads/main:refs/heads/main"], None)?;
+    } else {
+      log::warn!("No 'rad' remote found for directory '{}' - commits won't sync to network", dir.name);
+    }
 
     Ok(())
   }
@@ -545,6 +561,35 @@ impl PkbService {
   /// Announce directory refs to the Radicle network.
   fn announce_refs(&mut self, rid: radicle::identity::RepoId) -> Result<()> {
     self.node.announce_refs(rid)?;
+    Ok(())
+  }
+
+  /// Force push a directory's current state to Radicle storage and announce.
+  ///
+  /// Use this when you need to manually sync local changes to the network
+  /// without waiting for the next automatic sync.
+  pub fn push_to_network(&mut self, name: &str) -> Result<()> {
+    let dir = self
+      .get_directory(name)?
+      .ok_or_else(|| Error::Other(format!("Directory '{}' not found", name)))?;
+
+    let git_repo = git::raw::Repository::open(&dir.path)?;
+
+    // Push to rad remote
+    if let Ok(mut remote) = git_repo.find_remote("rad") {
+      remote.push::<&str>(&["refs/heads/main:refs/heads/main"], None)?;
+      log::info!("Pushed directory '{}' to Radicle storage", name);
+    } else {
+      return Err(Error::Other(format!(
+        "No 'rad' remote found for directory '{}' - was it initialized as a Radicle project?",
+        name
+      )));
+    }
+
+    // Announce to network
+    self.announce_refs(dir.rid)?;
+    log::info!("Announced directory '{}' to Radicle network", name);
+
     Ok(())
   }
 

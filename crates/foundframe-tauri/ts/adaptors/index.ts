@@ -35,6 +35,8 @@ import type {
   StreamChunkType,
   DatabasePorts
 } from '@o19/foundframe-front';
+import { TauriDeviceAdaptor } from './device.adaptor.js';
+export { TauriDeviceAdaptor } from './device.adaptor.js';
 
 /**
  * Result from stream entry creation commands
@@ -288,5 +290,6 @@ export function createTauriAdaptors(db: BaseSQLiteDatabase<any, any> | any): Dat
     conversation: new TauriConversationAdaptor(db),
     stream,
     view,
+    device: new TauriDeviceAdaptor(),
   };
 }

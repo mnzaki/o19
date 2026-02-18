@@ -106,4 +106,29 @@ pub trait Platform: Send + Sync {
   /// Called when the app is shutting down.
   /// Desktop: shutdown foundframe. Mobile: no-op (service handles it).
   fn shutdown(&self) -> Result<()>;
+
+  // ===========================================================================
+  // Camera Operations
+  // ===========================================================================
+
+  /// Start the camera with specified mode.
+  fn start_camera(&self, mode: String, camera_direction: String) -> Result<serde_json::Value>;
+
+  /// Stop the camera.
+  fn stop_camera(&self) -> Result<serde_json::Value>;
+
+  /// Capture a photo (when in photo mode).
+  fn capture_photo(&self) -> Result<serde_json::Value>;
+
+  /// Set camera mode.
+  fn set_camera_mode(&self, mode: String, camera_direction: String) -> Result<serde_json::Value>;
+
+  /// Check if camera is active.
+  fn is_camera_active(&self) -> Result<serde_json::Value>;
+
+  /// Request camera permissions.
+  fn request_camera_permissions(&self) -> Result<serde_json::Value>;
+
+  /// Check camera permissions.
+  fn check_camera_permissions(&self) -> Result<serde_json::Value>;
 }

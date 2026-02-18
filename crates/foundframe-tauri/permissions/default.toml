@@ -23,4 +23,6 @@ permissions = [
   "allow-list-paired-devices",
   "allow-check-followers-and-pair",
   "allow-unpair-device",
+  "allow-check-service-status",
+  "allow-start-service"
 ]

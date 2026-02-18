@@ -16,12 +16,14 @@ export { ConversationService } from './conversation.service.js';
 export { TheStreamService } from './thestream.service.js';
 export { ViewService } from './view.service.js';
 export { PreviewService } from './preview.service.js';
+export { DeviceService } from './device.service.js';
+export type { IDeviceService } from './device.service.js';
 
 /**
  * Aggregate service factory
  * Creates domain services wired to concrete adaptors
  */
-import type { DatabasePorts } from '../ports/index.js';
+import type { DatabasePorts, DevicePort } from '../ports/index.js';
 
 export interface DatabaseServices {
   person: import('./person.service.js').PersonService;
@@ -31,15 +33,17 @@ export interface DatabaseServices {
   conversation: import('./conversation.service.js').ConversationService;
   stream: import('./thestream.service.js').TheStreamService;
   view: import('./view.service.js').ViewService;
+  device: import('./device.service.js').DeviceService;
 }
 
 export type DomainServices = DatabaseServices & {
   preview: import('./preview.service.js').PreviewService;
-}
+};
 
 export type Ports = DatabasePorts & {
   preview: import('../ports/preview.port.js').PreviewPort;
-}
+  device: DevicePort;
+};
 
 // Async version for dynamic imports (if needed)
 export async function createDomainServicesAsync(ports: Ports): Promise<DomainServices> {
@@ -52,6 +56,7 @@ export async function createDomainServicesAsync(ports: Ports): Promise<DomainSer
     { TheStreamService },
     { ViewService },
     { PreviewService },
+    { DeviceService }
   ] = await Promise.all([
     import('./person.service.js'),
     import('./media.service.js'),
@@ -61,6 +66,7 @@ export async function createDomainServicesAsync(ports: Ports): Promise<DomainSer
     import('./thestream.service.js'),
     import('./view.service.js'),
     import('./preview.service.js'),
+    import('./device.service.js')
   ]);
 
   return {
@@ -72,6 +78,7 @@ export async function createDomainServicesAsync(ports: Ports): Promise<DomainSer
     stream: new TheStreamService(ports.stream),
     view: new ViewService(ports.view),
     preview: new PreviewService(ports.preview),
+    device: new DeviceService(ports.device)
   };
 }
 
@@ -84,6 +91,7 @@ import { ConversationService } from './conversation.service.js';
 import { TheStreamService } from './thestream.service.js';
 import { ViewService } from './view.service.js';
 import { PreviewService } from './preview.service.js';
+import { DeviceService } from './device.service.js';
 
 export function createServices(ports: Ports): DomainServices {
   return {
@@ -95,5 +103,6 @@ export function createServices(ports: Ports): DomainServices {
     stream: new TheStreamService(ports.stream),
     view: new ViewService(ports.view),
     preview: new PreviewService(ports.preview),
+    device: new DeviceService(ports.device)
   };
 }

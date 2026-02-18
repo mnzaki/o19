@@ -71,6 +71,90 @@
 
 ---
 
+## Two Paths for Android Commands
+
+When adding a command that needs Android native functionality, you have **two distinct paths** based on what the command does:
+
+### Path 1: Native Device Features (Camera, Sensors, etc.)
+
+For features that use Android hardware/native APIs but **don't** involve foundframe domain logic:
+
+```
+Frontend ──► Rust Command ──► Platform.start_camera() ──► run_mobile_plugin()
+                                                              │
+                                                              ▼
+                                                    ApiPlugin.kt (Tauri Plugin)
+                                                              │
+                                                              ▼
+                                                    CameraPlugin.kt (utility)
+                                                              │
+                                                              ▼
+                                                    CameraX (Android API)
+```
+
+**Examples:** Camera, QR scanning, file picker, notifications  
+**Key trait:** These just need native Android APIs, not foundframe
+
+**Implementation:**
+- Add method to `Platform` trait (`src/platform.rs`)
+- Implement in `DesktopPlatform` → return "not available" error
+- Implement in `AndroidPlatform` → use `run_mobile_plugin()`
+- Add Kotlin handler in `ApiPlugin.kt` (camelCase method names!)
+- Delegate to utility class (e.g., `CameraPlugin.kt`) if reusable
+
+### Path 2: Foundframe Domain Operations (TheStream, Identity, etc.)
+
+For features that manipulate foundframe data structures:
+
+```
+Frontend ──► Rust Command ──► Platform.add_post() ──► AIDL Client
+                                                          │
+                                                          ▼
+                                                FoundframeRadicleService
+                                                          │
+                                                          ▼
+                                                o19-foundframe (Rust JNI)
+                                                          │
+                                                          ▼
+                                                TheStream, KERI, etc.
+```
+
+**Examples:** add_post, add_bookmark, generate_pairing_qr  
+**Key trait:** These manipulate domain entities in foundframe
+
+**Implementation:**
+- Add method to `Platform` trait
+- Implement in `DesktopPlatform` → call o19-foundframe directly
+- Implement in `AndroidPlatform` → use AIDL client to call service
+- The AIDL service calls o19-foundframe via JNI
+- **No** Kotlin code needed (unless UI like ReceiveShareActivity)
+
+### Decision Tree
+
+```
+Does command use foundframe domain?
+    ├── YES → Use AIDL service (Path 2)
+    │           └── Add to IFoundframeRadicle.aidl
+    │           └── Implement in aidl_service.rs
+    │           └── Call from AndroidPlatform
+    │
+    └── NO → Use mobile plugin (Path 1)
+                └── Add to ApiPlugin.kt
+                └── Call via run_mobile_plugin()
+                └── Optional: create reusable utility in o19-android
+```
+
+### Naming Conventions
+
+| Layer | Command Name | Example |
+|-------|-------------|---------|
+| Rust command | `snake_case` | `start_camera` |
+| Rust Platform method | `snake_case` | `fn start_camera(&self, ...)` |
+| `run_mobile_plugin()` arg | `camelCase` | `"startCamera"` |
+| Kotlin @Command method | `camelCase` | `fun startCamera(invoke: Invoke)` |
+
+---
+
 ## Dependency Tree
 
 ### Package-Level Dependencies
@@ -148,25 +232,86 @@
 
 > A "vertical slice" means adding a feature that spans from UI → TypeScript → Rust → Android.
 
-### Step 1: Define the Rust Command
+### Step 1: Choose Your Path
 
-**File:** `crates/foundframe-tauri/src/commands.rs`
+**Is this a native Android feature OR a foundframe domain operation?**
 
+- **Native feature** (camera, sensors, etc.) → Follow Path A below
+- **Foundframe operation** (TheStream, Identity, etc.) → Follow Path B
+
+### Path A: Native Android Feature
+
+**Step A1:** Add to `Platform` trait (`src/platform.rs`):
 ```rust
-#[derive(Debug, Deserialize)]
-pub struct MyFeatureOptions {
-    param: String,
-}
-
-#[tauri::command]
-pub(crate) async fn my_feature(
-    options: MyFeatureOptions,
-) -> Result<serde_json::Value> {
-    // Desktop: implement directly
-    // Android: handled by ApiPlugin.kt (this is just a stub)
-    Ok(serde_json::json!({ "success": true }))
+pub trait Platform {
+    // ... existing methods
+    fn start_camera(&self, mode: String, direction: String) -> Result<serde_json::Value>;
 }
 ```
+
+**Step A2:** Implement in `DesktopPlatform` (`src/desktop.rs`):
+```rust
+fn start_camera(&self, _mode: String, _direction: String) -> Result<serde_json::Value> {
+    Err(Error::Other("Camera not available on desktop".into()))
+}
+```
+
+**Step A3:** Implement in `AndroidPlatform` (`src/mobile/android.rs`):
+```rust
+fn start_camera(&self, mode: String, direction: String) -> Result<serde_json::Value> {
+    self.plugin_handle
+        .run_mobile_plugin("startCamera", serde_json::json!({
+            "mode": mode,
+            "cameraDirection": direction
+        }))
+        .map_err(|e| Error::Other(format!("Camera error: {}", e)))
+}
+```
+
+**Step A4:** Add Kotlin handler (`android/src/main/java/ApiPlugin.kt`):
+```kotlin
+@Command
+fun startCamera(invoke: Invoke) {
+    val args = invoke.parseArgs(CameraOptions::class.java)
+    cameraPlugin?.startCameraInternal(invoke, args.mode, args.cameraDirection)
+}
+```
+
+**Step A5:** (Optional) Create reusable utility in `crates/android/`
+
+### Path B: Foundframe Domain Operation
+
+**Step B1:** Add to `Platform` trait (`src/platform.rs`):
+```rust
+pub trait Platform {
+    fn add_post(&self, content: String, title: Option<String>) -> Result<StreamEntryResult>;
+}
+```
+
+**Step B2:** Implement in `DesktopPlatform` (`src/desktop.rs`):
+```rust
+fn add_post(&self, content: String, title: Option<String>) -> Result<StreamEntryResult> {
+    // Call o19-foundframe directly
+    let entry = self.stream.add_post(content, title.as_deref())?;
+    Ok(StreamEntryResult { ... })
+}
+```
+
+**Step B3:** Implement in `AndroidPlatform` (`src/mobile/android.rs`):
+```rust
+fn add_post(&self, content: String, title: Option<String>) -> Result<StreamEntryResult> {
+    // Call AIDL service
+    let reference = self.with_client(|c| c.add_post(&content, title.as_deref()))?;
+    Ok(StreamEntryResult { id: None, seen_at: ..., reference })
+}
+```
+
+**Step B4:** Add to AIDL interface (`crates/android/aidl/.../IFoundframeRadicle.aidl`):
+```aidl
+String addPost(String content, @nullable String title);
+```
+
+**Step B5:** Implement in `aidl_service.rs` (calls foundframe via JNI)
 
 ### Step 2: Register in Plugin
 
@@ -362,10 +507,63 @@ listen('my-event', (event) => {
 - Run `./gradlew clean` before rebuild
 
 ### Camera/permissions not working
+
+**Architecture reminder:**
 - CameraPlugin is in `crates/android`, NOT in foundframe-tauri
 - ApiPlugin handles permissions (it extends Plugin), CameraPlugin does not
 - CameraX dependencies are in `crates/android/build.gradle`
 
+**Permission request flow:**
+```typescript
+// 1. Check current status
+const checkResult = await checkCameraPermissions();
+if (checkResult.camera === 'granted') {
+  // Already have permission
+}
+
+// 2. Request if needed (shows Android permission dialog)
+const permResult = await requestCameraPermissions();
+if (!permResult.granted) {
+  // Permission denied - show settings UI
+}
+
+// 3. Then start camera
+await startCamera({ mode: 'qr' });
+```
+
+**Permission denied forever?**
+If user selected "Don't ask again", `requestCameraPermissions()` will return denied immediately. You should show a message directing them to Android Settings → Apps → DearDiary → Permissions.
+
 ---
 
 *See also: [CODE_ARCHITECTURE.md](../CODE_ARCHITECTURE.md) for high-level system diagrams*
+
+## General things
+
+When adding new JNI calls, use a simple "#[no_mangle]" technique, don't try
+using the `jni` crate, bad things happen sometimes
+
+### JNI String Conversion from Rust (⚠️ Currently Broken)
+
+**STATUS:** JNI string conversion from Java→Rust is causing segfaults. The vtable
+access pattern works in theory but crashes at runtime. 
+
+**WORKAROUND:** Use hardcoded values in Rust and ignore JNI string parameters:
+```rust
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_service_MyClass_nativeMyMethod(
+  _env: *mut std::ffi::c_void,
+  _class: *mut std::ffi::c_void,
+  _jstring_arg: *mut std::ffi::c_void,  // Ignore for now
+) {
+  // Use hardcoded values instead of converting JNI strings
+  let value = "/data/data/...".to_string();
+}
+```
+
+**FUTURE:** Need to investigate proper JNI bindings. The `jni` crate may work
+better despite initial issues, or we need to fix the raw pointer arithmetic.
+Common causes of the crash:
+- JNIEnv structure differs between Android versions
+- Vtable offsets may vary (170/171 for Get/ReleaseStringUTFChars was for Android 14)
+- Thread-local JNIEnv state may not be valid in spawned threads

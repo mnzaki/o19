@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-check-service-status"
+description = "Enables the check_service_status command without any pre-configured scope."
+commands.allow = ["check_service_status"]
+
+[[permission]]
+identifier = "deny-check-service-status"
+description = "Denies the check_service_status command without any pre-configured scope."
+commands.deny = ["check_service_status"]

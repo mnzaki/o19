@@ -10,14 +10,15 @@ use android::aidl_client::Client as ServiceClient;
 use o19_foundframe::signal::EventBus;
 use serde::de::DeserializeOwned;
 use std::sync::Mutex;
-use tauri::{AppHandle, Runtime, plugin::PluginApi};
+use tauri::{AppHandle, Emitter, Runtime, plugin::PluginApi};
 
 /// Initialize the Android platform.
 pub fn init<R: Runtime, C: DeserializeOwned>(
   app: &AppHandle<R>,
   _api: PluginApi<R, C>,
+  plugin_handle: tauri::plugin::PluginHandle<R>,
 ) -> Result<AndroidPlatform<R>> {
-  AndroidPlatform::new(app.clone())
+  AndroidPlatform::new(app.clone(), plugin_handle)
 }
 
 /// Android platform implementation.
@@ -28,19 +29,33 @@ pub struct AndroidPlatform<R: Runtime> {
   app_handle: AppHandle<R>,
   events: EventBus,
   service_client: Mutex<ServiceClient>,
+  plugin_handle: tauri::plugin::PluginHandle<R>,
 }
 
 impl<R: Runtime> AndroidPlatform<R> {
-  fn new(app_handle: AppHandle<R>) -> Result<Self> {
+  fn new(app_handle: AppHandle<R>, plugin_handle: tauri::plugin::PluginHandle<R>) -> Result<Self> {
     // Connect to the service
     let mut service_client = ServiceClient::new();
-    match service_client.connect() {
+    let connection_result = service_client.connect();
+    
+    match &connection_result {
       Ok(()) => {
-        tracing::info!("Connected to FoundframeRadicle service");
+        tracing::info!("Connected to FoundframeRadicle service successfully");
+        // Emit success event to UI
+        let _ = app_handle.emit("foundframe:service-connected", ());
       }
       Err(e) => {
-        tracing::warn!("Failed to connect to service: {}", e);
-        // Continue anyway - we'll error on operations if not connected
+        tracing::error!("FATAL: Failed to connect to FoundframeRadicle service: {}", e);
+        // Emit fatal error event to UI
+        match app_handle.emit("foundframe:fatal-error", serde_json::json!({
+          "error": "Service not connected",
+          "message": "The FoundframeRadicle background service is not running. Please restart the app.",
+          "details": format!("{}", e),
+          "recoverable": false
+        })) {
+          Ok(_) => tracing::info!("Fatal error event emitted successfully"),
+          Err(emit_err) => tracing::error!("Failed to emit fatal error event: {}", emit_err),
+        }
       }
     }
 
@@ -51,6 +66,7 @@ impl<R: Runtime> AndroidPlatform<R> {
       app_handle,
       events,
       service_client: Mutex::new(service_client),
+      plugin_handle,
     })
   }
 
@@ -65,9 +81,18 @@ impl<R: Runtime> AndroidPlatform<R> {
   ) -> Result<T> {
     let client = self.service_client.lock().unwrap();
     if !client.is_connected() {
-      return Err(Error::Other("Service not connected".into()));
+      tracing::error!("[AndroidPlatform] Service operation attempted but service not connected");
+      // Emit event to UI so user knows service is down
+      let _ = self.app_handle.emit("foundframe:service-disconnected", ());
+      return Err(Error::Other("Service not connected. The background service may have crashed. Please restart the app.".into()));
     }
-    f(&client).map_err(|e| Error::Other(format!("Service error: {}", e)))
+    match f(&client) {
+      Ok(result) => Ok(result),
+      Err(e) => {
+        tracing::error!("[AndroidPlatform] Service operation failed: {}", e);
+        Err(Error::Other(format!("Service error: {}", e)))
+      }
+    }
   }
 }
 
@@ -99,7 +124,7 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
 
   fn add_post(&self, content: String, title: Option<String>) -> Result<StreamEntryResult> {
     let reference = self.with_client(|c| c.add_post(&content, title.as_deref()))?;
-    
+
     // The service returns the PKB URL reference
     // We don't have a local database ID since the service handles that
     Ok(StreamEntryResult {
@@ -118,8 +143,9 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
     title: Option<String>,
     notes: Option<String>,
   ) -> Result<StreamEntryResult> {
-    let reference = self.with_client(|c| c.add_bookmark(&url, title.as_deref(), notes.as_deref()))?;
-    
+    let reference =
+      self.with_client(|c| c.add_bookmark(&url, title.as_deref(), notes.as_deref()))?;
+
     Ok(StreamEntryResult {
       id: None,
       seen_at: std::time::SystemTime::now()
@@ -139,9 +165,15 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
     subpath: Option<String>,
   ) -> Result<StreamEntryResult> {
     let reference = self.with_client(|c| {
-      c.add_media_link(&directory, &url, title.as_deref(), mime_type.as_deref(), subpath.as_deref())
+      c.add_media_link(
+        &directory,
+        &url,
+        title.as_deref(),
+        mime_type.as_deref(),
+        subpath.as_deref(),
+      )
     })?;
-    
+
     Ok(StreamEntryResult {
       id: None,
       seen_at: std::time::SystemTime::now()
@@ -152,13 +184,9 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
     })
   }
 
-  fn add_person(
-    &self,
-    display_name: String,
-    handle: Option<String>,
-  ) -> Result<StreamEntryResult> {
+  fn add_person(&self, display_name: String, handle: Option<String>) -> Result<StreamEntryResult> {
     let reference = self.with_client(|c| c.add_person(&display_name, handle.as_deref()))?;
-    
+
     Ok(StreamEntryResult {
       id: None,
       seen_at: std::time::SystemTime::now()
@@ -175,7 +203,7 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
     title: Option<String>,
   ) -> Result<StreamEntryResult> {
     let reference = self.with_client(|c| c.add_conversation(&conversation_id, title.as_deref()))?;
-    
+
     Ok(StreamEntryResult {
       id: None,
       seen_at: std::time::SystemTime::now()
@@ -196,7 +224,7 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
     let reference = self.with_client(|c| {
       c.add_text_note(&directory, &content, title.as_deref(), subpath.as_deref())
     })?;
-    
+
     Ok(StreamEntryResult {
       id: None,
       seen_at: std::time::SystemTime::now()
@@ -251,14 +279,16 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
   fn list_paired_devices(&self) -> Result<Vec<PairedDeviceInfo>> {
     let followers = self.with_client(|c| c.list_followers())?;
 
-    Ok(followers
-      .into_iter()
-      .map(|nid| PairedDeviceInfo {
-        node_id: nid.clone(),
-        alias: format!("Device {}", &nid[..8.min(nid.len())]),
-        paired: true,
-      })
-      .collect())
+    Ok(
+      followers
+        .into_iter()
+        .map(|nid| PairedDeviceInfo {
+          node_id: nid.clone(),
+          alias: format!("Device {}", &nid[..8.min(nid.len())]),
+          paired: true,
+        })
+        .collect(),
+    )
   }
 
   fn check_followers_and_pair(&self) -> Result<Vec<PairedDeviceInfo>> {
@@ -297,24 +327,95 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
     tracing::info!("Android platform shutdown (service continues running)");
     Ok(())
   }
+
+  // ===========================================================================
+  // Camera Operations - Delegated to Tauri Android Plugin (ApiPlugin.kt)
+  // ===========================================================================
+
+  fn start_camera(&self, mode: String, camera_direction: String) -> Result<serde_json::Value> {
+    self
+      .plugin_handle
+      .run_mobile_plugin(
+        "startCamera",
+        serde_json::json!({
+          "mode": mode,
+          "cameraDirection": camera_direction
+        }),
+      )
+      .map_err(|e| Error::Other(format!("Camera error: {}", e)))
+  }
+
+  fn stop_camera(&self) -> Result<serde_json::Value> {
+    self
+      .plugin_handle
+      .run_mobile_plugin("stopCamera", ())
+      .map_err(|e| Error::Other(format!("Camera error: {}", e)))
+  }
+
+  fn capture_photo(&self) -> Result<serde_json::Value> {
+    self
+      .plugin_handle
+      .run_mobile_plugin("capturePhoto", ())
+      .map_err(|e| Error::Other(format!("Camera error: {}", e)))
+  }
+
+  fn set_camera_mode(&self, mode: String, camera_direction: String) -> Result<serde_json::Value> {
+    self
+      .plugin_handle
+      .run_mobile_plugin(
+        "setCameraMode",
+        serde_json::json!({
+          "mode": mode,
+          "cameraDirection": camera_direction
+        }),
+      )
+      .map_err(|e| Error::Other(format!("Camera error: {}", e)))
+  }
+
+  fn is_camera_active(&self) -> Result<serde_json::Value> {
+    self
+      .plugin_handle
+      .run_mobile_plugin("isCameraActive", ())
+      .map_err(|e| Error::Other(format!("Camera error: {}", e)))
+  }
+
+  fn request_camera_permissions(&self) -> Result<serde_json::Value> {
+    self
+      .plugin_handle
+      .run_mobile_plugin("requestCameraPermissions", ())
+      .map_err(|e| Error::Other(format!("Camera error: {}", e)))
+  }
+
+  fn check_camera_permissions(&self) -> Result<serde_json::Value> {
+    self
+      .plugin_handle
+      .run_mobile_plugin("checkCameraPermissions", ())
+      .map_err(|e| Error::Other(format!("Camera error: {}", e)))
+  }
 }
 
 /// Extract node ID from pairing URL
 fn extract_node_id_from_url(url: &str) -> Result<String> {
-  url.split("?")
+  url
+    .split("?")
     .nth(1)
     .and_then(|params| {
-      params.split("&").find_map(|p| p.strip_prefix("nid=").map(|v| v.to_string()))
+      params
+        .split("&")
+        .find_map(|p| p.strip_prefix("nid=").map(|v| v.to_string()))
     })
     .ok_or_else(|| Error::Other("Invalid pairing URL".into()))
 }
 
 /// Extract emoji identity from pairing URL
 fn extract_emoji_from_url(url: &str) -> Result<String> {
-  url.split("?")
+  url
+    .split("?")
     .nth(1)
     .and_then(|params| {
-      params.split("&").find_map(|p| p.strip_prefix("emoji=").map(|v| v.to_string()))
+      params
+        .split("&")
+        .find_map(|p| p.strip_prefix("emoji=").map(|v| v.to_string()))
     })
     .ok_or_else(|| Error::Other("Invalid pairing URL".into()))
 }

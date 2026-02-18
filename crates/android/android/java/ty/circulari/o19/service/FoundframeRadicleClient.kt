@@ -25,7 +25,7 @@ import android.util.Log
 class FoundframeRadicleClient(private val context: Context) {
     
     companion object {
-        private const val TAG = "FoundframeClient"
+        private const val TAG = "O19-ANDROID"
         
         init {
             System.loadLibrary("android")
@@ -65,26 +65,31 @@ class FoundframeRadicleClient(private val context: Context) {
      * @return true if service is running or was started successfully
      */
     fun ensureStarted(alias: String = "android"): Boolean {
+        Log.i(TAG, "[FoundframeRadicleClient] ensureStarted() called in pid ${Process.myPid()}")
+        
         if (isServiceRunning()) {
-            Log.d(TAG, "Service already running")
+            Log.d(TAG, "[FoundframeRadicleClient] Service already running")
             return true
         }
         
-        Log.i(TAG, "Starting FoundframeRadicleService...")
+        Log.i(TAG, "[FoundframeRadicleClient] Starting FoundframeRadicleService with alias: $alias")
+        Log.i(TAG, "[FoundframeRadicleClient] Context: ${context.applicationInfo.processName}")
+        
         startService(context, alias)
         
         // Wait a bit for service to start
         var attempts = 0
         while (attempts < 10) {
             Thread.sleep(100)
+            Log.d(TAG, "[FoundframeRadicleClient] Checking if service started (attempt ${attempts + 1}/10)")
             if (isServiceRunning()) {
-                Log.i(TAG, "Service started successfully")
+                Log.i(TAG, "[FoundframeRadicleClient] Service started successfully after ${attempts + 1} attempts")
                 return true
             }
             attempts++
         }
         
-        Log.e(TAG, "Service failed to start")
+        Log.e(TAG, "[FoundframeRadicleClient] Service failed to start after 10 attempts")
         return false
     }
     

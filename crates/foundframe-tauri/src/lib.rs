@@ -140,6 +140,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::check_followers_and_pair,
       commands::list_paired_devices,
       commands::unpair_device,
+      // Service status
+      commands::check_service_status,
+      commands::start_service,
     ])
     .setup(|app, api| {
       // Initialize logging first
@@ -147,9 +150,18 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
       info!("Initializing o19-foundframe-tauri plugin...");
 
+      // Register Android plugin (noop on desktop)
+      #[cfg(target_os = "android")]
+      let plugin_handle = {
+        info!("Registering ApiPlugin for Android...");
+        api.register_android_plugin("ty.circulari.o19.ff", "ApiPlugin")?
+      };
+      #[cfg(not(target_os = "android"))]
+      let plugin_handle = ();
+
       // Initialize platform implementation
       #[cfg(mobile)]
-      let platform = mobile::init(app, api)?;
+      let platform = mobile::init(app, api, plugin_handle)?;
       #[cfg(desktop)]
       let platform = desktop::init(app, api)?;
 

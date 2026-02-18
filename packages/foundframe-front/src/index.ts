@@ -172,6 +172,16 @@ export type {
   PreviewMetadata,
 } from './ports/preview.port.js';
 
+export {
+  DeviceAdaptor,
+} from './ports/device.port.js';
+export type {
+  DevicePort,
+  PairedDevice,
+  PairingQrData,
+  ScannedPairingData,
+} from './ports/device.port.js';
+
 export type {
   DatabasePorts,
 } from './ports/index.js';
@@ -189,13 +199,15 @@ export {
   TheStreamService,
   ViewService,
   PreviewService,
+  DeviceService,
   createServices,
   createDomainServicesAsync,
 } from './services/index.js';
 
 export type {
   DomainServices,
-  DatabaseServices
+  DatabaseServices,
+  IDeviceService,
 } from './services/index.js';
 
 // ============================================
