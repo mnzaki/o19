@@ -245,12 +245,251 @@ Orbit captures **backend choice** without changing Ring position.
 
 ---
 
+## Metaphor C: Layers as Stack, Boundaries as Generated Code
+
+**User's insight**: A Ring is made up of **Boundaries** stitched together. Boundaries are what's between Layers. Layers are the classic caller->callee hierarchy.
+
+### The Model
+
+```
+Layer N (caller) ──[Boundary]──► Layer N+1 (callee)
+        │                              │
+        │        ┌─────────────┐       │
+        │        │   AIDL      │       │
+        │        │  frames     │       │
+        │        │  boundary   │       │
+        │        └─────────────┘       │
+        │                              │
+   ┌────┴────┐                  ┌──────┴──────┐
+   │ Caller  │                  │   Callee    │
+   │ types   │◄──── codegen ───►│   types     │
+   │ adapter │                  │   handler   │
+   └─────────┘                  └─────────────┘
+```
+
+**Key insight**: The **Boundary type** is a composite type dependent on the Layers at either side.
+
+### Computing Boundary Types
+
+Given a DAG of Layers, we compute the Boundary type:
+
+```rust
+// Layer is a node in the call graph
+struct Layer {
+    name: String,
+    language: Language,
+    runtime: Runtime,
+    process: ProcessModel,
+}
+
+// Boundary is the edge between Layers
+struct Boundary {
+    from: LayerId,
+    to: LayerId,
+    boundary_type: BoundaryType,  // computed from Layer properties
+}
+
+// BoundaryType determines what code to generate
+enum BoundaryType {
+    // Same language, same process: direct call
+    Direct,
+    
+    // Same language, different process: IPC
+    Ipc(Protocol),
+    
+    // Different languages, JNI bridge
+    Jni {
+        direction: JniDirection,
+    },
+    
+    // Different languages, FFI
+    Ffi {
+        abi: Abi,
+    },
+    
+    // Network boundary
+    Network {
+        protocol: Protocol,  // HTTP, gRPC, WebSocket, etc.
+        serialization: SerializationFormat,
+    },
+    
+    // Tauri-specific: TS -> Rust
+    TauriCommand,
+    
+    // AIDL-specific: Java <-> Rust
+    Aidl {
+        package: String,
+        interface: String,
+    },
+}
+```
+
+### Example: Current Architecture
+
+```
+Layer DAG:
+┌─────────────────┐
+│  TypeScript UI  │  (Layer 0)
+│  (browser/heap) │
+└────────┬────────┘
+         │ BoundaryType: TauriCommand
+         ▼
+┌─────────────────┐
+│  Rust Commands  │  (Layer 1)
+│  (tauri::command)│
+└────────┬────────┘
+         │ BoundaryType: Direct OR AidlClient
+         ▼
+┌─────────────────┐
+│ Rust Platform   │  (Layer 2a - Desktop)
+│ (direct calls)  │     OR
+└─────────────────┘  (Layer 2b - Android)
+                            │
+                            │ BoundaryType: Aidl
+                            ▼
+                     ┌─────────────────┐
+                     │  Java Service   │  (Layer 3)
+                     │  (android:remote)│
+                     └────────┬────────┘
+                              │ BoundaryType: Jni
+                              ▼
+                     ┌─────────────────┐
+                     │   Rust Core     │  (Layer 4)
+                     │ (foundframe)    │
+                     └─────────────────┘
+```
+
+### Computing the Boundary
+
+```rust
+fn compute_boundary_type(from: &Layer, to: &Layer) -> BoundaryType {
+    match (from.language, to.language, from.process, to.process) {
+        // Same language, same process
+        (Lang::Rust, Lang::Rust, Process::Same, Process::Same) => BoundaryType::Direct,
+        
+        // Same language, different process
+        (Lang::Rust, Lang::Rust, _, Process::Different) => BoundaryType::Ipc(Protocol::UnixSocket),
+        
+        // Rust -> Java via JNI
+        (Lang::Rust, Lang::Java, _, _) => BoundaryType::Jni { direction: JniDirection::JavaUpcall },
+        
+        // Java -> Rust via JNI  
+        (Lang::Java, Lang::Rust, _, _) => BoundaryType::Jni { direction: JniDirection::JavaDowncall },
+        
+        // TypeScript -> Rust via Tauri
+        (Lang::TypeScript, Lang::Rust, _, _) => BoundaryType::TauriCommand,
+        
+        // Network boundaries
+        (_, _, Process::Network, _) => BoundaryType::Network { 
+            protocol: Protocol::Http,
+            serialization: SerializationFormat::Json,
+        },
+        
+        _ => BoundaryType::Ffi { abi: Abi::C },
+    }
+}
+```
+
+### AIDL as Boundary Frame
+
+The AIDL file **frames** the boundary—it defines:
+- What methods cross the boundary
+- What types cross the boundary
+- Directionality (in, out, inout)
+- Lifecycle (oneway, callback)
+
+**aidl-codegen** reads the AIDL and generates the boundary code based on the computed BoundaryType.
+
+### Ring Composition
+
+A **Ring** is a cycle in the Layer DAG—a complete round-trip from a Layer back to itself through other Layers:
+
+```
+Ring: TypeScript UI → Rust Commands → Rust Platform → Rust Core
+                       ↓ (callback)
+              ←←←←←←←←←←
+```
+
+Or in the Android case:
+```
+Ring: TypeScript UI → Rust Commands → Java Service → Rust Core
+                       ↓              ↓ (callback)
+              ←←←←←←←←←←←←←←←←←←←←←
+```
+
+### Code Generation as Boundary Instantiation
+
+```rust
+// For each boundary in the architecture:
+for boundary in architecture.boundaries() {
+    // 1. Compute boundary type from adjacent layers
+    let boundary_type = compute_boundary_type(&boundary.from, &boundary.to);
+    
+    // 2. Frame the AIDL through this boundary type
+    let framed = frame_aidl(&aidl, &boundary_type);
+    
+    // 3. Generate the boundary code
+    let generated = generate_boundary_code(framed, &boundary_type);
+    
+    // 4. Output to appropriate location
+    write_to(&boundary.output_path(), generated);
+}
+```
+
+### Configuration
+
+```yaml
+# aidl-codegen.yaml
+architecture:
+  layers:
+    - name: typescript-ui
+      language: typescript
+      runtime: browser
+      
+    - name: rust-commands
+      language: rust
+      runtime: tauri
+      
+    - name: rust-platform
+      language: rust
+      runtime: tauri
+      
+    - name: java-service
+      language: java
+      runtime: android
+      process: remote
+      
+    - name: rust-core
+      language: rust
+      runtime: native
+
+  boundaries:
+    - from: typescript-ui
+      to: rust-commands
+      # Computed: BoundaryType::TauriCommand
+      
+    - from: rust-commands
+      to: rust-platform
+      # Desktop: BoundaryType::Direct
+      # Android: BoundaryType::AidlClient
+      
+    - from: rust-platform
+      to: java-service
+      # Computed: BoundaryType::Aidl
+      
+    - from: java-service
+      to: rust-core
+      # Computed: BoundaryType::Jni
+```
+
+---
+
 ## Next Steps
 
 Before coding:
-1. Choose between Metaphor A and B (or synthesis)
+1. ~~Choose between Metaphor A and B (or synthesis)~~ → **Metaphor C: Boundaries**
 2. Define the formal syntax for Architecture
-3. Determine how Rings, Layers, Shells, and Orbits relate
+3. Determine how Rings, Layers, Boundaries relate
 4. Map current `aidl-codegen` to the chosen model
 
 *The spiral generates its own abstractions.*
