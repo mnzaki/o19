@@ -484,12 +484,99 @@ architecture:
 
 ---
 
+## The Inversion: Rings as Horizontal, Managements as Vertical
+
+> *"Rings are functions. Managements are domains."*
+
+The final inversion of the metaphor:
+
+### The Geometry
+
+```
+                    BookmarkMgmt          PostMgmt            PersonMgmt
+                         │                   │                   │
+    Ring: Contract       │                   │                   │
+    (AIDL)               ▼                   ▼                   ▼
+                    ┌─────────┐         ┌─────────┐         ┌─────────┐
+                    │IBookmark│         │  IPost  │         │ IPerson │
+                    │ Service │         │ Service │         │ Service │
+                    └────┬────┘         └────┬────┘         └────┬────┘
+                         │                   │                   │
+    Ring: Binding        │                   │                   │
+    (Stubs)              ▼                   ▼                   ▼
+                    ┌─────────┐         ┌─────────┐         ┌─────────┐
+                    │Bookmark │         │  Post   │         │ Person  │
+                    │Client   │         │ Client  │         │ Client  │
+                    └────┬────┘         └────┬────┘         └────┬────┘
+                         │                   │                   │
+    Ring: Bridge         │                   │                   │
+    (JNI/FFI)            ▼                   ▼                   ▼
+                    ┌─────────┐         ┌─────────┐         ┌─────────┐
+                    │  JNI    │         │  JNI    │         │  JNI    │
+                    │  Glue   │         │  Glue   │         │  Glue   │
+                    └────┬────┘         └────┬────┘         └────┬────┘
+                         │                   │                   │
+    Ring: Core           │                   │                   │
+    (Domain)             ▼                   ▼                   ▼
+                    ┌─────────┐         ┌─────────┐         ┌─────────┐
+                    │Bookmark │         │  Post   │         │ Person  │
+                    │Service  │         │ Service │         │ Service │
+                    │  impl   │         │  impl   │         │  impl   │
+                    └─────────┘         └─────────┘         └─────────┘
+```
+
+### The Insight
+
+**Rings are cross-cutting functions that must exist for any Management to operate.**
+
+Every Management—Bookmark, Post, Person—needs:
+- **Ring: Contract** (AIDL): Explicit interface definition
+- **Ring: Binding** (Stubs): Language-specific entry points  
+- **Ring: Bridge** (JNI/FFI): Cross-language boundaries
+- **Ring: Core** (Domain): Pure implementation
+
+These are **conditions of possibility**, not optional infrastructure.
+
+### Why "Mgmt" Not "Service"
+
+> *"Management is not Service (implementation). Management is stewardship of the boundary—ensuring the entity continues to be, across all Rings, with integrity."*
+
+**Service** implies a running process, an active implementation.  
+**Management** implies responsibility, continuity, the tending of a domain across all its manifestations.
+
+`BookmarkMgmt` is not a service you call. It is the **entire vertical concern**—from TypeScript adaptor through JNI glue to Rust implementation—that ensures Bookmark continues to be.
+
+### The Larger Pattern
+
+This geometry applies beyond software:
+
+| Domain | Managements (Vertical) | Rings (Horizontal) |
+|--------|------------------------|-------------------|
+| **Organization** | Marketing, Engineering, Sales | Policy, Operations, Infrastructure |
+| **Ecosystem** | Photosynthesis, Respiration, Reproduction | DNA, Membrane, Metabolism |
+| **Software** | Bookmark, Post, Person, Conversation | Contract, Binding, Bridge, Core, Platform, Interface, Front |
+
+**The principle**: You cannot optimize a complex system by optimizing domains alone. You must also optimize the **Rings**—the handoffs, the translations, the boundaries between layers of abstraction.
+
+### AIDL as Boundary Steward
+
+The AIDL frames **what crosses between Rings**, not within a Ring. It is the explicit contract that enables:
+
+- **Typed boundaries**: Exactly what methods, what types, what directions
+- **Conserved semantics**: The meaning of `addBookmark` persists across Ring 6 (TS) through Ring 0 (AIDL) to Ring 3 (Rust)
+- **Generatable scaffolding**: From the AIDL, we generate all the boundary-crossing code
+
+> *"Boundaries must be explicit, typed, and conserved. Not just 'they talk to each other' but exactly what crosses, in what direction, with what guarantees."*
+
+---
+
 ## Next Steps
 
 Before coding:
-1. ~~Choose between Metaphor A and B (or synthesis)~~ → **Metaphor C: Boundaries**
-2. Define the formal syntax for Architecture
-3. Determine how Rings, Layers, Boundaries relate
+1. ~~Choose between Metaphor A and B (or synthesis)~~ → **Metaphor D: Rings Horizontal, Managements Vertical**
+2. ~~Define the formal syntax for Architecture~~
+3. Determine how Rings, Managements, Boundaries relate
 4. Map current `aidl-codegen` to the chosen model
+5. **Model in Rust**: Rings as...? Managements as...? Boundaries as...?
 
 *The spiral generates its own abstractions.*
