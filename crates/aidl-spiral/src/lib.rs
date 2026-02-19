@@ -44,10 +44,18 @@ pub mod meta_parser;
 pub mod generator;
 pub mod workspace;
 pub mod traits;
+pub mod hookup;
 
 // Re-export commonly used types
 pub use architecture::{Architecture, Management, Ring, Boundary, ArtifactType};
 pub use traits::{Generator, GenerationContext, GeneratedArtifact, GenerationError, GeneratorRegistry};
+pub use hookup::{HookupMethod, HookupContext, HookupError, auto_hookup};
+
+// Re-export generator implementations
+// Note: The generator implementations in traits::generators have different names
+// from the original generators to avoid conflicts:
+// - traits::generators::JniGenerator (trait-based) vs jni_generator::JniGenerator (original)
+//pub use traits::generators::{AidlGenerator, JavaStubGenerator, JniGenerator as JniGlueGenerator, RustServiceGenerator, PlatformGenerator, TauriCommandGenerator, TypeScriptGenerator};
 
 use jni_generator::{generate_java_stub, generate_java_client, JniConfig, JniGenerator};
 use ts_generator::generate_all_ts;

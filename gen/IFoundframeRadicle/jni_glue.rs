@@ -1,0 +1,531 @@
+//! Auto-generated JNI glue code
+//! DO NOT EDIT MANUALLY - Generated from AIDL
+use jni::objects::{JClass, JObject, JString};
+use jni::sys::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort, jstring};
+use jni::JNIEnv;
+use std::sync::OnceLock;
+/// Global service instance
+static SERVICE_INSTANCE: OnceLock<std::sync::Arc<dyn FoundframeRadicle + Send + Sync>> = OnceLock::new();
+/// Initialize the service instance
+pub fn init_service<S>(service: S)
+where
+    S: FoundframeRadicle + Send + Sync + 'static,
+{
+    let _ = SERVICE_INSTANCE.set(std::sync::Arc::new(service));
+}
+/// Get the service instance
+fn get_service() -> Option<std::sync::Arc<dyn FoundframeRadicle + Send + Sync>> {
+    SERVICE_INSTANCE.get().cloned()
+}
+/// Service trait - implement this for your service
+pub trait FoundframeRadicle: Send + Sync {
+    fn get_node_id(&self) -> Result<String, Box<dyn std::error::Error>>;
+    fn is_node_running(&self) -> Result<bool, Box<dyn std::error::Error>>;
+    fn get_node_alias(&self) -> Result<String, Box<dyn std::error::Error>>;
+    fn create_repository(&self, name: &str) -> Result<bool, Box<dyn std::error::Error>>;
+    fn list_repositories(&self) -> Result<(), Box<dyn std::error::Error>>;
+    fn follow_device(&self, deviceId: &str) -> Result<bool, Box<dyn std::error::Error>>;
+    fn list_followers(&self) -> Result<(), Box<dyn std::error::Error>>;
+    fn generate_pairing_code(&self) -> Result<String, Box<dyn std::error::Error>>;
+    fn confirm_pairing(
+        &self,
+        deviceId: &str,
+        code: &str,
+    ) -> Result<bool, Box<dyn std::error::Error>>;
+    fn unpair_device(&self, deviceId: &str) -> ();
+    fn add_post(
+        &self,
+        content: &str,
+        title: &str,
+    ) -> Result<String, Box<dyn std::error::Error>>;
+    fn add_bookmark(
+        &self,
+        url: &str,
+        title: &str,
+        notes: &str,
+    ) -> Result<String, Box<dyn std::error::Error>>;
+    fn add_media_link(
+        &self,
+        directory: &str,
+        url: &str,
+        title: &str,
+        mimeType: &str,
+        subpath: &str,
+    ) -> Result<String, Box<dyn std::error::Error>>;
+    fn add_person(
+        &self,
+        displayName: &str,
+        handle: &str,
+    ) -> Result<String, Box<dyn std::error::Error>>;
+    fn add_conversation(
+        &self,
+        conversationId: &str,
+        title: &str,
+    ) -> Result<String, Box<dyn std::error::Error>>;
+    fn add_text_note(
+        &self,
+        directory: &str,
+        content: &str,
+        title: &str,
+        subpath: &str,
+    ) -> Result<String, Box<dyn std::error::Error>>;
+    fn subscribe_events(&self, callback: &IEventCallback) -> ();
+    fn unsubscribe_events(&self, callback: &IEventCallback) -> ();
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeGetNodeId(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let result = service.get_node_id();
+    match result {
+        Ok(s) => {
+            let jstring = env.new_string(s).expect("Failed to create Java string");
+            jstring.into_raw()
+        }
+        Err(e) => {
+            env.throw_new("java/lang/RuntimeException", &format!("{}", e)).ok();
+            std::ptr::null_mut()
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeIsNodeRunning(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return 0;
+        }
+    };
+    let result = service.is_node_running();
+    match result {
+        Ok(v) => v as jboolean,
+        Err(_) => 0,
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeGetNodeAlias(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let result = service.get_node_alias();
+    match result {
+        Ok(s) => {
+            let jstring = env.new_string(s).expect("Failed to create Java string");
+            jstring.into_raw()
+        }
+        Err(e) => {
+            env.throw_new("java/lang/RuntimeException", &format!("{}", e)).ok();
+            std::ptr::null_mut()
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeCreateRepository(
+    mut env: JNIEnv,
+    _class: JClass,
+    name: JString,
+) -> jboolean {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return 0;
+        }
+    };
+    let name_rust: String = env.get_string(&name).expect("Invalid UTF-8").into();
+    let result = service.create_repository(name_rust);
+    match result {
+        Ok(v) => v as jboolean,
+        Err(_) => 0,
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeListRepositories(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jobject {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let result = service.list_repositories();
+    unimplemented!("Complex return type conversion")
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeFollowDevice(
+    mut env: JNIEnv,
+    _class: JClass,
+    deviceId: JString,
+) -> jboolean {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return 0;
+        }
+    };
+    let deviceId_rust: String = env.get_string(&deviceId).expect("Invalid UTF-8").into();
+    let result = service.follow_device(deviceId_rust);
+    match result {
+        Ok(v) => v as jboolean,
+        Err(_) => 0,
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeListFollowers(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jobject {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let result = service.list_followers();
+    unimplemented!("Complex return type conversion")
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeGeneratePairingCode(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let result = service.generate_pairing_code();
+    match result {
+        Ok(s) => {
+            let jstring = env.new_string(s).expect("Failed to create Java string");
+            jstring.into_raw()
+        }
+        Err(e) => {
+            env.throw_new("java/lang/RuntimeException", &format!("{}", e)).ok();
+            std::ptr::null_mut()
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeConfirmPairing(
+    mut env: JNIEnv,
+    _class: JClass,
+    deviceId: JString,
+    code: JString,
+) -> jboolean {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return 0;
+        }
+    };
+    let deviceId_rust: String = env.get_string(&deviceId).expect("Invalid UTF-8").into();
+    let code_rust: String = env.get_string(&code).expect("Invalid UTF-8").into();
+    let result = service.confirm_pairing(deviceId_rust, code_rust);
+    match result {
+        Ok(v) => v as jboolean,
+        Err(_) => 0,
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeUnpairDevice(
+    mut env: JNIEnv,
+    _class: JClass,
+    deviceId: JString,
+) {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return;
+        }
+    };
+    let deviceId_rust: String = env.get_string(&deviceId).expect("Invalid UTF-8").into();
+    service.unpair_device(deviceId_rust);
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeAddPost(
+    mut env: JNIEnv,
+    _class: JClass,
+    content: JString,
+    title: JString,
+) -> jstring {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let content_rust: String = env.get_string(&content).expect("Invalid UTF-8").into();
+    let title_rust: String = env.get_string(&title).expect("Invalid UTF-8").into();
+    let result = service.add_post(content_rust, title_rust);
+    match result {
+        Ok(s) => {
+            let jstring = env.new_string(s).expect("Failed to create Java string");
+            jstring.into_raw()
+        }
+        Err(e) => {
+            env.throw_new("java/lang/RuntimeException", &format!("{}", e)).ok();
+            std::ptr::null_mut()
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeAddBookmark(
+    mut env: JNIEnv,
+    _class: JClass,
+    url: JString,
+    title: JString,
+    notes: JString,
+) -> jstring {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let url_rust: String = env.get_string(&url).expect("Invalid UTF-8").into();
+    let title_rust: String = env.get_string(&title).expect("Invalid UTF-8").into();
+    let notes_rust: String = env.get_string(&notes).expect("Invalid UTF-8").into();
+    let result = service.add_bookmark(url_rust, title_rust, notes_rust);
+    match result {
+        Ok(s) => {
+            let jstring = env.new_string(s).expect("Failed to create Java string");
+            jstring.into_raw()
+        }
+        Err(e) => {
+            env.throw_new("java/lang/RuntimeException", &format!("{}", e)).ok();
+            std::ptr::null_mut()
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeAddMediaLink(
+    mut env: JNIEnv,
+    _class: JClass,
+    directory: JString,
+    url: JString,
+    title: JString,
+    mimeType: JString,
+    subpath: JString,
+) -> jstring {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let directory_rust: String = env
+        .get_string(&directory)
+        .expect("Invalid UTF-8")
+        .into();
+    let url_rust: String = env.get_string(&url).expect("Invalid UTF-8").into();
+    let title_rust: String = env.get_string(&title).expect("Invalid UTF-8").into();
+    let mimeType_rust: String = env.get_string(&mimeType).expect("Invalid UTF-8").into();
+    let subpath_rust: String = env.get_string(&subpath).expect("Invalid UTF-8").into();
+    let result = service
+        .add_media_link(
+            directory_rust,
+            url_rust,
+            title_rust,
+            mimeType_rust,
+            subpath_rust,
+        );
+    match result {
+        Ok(s) => {
+            let jstring = env.new_string(s).expect("Failed to create Java string");
+            jstring.into_raw()
+        }
+        Err(e) => {
+            env.throw_new("java/lang/RuntimeException", &format!("{}", e)).ok();
+            std::ptr::null_mut()
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeAddPerson(
+    mut env: JNIEnv,
+    _class: JClass,
+    displayName: JString,
+    handle: JString,
+) -> jstring {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let displayName_rust: String = env
+        .get_string(&displayName)
+        .expect("Invalid UTF-8")
+        .into();
+    let handle_rust: String = env.get_string(&handle).expect("Invalid UTF-8").into();
+    let result = service.add_person(displayName_rust, handle_rust);
+    match result {
+        Ok(s) => {
+            let jstring = env.new_string(s).expect("Failed to create Java string");
+            jstring.into_raw()
+        }
+        Err(e) => {
+            env.throw_new("java/lang/RuntimeException", &format!("{}", e)).ok();
+            std::ptr::null_mut()
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeAddConversation(
+    mut env: JNIEnv,
+    _class: JClass,
+    conversationId: JString,
+    title: JString,
+) -> jstring {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let conversationId_rust: String = env
+        .get_string(&conversationId)
+        .expect("Invalid UTF-8")
+        .into();
+    let title_rust: String = env.get_string(&title).expect("Invalid UTF-8").into();
+    let result = service.add_conversation(conversationId_rust, title_rust);
+    match result {
+        Ok(s) => {
+            let jstring = env.new_string(s).expect("Failed to create Java string");
+            jstring.into_raw()
+        }
+        Err(e) => {
+            env.throw_new("java/lang/RuntimeException", &format!("{}", e)).ok();
+            std::ptr::null_mut()
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeAddTextNote(
+    mut env: JNIEnv,
+    _class: JClass,
+    directory: JString,
+    content: JString,
+    title: JString,
+    subpath: JString,
+) -> jstring {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return std::ptr::null_mut();
+        }
+    };
+    let directory_rust: String = env
+        .get_string(&directory)
+        .expect("Invalid UTF-8")
+        .into();
+    let content_rust: String = env.get_string(&content).expect("Invalid UTF-8").into();
+    let title_rust: String = env.get_string(&title).expect("Invalid UTF-8").into();
+    let subpath_rust: String = env.get_string(&subpath).expect("Invalid UTF-8").into();
+    let result = service
+        .add_text_note(directory_rust, content_rust, title_rust, subpath_rust);
+    match result {
+        Ok(s) => {
+            let jstring = env.new_string(s).expect("Failed to create Java string");
+            jstring.into_raw()
+        }
+        Err(e) => {
+            env.throw_new("java/lang/RuntimeException", &format!("{}", e)).ok();
+            std::ptr::null_mut()
+        }
+    }
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeSubscribeEvents(
+    mut env: JNIEnv,
+    _class: JClass,
+    callback: JObject,
+) {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return;
+        }
+    };
+    let callback_rust = unimplemented!("Complex type conversion");
+    service.subscribe_events(callback_rust);
+}
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_IFoundframeRadicle_nativeUnsubscribeEvents(
+    mut env: JNIEnv,
+    _class: JClass,
+    callback: JObject,
+) {
+    let service = match get_service() {
+        Some(s) => s,
+        None => {
+            env.throw_new("java/lang/IllegalStateException", "Service not initialized")
+                .ok();
+            return;
+        }
+    };
+    let callback_rust = unimplemented!("Complex type conversion");
+    service.unsubscribe_events(callback_rust);
+}
+/// JNI helper: Check if service is running
+/// Called from Java: {}Client.isServiceRunning()
+#[no_mangle]
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleClient_isServiceRunning(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    1
+}

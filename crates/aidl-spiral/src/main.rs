@@ -29,9 +29,10 @@
 //! ```
 
 use aidl_spiral::{generate_from_aidl, jni_generator::JniConfig};
-use aidl_spiral::architecture::Architecture;
+use aidl_spiral::architecture::{Architecture, Management};
 use aidl_spiral::generator::Generator;
 use aidl_spiral::meta_parser::MetaParser;
+use aidl_spiral::hookup::HookupContext;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -43,6 +44,8 @@ fn main() {
     let mut input_dir: PathBuf = "./aidl".into();
     let mut output_dir: PathBuf = "./gen".into();
     let mut verbose = false;
+    let mut hookup = false;
+    let mut package_dir: Option<PathBuf> = None;
     
     let mut i = 1;
     while i < args.len() {
@@ -60,6 +63,13 @@ fn main() {
                 }
             }
             "-v" | "--verbose" => verbose = true,
+            "--hookup" => hookup = true,
+            "-p" | "--package" => {
+                i += 1;
+                if i < args.len() {
+                    package_dir = Some(args[i].clone().into());
+                }
+            }
             "-h" | "--help" => {
                 print_help();
                 return;
@@ -105,6 +115,18 @@ fn main() {
         // Fall back to legacy generation
         generate_legacy(&aidl_files, &output_dir, verbose)
     };
+    
+    // Apply hookup if requested
+    if hookup {
+        if let Some(pkg_dir) = package_dir {
+            if verbose {
+                println!("\n🔗 Applying hookup for package: {}", pkg_dir.display());
+            }
+            apply_hookup(&pkg_dir, &output_dir, verbose);
+        } else {
+            eprintln!("⚠️  --hookup requires -p/--package <dir>");
+        }
+    }
     
     // Summary
     println!("\n✨ Spiral complete!");
@@ -255,6 +277,45 @@ fn generate_legacy(
     total_files
 }
 
+/// Apply hookup to integrate generated code into a package
+fn apply_hookup(package_dir: &Path, _output_dir: &Path, verbose: bool) {
+    use aidl_spiral::hookup::{HookupRegistry, HookupContext};
+    use std::collections::HashMap;
+    
+    let registry = HookupRegistry::with_builtin();
+    let context = HookupContext {
+        package_name: package_dir.file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string(),
+        management_name: "all".to_string(),
+        target_ring: "all".to_string(),
+        language: "rust".to_string(),
+        config: HashMap::new(),
+    };
+    
+    // Apply ALL hookup methods that can_apply (including GitignoreHookup)
+    let mut applied = Vec::new();
+    for method in registry.methods.iter() {
+        if method.can_apply(package_dir) {
+            match method.apply(package_dir, &[], &context) {
+                Ok(_) => {
+                    applied.push(method.name());
+                }
+                Err(e) => {
+                    if verbose {
+                        eprintln!("   ⚠️  Hookup '{}' failed: {}", method.name(), e);
+                    }
+                }
+            }
+        }
+    }
+    
+    if verbose && !applied.is_empty() {
+        println!("   ✅ Applied hookups: {}", applied.join(", "));
+    }
+}
+
 fn print_help() {
     println!("aidl-spiral - Spiral generation from AIDL");
     println!();
@@ -263,12 +324,18 @@ fn print_help() {
     println!("Options:");
     println!("  -i, --input <dir>   Input directory (default: ./aidl)");
     println!("  -o, --output <dir>  Output directory (default: ./gen)");
+    println!("  -p, --package <dir> Package directory for hookup");
+    println!("      --hookup        Auto-integrate generated code into package");
     println!("  -v, --verbose       Show detailed output");
     println!("  -h, --help          Print this help");
     println!();
     println!("Defaults:");
     println!("  • Reads .aidl files from ./aidl/");
     println!("  • Generates code to ./gen/<InterfaceName>/");
+    println!();
+    println!("Hookup Examples:");
+    println!("  aidl-spiral -i aidl -o gen/ -p crates/my-crate --hookup");
+    println!("    Auto-integrates generated code into the Rust crate");
     println!();
     println!("Architecture Configuration:");
     println!("  If meta.aidl exists in the input directory, it defines the architecture:");

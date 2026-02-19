@@ -303,7 +303,7 @@ aidl-spiral -i /path/to/aidl -o {}
     }
     
     /// Format Rust code using prettyplease
-    fn format_rust_code(code: &str) -> String {
+    pub fn format_rust_code(code: &str) -> String {
         match syn::parse_file(code) {
             Ok(file) => prettyplease::unparse(&file),
             Err(_) => code.to_string(),
@@ -312,7 +312,7 @@ aidl-spiral -i /path/to/aidl -o {}
 }
 
 /// Generate a service implementation template
-fn generate_service_impl_template(aidl: &crate::parser::AidlFile) -> String {
+pub fn generate_service_impl_template(aidl: &crate::parser::AidlFile) -> String {
     let interface_name = aidl.interface_name.trim_start_matches('I');
     let service_impl_name = format!("{}Impl", interface_name);
     
@@ -403,7 +403,7 @@ fn generate_method_template(method: &crate::parser::AidlMethod) -> String {
     )
 }
 
-fn rust_return_type_name(ty: &crate::parser::AidlType) -> &'static str {
+pub fn rust_return_type_name(ty: &crate::parser::AidlType) -> &'static str {
     use crate::parser::AidlType;
     match ty {
         AidlType::Void => "()",
@@ -437,7 +437,7 @@ fn rust_arg_type_name(ty: &crate::parser::AidlType) -> String {
     }
 }
 
-fn to_snake_case(s: &str) -> String {
+pub fn to_snake_case(s: &str) -> String {
     let mut result = String::new();
     let chars: Vec<char> = s.chars().collect();
     

@@ -195,15 +195,19 @@ impl WorkspaceDiscovery {
             Self::detect_cargo_package_type(path, &content)
         };
         
+        // Try naming heuristic: "{library}-{ring}" or "{library}_{ring}"
+        let naming_rings = Self::detect_rings_from_name(&name);
+        
         // Determine output directory
         let output_dir = Self::extract_output_dir(&content)
-            .unwrap_or_else(|| path.join("src/generated"));
+            .unwrap_or_else(|| path.join("spiral"));
         
         // Determine AIDL source
         let aidl_dir = Self::extract_aidl_dir(&content)
             .unwrap_or_else(|| self.root.join("aidl"));
         
         let rings = explicit_rings
+            .or(naming_rings)
             .unwrap_or_else(|| package_type.default_rings()
                 .into_iter()
                 .map(|s| s.to_string())
@@ -223,6 +227,34 @@ impl WorkspaceDiscovery {
             output_dir,
             aidl_dir,
         }))
+    }
+    
+    /// Detect rings from package name suffix
+    /// Pattern: "{library}-{ring}" or "{library}_{ring}"
+    /// Examples: foundframe-front, foundframe_platform, o19-android
+    fn detect_rings_from_name(name: &str) -> Option<Vec<String>> {
+        // Split on '-' or '_'
+        let parts: Vec<&str> = name.split(|c| c == '-' || c == '_').collect();
+        
+        if parts.len() < 2 {
+            return None;
+        }
+        
+        // Get the last part as potential ring name
+        let suffix = parts.last()?.to_lowercase();
+        
+        match suffix.as_str() {
+            "contract" | "aidl" => Some(vec!["Contract".to_string()]),
+            "binding" | "stub" => Some(vec!["Binding".to_string()]),
+            "bridge" | "jni" | "glue" => Some(vec!["Bridge".to_string()]),
+            "core" | "domain" => Some(vec!["Core".to_string()]),
+            "platform" => Some(vec!["Platform".to_string()]),
+            "interface" | "commands" | "cmds" => Some(vec!["Interface".to_string()]),
+            "front" | "frontend" | "ui" | "web" => Some(vec!["Front".to_string()]),
+            "android" => Some(vec!["Binding".to_string(), "Bridge".to_string(), "Core".to_string()]),
+            "tauri" => Some(vec!["Platform".to_string(), "Interface".to_string(), "Front".to_string()]),
+            _ => None,
+        }
     }
     
     /// Detect the type of a Cargo package

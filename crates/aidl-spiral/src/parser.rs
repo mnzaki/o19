@@ -13,6 +13,7 @@ pub struct AidlMethod {
     pub name: String,
     pub return_type: AidlType,
     pub args: Vec<AidlArg>,
+    pub is_oneway: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -141,7 +142,7 @@ impl AidlParser {
             let stmt = if is_oneway { &stmt[7..] } else { stmt };
             
             // Parse method signature
-            if let Some(method) = self.parse_method_signature(stmt)? {
+            if let Some(method) = self.parse_method_signature(stmt, is_oneway)? {
                 methods.push(method);
             }
         }
@@ -180,7 +181,7 @@ impl AidlParser {
         statements
     }
 
-    fn parse_method_signature(&self, stmt: &str) -> Result<Option<AidlMethod>, String> {
+    fn parse_method_signature(&self, stmt: &str, is_oneway: bool) -> Result<Option<AidlMethod>, String> {
         // Method pattern: return_type name(arg1, arg2, ...)
         // Handles: void foo(), String bar(in int x), List<String> baz()
         let re = Regex::new(
@@ -203,6 +204,7 @@ impl AidlParser {
             name,
             return_type,
             args,
+            is_oneway,
         }))
     }
 
