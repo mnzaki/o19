@@ -1,0 +1,254 @@
+# Ring-Layer Metaphor Analysis
+
+> "The spiral conserves its own analysis."
+
+This document explores two competing metaphors for organizing code generation, then attempts to formalize the current architecture to find the right abstraction.
+
+---
+
+## Metaphor A: Rings as Radii, Layers as Traits
+
+**Ring = concentric radius from source**  
+**Layer = cross-cutting capability (trait)**
+
+```
+                    Ring 0 (Source)
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │   Ring 1 (Binding)  │◄──── Layer: LanguageStub
+              │   - Java AIDL       │
+              │   - TS Interfaces   │
+              │   - Rust Traits     │
+              └─────────────────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │   Ring 2 (Bridge)   │◄──── Layer: BoundaryCrossing
+              │   - JNI exports     │      Layer: Serialization
+              │   - FFI glue        │
+              │   - Message codecs  │
+              └─────────────────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │   Ring 3 (Core)     │◄──── Layer: DomainLogic
+              │   - Pure structs    │      Layer: Persistence
+              │   - Platonic traits │      Layer: EventSource
+              └─────────────────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │  Ring 4 (Platform)  │◄──── Layer: DeploymentContext
+              │  - Desktop impl     │      Layer: ProcessModel
+              │  - Android impl     │
+              │  - iOS impl         │
+              └─────────────────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Ring 5 (Interface)  │◄──── Layer: APISurface
+              │  - Tauri commands   │      Layer: EventStreaming
+              │  - GraphQL schema   │
+              │  - REST endpoints   │
+              └─────────────────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │   Ring 6 (Front)    │◄──── Layer: UserAdaptation
+              │   - TS Adaptors     │      Layer: ViewModel
+              │   - UI bindings     │
+              │   - State mgmt      │
+              └─────────────────────┘
+```
+
+**In this model:**
+- Each Ring implements multiple Layers
+- Ring 3 (Core) is special: it's where humans write code
+- Layers are orthogonal concerns that cut across all Rings
+
+---
+
+## Metaphor B: Rings as Trait Groups, Layers as Implementations
+
+**Layer = interface (the what)**  
+**Ring = group of implementations (the how)**
+
+```
+Layer: Persistence
+├── Ring 0: AIDL definition (`interface IDataStore`)
+├── Ring 1: Language stubs (Java/TS/Rust traits)
+├── Ring 2: Transport (JNI/FFI bindings)
+├── Ring 3: Core impl (git-based storage)
+├── Ring 4: Platform adapter (file system, cloud)
+├── Ring 5: API surface (commands)
+└── Ring 6: Front cache (local-first sync)
+
+Layer: Serialization  
+├── Ring 0: AIDL parcelables
+├── Ring 1: Language types
+├── Ring 2: Wire format (Protobuf, MessagePack)
+├── Ring 3: Domain structs with Serialize/Deserialize
+├── Ring 4: Platform-specific optimizations
+├── Ring 5: API DTOs
+└── Ring 6: UI state shape
+```
+
+**In this model:**
+- Each Layer spans all Rings
+- Rings represent "depth of implementation"
+- A vertical slice = one Layer across all Rings
+
+---
+
+## Attempt at Formalization
+
+### The Current Architecture
+
+```
+(foundframe( radicle )--rust) ++ tauri( (android--java) | (ios--Swift) | (desktop--rust) )
+```
+
+**Translation:**
+- `foundframe` wraps `radicle` (git-based storage)
+- Both are implemented in `--rust`
+- This core is `++` (combined with) `tauri`
+- Tauri provides a choice `|` of platforms:
+  - `android--java` (Android with Java service)
+  - `ios--Swift` (future)
+  - `desktop--rust` (direct Rust)
+
+### Proposed Formal Syntax
+
+```bnf
+Architecture   ::= Stack "++" Platform
+Stack          ::= Domain ("(" Backend ")")? "--" Lang
+Domain         ::= identifier
+Backend        ::= identifier
+Lang           ::= "rust" | "java" | "swift" | "kotlin"
+Platform       ::= "tauri" | "electron" | "capacitor" | Native
+Native         ::= "(" Target ("|" Target)* ")"
+Target         ::= PlatformName "--" Lang
+PlatformName   ::= "android" | "ios" | "desktop" | "web"
+```
+
+**Current instance:**
+```
+foundframe(radicle)--rust ++ tauri((android--java) | (desktop--rust))
+```
+
+**Hypothetical variations:**
+```
+// Replace backend: IPFS instead of Radicle
+foundframe(ipfs)--rust ++ tauri((android--java) | (desktop--rust))
+
+// Replace platform: Capacitor instead of Tauri
+foundframe(radicle)--rust ++ capacitor((android--kotlin) | (ios--swift))
+
+// Replace domain: Different app, same stack
+mydiary(git)--rust ++ tauri((android--java) | (desktop--rust))
+
+// Add iOS
+foundframe(radicle)--rust ++ tauri((android--java) | (ios--swift) | (desktop--rust))
+```
+
+### The Generation Function
+
+If we model generation as a function:
+
+```
+G: (AIDL, Architecture) → [GeneratedFile]
+
+Where:
+- AIDL = set of interface definitions
+- Architecture = stack + platform configuration
+- GeneratedFile = (path, content, ring, layer)
+```
+
+**Key insight:** The same AIDL generates different outputs based on Architecture.
+
+---
+
+## Analysis: What Needs Naming
+
+### Candidate Concepts
+
+| Concept | Description | Current Name | Alternatives |
+|---------|-------------|--------------|--------------|
+| **A** | The source of truth | Ring 0 | Source, Contract, Genesis |
+| **B** | Distance from source | Ring | Radius, Orbit, Stratum, Shell |
+| **C** | Cross-cutting capability | Layer | Trait, Aspect, Facet, Concern |
+| **D** | Specific implementation | ? | Layer, Shell, Instance |
+| **E** | Collection of files at same B | Ring | Stratum, Tier |
+| **F** | A vertical slice (Media, Post, etc.) | ? | Domain, Entity, Slice |
+
+### The Tension
+
+We have **two axes**:
+1. **Vertical**: Distance from AIDL (Rings in Metaphor A)
+2. **Horizontal**: Cross-cutting concerns (Layers in Metaphor A)
+
+But also:
+3. **Depth**: How far down the stack an implementation goes (Rings in Metaphor B)
+
+### The Resolution
+
+What if we distinguish:
+
+- **Ring**: Immutable distance from Source (0 = AIDL, 6 = Front)
+- **Layer**: Mutable implementation strategy at a given Ring
+- **Shell**: A specific Layer instance (e.g., "DirectDesktop Layer at Ring 4")
+
+Example:
+```
+Ring 4: Platform
+├── Layer: InProcess (direct calls)
+├── Layer: SameProcessJNI (JNI but same process)
+├── Layer: RemoteService (AIDL service, different process)
+└── Layer: NetworkIPC (HTTP, WebSocket)
+
+Each Layer = a Shell
+```
+
+### Orbit as Parameter
+
+An **Orbit** could be the **eccentricity** of a Shell—how much it deviates from the "ideal" Ring:
+
+```
+Ring 3: Core (ideal: pure domain logic)
+├── Shell: Foundframe (Orbit: git-based)
+├── Shell: Foundframe(IPFS) (Orbit: content-addressed)
+└── Shell: Foundframe(S3) (Orbit: cloud-backed)
+```
+
+Orbit captures **backend choice** without changing Ring position.
+
+---
+
+## Open Questions
+
+1. **Is Ring 0 special?** It has no Shells—it's pure specification.
+
+2. **Can Rings be skipped?** If Layer = RemoteService at Ring 4, do we skip Ring 3 (Core) and call Ring 2 (Bridge) directly?
+
+3. **What generates what?** Does Ring N generate Ring N+1, or does AIDL generate all Rings at once?
+
+4. **Is the user's syntax sufficient?**
+   ```
+   foundframe(radicle)--rust ++ tauri((android--java) | (desktop--rust))
+   ```
+   Does this capture everything we need for codegen?
+
+5. **What about the entities?** "Media", "Bookmark", "Post", "Person", "Conversation"—these are vertical slices through all Rings. What do we call this dimension?
+
+---
+
+## Next Steps
+
+Before coding:
+1. Choose between Metaphor A and B (or synthesis)
+2. Define the formal syntax for Architecture
+3. Determine how Rings, Layers, Shells, and Orbits relate
+4. Map current `aidl-codegen` to the chosen model
+
+*The spiral generates its own abstractions.*
