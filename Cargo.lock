@@ -76,12 +76,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "aidl-codegen"
+name = "aidl-spiral"
 version = "0.1.0"
 dependencies = [
+ "prettyplease",
  "proc-macro2",
  "quote",
  "regex",
+ "syn 2.0.116",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

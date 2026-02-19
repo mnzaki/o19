@@ -14,14 +14,14 @@ This crate generates all cross-platform code from AIDL (Android Interface Defini
 
 ```bash
 # Install the codegen tool
-cd o19/crates/aidl-codegen
+cd o19/crates/aidl-spiral
 cargo install --path .
 
 # Run from any project with ./aidl/ directory
-aidl-codegen
+aidl-spiral
 
 # Or explicitly specify paths
-aidl-codegen --aidl-dir ./aidl --output ./gen
+aidl-spiral --aidl-dir ./aidl --output ./gen
 ```
 
 ## AIDL Grammar
@@ -86,7 +86,7 @@ interface IMyInterface {
 ## Project Structure
 
 ```
-o19/crates/aidl-codegen/
+o19/crates/aidl-spiral/
 ├── src/
 │   ├── main.rs              # CLI entry point
 │   ├── lib.rs               # Library: parse & generate
@@ -126,7 +126,7 @@ cargo test
 
 # Test with actual project
 cd ../../path/to/project
-aidl-codegen
+aidl-spiral
 # Check generated files in ./gen/
 ```
 

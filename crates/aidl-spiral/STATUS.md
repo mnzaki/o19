@@ -1,4 +1,4 @@
-# aidl-codegen Status Board
+# aidl-spiral Status Board
 
 > Current state and next steps for the spiral generator.
 
@@ -36,6 +36,11 @@
 | Tauri Commands | ✅ **DONE** | Generates `commands.rs` with `#[tauri::command]` fns |
 | Code Formatting | ✅ **FIXED** | Using `prettyplease` for proper Rust formatting |
 | Parcelable Types | ✅ **FIXED** | `IEventCallback` and other interfaces now work |
+| **Architecture Model** | ✅ **NEW** | Ring/Management/Boundary model implemented |
+| **Meta-AIDL** | ✅ **NEW** | Architecture configured via `meta.aidl` |
+| **New Generator** | ✅ **NEW** | Generator based on Architecture model |
+| **Stacks** | ✅ **NEW** | Predefined architecture configurations |
+| **Workspace Discovery** | ✅ **NEW** | Detect package types, auto-assign Rings |
 
 ## ❌ What's Missing
 
@@ -179,7 +184,7 @@ pub struct Callback {
 ### Current
 ```bash
 # Generate what we have
-aidl-codegen
+aidl-spiral
 
 # Output: gen/IFoundframeRadicle/
 #   - jni_glue.rs ✅
@@ -194,7 +199,7 @@ aidl-codegen
 ### Desired Future
 ```bash
 # Generate everything
-aidl-codegen --full-stack
+aidl-spiral --full-stack
 
 # Output: gen/IFoundframeRadicle/
 #   - jni_glue.rs ✅
@@ -218,6 +223,84 @@ aidl-codegen --full-stack
 4. **Fix optional parameter handling in TypeScript** (`?` vs `| undefined`)
 5. ~~Fix code formatting~~ ✅ DONE
 6. **Add README generation** (already done ✅)
+
+---
+
+## 🏗️ Architecture Model (NEW)
+
+The codebase has been restructured around a declarative **Ring/Management/Boundary** model:
+
+### Rings (Horizontal Concerns)
+
+| Ring | Name | Language | Purpose |
+|------|------|----------|---------|
+| 0 | Contract | AIDL | The source of truth |
+| 1 | Binding | Java/Kotlin | Language stubs |
+| 2 | Bridge | Rust | JNI, FFI, serialization |
+| 3 | Core | Rust | Pure domain implementation |
+| 4 | Platform | Rust | Deployment abstraction |
+| 5 | Interface | Rust | Tauri commands |
+| 6 | Front | TypeScript | User adaptation |
+
+### Managements (Vertical Domains)
+
+Each AIDL interface becomes a Management:
+- `IFoundframeRadicle` → `IFoundframeRadicle` Management
+- `IEventCallback` → `IEventCallback` Management
+
+### Configuration via meta.aidl
+
+Create a `meta.aidl` file in your AIDL directory:
+
+```aidl
+package aidl.config;
+
+interface IMetaArchitecture {
+    Ring[] getRings();
+    String[] getManagements();
+    Config getConfig();
+}
+
+parcelable Ring {
+    String name;
+    int order;
+    String artifactType;
+    String language;
+}
+
+parcelable Config {
+    String projectName;
+    String basePackage;
+    String outputDir;
+}
+```
+
+If `meta.aidl` exists, `aidl-spiral` uses the architecture-based generation.
+Otherwise, it falls back to legacy per-file generation.
+
+### Module Structure
+
+```
+src/
+├── architecture.rs   # Ring, Management, Boundary, Architecture types
+├── meta_parser.rs    # Parse meta.aidl into Architecture
+├── generator.rs      # Generate code from Architecture
+├── workspace.rs      # Workspace discovery (pnpm/Cargo)
+├── parser.rs         # AIDL parser (existing)
+├── jni_generator.rs  # JNI-specific generation (existing)
+├── ts_generator.rs   # TypeScript generation (existing)
+├── cmd_generator.rs  # Tauri commands (existing)
+└── lib.rs
+
+stacks/
+├── README.md                         # Stack documentation
+├── radicle_foundframe_tauri.aidl     # Full 7-ring Android+Desktop
+└── foundframe_tauri_desktop.aidl     # 6-ring Desktop only
+
+docs/
+├── RING_LAYER_ANALYSIS.md            # Deep architectural analysis
+└── WORKSPACE_INTEGRATION.md          # Workspace configuration guide
+```
 
 ---
 

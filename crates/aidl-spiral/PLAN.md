@@ -1,4 +1,4 @@
-# aidl-codegen: The Spiral Plan
+# aidl-spiral: The Spiral Plan
 
 > *"What was interface becomes infrastructure. What was manual becomes generated. The spiral returns, but on a different plane."*
 
@@ -605,10 +605,10 @@ void unsubscribeEvents(IEventCallback callback);
 
 ```bash
 # Install as dev dependency in the monorepo
-pnpm add -D @o19/aidl-codegen
+pnpm add -D @o19/aidl-spiral
 
 # Or install globally for CLI usage
-pnpm add -g @o19/aidl-codegen
+pnpm add -g @o19/aidl-spiral
 ```
 
 ### Package Scripts (package.json)
@@ -616,9 +616,9 @@ pnpm add -g @o19/aidl-codegen
 ```json
 {
   "scripts": {
-    "aidl:gen": "aidl-codegen",
-    "aidl:watch": "aidl-codegen --watch",
-    "aidl:check": "aidl-codegen --check",
+    "aidl:gen": "aidl-spiral",
+    "aidl:watch": "aidl-spiral --watch",
+    "aidl:check": "aidl-spiral --check",
     "prebuild": "pnpm run aidl:gen"
   }
 }
@@ -679,10 +679,10 @@ gen/
 ```bash
 # In a package directory, generates to ../../gen/<Interface>/
 # and links via workspace protocol
-aidl-codegen --workspace
+aidl-spiral --workspace
 
 # Or explicitly:
-aidl-codegen -o ../../gen
+aidl-spiral -o ../../gen
 ```
 
 ### Turbo Integration
@@ -730,7 +730,7 @@ jobs:
 pnpm spiral
 
 # Which runs:
-# 1. aidl-codegen (generate code)
+# 1. aidl-spiral (generate code)
 # 2. pnpm build (compile TypeScript)
 # 3. pnpm -r publish (publish to registry)
 # 4. cargo publish (publish Rust crates)
@@ -741,7 +741,7 @@ pnpm spiral
 ## Appendix C: CLI Reference
 
 ```
-aidl-codegen [OPTIONS]
+aidl-spiral [OPTIONS]
 
 Options:
   -i, --input <dir>    Input directory (default: ./aidl)
@@ -754,11 +754,11 @@ Options:
   -V, --version        Print version
 
 Examples:
-  aidl-codegen                    # ./aidl → ./gen
-  aidl-codegen -i src/aidl        # Custom input
-  aidl-codegen -o ../../gen       # Custom output
-  aidl-codegen --watch            # Watch mode
-  aidl-codegen --check            # CI verification
+  aidl-spiral                    # ./aidl → ./gen
+  aidl-spiral -i src/aidl        # Custom input
+  aidl-spiral -o ../../gen       # Custom output
+  aidl-spiral --watch            # Watch mode
+  aidl-spiral --check            # CI verification
 ```
 
 ---

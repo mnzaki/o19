@@ -398,7 +398,7 @@ The AIDL file **frames** the boundary—it defines:
 - Directionality (in, out, inout)
 - Lifecycle (oneway, callback)
 
-**aidl-codegen** reads the AIDL and generates the boundary code based on the computed BoundaryType.
+**aidl-spiral** reads the AIDL and generates the boundary code based on the computed BoundaryType.
 
 ### Ring Composition
 
@@ -439,7 +439,7 @@ for boundary in architecture.boundaries() {
 ### Configuration
 
 ```yaml
-# aidl-codegen.yaml
+# aidl-spiral.yaml
 architecture:
   layers:
     - name: typescript-ui
@@ -576,7 +576,7 @@ Before coding:
 1. ~~Choose between Metaphor A and B (or synthesis)~~ → **Metaphor D: Rings Horizontal, Managements Vertical**
 2. ~~Define the formal syntax for Architecture~~
 3. Determine how Rings, Managements, Boundaries relate
-4. Map current `aidl-codegen` to the chosen model
+4. Map current `aidl-spiral` to the chosen model
 5. **Model in Rust**: Rings as...? Managements as...? Boundaries as...?
 
 ## Meta-AIDL: The Architecture as Contract
@@ -590,7 +590,7 @@ What if the architecture configuration is itself AIDL? A `meta.aidl` file that:
 2. Declares **connections** between Rings (BoundaryTypes)
 3. Lists which **Managements** to generate for
 
-Then `aidl-codegen`:
+Then `aidl-spiral`:
 1. Reads `meta.aidl` to understand the architecture pattern
 2. Reads `BookmarkMgmt.aidl`, `PostMgmt.aidl`, etc.
 3. Generates code for each Management across all Rings, using the connections defined in meta
@@ -701,7 +701,7 @@ interface IArchitecture {
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  aidl-codegen                                                   │
+│  aidl-spiral                                                   │
 │  1. Parse meta.aidl → Architecture model                        │
 │  2. Parse *.aidl → Management models                            │
 │  3. For each Management:                                        │
