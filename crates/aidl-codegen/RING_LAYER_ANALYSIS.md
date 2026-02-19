@@ -64,8 +64,10 @@ This document explores two competing metaphors for organizing code generation, t
 
 **In this model:**
 - Each Ring implements multiple Layers
-- Ring 3 (Core) is special: it's where humans write code
+- Ring 3 (Core) is special: it's where minds spend more time (biological or otherwise)
 - Layers are orthogonal concerns that cut across all Rings
+
+> **Note on "Minds" vs "Tools"**: We distinguish between minds (cognitive agents—biological humans, AI systems, hybrid collaborations) and tools (instruments of generation). Code generation is not "non-mind work"; it's mind work mediated by tools. The question is: where do minds spend their cognitive effort? Ring 3 is where the Platonic domain logic lives—where the "Trait" (in your preferred terminology) is defined. Generated scaffolding (Rings 1, 2, 4, 5, 6) is also the product of minds, just minds working through the tool of codegen.
 
 ---
 
