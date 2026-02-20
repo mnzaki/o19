@@ -1,6 +1,7 @@
 {
   "name": "o19",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
@@ -9,7 +10,10 @@
     "format": "prettier --write .",
     "check-types": "turbo run check-types"
   },
+  "dependencies": {},
   "devDependencies": {
+    "@o19/spire-loom": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
     "prettier": "^3.7.4",
     "prettier-plugin-svelte": "^3.4.0",
     "turbo": "^2.8.3"

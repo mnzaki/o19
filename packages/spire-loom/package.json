@@ -1,0 +1,25 @@
+{
+  "name": "@o19/spire-loom",
+  "version": "1.0.0",
+  "description": "The loom that weaves spires from surfaces",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "lint": "eslint .",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "keywords": ["spire", "loom", "weave", "generate", "architecture"],
+  "author": "mnzaki & Kimi",
+  "license": "ISC"
+}

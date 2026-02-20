@@ -8,6 +8,12 @@ importers:
 
   .:
     devDependencies:
+      '@o19/spire-loom':
+        specifier: workspace:*
+        version: link:packages/spire-loom
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:packages/typescript-config
       prettier:
         specifier: ^3.7.4
         version: 3.7.4
@@ -116,7 +122,7 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
 
-  crates/android:
+  crates/foundframe-android:
     devDependencies:
       concurrently:
         specifier: ^9.2.1
@@ -228,6 +234,12 @@ importers:
       typescript:
         specifier: 5.9.2
         version: 5.9.2
+
+  packages/spire-loom:
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
 
   packages/typescript-config: {}
 

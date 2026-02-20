@@ -10,7 +10,7 @@ links = "o19-foundframe-tauri"
 [dependencies]
 tauri = {workspace = true }
 o19-foundframe = { workspace = true }
-foundframe-to-sql = { path = "../foundframe-to-sql" }
+foundframe-to-sql = { workspace = true }
 thiserror = { workspace = true }
 reqwest = {workspace = true, features = ["json", "stream"] }
 libcaesium = {workspace = true, features = ["jpg", "webp"] }
@@ -25,7 +25,7 @@ tracing = { workspace = true }
 
 # Android-only: connect to FoundframeRadicle singleton service
 [target.'cfg(target_os = "android")'.dependencies]
-android = { path = "../../crates/android" }
+o19-foundframe-android = { workspace = true }
 
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }

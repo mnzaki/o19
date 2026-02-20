@@ -45,7 +45,7 @@ dependencies {
   implementation(project(":tauri-android"))
   
   // o19-android (contains CameraPlugin and other activities)
-  implementation(project(":o19-android"))
+  implementation(project(":o19-foundframe-android"))
 
   // This is for rustls to function correctly with system cert store
   implementation("rustls:rustls-platform-verifier:0.1.1")
