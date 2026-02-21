@@ -11,10 +11,12 @@ export {
   GeneratorMatrix,
   DEFAULT_MATRIX,
   createHeddles,
+  ensurePlanComplete,
   type SpiralEdge,
   type SpiralNode,
   type GenerationTask,
   type WeavingPlan,
   type GeneratorFunction,
   type GeneratedFile,
+  type GeneratorContext,
 } from './pattern-matcher.js';

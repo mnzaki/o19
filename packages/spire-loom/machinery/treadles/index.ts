@@ -15,9 +15,13 @@
 // Android generation
 export { generateAndroidService, type AndroidGenerationOptions } from './android-generator.js';
 
+// Tauri generation
+export { generateTauriPlugin, type TauriGenerationOptions } from './tauri-generator.js';
+
 // Generator matrix registration
 import { GeneratorMatrix } from '../heddles/index.js';
 import { generateAndroidService } from './android-generator.js';
+import { generateTauriPlugin } from './tauri-generator.js';
 
 /**
  * Create the default generator matrix with all treadles registered.
@@ -28,9 +32,12 @@ export function createDefaultMatrix(): GeneratorMatrix {
   // Android: (AndroidSpiraler, RustCore) → Android bridge
   matrix.setPair('AndroidSpiraler', 'RustCore', generateAndroidService);
   
+  // Tauri: (TauriSpiraler, SpiralMux) → Tauri plugin (muxing)
+  // The SpiralMux aggregates platform rings (Android, Desktop, iOS)
+  // Tauri routes to the appropriate platform at compile time
+  matrix.setPair('TauriSpiraler', 'SpiralMux', generateTauriPlugin);
+  
   // TODO: Add more generators
-  // matrix.setPair('TauriSpiraler', 'AndroidSpiraler', generateTauriAndroid);
-  // matrix.setPair('TauriSpiraler', 'RustCore', generateTauriDesktop);
   // matrix.setPair('DDDTypescriptSpiraler', 'TauriSpiraler', generateDDDLayers);
   // matrix.setPair('DrizzleAdaptorSpiraler', 'DDDTypescriptSpiraler', generateDrizzleSchema);
   

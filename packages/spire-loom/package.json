@@ -5,17 +5,22 @@
   "main": "index.js",
   "type": "module",
   "bin": {
-    "spire-loom": "./dist/cli.js"
+    "spire-loom": "./bin/spire-loom.js"
   },
   "scripts": {
     "dev": "tsc --watch",
     "build": "tsc",
     "lint": "eslint .",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "node --test --import=tsx tests/*.test.ts",
+    "test:xml": "node --test --import=tsx tests/xml-block-manager.test.ts",
+    "test:gradle": "node --test --import=tsx tests/gradle-manager.test.ts"
   },
   "dependencies": {
     "ejs": "^3.1.9",
-    "ts-node": "^10.9.2"
+    "fast-xml-parser": "^5.3.7",
+    "mrm-core": "^7.1.22",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
@@ -24,24 +29,24 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/warp/index.d.ts",
-      "import": "./dist/warp/index.js"
+      "types": "./warp/index.ts",
+      "import": "./warp/index.ts"
     },
     "./warp": {
-      "types": "./dist/warp/index.d.ts",
-      "import": "./dist/warp/index.js"
+      "types": "./warp/index.ts",
+      "import": "./warp/index.ts"
     },
     "./machinery": {
-      "types": "./dist/machinery/shuttle/index.d.ts",
-      "import": "./dist/machinery/shuttle/index.js"
+      "types": "./machinery/shuttle/index.ts",
+      "import": "./machinery/shuttle/index.ts"
     },
     "./machinery/shuttle": {
-      "types": "./dist/machinery/shuttle/index.d.ts",
-      "import": "./dist/machinery/shuttle/index.js"
+      "types": "./machinery/shuttle/index.ts",
+      "import": "./machinery/shuttle/index.ts"
     },
     "./machinery/weaver": {
-      "types": "./dist/machinery/weaver.d.ts",
-      "import": "./dist/machinery/weaver.js"
+      "types": "./machinery/weaver.ts",
+      "import": "./machinery/weaver.ts"
     }
   },
   "keywords": [

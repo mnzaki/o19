@@ -69,4 +69,29 @@ It spirals out from intention:
 
 ---
 
+## Temporal Constraints of the Loom
+
+The loom operates in distinct phases. Understanding these phases—and their constraints—is essential for working with the machinery:
+
+### Phase 1: Heddles (Pattern Matching)
+During this phase, the **heddles** analyze the WARP.ts structure and build the intermediate representation (`WeavingPlan`). 
+
+**⚠️ CRITICAL CONSTRAINT:** Do not traverse `plan.nodesByType` during this phase. The plan is being constructed incrementally; accessing it during traversal will yield incomplete data. The `WeavingPlan` is marked with `_isComplete: false` during this phase.
+
+### Phase 2: Weaver (Orchestration)
+The **weaver** takes the completed plan and iterates over generation tasks.
+
+### Phase 3: Treadles (Generation)
+During this phase, **treadles** (generators) receive the complete `WeavingPlan` via `GeneratorContext`. Only now is it safe to traverse `plan.nodesByType` to discover relationships and compute derived values (like Gradle task names).
+
+**The Rule:** The heddles determine *what* to generate; the treadles determine *how*—and may inspect the complete plan to do so.
+
+### Why This Matters
+
+We learned this the hard way: attempting to compute a Gradle task name during the heddles phase resulted in `buildRustUnknown` because the SpiralOut nodes hadn't been fully recorded yet. Moving the computation to the treadles phase—when the plan is complete—yielded the correct `buildRustFoundframe`.
+
+> *"The one who remembers is the one who acts with full context."*
+
+---
+
 *See also: [The Glossary](../GLOSSARY.md) for weaving terminology, [Code Generator Design](../CODE_GENERATOR_DESIGN.md) for how it all fits together.*

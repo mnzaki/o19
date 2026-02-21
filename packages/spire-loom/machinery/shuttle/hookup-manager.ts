@@ -67,34 +67,14 @@ export function hookupNodePackage(packagePath: string): boolean {
 
 /**
  * Ensure the spire/ directory structure exists for a package.
+ * Does NOT create any index files (mod.rs, index.ts) - those are created
+ * by the specific generators if needed.
  */
-export function ensureSpireDirectory(packagePath: string, language: 'rust' | 'typescript' | 'kotlin'): string {
+export function ensureSpireDirectory(packagePath: string, _language?: 'rust' | 'typescript' | 'kotlin'): string {
   const spirePath = path.join(packagePath, 'spire');
   
-  // Create spire/ directory
+  // Create spire/ directory only
   fs.mkdirSync(spirePath, { recursive: true });
-  
-  // Create index file based on language
-  switch (language) {
-    case 'rust': {
-      const modRsPath = path.join(spirePath, 'mod.rs');
-      if (!fs.existsSync(modRsPath)) {
-        fs.writeFileSync(modRsPath, '//! Generated spire module\n\n', 'utf-8');
-      }
-      break;
-    }
-    case 'typescript': {
-      const indexPath = path.join(spirePath, 'index.ts');
-      if (!fs.existsSync(indexPath)) {
-        fs.writeFileSync(indexPath, '// Generated spire module\n\nexport {};\n', 'utf-8');
-      }
-      break;
-    }
-    case 'kotlin': {
-      // Kotlin files go in android/java/ structure
-      break;
-    }
-  }
   
   return spirePath;
 }

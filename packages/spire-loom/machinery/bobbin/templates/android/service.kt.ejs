@@ -14,8 +14,8 @@ import android.util.Log
 /**
  * <%- serviceName %> - Generated foreground service
  * 
- * This service runs in a separate process and provides
- * Binder IPC access to the core Rust code.
+ * This service runs in a separate process and provides JNI access to the 
+ * Rust core library. The native service handle is managed internally.
  */
 class <%- serviceName %> : Service() {
     
@@ -35,7 +35,28 @@ class <%- serviceName %> : Service() {
         }
     }
     
-    private external fun nativeStartService(homeDir: String, alias: String)
+    /** 
+     * Native handle to the Rust service instance.
+     * This is an opaque pointer - the actual Rust object lives in native memory.
+     */
+    private var nativeHandle: Long = 0
+    
+    /** Start the native service - returns a handle to the service instance */
+    private external fun nativeStartService(homeDir: String, alias: String): Long
+    
+    /** Stop the native service and release the handle */
+    private external fun nativeStopService(handle: Long)
+    
+<% methods.forEach(function(method) { -%>
+    /** <%- method.description || method.name %> */
+    private external fun native<%- method.pascalName %>(
+        handle: Long<% if (method.params.length > 0) { %>,<% } %>
+        <% method.params.forEach(function(param, idx) { -%>
+        <%= param.name %>: <%- param.ktType %><% if (idx < method.params.length - 1) { %>,<% } %>
+        <% }); %>
+    ): <%- method.ktReturnType %>
+    
+<% }); -%>
     
     override fun onCreate() {
         super.onCreate()
@@ -70,30 +91,72 @@ class <%- serviceName %> : Service() {
         // Start the native service in a background thread
         Thread {
             try {
-                nativeStartService(homeDir, alias)
-                Log.w(TAG, "[<%= serviceName %>] Native service exited unexpectedly")
+                nativeHandle = nativeStartService(homeDir, alias)
+                if (nativeHandle < 0) {
+                    Log.e(TAG, "[<%= serviceName %>] Native service failed to start")
+                    stopSelf(startId)
+                    return@Thread
+                }
+                
+                Log.i(TAG, "[<%= serviceName %>] Native service started with handle=$nativeHandle")
+                
+                // Service keeps running until explicitly stopped
+                // The Rust core runs its own event loop
+                Thread.currentThread().join()
+                
+                Log.w(TAG, "[<%= serviceName %>] Native service thread exited unexpectedly")
             } catch (e: Exception) {
                 Log.e(TAG, "[<%= serviceName %>] Native service crashed: ${e.message}", e)
+            } finally {
+                if (nativeHandle != 0L) {
+                    nativeStopService(nativeHandle)
+                }
+                nativeHandle = 0
+                stopSelf(startId)
             }
-            stopSelf(startId)
         }.apply {
             name = "<%= serviceName %>-Thread-$startId"
             start()
         }
         
-        // STICKY = restart service if killed by system
         return START_STICKY
     }
     
     override fun onBind(intent: Intent): IBinder? {
-        // Service is accessed via ServiceManager
+        // This is a started service, not a bound service
         return null
     }
     
     override fun onDestroy() {
         super.onDestroy()
         Log.i(TAG, "Service destroying")
+        if (nativeHandle != 0L) {
+            nativeStopService(nativeHandle)
+            nativeHandle = 0
+        }
     }
+    
+    // ==========================================================================
+    // Public API - These methods wrap the native JNI calls
+    // 
+    // IMPORTANT: These methods must be called from a background thread!
+    // The service handle is locked on the Rust side during each call.
+    // ==========================================================================
+    
+<% methods.forEach(function(method) { -%>
+    /**
+     * <%- method.description || method.name %>
+     * 
+     * This method locks the service handle on the Rust side, calls the 
+     * underlying core method, and returns the result after unlocking.
+     */
+    fun <%= method.name %>(<% method.params.forEach(function(param, idx) { %>
+        <%= param.name %>: <%- param.ktType %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>): <%- method.ktReturnType %> {
+        check(nativeHandle != 0L) { "Service not initialized" }
+        return native<%- method.pascalName %>(nativeHandle<% if (method.params.length > 0) { %>, <% } %><% method.params.forEach(function(param, idx) { %><%= param.name %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>)
+    }
+    
+<% }); -%>
     
     private fun createNotification(): Notification {
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
