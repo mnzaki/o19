@@ -1,0 +1,20 @@
+//! Platform Trait
+//!
+//! Auto-generated from <%= management.name %>
+//! DO NOT EDIT MANUALLY
+
+pub use crate::models::*;
+use crate::Result;
+
+/// Platform trait abstracts <%= management.name %> operations.
+///
+/// This allows the tauri-plugin to work on different platforms:
+/// - Desktop: Direct foundframe integration
+/// - Android: Binder IPC to singleton service
+/// - iOS: Not implemented (stub)
+pub trait <%= management.name %>: Send + Sync {
+<% methods.forEach(method => { %>
+  /// <%= method.description || method.name %>
+  fn <%= h.snakeCase(method.name) %>(&self, <%= method.params.map(p => `${p.name}: ${h.tsToRustType(p.type)}`).join(', ') %>) -> Result<<%= h.tsToRustType(method.returnType) %>>;
+<% }); %>
+}

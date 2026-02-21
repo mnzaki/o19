@@ -1,0 +1,13 @@
+// <%- interfaceName %>.aidl
+// Generated AIDL interface for <%= coreName %> service
+
+package <%- packageName %>;
+
+<%- imports.map(i => `import ${i};`).join('\n') %>
+
+interface <%- interfaceName %> {
+<% methods.forEach(method => { %>
+    // <%= method.description || method.name %>
+    <%- method.returnType %> <%- method.name %>(<%- method.params.map(p => `${p.type} ${p.name}`).join(', ') %>);
+<% }); %>
+}

@@ -6,6 +6,7 @@
   },
   "include": [
     "warp/**/*",
-    "machinery/**/*"
+    "machinery/**/*",
+    "cli.ts"
   ]
 }

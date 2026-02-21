@@ -4,6 +4,9 @@
   "description": "The loom that weaves spires from surfaces",
   "main": "index.js",
   "type": "module",
+  "bin": {
+    "spire-loom": "./dist/cli.js"
+  },
   "scripts": {
     "dev": "tsc --watch",
     "build": "tsc",
@@ -11,7 +14,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "ejs": "^3.1.9"
+    "ejs": "^3.1.9",
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

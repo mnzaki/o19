@@ -63,3 +63,12 @@ export {
   ensureAndroidServiceDeclared,
   type TauriPermission,
 } from './configuration-writer.js';
+
+// Hookup management
+export {
+  hookupRustCrate,
+  hookupNodePackage,
+  ensureSpireDirectory,
+  addSpireSubmodule,
+  autoHookup,
+} from './hookup-manager.js';

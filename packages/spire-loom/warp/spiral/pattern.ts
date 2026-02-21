@@ -41,15 +41,16 @@ export abstract class MuxSpiraler implements Spiraling {
 // ============================================================================
 
 /**
- * "Outters" is a map of all Spiraler instances for a particular SpiralOut.
+ * Spiralers is a map of all Spiraler instances for a particular SpiralOut.
+ * These are the objects that create the next ring in the spiral.
  */
-type Outters = Record<string, Spiraler | MuxSpiraler>;
+export type Spiralers = Record<string, Spiraler | MuxSpiraler>;
 
 /**
  * A SpiralOut wraps a single inner ring with outters.
  * Represents one step in a linear spiral.
  */
-export class SpiralOut<O extends Partial<Outters> = Outters> extends SpiralRing {
+export class SpiralOut<O extends Partial<Spiralers> = Spiralers> extends SpiralRing {
   constructor(
     public inner: SpiralRing,
     outters: O
@@ -59,7 +60,7 @@ export class SpiralOut<O extends Partial<Outters> = Outters> extends SpiralRing 
   }
 }
 
-export type SpiralOutType<O extends Partial<Outters> = Outters> = SpiralOut<O> & O;
+export type SpiralOutType<O extends Partial<Spiralers> = Spiralers> = SpiralOut<O> & O;
 
 // ============================================================================
 // SpiralMux - Multiple Ring Wrapper
@@ -69,7 +70,7 @@ export type SpiralOutType<O extends Partial<Outters> = Outters> = SpiralOut<O> &
  * A SpiralMux wraps multiple inner rings.
  * Used for platform aggregation (e.g., Tauri routing to Android/Desktop).
  */
-export class SpiralMux<O extends Partial<Outters> = Outters> extends SpiralRing {
+export class SpiralMux<O extends Partial<Spiralers> = Spiralers> extends SpiralRing {
   constructor(
     public innerRings: SpiralRing[],
     outters: O
@@ -79,7 +80,7 @@ export class SpiralMux<O extends Partial<Outters> = Outters> extends SpiralRing 
   }
 }
 
-export type SpiralMuxType<O extends Partial<Outters> = Outters> = SpiralMux<O> & O;
+export type SpiralMuxType<O extends Partial<Spiralers> = Spiralers> = SpiralMux<O> & O;
 
 // ============================================================================
 // Spiral Functions
@@ -89,7 +90,7 @@ export type SpiralMuxType<O extends Partial<Outters> = Outters> = SpiralMux<O> &
  * Spiral out from a single ring (linear spiral).
  * Creates the next ring wrapping a single inner ring.
  */
-export function spiralOut<O extends Partial<Outters> = Outters>(
+export function spiralOut<O extends Partial<Spiralers> = Spiralers>(
   inner: SpiralRing,
   outters: O
 ): SpiralOutType<O> {
@@ -100,7 +101,7 @@ export function spiralOut<O extends Partial<Outters> = Outters>(
  * Spiral out from multiple rings (multiplexed spiral).
  * Creates a mux that wraps multiple inner rings.
  */
-export function spiralMux<O extends Partial<Outters> = Outters>(
+export function spiralMux<O extends Partial<Spiralers> = Spiralers>(
   innerRings: SpiralRing[],
   outters: O
 ): SpiralMuxType<O> {

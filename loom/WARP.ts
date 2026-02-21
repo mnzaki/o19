@@ -26,7 +26,7 @@ import loom from '@o19/spire-loom';
  *
  * The center that holds. Pure domain logic.
  */
-export const foundframe = loom.spiral();
+export const foundframe = loom.spiral(loom.rustCore());
 
 // ============================================================================
 // PLATFORM RINGS (spiral out from Core)
