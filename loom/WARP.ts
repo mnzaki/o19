@@ -82,10 +82,22 @@ export const tauri = loom.spiral(android, desktop).tauri.plugin();
  * Package: foundframe-front
  * Path: packages/foundframe-front
  *
- * Generates TypeScript domain types and API clients
+ * Generates TypeScript domain types and Port interfaces
  * from Management Imprints.
  */
 export const front = tauri.typescript.ddd();
+
+/**
+ * Drizzle Adaptor Ring - ORM implementation of Ports
+ * Package: foundframe-drizzle
+ * Path: packages/foundframe-drizzle
+ *
+ * Implements the Port interfaces defined in front layer
+ * using Drizzle ORM. Filtered to read-only operations
+ * for this adaptor (can be combined with other adaptors
+ * for full CRUD).
+ */
+export const drizzle = front.typescript.drizzle_adaptors({ filter: ['read'] });
 
 /**
  * MyTauriApp - Example application
@@ -95,7 +107,7 @@ export const front = tauri.typescript.ddd();
  * The example application demonstrating the stack.
  * This is an app that wraps the front layer.
  */
-export const myTauriApp = front.tauri.app();
+export const myTauriApp = front.tauri.app({ adaptorOverrides: [drizzle] });
 
 // ============================================================================
 // FUTURE RINGS

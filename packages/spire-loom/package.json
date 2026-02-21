@@ -10,16 +10,43 @@
     "lint": "eslint .",
     "check-types": "tsc --noEmit"
   },
+  "dependencies": {
+    "ejs": "^3.1.9"
+  },
   "devDependencies": {
-    "@repo/typescript-config": "workspace:*"
+    "@repo/typescript-config": "workspace:*",
+    "@types/ejs": "^3.1.5",
+    "@types/node": "^25.3.0"
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/warp/index.d.ts",
+      "import": "./dist/warp/index.js"
+    },
+    "./warp": {
+      "types": "./dist/warp/index.d.ts",
+      "import": "./dist/warp/index.js"
+    },
+    "./machinery": {
+      "types": "./dist/machinery/shuttle/index.d.ts",
+      "import": "./dist/machinery/shuttle/index.js"
+    },
+    "./machinery/shuttle": {
+      "types": "./dist/machinery/shuttle/index.d.ts",
+      "import": "./dist/machinery/shuttle/index.js"
+    },
+    "./machinery/weaver": {
+      "types": "./dist/machinery/weaver.d.ts",
+      "import": "./dist/machinery/weaver.js"
     }
   },
-  "keywords": ["spire", "loom", "weave", "generate", "architecture"],
+  "keywords": [
+    "spire",
+    "loom",
+    "weave",
+    "generate",
+    "architecture"
+  ],
   "author": "mnzaki & Kimi",
   "license": "ISC"
 }

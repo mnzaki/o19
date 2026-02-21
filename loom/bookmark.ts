@@ -13,7 +13,7 @@
  * - No implementations (pure shape, rings provide the substance)
  */
 
-import { reach, Management } from '@o19/spire-loom';
+import { reach, Management, crud } from '@o19/spire-loom';
 
 @reach Global
 abstract BookmarkMgmt extends Management {
@@ -39,6 +39,7 @@ abstract BookmarkMgmt extends Management {
    * @param notes - Optional notes about the bookmark
    * @returns The PKB URL reference to the created bookmark
    */
+  @crud('create')
   addBookmark(url: string, title?: string, notes?: string): string
 
   /**
@@ -47,6 +48,7 @@ abstract BookmarkMgmt extends Management {
    * @param pkbUrl - The content-addressed reference
    * @returns The bookmark data
    */
+  @crud('read')
   getBookmark(pkbUrl: string): Bookmark
 
   /**
@@ -55,6 +57,7 @@ abstract BookmarkMgmt extends Management {
    * @param directory - Optional directory filter (default: DEFAULT_DIRECTORY)
    * @returns Array of bookmark PKB URLs
    */
+  @crud('list', { collection: true })
   listBookmarks(directory?: string): string[]
 
   /**
@@ -65,6 +68,7 @@ abstract BookmarkMgmt extends Management {
    * @param pkbUrl - The bookmark to remove from the stream
    * @returns True if successfully removed
    */
+  @crud('delete', { soft: true })
   deleteBookmark(pkbUrl: string): boolean
 }
 

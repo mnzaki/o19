@@ -13,9 +13,7 @@ The generator reads `loom/*.ts` files and produces concrete code in multiple tar
 1. **Discovery Phase**: Execute `loom/WARP.ts` to construct the spiral object graph
 2. **Generation Phase**: Traverse the spiral graph, blooming each Management into its reachable rings
 
-**Critical distinction**:
-- `loom/WARP.ts` is **executable TypeScript**—it runs to build the spiral object graph
-- `loom/bookmark.ts` is **metadata** (Imprint DSL)—parsed by the generator, not executed
+**All files in `loom/` are executable TypeScript**—they run to build the spiral graph and register metadata. See [The Loom - All Executable](#the-loom---all-executable) below.
 
 ---
 
@@ -89,12 +87,28 @@ const android = foundframe.android.foregroundService();
 ```
 
 **Algorithm**:
-1. Parse the `WARP.ts` AST
-2. Find all `loom.spiral()` calls (these are cores)
-3. For each export, trace the expression chain:
-   - `export const X = [inner].spiraler.method()`
+1. Execute `WARP.ts` to build the spiral object graph
+2. Find all `loom.spiral()` calls (these return SpiralOut/SpiralMux instances)
+3. Inspect the exported SpiralOut/SpiralMux objects:
+   - Each has an `inner` property pointing to its wrapped ring
    - Record: `X` wraps `inner`
-4. Build the containment graph
+4. Build the containment graph from the runtime objects
+
+### The Machinery
+
+Code generation is orchestrated by the **machinery**—organized by loom parts:
+
+```
+machinery/
+├── reed/          # Workspace discovery (scans monorepo)
+├── heddles/       # Pattern matching (rings → generators)
+├── bobbin/        # Template & IR storage
+├── shuttle/       # File generation (file ops, deps, templates, configs)
+├── beater/        # Code formatting (prettier, rustfmt)
+├── treadles/      # Generation phases (Core, Platform, Tauri, DDD, Adaptors)
+├── sley/          # Binding resolution (adaptor overrides)
+└── weaver.ts      # Entry point—operates the loom
+```
 
 ### Method-Specific Generation
 
@@ -108,16 +122,16 @@ foregroundService() {
 // Generates: FoundframeRadicleService.kt, AndroidManifest.xml, JNI bindings
 
 // TauriSpiraler  
-commands() {
+plugin() {
   return spiralOut(this, { typescript: ... });
 }
 // Generates: Platform trait, Tauri commands, permissions/default.toml
 
-// TypescriptSpiraler
-app() {
-  return spiralOut(this, {});
+// DDDTypescriptSpiraler
+drizzle_adaptors({ filter: ['read'] }) {
+  return spiralOut(this, { drizzle: ... });
 }
-// Generates: TypeScript API client, command wrappers, domain types
+// Generates: Drizzle ORM implementations, filtered by CRUD operations
 ```
 
 **Key insight**: The method name is semantic. The generator uses it to know:
@@ -298,6 +312,26 @@ IDeviceMgmt.pairDevice()      ┘
 
 ---
 
+## The Weaver
+
+The entry point for code generation is the **Weaver** (`machinery/weaver.ts`):
+
+```typescript
+import * as warp from './loom/WARP.js';
+import { Weaver } from '@o19/spire-loom/machinery/weaver';
+
+const weaver = new Weaver(warp);
+await weaver.weave();
+```
+
+The weaver orchestrates the machinery:
+1. **Reed** scans the workspace
+2. **Heddles** match patterns to generators
+3. **Shuttle** weaves files into existence
+4. **Beater** formats the generated code
+5. **Treadles** execute generation phases
+6. **Sley** resolves binding configurations
+
 ## The Loom - All Executable
 
 **All files in `loom/` are executable TypeScript**. They run to construct the spiral object graph and register Management metadata:
@@ -414,18 +448,53 @@ After generation, code must be integrated into the package:
 
 ---
 
+## Using the Machinery
+
+Individual tools can be imported from the shuttle:
+
+```typescript
+import { 
+  ensureFile,
+  ensureCargoCrateCreated,
+  ensureTauriPermissions,
+  renderEjs 
+} from '@o19/spire-loom/machinery/shuttle';
+
+// Create a file
+ensureFile('./output/generated.rs', '// generated code');
+
+// Ensure a package exists
+ensureCargoCrateCreated('./crates/my-crate', {
+  name: 'my-crate',
+  description: 'My generated crate'
+});
+
+// Render from template
+await renderEjs({
+  template: './templates/trait.ejs',
+  data: { name: 'BookmarkMgmt', methods: [...] }
+});
+```
+
 ## Key Design Principles
 
 1. **Thin surface, thick generation**: WARP.ts should be minimal
 2. **Convention over configuration**: Package names derived from exports
 3. **One imprint, many blooms**: Same shape, different substances
 4. **Explicit relationships**: `X = inner.spiraler.method()` shows wrapping
-5. **Semantic method names**: `foregroundService()` vs `commands()` determine output
-6. **Core is sacred**: foundframe gets traits, never implementation
-7. **Surface is runtime**: All loom/ files execute to build the spiral graph and register metadata
-8. **Sync interface only**: Asyncness is a boundary concern added per-ring
-9. **Constants are universal**: Values available in all rings
-10. **No boilerplate**: `export`, `static`, `readonly` are implied by context
+5. **Semantic method names**: `foregroundService()` vs `plugin()` determine output
+6. **Surface is runtime**: All loom/ files execute to build the spiral graph and register metadata
+7. **Sync interface only**: Asyncness is a boundary concern added per-ring
+8. **Constants are universal**: Values available in all rings
+9. **Idempotent tooling**: All machinery operations are safe to run multiple times
+
+### Imprint DSL Conventions
+
+When writing Management Imprints (in `loom/*.ts` files like `bookmark.ts`):
+
+- **No boilerplate**: `static`, `readonly` are implied by context
+- **Abstract classes**: Use `abstract` blocks without `extends Management`
+- **Decorators**: Use `@reach` and `@crud` to attach metadata
 
 ---
 
