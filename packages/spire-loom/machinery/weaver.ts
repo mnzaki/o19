@@ -157,7 +157,35 @@ export class Weaver {
     }
 
     // Phase 2: Execute generation tasks (Shuttle)
-    for (const task of plan.tasks) {
+    // Filter tasks if packageFilter is specified
+    let tasksToExecute = plan.tasks;
+    if (config?.packageFilter) {
+      const filter = config.packageFilter.toLowerCase();
+      tasksToExecute = plan.tasks.filter(task => {
+        // Match against the current node's export name or the match pattern
+        const exportName = task.exportName.toLowerCase();
+        const currentType = task.match[0].toLowerCase();
+        const previousType = task.match[1]?.toLowerCase() ?? '';
+        
+        // Check if any part of the task matches the filter
+        return exportName.includes(filter) || 
+               currentType.includes(filter) || 
+               previousType.includes(filter);
+      });
+      
+      if (config.verbose) {
+        console.log(`
+Package filter: "${config.packageFilter}"`);
+        console.log(`  Tasks before filter: ${plan.tasks.length}`);
+        console.log(`  Tasks after filter: ${tasksToExecute.length}`);
+        if (tasksToExecute.length === 0) {
+          console.log('  ⚠️  No tasks match this filter');
+          console.log('  Available packages:', [...new Set(plan.tasks.map(t => t.exportName))].join(', '));
+        }
+      }
+    }
+    
+    for (const task of tasksToExecute) {
       try {
         const result = await this.executeTask(task, plan, config);
         filesGenerated += result.generated;

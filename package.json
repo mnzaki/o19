@@ -10,7 +10,6 @@
     "format": "prettier --write .",
     "check-types": "turbo run check-types"
   },
-  "dependencies": {},
   "devDependencies": {
     "@o19/spire-loom": "workspace:*",
     "@repo/typescript-config": "workspace:*",

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-add-media-link"
+description = "Enables the add-media-link command without any pre-configured scope."
+commands.allow = ["add-media-link"]
+
+[[permission]]
+identifier = "deny-add-media-link"
+description = "Denies the add-media-link command without any pre-configured scope."
+commands.deny = ["add-media-link"]

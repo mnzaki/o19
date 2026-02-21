@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-start-node"
+description = "Enables the start-node command without any pre-configured scope."
+commands.allow = ["start-node"]
+
+[[permission]]
+identifier = "deny-start-node"
+description = "Denies the start-node command without any pre-configured scope."
+commands.deny = ["start-node"]

@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-on-status-change"
+description = "Enables the on-status-change command without any pre-configured scope."
+commands.allow = ["on-status-change"]
+
+[[permission]]
+identifier = "deny-on-status-change"
+description = "Denies the on-status-change command without any pre-configured scope."
+commands.deny = ["on-status-change"]

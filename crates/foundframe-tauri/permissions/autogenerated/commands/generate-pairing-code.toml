@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-generate-pairing-code"
+description = "Enables the generate-pairing-code command without any pre-configured scope."
+commands.allow = ["generate-pairing-code"]
+
+[[permission]]
+identifier = "deny-generate-pairing-code"
+description = "Denies the generate-pairing-code command without any pre-configured scope."
+commands.deny = ["generate-pairing-code"]

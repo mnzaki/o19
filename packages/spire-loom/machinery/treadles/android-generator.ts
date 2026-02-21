@@ -2,7 +2,7 @@
  * Android Generator
  *
  * Generates Android foreground service code from spiral patterns.
- * 
+ *
  * Matrix match: (AndroidSpiraler, RustCore) → Android bridge
  */
 
@@ -12,9 +12,15 @@ import { configureAndroidGradle } from '../shuttle/android-gradle-integration.js
 import type { SpiralNode, GeneratedFile, GeneratorContext } from '../heddles/index.js';
 import { ensurePlanComplete } from '../heddles/index.js';
 import { AndroidSpiraler } from '../../warp/spiral/spiralers/android.js';
-import { RustCore } from '../../warp/spiral/core.js';
+import { RustCore } from '../../warp/spiral/index.js';
 import { filterByReach, type ManagementMetadata } from '../reed/index.js';
-import { generateCode, generateBatch, type RawMethod } from '../bobbin/index.js';
+import {
+  MethodPipeline,
+  addManagementPrefix,
+  fromSourceMethods,
+  type MgmtMethod
+} from '../sley/index.js';
+import { generateCode, type RawMethod } from '../bobbin/index.js';
 
 export interface AndroidGenerationOptions {
   /** Output directory for the generated crate */
@@ -36,13 +42,13 @@ export interface AndroidGenerationOptions {
 
 /**
  * Generate Android foreground service files.
- * 
+ *
  * This is called when the matrix matches (AndroidSpiraler, RustCore).
  * It generates:
  * - Kotlin service class
  * - AIDL interface (for reference)
  * - Rust JNI bridge
- * 
+ *
  * The bobbin handles all type transformations based on output file extensions.
  */
 export async function generateAndroidService(
@@ -53,53 +59,61 @@ export async function generateAndroidService(
   const files: GeneratedFile[] = [];
   const plan = context?.plan;
   const workspaceRoot = context?.workspaceRoot ?? process.cwd();
-  
+
   // Validate node types (be lenient for deduplicated tasks)
   if (!(current.ring instanceof AndroidSpiraler)) {
     if (process.env.DEBUG_MATRIX) {
-      console.log(`[ANDROID] Skipping: current ring is ${current.ring.constructor.name}, not AndroidSpiraler`);
+      console.log(
+        `[ANDROID] Skipping: current ring is ${current.ring.constructor.name}, not AndroidSpiraler`
+      );
     }
     return [];
   }
   if (!(previous.ring instanceof RustCore)) {
     throw new Error('Expected RustCore as previous node');
   }
-  
+
   const core = previous.ring as RustCore;
   const android = current.ring as AndroidSpiraler;
   const metadata = core.getMetadata();
-  
+
   // Build names and paths
   const nameAffix = android.getNameAffix();
   const pascalAffix = nameAffix ? pascalCase(nameAffix) : '';
   const gradleNamespace = android.getGradleNamespace(metadata.packageName);
   const packageDir = `o19/crates/${metadata.packageName}-android`;
   const coreNamePascal = pascalCase(metadata.packageName);
-  
-  const interfaceName = pascalAffix 
-    ? `I${coreNamePascal}${pascalAffix}`
-    : `I${coreNamePascal}`;
-  
+
+  const interfaceName = pascalAffix ? `I${coreNamePascal}${pascalAffix}` : `I${coreNamePascal}`;
+
   const serviceClassName = pascalAffix
     ? `${coreNamePascal}${pascalAffix}Service`
     : `${coreNamePascal}Service`;
-  
+
   // Collect raw Management methods (bobbin will transform by language)
   const rawMethods = collectManagementMethods(plan?.managements ?? []);
-  
+
   // Path components for package structure
   const packagePath = gradleNamespace.replace(/\./g, '/');
-  
+
   // ==========================================================================
   // Generate all files using bobbin's unified API
   // Language is auto-detected from output extensions
   // ==========================================================================
-  
+
   const generationTasks = [
     // Kotlin service
     generateCode({
       template: 'android/service.kt.ejs',
-      outputPath: path.join(packageDir, 'spire', 'android', 'java', packagePath, 'service', `${serviceClassName}.kt`),
+      outputPath: path.join(
+        packageDir,
+        'spire',
+        'android',
+        'java',
+        packagePath,
+        'service',
+        `${serviceClassName}.kt`
+      ),
       data: {
         packageName: gradleNamespace,
         serviceName: serviceClassName,
@@ -110,24 +124,31 @@ export async function generateAndroidService(
         notificationTitle: `${metadata.packageName} Service`,
         notificationText: 'Running in background',
         nativeLibName: 'android',
-        homeDirName: `.${metadata.packageName}`,
+        homeDirName: `.${metadata.packageName}`
       },
-      methods: rawMethods,
+      methods: rawMethods
     }),
-    
+
     // AIDL interface
     generateCode({
       template: 'android/aidl_interface.aidl.ejs',
-      outputPath: path.join(packageDir, 'spire', 'android', 'aidl', packagePath, `${interfaceName}.aidl`),
+      outputPath: path.join(
+        packageDir,
+        'spire',
+        'android',
+        'aidl',
+        packagePath,
+        `${interfaceName}.aidl`
+      ),
       data: {
         interfaceName,
         packageName: gradleNamespace,
         coreName: metadata.packageName,
-        imports: [`${gradleNamespace}.IEventCallback`],
+        imports: [`${gradleNamespace}.IEventCallback`]
       },
-      methods: rawMethods,
+      methods: rawMethods
     }),
-    
+
     // Rust JNI bridge
     generateCode({
       template: 'android/jni_bridge.jni.rs.ejs',
@@ -137,15 +158,15 @@ export async function generateAndroidService(
         coreCrateName: metadata.crateName ?? 'o19-foundframe',
         packageName: gradleNamespace,
         coreName: metadata.packageName,
-        jniPackagePath: gradleNamespace.replace(/\./g, '_'),
+        jniPackagePath: gradleNamespace.replace(/\./g, '_')
       },
-      methods: rawMethods,
-    }),
+      methods: rawMethods
+    })
   ];
-  
+
   const generatedFiles = await Promise.all(generationTasks);
   files.push(...generatedFiles);
-  
+
   // IEventCallback AIDL (static template - no methods transformation needed)
   const callbackContent = `// IEventCallback.aidl
 // Callback interface for ${metadata.packageName} events
@@ -156,20 +177,20 @@ interface IEventCallback {
     // Event is a JSON string representing ${coreNamePascal}Event
     oneway void onEvent(String eventJson);
 }`;
-  
+
   files.push({
     path: path.join(packageDir, 'spire', 'android', 'aidl', packagePath, 'IEventCallback.aidl'),
-    content: callbackContent,
+    content: callbackContent
   });
-  
+
   // ==========================================================================
   // Hook up AndroidManifest.xml entries
   // ==========================================================================
-  
+
   const resolvedPackageDir = path.join(workspaceRoot, '..', packageDir);
   const manifestPath = path.join(resolvedPackageDir, 'android', 'AndroidManifest.xml');
   const bindPermissionName = `${gradleNamespace}.BIND_${coreNamePascal.toUpperCase()}_RADICLE`;
-  
+
   ensureXmlBlock(manifestPath, {
     ForegroundServicePermission: {
       content: `<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />`,
@@ -202,21 +223,21 @@ interface IEventCallback {
       parent: 'application'
     }
   });
-  
+
   // ==========================================================================
   // Hook up Gradle build configuration
   // ==========================================================================
-  
+
   const gradlePath = path.join(resolvedPackageDir, 'build.gradle');
-  
+
   // Compute task name: buildRust{CoreName}
   const rustCore = previous.ring;
   let coreName = 'Unknown';
-  
+
   if (context?.plan) {
     ensurePlanComplete(context.plan, 'compute Gradle task name');
   }
-  
+
   const spiralOutNodes = context?.plan.nodesByType.get('SpiralOut') ?? [];
   for (const node of spiralOutNodes) {
     const spiralOut = node.ring as any;
@@ -225,15 +246,15 @@ interface IEventCallback {
       break;
     }
   }
-  
+
   const taskName = `buildRust${coreName}`;
-  
+
   configureAndroidGradle(gradlePath, {
     spireDir: './spire',
     hasCargoToml: true,
-    taskName,
+    taskName
   });
-  
+
   return files;
 }
 
@@ -244,43 +265,54 @@ interface IEventCallback {
 function pascalCase(str: string): string {
   return str
     .split(/[-_]/)
-    .map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())
     .join('');
 }
 
 /**
- * Collect raw Management methods without type mapping.
- * 
+ * Convert MgmtMethod to RawMethod for template compatibility.
+ */
+function toRawMethod(method: MgmtMethod): RawMethod {
+  return {
+    name: method.name,
+    returnType: method.returnType,
+    isCollection: method.isCollection,
+    params: method.params.map((p) => ({
+      name: p.name,
+      type: p.tsType,
+      optional: p.optional
+    })),
+    description: method.description || `${method.managementName}.${method.originalName}`
+  };
+}
+
+/**
+ * Collect Management methods through the Sley pipeline.
+ *
+ * Applies management prefixing for unique bind-points across all managements.
  * The bobbin's code-generator will apply language-specific transformations
  * based on the output file extension.
  */
-function collectManagementMethods(
-  managements: ManagementMetadata[]
-): RawMethod[] {
+function collectManagementMethods(managements: ManagementMetadata[]): RawMethod[] {
   if (managements.length === 0) {
     return [];
   }
 
   // Filter for Android platform (Local + Global reach)
   const platformManagements = filterByReach(managements, 'platform');
-  
-  const methods: RawMethod[] = [];
+
+  // Build pipeline with management prefixing
+  const pipeline = new MethodPipeline().translate(addManagementPrefix()); // bookmark_add, device_pair, etc.
+
+  const methods: MgmtMethod[] = [];
 
   for (const mgmt of platformManagements) {
-    for (const method of mgmt.methods) {
-      methods.push({
-        name: method.name,
-        returnType: method.returnType,
-        isCollection: method.isCollection ?? false,
-        params: method.params.map(p => ({
-          name: p.name,
-          type: p.type,
-          optional: p.optional,
-        })),
-        description: `${mgmt.name}.${method.name}`,
-      });
-    }
+    // Convert and process through pipeline
+    const sourceMethods = fromSourceMethods(mgmt.name, mgmt.methods);
+    const processedMethods = pipeline.process(sourceMethods);
+    methods.push(...processedMethods);
   }
 
-  return methods;
+  // Convert to RawMethod for template compatibility
+  return methods.map(toRawMethod);
 }

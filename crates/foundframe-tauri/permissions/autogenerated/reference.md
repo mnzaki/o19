@@ -39,6 +39,136 @@ Default permissions for the plugin
 <tr>
 <td>
 
+`o19-foundframe-tauri:allow-add-bookmark`
+
+</td>
+<td>
+
+Enables the add-bookmark command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-add-bookmark`
+
+</td>
+<td>
+
+Denies the add-bookmark command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-add-conversation`
+
+</td>
+<td>
+
+Enables the add-conversation command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-add-conversation`
+
+</td>
+<td>
+
+Denies the add-conversation command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-add-media-link`
+
+</td>
+<td>
+
+Enables the add-media-link command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-add-media-link`
+
+</td>
+<td>
+
+Denies the add-media-link command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-add-person`
+
+</td>
+<td>
+
+Enables the add-person command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-add-person`
+
+</td>
+<td>
+
+Denies the add-person command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-add-post`
+
+</td>
+<td>
+
+Enables the add-post command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-add-post`
+
+</td>
+<td>
+
+Denies the add-post command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `o19-foundframe-tauri:allow-allow-capture-photo`
 
 </td>
@@ -512,6 +642,32 @@ Denies the compress_webp_to_size command without any pre-configured scope.
 </td>
 <td>
 
+Enables the confirm-pairing command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-confirm-pairing`
+
+</td>
+<td>
+
+Denies the confirm-pairing command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-confirm-pairing`
+
+</td>
+<td>
+
 Enables the confirm_pairing command without any pre-configured scope.
 
 </td>
@@ -559,6 +715,84 @@ Denies the convert_jpeg_to_webp command without any pre-configured scope.
 <tr>
 <td>
 
+`o19-foundframe-tauri:allow-create-repository`
+
+</td>
+<td>
+
+Enables the create-repository command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-create-repository`
+
+</td>
+<td>
+
+Denies the create-repository command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-follow-device`
+
+</td>
+<td>
+
+Enables the follow-device command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-follow-device`
+
+</td>
+<td>
+
+Denies the follow-device command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-generate-pairing-code`
+
+</td>
+<td>
+
+Enables the generate-pairing-code command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-generate-pairing-code`
+
+</td>
+<td>
+
+Denies the generate-pairing-code command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `o19-foundframe-tauri:allow-generate-pairing-qr`
 
 </td>
@@ -578,6 +812,84 @@ Enables the generate_pairing_qr command without any pre-configured scope.
 <td>
 
 Denies the generate_pairing_qr command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-get-default-repository`
+
+</td>
+<td>
+
+Enables the get-default-repository command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-get-default-repository`
+
+</td>
+<td>
+
+Denies the get-default-repository command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-get-node-alias`
+
+</td>
+<td>
+
+Enables the get-node-alias command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-get-node-alias`
+
+</td>
+<td>
+
+Denies the get-node-alias command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-get-node-id`
+
+</td>
+<td>
+
+Enables the get-node-id command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-get-node-id`
+
+</td>
+<td>
+
+Denies the get-node-id command without any pre-configured scope.
 
 </td>
 </tr>
@@ -611,6 +923,58 @@ Denies the html_preview_json command without any pre-configured scope.
 <tr>
 <td>
 
+`o19-foundframe-tauri:allow-is-following`
+
+</td>
+<td>
+
+Enables the is-following command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-is-following`
+
+</td>
+<td>
+
+Denies the is-following command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-is-node-running`
+
+</td>
+<td>
+
+Enables the is-node-running command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-is-node-running`
+
+</td>
+<td>
+
+Denies the is-node-running command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `o19-foundframe-tauri:allow-is-camera-active`
 
 </td>
@@ -630,6 +994,84 @@ Enables the is_camera_active command without any pre-configured scope.
 <td>
 
 Denies the is_camera_active command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-list-followers`
+
+</td>
+<td>
+
+Enables the list-followers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-list-followers`
+
+</td>
+<td>
+
+Denies the list-followers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-list-paired-devices`
+
+</td>
+<td>
+
+Enables the list-paired-devices command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-list-paired-devices`
+
+</td>
+<td>
+
+Denies the list-paired-devices command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-list-repositories`
+
+</td>
+<td>
+
+Enables the list-repositories command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-list-repositories`
+
+</td>
+<td>
+
+Denies the list-repositories command without any pre-configured scope.
 
 </td>
 </tr>
@@ -682,6 +1124,84 @@ Enables the media_preview_json command without any pre-configured scope.
 <td>
 
 Denies the media_preview_json command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-on-event`
+
+</td>
+<td>
+
+Enables the on-event command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-on-event`
+
+</td>
+<td>
+
+Denies the on-event command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-on-status-change`
+
+</td>
+<td>
+
+Enables the on-status-change command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-on-status-change`
+
+</td>
+<td>
+
+Denies the on-status-change command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-on-sync-complete`
+
+</td>
+<td>
+
+Enables the on-sync-complete command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-on-sync-complete`
+
+</td>
+<td>
+
+Denies the on-sync-complete command without any pre-configured scope.
 
 </td>
 </tr>
@@ -819,6 +1339,32 @@ Denies the run_sql command without any pre-configured scope.
 <tr>
 <td>
 
+`o19-foundframe-tauri:allow-set-default-repository`
+
+</td>
+<td>
+
+Enables the set-default-repository command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-set-default-repository`
+
+</td>
+<td>
+
+Denies the set-default-repository command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `o19-foundframe-tauri:allow-set-camera-mode`
 
 </td>
@@ -838,6 +1384,32 @@ Enables the set_camera_mode command without any pre-configured scope.
 <td>
 
 Denies the set_camera_mode command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-start-node`
+
+</td>
+<td>
+
+Enables the start-node command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-start-node`
+
+</td>
+<td>
+
+Denies the start-node command without any pre-configured scope.
 
 </td>
 </tr>
@@ -897,6 +1469,32 @@ Denies the start_service command without any pre-configured scope.
 <tr>
 <td>
 
+`o19-foundframe-tauri:allow-stop-node`
+
+</td>
+<td>
+
+Enables the stop-node command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-stop-node`
+
+</td>
+<td>
+
+Denies the stop-node command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `o19-foundframe-tauri:allow-stop-camera`
 
 </td>
@@ -923,6 +1521,110 @@ Denies the stop_camera command without any pre-configured scope.
 <tr>
 <td>
 
+`o19-foundframe-tauri:allow-subscribe-events`
+
+</td>
+<td>
+
+Enables the subscribe-events command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-subscribe-events`
+
+</td>
+<td>
+
+Denies the subscribe-events command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-supports-events`
+
+</td>
+<td>
+
+Enables the supports-events command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-supports-events`
+
+</td>
+<td>
+
+Denies the supports-events command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-unfollow-device`
+
+</td>
+<td>
+
+Enables the unfollow-device command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-unfollow-device`
+
+</td>
+<td>
+
+Denies the unfollow-device command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-unpair-device`
+
+</td>
+<td>
+
+Enables the unpair-device command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-unpair-device`
+
+</td>
+<td>
+
+Denies the unpair-device command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `o19-foundframe-tauri:allow-unpair-device`
 
 </td>
@@ -942,6 +1644,32 @@ Enables the unpair_device command without any pre-configured scope.
 <td>
 
 Denies the unpair_device command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:allow-unsubscribe-events`
+
+</td>
+<td>
+
+Enables the unsubscribe-events command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`o19-foundframe-tauri:deny-unsubscribe-events`
+
+</td>
+<td>
+
+Denies the unsubscribe-events command without any pre-configured scope.
 
 </td>
 </tr>

@@ -29,8 +29,8 @@
   },
   "exports": {
     ".": {
-      "types": "./warp/index.ts",
-      "import": "./warp/index.ts"
+      "types": "./index.ts",
+      "import": "./index.ts"
     },
     "./warp": {
       "types": "./warp/index.ts",

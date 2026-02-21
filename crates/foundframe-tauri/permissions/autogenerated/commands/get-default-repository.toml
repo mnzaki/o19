@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-get-default-repository"
+description = "Enables the get-default-repository command without any pre-configured scope."
+commands.allow = ["get-default-repository"]
+
+[[permission]]
+identifier = "deny-get-default-repository"
+description = "Denies the get-default-repository command without any pre-configured scope."
+commands.deny = ["get-default-repository"]

@@ -6,26 +6,22 @@
 //! - Android: JNI calls to <%= coreName %>-android service
 //! - iOS: Not implemented (stub)
 //!
-//! Generated from Management definitions with @reach('Local') | @reach('Global')
+//! NOTE: This is the GENERATED platform trait. The user-defined Platform trait
+//! in src/platform.rs is separate and can have custom methods.
 
-use crate::Result;
-use crate::models::*;
-use <%= coreCrateName %>::signal::EventBus;
-use <%= coreCrateName %>::thestream::TheStream;
+use crate::spire::error::Result;
+use crate::spire::models::*;
 
 /// Platform trait abstracts all <%= coreName %> operations.
+///
+/// This is distinct from the user's Platform trait in src/platform.rs.
+/// Generated code implements THIS trait, not the user's trait.
 ///
 /// This allows the tauri-plugin to work on different platforms:
 /// - Desktop: Direct <%= coreName %> integration
 /// - Android: JNI calls to foreground service
 /// - iOS: Not implemented (stub)
-pub trait Platform: Send + Sync {
-  /// Get the event bus for this platform.
-  fn event_bus(&self) -> &EventBus;
-
-  /// Get TheStream instance for adding content.
-  fn stream(&self) -> &TheStream;
-
+pub trait <%= platformTraitName %>: Send + Sync {
   /// Exit the application cleanly.
   fn exit(&self, code: i32);
 

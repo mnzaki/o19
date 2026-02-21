@@ -5,16 +5,44 @@
  * A spiral can wrap one ring (linear) or multiple rings (multiplexed).
  */
 
+import { Layer } from '../imprint.js';
+
 // ============================================================================
 // Base Classes
 // ============================================================================
 
-export class SpiralRing {}
+export class SpiralRing extends Layer {}
 
 /**
  * TODO explain me, GLOSSARY-wise
  */
 export interface Spiraling {}
+
+/**
+ * Metadata about a core ring.
+ */
+export interface CoreMetadata {
+  /** The language/runtime of this core */
+  language: 'rust' | 'typescript';
+}
+
+/**
+ * Abstract base for all core rings.
+ * Cores are the innermost rings that provide the domain logic.
+ */
+export abstract class CoreRing<S extends Partial<Spiralers>> extends SpiralRing {
+  /**
+   * Get the spiralers available for this core.
+   * Each core type (Rust, Go, etc.) provides its own set of spiralers
+   * that know how to wrap/adapt this core.
+   */
+  abstract getSpiralers(): S;
+
+  /**
+   * Get metadata about this core.
+   */
+  abstract getMetadata(): CoreMetadata;
+}
 
 /**
  * A Spiraler creates SpiralOut instances.
@@ -81,10 +109,6 @@ export class SpiralMux<O extends Partial<Spiralers> = Spiralers> extends SpiralR
 }
 
 export type SpiralMuxType<O extends Partial<Spiralers> = Spiralers> = SpiralMux<O> & O;
-
-// ============================================================================
-// Spiral Functions
-// ============================================================================
 
 /**
  * Spiral out from a single ring (linear spiral).

@@ -22,6 +22,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use foundframe_to_sql::ListenerHandle;
 use tauri::{
   Emitter, Manager, Runtime,
   plugin::{Builder, TauriPlugin},
@@ -78,53 +79,45 @@ impl<R: Runtime, T: Manager<R>> O19Extension<R> for T {
     &self.state::<AppState>().inner().db
   }
 
-  fn stream(&self) -> &TheStream {
-    self.state::<AppState>().inner().platform.stream()
-  }
-
   fn db_path(&self) -> PathBuf {
     self.state::<AppState>().inner().db_path.clone()
   }
+
+  fn stream(&self) -> &TheStream {
+    &self.state::<AppState>().inner().platform.stream()
+  }
 }
 
-/// Application state managed by the plugin.
+/// Application state for foundframe-specific items.
 pub struct AppState {
   /// Platform-specific implementation.
-  platform: Arc<dyn Platform>,
+  pub platform: Arc<dyn Platform>,
 
-  /// Event bus for component communication.
-  events: EventBus,
+  /// Event bus for component communication (foundframe-specific).
+  pub events: EventBus,
 
-  /// Database connection.
-  db: foundframe_to_sql::Database,
+  /// Database connection (manually managed, not generated).
+  pub db: foundframe_to_sql::Database,
 
-  /// Database path for SQL proxy.
-  db_path: PathBuf,
+  pub db_path: PathBuf,
 
-  /// Handle to keep SQL adapter listener alive.
-  #[allow(dead_code)]
-  _sql_listener: foundframe_to_sql::ListenerHandle,
+  /// sql_listener to keep it alive
+  _sql_listener: ListenerHandle,
 }
 
 /// Initialize the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("o19-foundframe-tauri")
     .invoke_handler(tauri::generate_handler![
+      // User commands (kept in src/commands.rs)
       commands::ping,
       commands::run_sql,
-      commands::add_text_note,
-      commands::add_post,
-      commands::add_bookmark,
-      commands::add_media_link,
-      commands::add_person,
-      commands::add_conversation,
       commands::subscribe_stream_events,
       commands::url_preview_json,
       commands::html_preview_json,
       commands::media_preview_json,
       commands::convert_jpeg_to_webp,
       commands::compress_webp_to_size,
-      commands::request_permissions,
       // Camera commands
       commands::start_camera,
       commands::stop_camera,
@@ -136,35 +129,41 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       // Device pairing commands
       commands::generate_pairing_qr,
       commands::parse_pairing_url,
-      commands::confirm_pairing,
       commands::check_followers_and_pair,
-      commands::list_paired_devices,
-      commands::unpair_device,
       // Service status
       commands::check_service_status,
       commands::start_service,
+      /* SPIRE_COMMANDS_START */
+      crate::spire::commands::add_bookmark,
+      crate::spire::commands::get_bookmark,
+      crate::spire::commands::list_bookmarks,
+      crate::spire::commands::delete_bookmark,
+      crate::spire::commands::generate_pairing_code,
+      crate::spire::commands::confirm_pairing,
+      crate::spire::commands::unpair_device,
+      crate::spire::commands::list_paired_devices,
+      crate::spire::commands::follow_device,
+      crate::spire::commands::unfollow_device,
+      crate::spire::commands::list_followers,
+      crate::spire::commands::is_following,
+      crate::spire::commands::subscribe_events,
+      crate::spire::commands::unsubscribe_events,
+      crate::spire::commands::supports_events,
+      /* SPIRE_COMMANDS_END */
     ])
     .setup(|app, api| {
-      // Initialize logging first
       o19_foundframe::setup_logging();
 
-      info!("Initializing o19-foundframe-tauri plugin...");
+      // Initialize foundframe platform (generated)
+      let _foundframe = crate::spire::setupSpireFoundframe(app, &api)?;
 
-      // Register Android plugin (noop on desktop)
-      #[cfg(target_os = "android")]
-      let plugin_handle = {
-        info!("Registering ApiPlugin for Android...");
-        api.register_android_plugin("ty.circulari.o19.ff", "ApiPlugin")?
-      };
-      #[cfg(not(target_os = "android"))]
-      let plugin_handle = ();
-
-      // Initialize platform implementation
+      // Initialize platform (desktop/mobile)
       #[cfg(mobile)]
-      let platform = mobile::init(app, api, plugin_handle)?;
+      let platform = std::sync::Arc::new(mobile::init(app, api)?) as std::sync::Arc<dyn Platform>;
       #[cfg(desktop)]
-      let platform = desktop::init(app, api)?;
+      let platform = std::sync::Arc::new(desktop::init(app, api)?) as std::sync::Arc<dyn Platform>;
 
+      // Initialize foundframe-specific state (manually managed)
       let app_data_dir = app.path().app_data_dir()?;
       let db_path = app_data_dir.join("deardiary.db");
       info!("Database path: {:?}", db_path);
@@ -182,13 +181,11 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
       // Clone event bus before moving platform
       let events = platform.event_bus().clone();
-
       // Set up event forwarding to frontend
       setup_event_forwarding(app, &events)?;
 
-      // Manage all state
       app.manage(AppState {
-        platform: Arc::new(platform),
+        platform,
         events,
         db,
         db_path: db_path.clone(),
@@ -215,7 +212,10 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 }
 
 /// Set up forwarding of events to the frontend via Tauri events.
-fn setup_event_forwarding<R: Runtime>(app: &tauri::AppHandle<R>, events: &EventBus) -> Result<()> {
+pub fn setup_event_forwarding<R: Runtime>(
+  app: &tauri::AppHandle<R>,
+  events: &EventBus,
+) -> Result<()> {
   use o19_foundframe::thestream::TheStreamEvent;
 
   let rx = events.subscribe::<TheStreamEvent>();
@@ -262,7 +262,5 @@ pub extern "system" fn Java_ty_circulari_o19_ffi_initRustlsPlatformVerifier(
   }
 }
 
-
-// Auto-generated by aidl-spiral
-#[path = "../spiral/mod.rs"]
-pub mod spiral;
+#[path = "../spire/src/lib.rs"]
+pub mod spire;

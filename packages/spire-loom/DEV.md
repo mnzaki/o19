@@ -127,6 +127,33 @@ spire-loom/
 └── cli.ts                    # Entry point
 ```
 
+### Rust Crate Hookup Pattern
+
+Generated Rust code uses `#[path]` attribute to reference files outside `src/`:
+
+```rust
+// In src/lib.rs
+#[path = "../spire/src/lib.rs"]
+pub mod spire;
+```
+
+This allows the `spire/` directory to live as a sibling to `src/`, visually separating generated code from hand-written source.
+
+#### Cargo.toml Block Registry
+
+Similar to Gradle blocks, Cargo.toml uses tagged blocks for idempotent modifications:
+
+```toml
+[dependencies]
+# SpireStart: GeneratedDependencies
+serde = { workspace = true }
+# SpireEnd: GeneratedDependencies
+```
+
+Use `cargo-toml-manager.ts` to manage these blocks:
+- `ensureCargoBlock()` - Add/update a block
+- `cleanupUntouchedBlocks()` - Remove blocks not touched this generation
+
 ### Template Naming Convention (Double Extension)
 
 Templates use **double extension** to specify both the target language and transformation type:

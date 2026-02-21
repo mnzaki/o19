@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-add-person"
+description = "Enables the add-person command without any pre-configured scope."
+commands.allow = ["add-person"]
+
+[[permission]]
+identifier = "deny-add-person"
+description = "Denies the add-person command without any pre-configured scope."
+commands.deny = ["add-person"]

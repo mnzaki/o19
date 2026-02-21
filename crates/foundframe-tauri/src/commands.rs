@@ -25,70 +25,6 @@ pub(crate) async fn run_sql<R: Runtime>(
   Ok(result?)
 }
 
-// ============================================================================
-// TheStream Commands - Adding content to the stream (via Platform)
-// ============================================================================
-
-#[tauri::command]
-pub(crate) async fn add_text_note<R: Runtime>(
-  app: AppHandle<R>,
-  directory: String,
-  content: String,
-  title: Option<String>,
-  subpath: Option<String>,
-) -> Result<StreamEntryResult> {
-  app.platform().add_text_note(directory, content, title, subpath)
-}
-
-#[tauri::command]
-pub(crate) async fn add_post<R: Runtime>(
-  app: AppHandle<R>,
-  content: String,
-  title: Option<String>,
-) -> Result<StreamEntryResult> {
-  app.platform().add_post(content, title)
-}
-
-#[tauri::command]
-pub(crate) async fn add_bookmark<R: Runtime>(
-  app: AppHandle<R>,
-  url: String,
-  title: Option<String>,
-  notes: Option<String>,
-) -> Result<StreamEntryResult> {
-  app.platform().add_bookmark(url, title, notes)
-}
-
-#[tauri::command]
-pub(crate) async fn add_media_link<R: Runtime>(
-  app: AppHandle<R>,
-  directory: String,
-  url: String,
-  title: Option<String>,
-  mime_type: Option<String>,
-  subpath: Option<String>,
-) -> Result<StreamEntryResult> {
-  app.platform().add_media_link(directory, url, title, mime_type, subpath)
-}
-
-#[tauri::command]
-pub(crate) async fn add_person<R: Runtime>(
-  app: AppHandle<R>,
-  display_name: String,
-  handle: Option<String>,
-) -> Result<StreamEntryResult> {
-  app.platform().add_person(display_name, handle)
-}
-
-#[tauri::command]
-pub(crate) async fn add_conversation<R: Runtime>(
-  app: AppHandle<R>,
-  conversation_id: String,
-  title: Option<String>,
-) -> Result<StreamEntryResult> {
-  app.platform().add_conversation(conversation_id, title)
-}
-
 /// Subscribe to stream events from the frontend.
 #[tauri::command]
 pub(crate) async fn subscribe_stream_events<R: Runtime>(_app: AppHandle<R>) -> Result<String> {
@@ -168,23 +104,16 @@ pub(crate) async fn compress_webp_to_size<R: Runtime>(
 // Permission Commands
 // ============================================================================
 
-#[tauri::command]
-pub(crate) async fn request_permissions<R: Runtime>(
-  app: AppHandle<R>,
-) -> Result<NotificationPermissionStatus> {
-  app.platform().request_permissions()
-}
-
 // ============================================================================
 // Camera Commands - Routed through Platform trait
 // ============================================================================
 
 #[derive(Debug, Deserialize)]
 pub struct CameraOptions {
-    #[serde(rename = "mode")]
-    mode: String,
-    #[serde(rename = "cameraDirection")]
-    camera_direction: Option<String>,
+  #[serde(rename = "mode")]
+  mode: String,
+  #[serde(rename = "cameraDirection")]
+  camera_direction: Option<String>,
 }
 
 /// Start the camera with specified mode
@@ -195,7 +124,9 @@ pub(crate) async fn start_camera<R: Runtime>(
 ) -> Result<serde_json::Value> {
   app.platform().start_camera(
     options.mode,
-    options.camera_direction.unwrap_or_else(|| "back".to_string())
+    options
+      .camera_direction
+      .unwrap_or_else(|| "back".to_string()),
   )
 }
 
@@ -219,7 +150,9 @@ pub(crate) async fn set_camera_mode<R: Runtime>(
 ) -> Result<serde_json::Value> {
   app.platform().set_camera_mode(
     options.mode,
-    options.camera_direction.unwrap_or_else(|| "back".to_string())
+    options
+      .camera_direction
+      .unwrap_or_else(|| "back".to_string()),
   )
 }
 
@@ -231,19 +164,19 @@ pub(crate) async fn is_camera_active<R: Runtime>(app: AppHandle<R>) -> Result<se
 
 /// Request camera permissions
 #[tauri::command]
-pub(crate) async fn request_camera_permissions<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value> {
+pub(crate) async fn request_camera_permissions<R: Runtime>(
+  app: AppHandle<R>,
+) -> Result<serde_json::Value> {
   app.platform().request_camera_permissions()
 }
 
 /// Check camera permissions
 #[tauri::command]
-pub(crate) async fn check_camera_permissions<R: Runtime>(app: AppHandle<R>) -> Result<serde_json::Value> {
+pub(crate) async fn check_camera_permissions<R: Runtime>(
+  app: AppHandle<R>,
+) -> Result<serde_json::Value> {
   app.platform().check_camera_permissions()
 }
-
-// ============================================================================
-// Device Pairing Commands - Delegated to Platform
-// ============================================================================
 
 #[tauri::command]
 pub(crate) async fn generate_pairing_qr<R: Runtime>(
@@ -262,34 +195,10 @@ pub(crate) async fn parse_pairing_url<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) async fn confirm_pairing<R: Runtime>(
-  app: AppHandle<R>,
-  node_id_hex: String,
-  alias: String,
-) -> Result<PairedDeviceInfo> {
-  app.platform().confirm_pairing(node_id_hex, alias)
-}
-
-#[tauri::command]
-pub(crate) async fn list_paired_devices<R: Runtime>(
-  app: AppHandle<R>,
-) -> Result<Vec<PairedDeviceInfo>> {
-  app.platform().list_paired_devices()
-}
-
-#[tauri::command]
 pub(crate) async fn check_followers_and_pair<R: Runtime>(
   app: AppHandle<R>,
 ) -> Result<Vec<PairedDeviceInfo>> {
   app.platform().check_followers_and_pair()
-}
-
-#[tauri::command]
-pub(crate) async fn unpair_device<R: Runtime>(
-  app: AppHandle<R>,
-  node_id_hex: String,
-) -> Result<()> {
-  app.platform().unpair_device(node_id_hex)
 }
 
 // ============================================================================
@@ -305,9 +214,7 @@ pub struct ServiceStatus {
 }
 
 #[tauri::command]
-pub(crate) async fn check_service_status<R: Runtime>(
-  app: AppHandle<R>,
-) -> Result<ServiceStatus> {
+pub(crate) async fn check_service_status<R: Runtime>(_app: AppHandle<R>) -> Result<ServiceStatus> {
   // On Android, check if we can execute a simple platform operation
   // On desktop, service is always "connected" (direct implementation)
   #[cfg(target_os = "android")]
@@ -336,7 +243,7 @@ pub(crate) async fn check_service_status<R: Runtime>(
       }
     }
   }
-  
+
   #[cfg(not(target_os = "android"))]
   {
     // On desktop, service is always connected
@@ -354,9 +261,7 @@ pub struct StartServiceResult {
 }
 
 #[tauri::command]
-pub(crate) async fn start_service<R: Runtime>(
-  _app: AppHandle<R>,
-) -> Result<StartServiceResult> {
+pub(crate) async fn start_service<R: Runtime>(_app: AppHandle<R>) -> Result<StartServiceResult> {
   // On Android, the service is started by the plugin's load() method
   // This command is mainly for explicit restart attempts from UI
   #[cfg(target_os = "android")]
@@ -368,7 +273,7 @@ pub(crate) async fn start_service<R: Runtime>(
       error: Some("Service auto-starts on Android. If not running, restart the app.".to_string()),
     })
   }
-  
+
   #[cfg(not(target_os = "android"))]
   {
     Ok(StartServiceResult {

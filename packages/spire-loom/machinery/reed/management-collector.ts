@@ -9,7 +9,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { getReach, getCrudMethods, type CrudMetadata } from '../../warp/imprint.js';
+import { getReach, getCrudMethods, getMethodTags, type CrudMetadata } from '../../warp/imprint.js';
 
 // TypeScript method signature parser
 interface ParsedMethod {
@@ -94,6 +94,8 @@ export interface MethodMetadata {
   isCollection?: boolean;
   /** Whether this is a soft delete */
   isSoftDelete?: boolean;
+  /** Tags attached to this method (e.g., ['crud:create', 'auth:required']) */
+  tags?: string[];
 }
 
 /**
@@ -169,6 +171,9 @@ function extractMetadata(
   // Get CRUD methods from decorator metadata
   const crudMethods = getCrudMethods(mgmtClass);
   
+  // Get method tags from decorator metadata
+  const methodTags = getMethodTags(mgmtClass);
+  
   // Parse method signatures from source file
   const parsedMethods = parseMethodSignatures(sourceFile);
   
@@ -179,6 +184,9 @@ function extractMetadata(
       // Get parsed signature if available
       const parsed = parsedMethods.get(methodName);
       
+      // Get tags for this method
+      const tags = methodTags?.get(methodName);
+      
       methods.push({
         name: methodName,
         operation: metadata.operation as CrudOperation,
@@ -186,6 +194,7 @@ function extractMetadata(
         returnType: parsed?.returnType ?? 'void',
         isCollection: metadata.collection,
         isSoftDelete: metadata.soft,
+        tags,
       });
     }
   }

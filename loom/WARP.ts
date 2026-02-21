@@ -13,11 +13,29 @@
  * This file defines the foundframe architecture using the loom DSL.
  */
 
-import loom from '@o19/spire-loom';
+import loom, { rust } from '@o19/spire-loom';
 
 // ============================================================================
 // CORE
 // ============================================================================
+
+@rust.Struct
+class TheStream {}
+
+@rust.Struct
+class DeviceManager {}
+
+export class Foundframe {
+  @rust.Mutex
+  @rust.Option
+  thestream = TheStream;
+
+  @rust.Mutex
+  @rust.Option
+  device_manager = DeviceManager;
+}
+
+//const core = loom.spiral.rust.core({ structs: { Foundframe } });
 
 /**
  * The Core - foundframe (Rust)
@@ -26,7 +44,7 @@ import loom from '@o19/spire-loom';
  *
  * The center that holds. Pure domain logic.
  */
-export const foundframe = loom.spiral(loom.rustCore());
+export const foundframe = loom.spiral(Foundframe);
 
 // ============================================================================
 // PLATFORM RINGS (spiral out from Core)
@@ -38,8 +56,16 @@ export const foundframe = loom.spiral(loom.rustCore());
  * Path: o19/crates/foundframe-android
  *
  * Runs Core in :foundframe process with foreground service.
+ *
+ * The service is named IFoundframeRadicle (I{core}Radicle pattern)
+ * where 'Radicle' is the nameAffix.
+ *
+ * gradleNamespace sets the Android package name for the generated code.
  */
-export const android = foundframe.android.foregroundService();
+export const android = foundframe.android.foregroundService({
+  nameAffix: 'radicle',
+  gradleNamespace: 'ty.circulari.o19'
+});
 
 /**
  * Desktop Ring - direct calls to Core
@@ -48,7 +74,7 @@ export const android = foundframe.android.foregroundService();
  *
  * Desktop apps call Core directly (same process).
  */
-export const desktop = foundframe.desktop.direct();
+export const desktop = spiral.desktop.direct();
 
 /**
  * iOS Ring - future platform support
@@ -71,7 +97,13 @@ export const desktop = foundframe.desktop.direct();
  *   - Android → uses android ring (AIDL service)
  *   - iOS → uses ios ring (future)
  */
-export const tauri = loom.spiral(android, desktop).tauri.plugin();
+export const tauri = loom.spiral(android, desktop).tauri.plugin({
+  ddd: {
+    adaptors: {
+      filterOut: ['crud:read']
+    }
+  }
+});
 
 // ============================================================================
 // FRONT RINGS (spiral out from Tauri)

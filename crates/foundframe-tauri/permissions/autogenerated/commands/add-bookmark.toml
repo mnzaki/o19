@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-add-bookmark"
+description = "Enables the add-bookmark command without any pre-configured scope."
+commands.allow = ["add-bookmark"]
+
+[[permission]]
+identifier = "deny-add-bookmark"
+description = "Denies the add-bookmark command without any pre-configured scope."
+commands.deny = ["add-bookmark"]

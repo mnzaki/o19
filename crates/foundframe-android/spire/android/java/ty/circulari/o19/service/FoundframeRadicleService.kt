@@ -77,50 +77,6 @@ class FoundframeRadicleService : Service() {
         
     ): Boolean
     
-    /** ContentMgmt.addMediaLink */
-    private external fun nativeAddmedialink(
-        handle: Long,
-                directory: String,
-                url: String,
-                title: String,
-                mimeType: String,
-                subpath: String
-        
-    ): String
-    
-    /** ContentMgmt.addBookmark */
-    private external fun nativeAddbookmark(
-        handle: Long,
-                url: String,
-                title: String,
-                notes: String
-        
-    ): String
-    
-    /** ContentMgmt.addPost */
-    private external fun nativeAddpost(
-        handle: Long,
-                content: String,
-                title: String
-        
-    ): String
-    
-    /** ContentMgmt.addPerson */
-    private external fun nativeAddperson(
-        handle: Long,
-                displayName: String,
-                handle: String
-        
-    ): String
-    
-    /** ContentMgmt.addConversation */
-    private external fun nativeAddconversation(
-        handle: Long,
-                conversationId: String,
-                title: String
-        
-    ): String
-    
     /** DeviceMgmt.generatePairingCode */
     private external fun nativeGeneratepairingcode(
         handle: Long
@@ -329,75 +285,6 @@ class FoundframeRadicleService : Service() {
         pkbUrl: String): Boolean {
         check(nativeHandle != 0L) { "Service not initialized" }
         return nativeDeletebookmark(nativeHandle, pkbUrl)
-    }
-    
-    /**
-     * ContentMgmt.addMediaLink
-     * 
-     * This method locks the service handle on the Rust side, calls the 
-     * underlying core method, and returns the result after unlocking.
-     */
-    fun addMediaLink(
-        directory: String, 
-        url: String, 
-        title: String, 
-        mimeType: String, 
-        subpath: String): String {
-        check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeAddmedialink(nativeHandle, directory, url, title, mimeType, subpath)
-    }
-    
-    /**
-     * ContentMgmt.addBookmark
-     * 
-     * This method locks the service handle on the Rust side, calls the 
-     * underlying core method, and returns the result after unlocking.
-     */
-    fun addBookmark(
-        url: String, 
-        title: String, 
-        notes: String): String {
-        check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeAddbookmark(nativeHandle, url, title, notes)
-    }
-    
-    /**
-     * ContentMgmt.addPost
-     * 
-     * This method locks the service handle on the Rust side, calls the 
-     * underlying core method, and returns the result after unlocking.
-     */
-    fun addPost(
-        content: String, 
-        title: String): String {
-        check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeAddpost(nativeHandle, content, title)
-    }
-    
-    /**
-     * ContentMgmt.addPerson
-     * 
-     * This method locks the service handle on the Rust side, calls the 
-     * underlying core method, and returns the result after unlocking.
-     */
-    fun addPerson(
-        displayName: String, 
-        handle: String): String {
-        check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeAddperson(nativeHandle, displayName, handle)
-    }
-    
-    /**
-     * ContentMgmt.addConversation
-     * 
-     * This method locks the service handle on the Rust side, calls the 
-     * underlying core method, and returns the result after unlocking.
-     */
-    fun addConversation(
-        conversationId: String, 
-        title: String): String {
-        check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeAddconversation(nativeHandle, conversationId, title)
     }
     
     /**

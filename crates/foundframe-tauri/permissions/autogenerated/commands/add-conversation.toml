@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-add-conversation"
+description = "Enables the add-conversation command without any pre-configured scope."
+commands.allow = ["add-conversation"]
+
+[[permission]]
+identifier = "deny-add-conversation"
+description = "Denies the add-conversation command without any pre-configured scope."
+commands.deny = ["add-conversation"]

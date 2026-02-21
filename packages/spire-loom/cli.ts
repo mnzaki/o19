@@ -73,16 +73,23 @@ Examples:
   spire-loom                    # Generate all packages in workspace
   spire-loom -w                 # Watch mode for development
   spire-loom -p foundframe      # Generate only foundframe package
+  
+Package Detection:
+  When run from a package directory (e.g., o19/crates/foundframe-tauri),
+  spire-loom automatically detects the package and only generates for it.
+  Use -p <name> to override, or run from workspace root for all packages.
 `);
 }
 
 /**
  * Detect if we're in a workspace root or a package directory.
+ * Also returns the package name if we're in a specific package.
  */
 function detectWorkspace(): { 
   type: 'workspace' | 'package' | 'unknown'; 
   root: string;
   warpPath?: string;
+  currentPackage?: string;
 } {
   const cwd = process.cwd();
   
@@ -106,16 +113,37 @@ function detectWorkspace(): {
   const hasPackageJson = fs.existsSync(path.join(cwd, 'package.json'));
   
   if (hasCargoToml || hasPackageJson) {
+    // Try to extract package name
+    let packageName: string | undefined;
+    
+    if (hasCargoToml) {
+      const cargoContent = fs.readFileSync(path.join(cwd, 'Cargo.toml'), 'utf-8');
+      const nameMatch = cargoContent.match(/^name\s*=\s*"([^"]+)"/m);
+      if (nameMatch) {
+        packageName = nameMatch[1];
+      }
+    }
+    
+    if (!packageName && hasPackageJson) {
+      const pkgJson = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
+      packageName = pkgJson.name;
+    }
+    
     // Try to find workspace root by going up
     let current = cwd;
     while (current !== path.dirname(current)) {
       current = path.dirname(current);
       const loomPath = path.join(current, 'loom', 'WARP.ts');
       if (fs.existsSync(loomPath)) {
-        return { type: 'package', root: current, warpPath: loomPath };
+        return { 
+          type: 'package', 
+          root: current, 
+          warpPath: loomPath,
+          currentPackage: packageName 
+        };
       }
     }
-    return { type: 'package', root: cwd };
+    return { type: 'package', root: cwd, currentPackage: packageName };
   }
   
   return { type: 'unknown', root: cwd };
@@ -339,7 +367,33 @@ async function main() {
     process.exit(1);
   }
   
-  console.log(`📍 ${workspace.type === 'workspace' ? 'Workspace' : 'Package'} detected: ${workspace.root}`);
+  // Determine package filter
+  let packageFilter = options.package;
+  
+  // Auto-detect package if we're in a package directory and no filter specified
+  if (!packageFilter && workspace.type === 'package' && workspace.currentPackage) {
+    // Try to map Cargo package name to WARP export name
+    // e.g., "o19-foundframe-tauri" → "tauri"
+    // e.g., "o19-foundframe-android" → "android"
+    const cargoName = workspace.currentPackage;
+    
+    // Extract the last part after the last hyphen
+    const possibleExport = cargoName.split('-').pop() || cargoName;
+    
+    console.log(`📍 Package detected: ${cargoName}`);
+    console.log(`   Suggested filter: "${possibleExport}" (derived from package name)`);
+    console.log(`   Run with -p ${possibleExport} to generate, or -p all for all packages\n`);
+    
+    // Don't auto-apply the filter since it might not match
+    // Let the user explicitly specify or generate all
+    packageFilter = undefined;
+  } else if (workspace.type === 'workspace') {
+    console.log(`📍 Workspace detected: ${workspace.root}`);
+    if (!packageFilter) {
+      console.log(`   Generating all packages (use --package <name> to filter)\n`);
+    }
+  }
+  
   console.log(`📄 Loading: ${workspace.warpPath}\n`);
   
   try {
@@ -363,11 +417,11 @@ async function main() {
       workspaceRoot: workspace.root,
       loomDir,
       verbose: options.verbose,
+      packageFilter,
     };
     
-    if (options.package) {
-      console.log(`📦 Generating package: ${options.package}\n`);
-      // TODO: Filter to specific package
+    if (packageFilter) {
+      console.log(`📦 Package filter: "${packageFilter}"\n`);
     }
     
     // Run the weaver

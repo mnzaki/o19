@@ -6,8 +6,8 @@
  * to determine what code to generate.
  */
 
-import { SpiralRing, SpiralOut, SpiralMux, Spiraler } from '../../warp/index.js';
-import { CoreRing } from '../../warp/spiral/core.js';
+import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler } from '../../warp/index.js';
+import { CoreRing } from '../../warp/spiral/index.js';
 import type { ManagementMetadata } from '../reed/index.js';
 
 /**
@@ -56,7 +56,7 @@ export interface GenerationTask {
 
 /**
  * The weaving plan - intermediate representation.
- * 
+ *
  * ⚠️ IMPORTANT: Do not traverse nodesByType during the heddles phase!
  * The plan is only fully populated after buildPlan() completes.
  * Accessing nodesByType during traversal (e.g., from within a visitor)
@@ -66,7 +66,7 @@ export interface GenerationTask {
 export interface WeavingPlan {
   /** All edges in the spiral graph */
   edges: SpiralEdge[];
-  /** 
+  /**
    * All nodes grouped by type.
    * ⚠️ Only valid after buildPlan() completes. Do not access during heddles traversal!
    */
@@ -75,7 +75,7 @@ export interface WeavingPlan {
   managements: ManagementMetadata[];
   /** Generation tasks derived from matrix matching */
   tasks: GenerationTask[];
-  /** 
+  /**
    * Set to true when the plan is fully built and safe to traverse.
    * Used internally to guard against premature access.
    */
@@ -90,8 +90,8 @@ export function ensurePlanComplete(plan: WeavingPlan, operation: string): void {
   if (!plan._isComplete) {
     throw new Error(
       `Cannot ${operation}: WeavingPlan is not complete. ` +
-      `Do not traverse plan.nodesByType during the heddles phase. ` +
-      `Access the plan only during the weaving/generation phase.`
+        `Do not traverse plan.nodesByType during the heddles phase. ` +
+        `Access the plan only during the weaving/generation phase.`
     );
   }
 }
@@ -129,23 +129,19 @@ export interface GeneratedFile {
 
 /**
  * The Generator Matrix: [CurrentType, PreviousType] → Generator
- * 
+ *
  * This matrix defines what to generate based on the transition
  * from one ring type to another.
  */
 export class GeneratorMatrix extends Map<string, GeneratorFunction> {
   /**
    * Set a generator for a type pair.
-   * 
+   *
    * @param currentType - The outer ring type (e.g., 'AndroidSpiraler')
    * @param previousType - The inner ring type (e.g., 'RustCore')
    * @param generator - The generator function
    */
-  setPair(
-    currentType: string,
-    previousType: string,
-    generator: GeneratorFunction
-  ): this {
+  setPair(currentType: string, previousType: string, generator: GeneratorFunction): this {
     const key = `${currentType}→${previousType}`;
     return this.set(key, generator);
   }
@@ -161,7 +157,7 @@ export class GeneratorMatrix extends Map<string, GeneratorFunction> {
 
 /**
  * The default generator matrix.
- * 
+ *
  * Entries are added as we implement generators.
  */
 export const DEFAULT_MATRIX = new GeneratorMatrix();
@@ -186,19 +182,16 @@ export class Heddles {
 
   /**
    * Build a weaving plan from the WARP.ts module.
-   * 
+   *
    * @param warp - The exported rings from WARP.ts
    * @param managements - Management Imprints collected from loom/
    * @returns A plan with edges, nodes, managements, and generation tasks
    */
-  buildPlan(
-    warp: Record<string, SpiralRing>,
-    managements: ManagementMetadata[] = []
-  ): WeavingPlan {
+  buildPlan(warp: Record<string, SpiralRing>, managements: ManagementMetadata[] = []): WeavingPlan {
     const edges: SpiralEdge[] = [];
     const nodesByType = new Map<string, SpiralNode[]>();
     const tasks: GenerationTask[] = [];
-    
+
     // Track seen ring pairs to deduplicate tasks (using WeakMap for object identity)
     const seenRingPairs = new WeakMap<SpiralRing, Set<SpiralRing>>();
 
@@ -218,7 +211,7 @@ export class Heddles {
             from: node.parent.ring,
             to: node.ring,
             relationship: this.detectRelationship(node.ring, node.parent.ring),
-            exportName,
+            exportName
           };
           edges.push(edge);
 
@@ -228,12 +221,12 @@ export class Heddles {
           // So current = parent (outer), previous = node (inner)
           const currentType = node.parent.typeName;
           const previousType = typeName;
-          
+
           // DEBUG
           if (process.env.DEBUG_MATRIX) {
             console.log(`[MATRIX] Trying: ${currentType} -> ${previousType}`);
           }
-          
+
           // Deduplicate using WeakMap for object identity
           if (!seenRingPairs.has(node.parent.ring)) {
             seenRingPairs.set(node.parent.ring, new Set());
@@ -242,15 +235,15 @@ export class Heddles {
           if (innerSet.has(node.ring)) {
             return; // Skip duplicate
           }
-          
+
           const generator = this.matrix.getPair(currentType, previousType);
           if (generator) {
             innerSet.add(node.ring);
             tasks.push({
               match: [currentType, previousType],
-              current: node.parent,   // outer ring (e.g., AndroidSpiraler)
-              previous: node,         // inner ring (e.g., RustCore)
-              exportName,
+              current: node.parent, // outer ring (e.g., AndroidSpiraler)
+              previous: node, // inner ring (e.g., RustCore)
+              exportName
             });
           }
         }
@@ -263,7 +256,7 @@ export class Heddles {
 
   /**
    * Traverse the spiral tree, calling the visitor for each node.
-   * 
+   *
    * Each ring keeps its PRIMARY export name (the first one assigned).
    * Subsequent traversals use the existing export name.
    */
@@ -276,19 +269,19 @@ export class Heddles {
   ): void {
     // Get the effective type name - for SpiralOut with spiralers, use the spiraler's type
     const typeName = this.getEffectiveTypeName(ring);
-    
+
     // Use existing export name if ring was already traversed, otherwise assign new one
     const exportName = this.ringExportNames.get(ring) ?? traversalExportName;
     if (!this.ringExportNames.has(ring)) {
       this.ringExportNames.set(ring, exportName);
     }
-    
+
     const node: SpiralNode = {
       ring,
       typeName,
       parent,
       depth,
-      exportName,
+      exportName
     };
 
     visitor(node);
@@ -302,9 +295,8 @@ export class Heddles {
         const existingExport = this.ringExportNames.get(ring.inner);
         // If already marked and it's a CoreRing, the existing is from a previous Core export
         // In that case, keep the existing. Otherwise use the current export name.
-        const innerExportName = (existingExport && ring.inner instanceof CoreRing) 
-          ? existingExport 
-          : exportName;
+        const innerExportName =
+          existingExport && ring.inner instanceof CoreRing ? existingExport : exportName;
         this.traverse(ring.inner, node, depth + 1, innerExportName, visitor);
       }
 
@@ -329,6 +321,12 @@ export class Heddles {
         const innerExportName = this.ringExportNames.get(ring.innerRing) ?? exportName;
         this.traverse(ring.innerRing, node, depth + 1, innerExportName, visitor);
       }
+    } else if (ring instanceof MuxSpiraler) {
+      // MuxSpiraler (like TauriSpiraler) aggregates multiple platform rings
+      // Create edges from the mux spiraler to each inner ring for platform-specific generation
+      for (const inner of ring.innerRings) {
+        this.traverse(inner, node, depth + 1, exportName, visitor);
+      }
     } else if (ring instanceof SpiralMux) {
       // Multiple inner rings
       for (const inner of ring.innerRings) {
@@ -346,10 +344,10 @@ export class Heddles {
 
   /**
    * Get the effective type name for a ring.
-   * For SpiralOut that wraps a Spiraler directly (inner is Spiraler), 
+   * For SpiralOut that wraps a Spiraler directly (inner is Spiraler),
    * returns the spiraler's type name.
    * This allows matrix matching against 'AndroidSpiraler' instead of 'SpiralOut'.
-   * 
+   *
    * NOTE: We only check ring.inner, not properties. SpiralOuts that have
    * spiraler properties but don't wrap them directly (like foundframe which
    * has .android but wraps RustCore) should return 'SpiralOut'.
@@ -362,7 +360,7 @@ export class Heddles {
         return ring.inner.constructor.name;
       }
     }
-    
+
     // If it's a SpiralMux, use the mux's type or check for spiralers
     if (ring instanceof SpiralMux) {
       for (const [key, value] of Object.entries(ring)) {
@@ -371,7 +369,7 @@ export class Heddles {
         }
       }
     }
-    
+
     // Default to the constructor name
     return ring.constructor.name;
   }
@@ -379,7 +377,10 @@ export class Heddles {
   /**
    * Detect the relationship between two rings.
    */
-  private detectRelationship(current: SpiralRing, previous: SpiralRing): SpiralEdge['relationship'] {
+  private detectRelationship(
+    current: SpiralRing,
+    previous: SpiralRing
+  ): SpiralEdge['relationship'] {
     if (current instanceof SpiralMux) {
       return 'aggregates';
     }
@@ -398,7 +399,7 @@ export class Heddles {
    */
   findRoots(plan: WeavingPlan): SpiralNode[] {
     const allNodes = Array.from(plan.nodesByType.values()).flat();
-    return allNodes.filter(n => n.parent === null);
+    return allNodes.filter((n) => n.parent === null);
   }
 
   /**

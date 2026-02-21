@@ -31,9 +31,14 @@ import {
 
 /**
  * Raw Management method as collected from Management classes.
+ * 
+ * Cross-language naming:
+ * - name: Rust function name (snake_case)
+ * - jsName: JavaScript/TypeScript command name (camelCase, from WARP)
  */
 export interface RawMethod {
-  name: string;
+  name: string;        // Rust: snake_case
+  jsName?: string;     // JavaScript: camelCase (original WARP name)
   returnType: string;
   isCollection: boolean;
   params: Array<{ name: string; type: string; optional?: boolean }>;
@@ -195,11 +200,76 @@ export function transformForAidl(methods: RawMethod[]): AidlMethod[] {
  */
 export interface RustMethod extends TransformedMethod {
   rsReturnType: string;
-  params: Array<{ name: string; rsType: string }>;
+  params: Array<{ name: string; rsType: string; optional?: boolean }>;
+}
+
+/**
+ * TypeScript method for adaptor generation.
+ */
+export interface TypeScriptMethod extends TransformedMethod {
+  jsName: string;
+  tsReturnType: string;
+  commandName: string;
+  responseType?: string;
+  returnMapping?: string;
+  hasCustomMapping: boolean;
+  params: Array<{ name: string; tsType: string; optional?: boolean }>;
+}
+
+/**
+ * Transform raw methods for TypeScript adaptor output.
+ */
+export function transformForTypeScript(methods: RawMethod[]): TypeScriptMethod[] {
+  return methods.map(method => {
+    const tsReturnType = mapToTypeScriptType(method.returnType, method.isCollection);
+    const hasComplexReturn = !['string', 'number', 'boolean', 'void'].includes(method.returnType.toLowerCase());
+    
+    return {
+      name: method.name,
+      jsName: method.jsName || camelCase(method.name),
+      pascalName: pascalCase(method.name),
+      description: method.description,
+      tsReturnType,
+      commandName: method.name, // snake_case for Tauri command
+      responseType: hasComplexReturn ? `${pascalCase(method.name)}Response` : undefined,
+      returnMapping: hasComplexReturn ? generateResponseMapping(method.returnType) : undefined,
+      hasCustomMapping: hasComplexReturn,
+      params: method.params.map(p => ({
+        name: p.name,
+        tsType: mapToTypeScriptType(p.type, false),
+        optional: p.optional,
+      })),
+    };
+  });
+}
+
+function camelCase(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+function mapToTypeScriptType(tsType: string, isCollection: boolean): string {
+  const baseType = (() => {
+    switch (tsType.toLowerCase()) {
+      case 'string': return 'string';
+      case 'number': return 'number';
+      case 'boolean':
+      case 'bool': return 'boolean';
+      case 'void': return 'void';
+      default: return tsType; // Keep complex types as-is
+    }
+  })();
+  return isCollection ? `${baseType}[]` : baseType;
+}
+
+function generateResponseMapping(_returnType: string): string {
+  // Default mapping - assumes response has snake_case fields
+  return `{ ...result }`;
 }
 
 /**
  * Transform raw methods for pure Rust output (Tauri platform trait).
+ * 
+ * Optional parameters are mapped to Option<T> in Rust.
  */
 export function transformForRust(methods: RawMethod[]): RustMethod[] {
   return methods.map(method => ({
@@ -207,10 +277,16 @@ export function transformForRust(methods: RawMethod[]): RustMethod[] {
     pascalName: pascalCase(method.name),
     description: method.description,
     rsReturnType: mapToTauriRustType(method.returnType, method.isCollection),
-    params: method.params.map(p => ({
-      name: p.name,
-      rsType: mapToTauriRustType(p.type, false),
-    })),
+    params: method.params.map(p => {
+      const baseType = mapToTauriRustType(p.type, false);
+      // Wrap optional parameters in Option<T>
+      const rsType = p.optional ? `Option<${baseType}>` : baseType;
+      return {
+        name: p.name,
+        rsType,
+        optional: p.optional,
+      };
+    }),
   }));
 }
 
@@ -326,6 +402,8 @@ function transformMethods(methods: RawMethod[], language: Language): unknown[] {
       return transformForRustJni(methods);
     case 'aidl':
       return transformForAidl(methods);
+    case 'typescript':
+      return transformForTypeScript(methods);
     default:
       // No transformation for unknown languages
       return methods;

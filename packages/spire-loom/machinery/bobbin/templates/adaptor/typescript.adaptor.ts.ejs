@@ -1,0 +1,65 @@
+/**
+ * Tauri <%= managementName %> Adaptor
+ *
+ * Generated adaptor that invokes Tauri commands for <%= managementName %> operations.
+ * Delegates to the Platform implementation (local on desktop, service on Android).
+ */
+
+import { invoke } from '@tauri-apps/api/core';
+import { <%= extendsClass %> } from '@o19/foundframe-drizzle/adaptors';
+import type { <%= portInterface %> } from '@o19/foundframe-front/ports';
+import type { <%= managementName %> } from '@o19/foundframe-front/domain';
+<% if (hasCrud) { -%>
+import type { Create<%= managementName %>, Update<%= managementName %> } from '@o19/foundframe-front/domain';
+<% } -%>
+
+export class Tauri<%= managementName %>Adaptor extends <%= extendsClass %> implements <%= portInterface %> {
+<%# CRUD Methods -%>
+<% crudMethods.forEach(function(method) { -%>
+  /**
+   * <%= method.description || method.jsName %>
+   */
+  async <%= method.jsName %>(<% method.params.forEach(function(param, idx) { %><%= param.name %><% if (param.optional) { %>?<% } %>: <%= param.tsType %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>): Promise<<%= method.returnType %>> {
+<% if (method.crudOperation === 'create') { -%>
+    const id = await invoke<<%= method.invokeReturnType || 'number' %>>('<%= method.name %>', {
+      <%= method.dataTransform %>,
+    });
+    return this.getById(id);
+<% } else if (method.dataTransform) { -%>
+    const result = await invoke<<%= method.returnType %>>('<%= method.name %>', {
+      <%= method.dataTransform %>,
+    });
+    return result;
+<% } else { -%>
+<% if (method.returnType !== 'void') { -%>
+    return invoke<<%= method.returnType %>>('<%= method.name %>', {
+<% } else { -%>
+    await invoke<void>('<%= method.name %>', {
+<% } -%>
+<% method.params.forEach(function(param) { -%>
+      <%= param.name %>,
+<% }); -%>
+    });
+<% } -%>
+  }
+
+<% }); -%>
+<%# Passthrough Methods -%>
+<% passthroughMethods.forEach(function(method) { -%>
+  /**
+   * <%= method.description || method.jsName %>
+   */
+  async <%= method.jsName %>(<% method.params.forEach(function(param, idx) { %><%= param.name %><% if (param.optional) { %>?<% } %>: <%= param.tsType %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>): Promise<<%= method.returnType %>> {
+<% if (method.returnType !== 'void') { -%>
+    return invoke<<%= method.returnType %>>('<%= method.name %>', {
+<% } else { -%>
+    await invoke<void>('<%= method.name %>', {
+<% } -%>
+<% method.params.forEach(function(param) { -%>
+      <%= param.invokeExpr || param.name %>,
+<% }); -%>
+    });
+  }
+
+<% }); -%>
+}

@@ -32,10 +32,12 @@ export function createDefaultMatrix(): GeneratorMatrix {
   // Android: (AndroidSpiraler, RustCore) → Android bridge
   matrix.setPair('AndroidSpiraler', 'RustCore', generateAndroidService);
   
-  // Tauri: (TauriSpiraler, SpiralMux) → Tauri plugin (muxing)
-  // The SpiralMux aggregates platform rings (Android, Desktop, iOS)
-  // Tauri routes to the appropriate platform at compile time
-  matrix.setPair('TauriSpiraler', 'SpiralMux', generateTauriPlugin);
+  // Tauri: (TauriSpiraler, AndroidSpiraler) → Tauri Android platform
+  // Tauri: (TauriSpiraler, DesktopSpiraler) → Tauri Desktop platform
+  // The TauriSpiraler muxes multiple platform rings, creating edges to each.
+  // We generate platform-specific adapter code for each edge.
+  matrix.setPair('TauriSpiraler', 'AndroidSpiraler', generateTauriPlugin);
+  matrix.setPair('TauriSpiraler', 'DesktopSpiraler', generateTauriPlugin);
   
   // TODO: Add more generators
   // matrix.setPair('DDDTypescriptSpiraler', 'TauriSpiraler', generateDDDLayers);

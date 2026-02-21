@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-list-repositories"
+description = "Enables the list-repositories command without any pre-configured scope."
+commands.allow = ["list-repositories"]
+
+[[permission]]
+identifier = "deny-list-repositories"
+description = "Denies the list-repositories command without any pre-configured scope."
+commands.deny = ["list-repositories"]

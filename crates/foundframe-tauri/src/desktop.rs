@@ -1,8 +1,10 @@
 //! Desktop Platform Implementation
 //!
 //! On desktop, we initialize foundframe directly and call into it.
+//!
+//! NOTE: Generated methods are in spire/src/desktop.rs
 
-use crate::platform::*;
+use crate::platform::{Platform, HasEventBus, HasStream, *};
 use crate::{Error, Result};
 use o19_foundframe::signal::EventBus;
 use o19_foundframe::thestream::TheStream;
@@ -72,13 +74,28 @@ impl<R: Runtime> DesktopPlatform<R> {
   }
 }
 
+// Implement getter traits for blanket impl support
+impl<R: Runtime> HasEventBus for DesktopPlatform<R> {
+  fn get_event_bus(&self) -> &EventBus {
+    &self.events
+  }
+}
+
+impl<R: Runtime> HasStream for DesktopPlatform<R> {
+  fn get_stream(&self) -> &TheStream {
+    &self.stream
+  }
+}
+
 impl<R: Runtime> Platform for DesktopPlatform<R> {
   fn event_bus(&self) -> &EventBus {
-    &self.events
+    // Delegate to HasEventBus blanket impl pattern
+    <Self as HasEventBus>::get_event_bus(self)
   }
 
   fn stream(&self) -> &TheStream {
-    &self.stream
+    // Delegate to HasStream blanket impl pattern
+    <Self as HasStream>::get_stream(self)
   }
 
   fn exit(&self, code: i32) {
@@ -91,148 +108,16 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
     })
   }
 
-  // ===========================================================================
-  // Write Operations - Direct TheStream calls
-  // ===========================================================================
-
-  fn add_post(&self, content: String, title: Option<String>) -> Result<StreamEntryResult> {
-    use o19_foundframe::post::PostStream;
-
-    let entry = self
-      .stream
-      .add_post(content, title.as_deref())
-      .map_err(|e| Error::Other(format!("Failed to add post: {e}")))?;
-
-    Ok(StreamEntryResult {
-      id: entry.id,
-      seen_at: entry.seen_at,
-      reference: entry.reference,
-    })
-  }
-
-  fn add_bookmark(
-    &self,
-    url: String,
-    title: Option<String>,
-    notes: Option<String>,
-  ) -> Result<StreamEntryResult> {
-    use o19_foundframe::bookmark::BookmarkStream;
-
-    let entry = self
-      .stream
-      .add_bookmark(url, title.as_deref(), notes.as_deref())
-      .map_err(|e| Error::Other(format!("Failed to add bookmark: {e}")))?;
-
-    Ok(StreamEntryResult {
-      id: entry.id,
-      seen_at: entry.seen_at,
-      reference: entry.reference,
-    })
-  }
-
-  fn add_media_link(
-    &self,
-    directory: String,
-    url: String,
-    title: Option<String>,
-    mime_type: Option<String>,
-    subpath: Option<String>,
-  ) -> Result<StreamEntryResult> {
-    use o19_foundframe::media::MediaStream;
-    use o19_foundframe::pkb::DirectoryId;
-
-    let dir_id = DirectoryId::from(directory);
-    let entry = self
-      .stream
-      .add_media_link(
-        dir_id,
-        subpath.as_deref(),
-        url,
-        title.as_deref(),
-        mime_type.as_deref(),
-      )
-      .map_err(|e| Error::Other(format!("Failed to add media link: {e}")))?;
-
-    Ok(StreamEntryResult {
-      id: entry.id,
-      seen_at: entry.seen_at,
-      reference: entry.reference,
-    })
-  }
-
-  fn add_person(&self, display_name: String, handle: Option<String>) -> Result<StreamEntryResult> {
-    use o19_foundframe::person::PersonStream;
-
-    let entry = self
-      .stream
-      .add_person(display_name, handle.as_deref())
-      .map_err(|e| Error::Other(format!("Failed to add person: {e}")))?;
-
-    Ok(StreamEntryResult {
-      id: entry.id,
-      seen_at: entry.seen_at,
-      reference: entry.reference,
-    })
-  }
-
-  fn add_conversation(
-    &self,
-    conversation_id: String,
-    title: Option<String>,
-  ) -> Result<StreamEntryResult> {
-    use o19_foundframe::conversation::ConversationStream;
-
-    let entry = self
-      .stream
-      .add_conversation(conversation_id, title.as_deref())
-      .map_err(|e| Error::Other(format!("Failed to add conversation: {e}")))?;
-
-    Ok(StreamEntryResult {
-      id: entry.id,
-      seen_at: entry.seen_at,
-      reference: entry.reference,
-    })
-  }
-
-  fn add_text_note(
-    &self,
-    directory: String,
-    content: String,
-    title: Option<String>,
-    subpath: Option<String>,
-  ) -> Result<StreamEntryResult> {
-    use o19_foundframe::pkb::{DirectoryId, StreamChunk};
-
-    let dir_id = DirectoryId::from(directory);
-    let chunk = StreamChunk::TextNote {
-      content,
-      title: title.clone(),
-    };
-
-    let timestamp = std::time::SystemTime::now()
-      .duration_since(std::time::UNIX_EPOCH)
-      .unwrap_or_default()
-      .as_secs();
-    let filename = chunk.generate_filename(timestamp, title.as_deref());
-    let path = match subpath {
-      Some(sub) => std::path::PathBuf::from(sub).join(filename),
-      None => std::path::PathBuf::from(filename),
-    };
-
-    let entry = self
-      .stream
-      .add_chunk(dir_id, path, chunk)
-      .map_err(|e| Error::Other(format!("Failed to add text note: {e}")))?;
-
-    Ok(StreamEntryResult {
-      id: entry.id,
-      seen_at: entry.seen_at,
-      reference: entry.reference,
-    })
+  fn shutdown(&self) -> Result<()> {
+    // Shutdown foundframe
+    if let Some(foundframe) = self.foundframe.lock().unwrap().take() {
+      foundframe.shutdown();
+    }
+    Ok(())
   }
 
   // ===========================================================================
-  // Device Pairing
+  // Device Pairing - Custom implementations (not generated)
   // ===========================================================================
 
   fn generate_pairing_qr(&self, device_name: String) -> Result<PairingQrResponse> {
@@ -248,10 +133,20 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
     let qr_data = PairingQrData::new(node_id, device_name);
     let url = qr_data.to_url();
 
+    let node_id_hex = url.split('/').last().unwrap_or("").to_string();
+    let emoji_identity = url
+      .split("emoji=")
+      .nth(1)
+      .unwrap_or("")
+      .split('&')
+      .next()
+      .unwrap_or("")
+      .to_string();
+
     Ok(PairingQrResponse {
       url,
-      emoji_identity: qr_data.emoji_identity,
-      node_id_hex: qr_data.node_id,
+      emoji_identity,
+      node_id_hex,
     })
   }
 
@@ -268,31 +163,7 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
     })
   }
 
-  fn confirm_pairing(&self, node_id_hex: String, alias: String) -> Result<PairedDeviceInfo> {
-    use o19_foundframe::device::DeviceManager;
-    use o19_foundframe::pkb::radicle::NodeHandle;
-    use o19_foundframe::pkb::radicle::node::NodeId;
-    use std::str::FromStr;
-
-    let node_id =
-      NodeId::from_str(&node_id_hex).map_err(|e| Error::Other(format!("Invalid node ID: {e}")))?;
-
-    let node_handle =
-      NodeHandle::new().map_err(|e| Error::Other(format!("Failed to create node handle: {e}")))?;
-    let mut device_manager = DeviceManager::new(node_handle);
-
-    device_manager
-      .pair(node_id, &alias)
-      .map_err(|e| Error::Other(format!("Failed to pair device: {e}")))?;
-
-    Ok(PairedDeviceInfo {
-      node_id: node_id.to_string(),
-      alias,
-      paired: true,
-    })
-  }
-
-  fn list_paired_devices(&self) -> Result<Vec<PairedDeviceInfo>> {
+  fn check_followers_and_pair(&self) -> Result<Vec<PairedDeviceInfo>> {
     use o19_foundframe::device::DeviceManager;
     use o19_foundframe::pkb::radicle::NodeHandle;
 
@@ -300,70 +171,28 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
       NodeHandle::new().map_err(|e| Error::Other(format!("Failed to create node handle: {e}")))?;
     let device_manager = DeviceManager::new(node_handle);
 
-    let devices = device_manager
-      .list()
-      .map_err(|e| Error::Other(format!("Failed to list devices: {e}")))?;
-
-    Ok(
-      devices
-        .into_iter()
-        .map(|d| PairedDeviceInfo {
-          node_id: d.nid.to_string(),
-          alias: d.alias.unwrap_or_else(|| "Unnamed".to_string()),
-          paired: true,
-        })
-        .collect(),
-    )
-  }
-
-  fn check_followers_and_pair(&self) -> Result<Vec<PairedDeviceInfo>> {
-    use o19_foundframe::device::DeviceManager;
-    use o19_foundframe::pkb::radicle::NodeHandle;
-    use o19_foundframe::pkb::radicle::node::Session;
-    use std::collections::HashSet;
-
-    let currently_paired: HashSet<String> = {
-      let node_handle = NodeHandle::new()
-        .map_err(|e| Error::Other(format!("Failed to create node handle: {e}")))?;
-      let device_manager = DeviceManager::new(node_handle);
-
-      device_manager
-        .list()
-        .map_err(|e| Error::Other(format!("Failed to list devices: {e}")))?
-        .into_iter()
-        .map(|d| d.nid.to_string())
-        .collect()
-    };
-
-    let node_handle =
-      NodeHandle::new().map_err(|e| Error::Other(format!("Failed to create node handle: {e}")))?;
-    let sessions: Vec<Session> = node_handle
-      .sessions()
-      .map_err(|e| Error::Other(format!("Failed to get sessions: {e}")))?;
+    let followers = device_manager
+      .list_followers()
+      .map_err(|e| Error::Other(format!("Failed to list followers: {e}")))?;
 
     let mut newly_paired = Vec::new();
 
-    for session in sessions {
-      let nid_str = session.nid.to_string();
+    for follower in followers {
+      let alias = format!(
+        "Device {}",
+        &follower.node_id[..8.min(follower.node_id.len())]
+      );
 
-      if !currently_paired.contains(&nid_str) {
-        let alias = format!("Device {}", &nid_str[..8]);
-
-        let node_handle = NodeHandle::new()
-          .map_err(|e| Error::Other(format!("Failed to create node handle: {e}")))?;
-        let mut device_manager = DeviceManager::new(node_handle);
-
-        match device_manager.pair(session.nid, &alias) {
-          Ok(_) => {
-            newly_paired.push(PairedDeviceInfo {
-              node_id: nid_str,
-              alias,
-              paired: true,
-            });
-          }
-          Err(e) => {
-            tracing::warn!("Failed to auto-follow {}: {}", session.nid, e);
-          }
+      match device_manager.follow_device(&follower.node_id) {
+        Ok(_) => {
+          newly_paired.push(PairedDeviceInfo {
+            node_id: follower.node_id,
+            alias,
+            paired: true,
+          });
+        }
+        Err(e) => {
+          tracing::warn!("Failed to auto-follow {}: {}", follower.node_id, e);
         }
       }
     }
@@ -371,73 +200,40 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
     Ok(newly_paired)
   }
 
-  fn unpair_device(&self, node_id_hex: String) -> Result<()> {
-    use o19_foundframe::device::DeviceManager;
-    use o19_foundframe::pkb::radicle::NodeHandle;
-    use o19_foundframe::pkb::radicle::node::NodeId;
-    use std::str::FromStr;
-
-    let node_id =
-      NodeId::from_str(&node_id_hex).map_err(|e| Error::Other(format!("Invalid node ID: {e}")))?;
-
-    let node_handle =
-      NodeHandle::new().map_err(|e| Error::Other(format!("Failed to create node handle: {e}")))?;
-    let mut device_manager = DeviceManager::new(node_handle);
-
-    device_manager
-      .unpair(node_id)
-      .map_err(|e| Error::Other(format!("Failed to unpair device: {e}")))?;
-
-    Ok(())
-  }
-
-  fn shutdown(&self) -> Result<()> {
-    if let Ok(mut guard) = self.foundframe.lock() {
-      if let Some(foundframe) = guard.take() {
-        foundframe
-          .shutdown()
-          .map_err(|e| Error::Other(format!("Shutdown error: {e}")))?;
-      }
-    }
-    Ok(())
-  }
-
   // ===========================================================================
-  // Camera Operations - Not available on desktop
+  // Camera Operations - Platform-specific (not generated)
   // ===========================================================================
 
   fn start_camera(&self, _mode: String, _camera_direction: String) -> Result<serde_json::Value> {
-    Err(Error::Other("Camera not available on desktop".into()))
+    // Desktop doesn't have camera support via Platform trait
+    Err(Error::Other("Camera not supported on desktop".into()))
   }
 
   fn stop_camera(&self) -> Result<serde_json::Value> {
-    Err(Error::Other("Camera not available on desktop".into()))
+    Err(Error::Other("Camera not supported on desktop".into()))
   }
 
   fn capture_photo(&self) -> Result<serde_json::Value> {
-    Err(Error::Other("Camera not available on desktop".into()))
+    Err(Error::Other("Camera not supported on desktop".into()))
   }
 
   fn set_camera_mode(&self, _mode: String, _camera_direction: String) -> Result<serde_json::Value> {
-    Err(Error::Other("Camera not available on desktop".into()))
+    Err(Error::Other("Camera not supported on desktop".into()))
   }
 
   fn is_camera_active(&self) -> Result<serde_json::Value> {
-    Ok(serde_json::json!({ "active": false, "mode": "none" }))
+    Ok(serde_json::json!({ "active": false }))
   }
 
   fn request_camera_permissions(&self) -> Result<serde_json::Value> {
-    Ok(serde_json::json!({ "camera": "granted", "granted": true }))
+    Ok(serde_json::json!({ "granted": true }))
   }
 
   fn check_camera_permissions(&self) -> Result<serde_json::Value> {
-    Ok(serde_json::json!({ "camera": "granted" }))
+    Ok(serde_json::json!({ "granted": true }))
   }
 }
 
-/// Get the default PKB path for desktop: $HOME/pkb
 fn default_pkb_path() -> PathBuf {
-  std::env::var("HOME")
-    .map(|h| PathBuf::from(h).join("pkb"))
-    .unwrap_or_else(|_| PathBuf::from(".pkb"))
+  PathBuf::from("pkb")
 }

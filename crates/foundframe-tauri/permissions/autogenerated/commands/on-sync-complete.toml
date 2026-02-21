@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-on-sync-complete"
+description = "Enables the on-sync-complete command without any pre-configured scope."
+commands.allow = ["on-sync-complete"]
+
+[[permission]]
+identifier = "deny-on-sync-complete"
+description = "Denies the on-sync-complete command without any pre-configured scope."
+commands.deny = ["on-sync-complete"]

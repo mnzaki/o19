@@ -19,21 +19,6 @@ interface IFoundframeRadicle {
     // BookmarkMgmt.deleteBookmark
     boolean deleteBookmark(String pkbUrl);
 
-    // ContentMgmt.addMediaLink
-    String addMediaLink(String directory, String url, String title, String mimeType, String subpath);
-
-    // ContentMgmt.addBookmark
-    String addBookmark(String url, String title, String notes);
-
-    // ContentMgmt.addPost
-    String addPost(String content, String title);
-
-    // ContentMgmt.addPerson
-    String addPerson(String displayName, String handle);
-
-    // ContentMgmt.addConversation
-    String addConversation(String conversationId, String title);
-
     // DeviceMgmt.generatePairingCode
     String generatePairingCode();
 

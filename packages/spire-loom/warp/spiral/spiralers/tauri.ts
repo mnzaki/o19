@@ -6,6 +6,9 @@ import { TypescriptSpiraler } from './typescript.js';
  * multiple platform rings (Android, iOS, Desktop) into a plugin.
  */
 export class TauriSpiraler extends MuxSpiraler {
+  /** Configuration for CRUD adaptor generation */
+  _config?: { ddd?: { adaptors?: { filterOut?: string[] } } };
+
   constructor(
     public innerRings: SpiralRing[] // TODO: type for Android, Desktop, iOS rings
   ) {
@@ -16,7 +19,8 @@ export class TauriSpiraler extends MuxSpiraler {
    * Create a Tauri plugin that aggregates platform rings.
    * Generates platform trait + commands with platform routing.
    */
-  plugin() {
+  plugin(config?: { ddd?: { adaptors?: { filterOut?: string[] } } }) {
+    this._config = config;
     return spiralOut(this, {
       typescript: new TypescriptSpiraler(this)
     });

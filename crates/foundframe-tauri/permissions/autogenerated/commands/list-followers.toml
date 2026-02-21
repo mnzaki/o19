@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-list-followers"
+description = "Enables the list-followers command without any pre-configured scope."
+commands.allow = ["list-followers"]
+
+[[permission]]
+identifier = "deny-list-followers"
+description = "Denies the list-followers command without any pre-configured scope."
+commands.deny = ["list-followers"]

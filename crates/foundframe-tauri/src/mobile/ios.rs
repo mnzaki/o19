@@ -1,8 +1,10 @@
 //! iOS Platform Implementation (Stub)
 //!
 //! iOS is not currently implemented. All operations return errors.
+//!
+//! NOTE: Generated stub is in spire/src/mobile/ios.rs
 
-use crate::platform::*;
+use crate::platform::{Platform, HasEventBus, HasStream, *};
 use crate::{Error, Result};
 use o19_foundframe::signal::EventBus;
 use o19_foundframe::thestream::TheStream;
@@ -19,14 +21,9 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 }
 
 /// iOS platform implementation (stub).
-///
-/// Currently returns errors for all operations.
-/// Could be implemented similar to Android with a remote service,
-/// or use local foundframe like desktop.
 pub struct IosPlatform<R: Runtime> {
   app_handle: AppHandle<R>,
   events: EventBus,
-  // We still need a stream for the trait, but it won't work
   stream: TheStream,
 }
 
@@ -34,9 +31,6 @@ impl<R: Runtime> IosPlatform<R> {
   fn new(app_handle: AppHandle<R>) -> Result<Self> {
     // Create stub event bus and stream
     let events = EventBus::new();
-
-    // This will fail because we can't create a PKB service without a node
-    // For now we use a placeholder that will error when used
     let stream = create_unimplemented_stream(events.clone())?;
 
     Ok(Self {
@@ -51,13 +45,28 @@ impl<R: Runtime> IosPlatform<R> {
   }
 }
 
+// Implement getter traits for blanket impl support
+impl<R: Runtime> HasEventBus for IosPlatform<R> {
+  fn get_event_bus(&self) -> &EventBus {
+    &self.events
+  }
+}
+
+impl<R: Runtime> HasStream for IosPlatform<R> {
+  fn get_stream(&self) -> &TheStream {
+    &self.stream
+  }
+}
+
 impl<R: Runtime> Platform for IosPlatform<R> {
   fn event_bus(&self) -> &EventBus {
-    &self.events
+    // Delegate to HasEventBus blanket impl pattern
+    <Self as HasEventBus>::get_event_bus(self)
   }
 
   fn stream(&self) -> &TheStream {
-    &self.stream
+    // Delegate to HasStream blanket impl pattern
+    <Self as HasStream>::get_stream(self)
   }
 
   fn exit(&self, code: i32) {
@@ -65,115 +74,68 @@ impl<R: Runtime> Platform for IosPlatform<R> {
   }
 
   fn request_permissions(&self) -> Result<NotificationPermissionStatus> {
-    Err(Error::Other(
-      "iOS platform not implemented".into(),
-    ))
-  }
-
-  fn generate_pairing_qr(&self, _device_name: String) -> Result<PairingQrResponse> {
-    Err(Error::Other(
-      "iOS platform not implemented".into(),
-    ))
-  }
-
-  fn parse_pairing_url(&self, _url: String) -> Result<ScannedPairingData> {
-    Err(Error::Other(
-      "iOS platform not implemented".into(),
-    ))
-  }
-
-  fn confirm_pairing(&self, _node_id_hex: String, _alias: String) -> Result<PairedDeviceInfo> {
-    Err(Error::Other(
-      "iOS platform not implemented".into(),
-    ))
-  }
-
-  fn list_paired_devices(&self) -> Result<Vec<PairedDeviceInfo>> {
-    Err(Error::Other(
-      "iOS platform not implemented".into(),
-    ))
-  }
-
-  fn check_followers_and_pair(&self) -> Result<Vec<PairedDeviceInfo>> {
-    Err(Error::Other(
-      "iOS platform not implemented".into(),
-    ))
-  }
-
-  fn unpair_device(&self, _node_id_hex: String) -> Result<()> {
-    Err(Error::Other(
-      "iOS platform not implemented".into(),
-    ))
-  }
-
-  // ===========================================================================
-  // Write Operations - Not implemented on iOS
-  // ===========================================================================
-
-  fn add_post(&self, _content: String, _title: Option<String>) -> Result<StreamEntryResult> {
-    Err(Error::Other("iOS platform not implemented".into()))
-  }
-
-  fn add_bookmark(
-    &self,
-    _url: String,
-    _title: Option<String>,
-    _notes: Option<String>,
-  ) -> Result<StreamEntryResult> {
-    Err(Error::Other("iOS platform not implemented".into()))
-  }
-
-  fn add_media_link(
-    &self,
-    _directory: String,
-    _url: String,
-    _title: Option<String>,
-    _mime_type: Option<String>,
-    _subpath: Option<String>,
-  ) -> Result<StreamEntryResult> {
-    Err(Error::Other("iOS platform not implemented".into()))
-  }
-
-  fn add_person(
-    &self,
-    _display_name: String,
-    _handle: Option<String>,
-  ) -> Result<StreamEntryResult> {
-    Err(Error::Other("iOS platform not implemented".into()))
-  }
-
-  fn add_conversation(
-    &self,
-    _conversation_id: String,
-    _title: Option<String>,
-  ) -> Result<StreamEntryResult> {
-    Err(Error::Other("iOS platform not implemented".into()))
-  }
-
-  fn add_text_note(
-    &self,
-    _directory: String,
-    _content: String,
-    _title: Option<String>,
-    _subpath: Option<String>,
-  ) -> Result<StreamEntryResult> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
   fn shutdown(&self) -> Result<()> {
     Ok(())
   }
+
+  // ===========================================================================
+  // Device Pairing - Not implemented on iOS
+  // ===========================================================================
+
+  fn generate_pairing_qr(&self, _device_name: String) -> Result<PairingQrResponse> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
+
+  fn parse_pairing_url(&self, _url: String) -> Result<ScannedPairingData> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
+
+  fn check_followers_and_pair(&self) -> Result<Vec<PairedDeviceInfo>> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
+
+  // ===========================================================================
+  // Camera Operations - Not implemented on iOS
+  // ===========================================================================
+
+  fn start_camera(&self, _mode: String, _camera_direction: String) -> Result<serde_json::Value> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
+
+  fn stop_camera(&self) -> Result<serde_json::Value> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
+
+  fn capture_photo(&self) -> Result<serde_json::Value> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
+
+  fn set_camera_mode(&self, _mode: String, _camera_direction: String) -> Result<serde_json::Value> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
+
+  fn is_camera_active(&self) -> Result<serde_json::Value> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
+
+  fn request_camera_permissions(&self) -> Result<serde_json::Value> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
+
+  fn check_camera_permissions(&self) -> Result<serde_json::Value> {
+    Err(Error::Other("iOS platform not implemented".into()))
+  }
 }
 
 /// Create a stub stream that returns errors for all operations.
 fn create_unimplemented_stream(events: EventBus) -> Result<TheStream> {
-  // This is a hack - we create a minimal PKB service that will error
-  // when actually used. The stream exists but doesn't work.
   use o19_foundframe::device::DeviceManager;
   use o19_foundframe::pkb::PkbService;
   use o19_foundframe::radicle::NodeHandle;
 
-  // Try to create handles - this will fail on iOS without a node
   let node_handle =
     NodeHandle::new().map_err(|e| Error::Other(format!("iOS not implemented: {e}")))?;
   let device_manager = DeviceManager::new(node_handle);

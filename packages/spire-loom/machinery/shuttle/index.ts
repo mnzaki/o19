@@ -38,14 +38,13 @@ export {
   type RustCrateOptions,
 } from './workspace-package-manager.js';
 
-// Dependency management
+// Package.json management
 export {
-  ensureCargoDependencyAdded,
   ensureNpmDependencyAdded,
   findWorkspacePackage,
   addWorkspaceDependency,
   type NpmDependencyOptions,
-} from './dependency-manager.js';
+} from './package-json-manager.js';
 
 // Template generation
 export {
@@ -72,14 +71,6 @@ export {
   type TauriPermission,
 } from './configuration-writer.js';
 
-// Gradle management
-export {
-  ensureGradleBlock,
-  ensureGradleBlockRemoved,
-  ensureGradleSourceSet,
-  clearGradleBlockRegistry,
-} from './gradle-manager.js';
-
 // Cargo tools
 export {
   isCargoToolInstalled,
@@ -104,11 +95,37 @@ export {
 // Hookup management
 export {
   hookupRustCrate,
-  hookupNodePackage,
-  ensureSpireDirectory,
-  addSpireSubmodule,
-  autoHookup,
+  hookupTauriPlugin,
+  unhookTauriPlugin,
+  type TauriHookupOptions,
+  type TauriHookupResult,
 } from './hookup-manager.js';
+
+// Specialized managers
+export {
+  ensureCargoBlock,
+  removeCargoBlock,
+  hasCargoBlock,
+  configureSpireCargo,
+  addWorkspaceDependencies,
+  startCargoGeneration,
+  cleanupUntouchedBlocks,
+  ensureCargoDependencyAdded,
+} from './cargo-toml-manager.js';
+
+export {
+  ensureGradleBlock,
+  ensureGradleBlockRemoved,
+  ensureGradleSourceSet,
+  clearGradleBlockRegistry,
+} from './gradle-manager.js';
+
+export {
+  hookupTauriPlugin as ensureTauriPluginHookup,
+  unhookTauriPlugin as removeTauriPluginHookup,
+  type TauriHookupOptions as TauriPluginOptions,
+  type TauriHookupResult as TauriPluginResult,
+} from './tauri-manager.js';
 
 // Block registry (global cleanup)
 export {
@@ -119,3 +136,27 @@ export {
   startGeneration,
   clearBlockRegistry,
 } from './block-registry.js';
+
+// Marker utilities
+export {
+  buildMarkerTag,
+  buildEndMarkerTag,
+  createMarkers,
+  createRustMarkers,
+  createGradleMarkers,
+  createXmlMarkers,
+  createTomlMarkers,
+  escapeMarkerForRegex,
+  buildBlockRegex,
+  findBlock,
+  hasBlock,
+  insertBlock,
+  replaceBlock,
+  removeBlock,
+  ensureBlock,
+  ensureFileBlock,
+  removeFileBlock,
+  type MarkerPair,
+  type BlockOperationResult,
+  type FileBlockResult,
+} from './markers.js';

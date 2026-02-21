@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-supports-events"
+description = "Enables the supports-events command without any pre-configured scope."
+commands.allow = ["supports-events"]
+
+[[permission]]
+identifier = "deny-supports-events"
+description = "Denies the supports-events command without any pre-configured scope."
+commands.deny = ["supports-events"]

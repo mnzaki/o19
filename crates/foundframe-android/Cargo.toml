@@ -19,6 +19,7 @@ thiserror = { workspace = true }
 async-trait = "0.1.89"
 jni = "0.21"
 log = { workspace = true }
+android_logger = "0.15"
 
 [build-dependencies]
 
