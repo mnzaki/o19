@@ -19,6 +19,7 @@ interface CliOptions {
   watch?: boolean;
   package?: string;
   verbose?: boolean;
+  graph?: boolean;
   help?: boolean;
 }
 
@@ -39,6 +40,10 @@ function parseArgs(args: string[]): CliOptions {
       case '--verbose':
       case '-v':
         options.verbose = true;
+        break;
+      case '--graph':
+      case '-G':
+        options.graph = true;
         break;
       case '--help':
       case '-h':
@@ -61,6 +66,7 @@ Options:
   -w, --watch          Watch mode - regenerate on WARP.ts changes
   -p, --package <name> Generate specific package only
   -v, --verbose        Verbose output
+  -G, --graph          Show dependency graph visualization
   -h, --help           Show this help
 
 Examples:
@@ -116,38 +122,189 @@ function detectWorkspace(): {
 }
 
 /**
- * Load and execute the WARP module (compiled .js or via ts-node).
+ * Load and execute the WARP module.
+ * 
+ * When running via tsx (which is how spire-loom is invoked),
+ * TypeScript files can be imported directly without compilation.
  */
 async function loadWarp(warpPath: string): Promise<Record<string, any>> {
-  // Check for compiled .js version first
-  const jsPath = warpPath.replace(/\.ts$/, '.js');
+  const warpUrl = pathToFileURL(warpPath).href;
+  return await import(warpUrl);
+}
+
+/**
+ * Print a visual dependency graph of the WARP module.
+ */
+function printDependencyGraph(warp: Record<string, any>, workspaceRoot: string): void {
+  console.log('📊 Dependency Graph Visualization\n');
+  console.log('═'.repeat(60));
   
-  if (fs.existsSync(jsPath)) {
-    // Use compiled JS
-    const warpUrl = pathToFileURL(jsPath).href;
-    return await import(warpUrl);
+  // Track visited nodes to avoid duplicates
+  const visited = new Set<any>();
+  const nodes = new Map<string, {
+    id: string;
+    exportName: string;
+    classType: string;
+    metadata: Record<string, any>;
+    depth: number;
+  }>();
+  const edges: Array<{
+    from: string;
+    to: string;
+    label: string;
+  }> = [];
+  
+  let nodeIdCounter = 0;
+  
+  function getNodeId(obj: any, exportName: string): string {
+    if (!obj) return 'null';
+    // Use the object itself as key if not visited
+    for (const [id, node] of nodes) {
+      if (node.exportName === exportName && obj.constructor?.name === node.classType) {
+        return id;
+      }
+    }
+    const id = `n${nodeIdCounter++}`;
+    return id;
   }
   
-  // Try to use ts-node
-  try {
-    // Register ts-node
-    const tsNode = await import('ts-node');
-    tsNode.register({
-      esm: true,
-      transpileOnly: true,
+  function extractMetadata(obj: any): Record<string, any> {
+    const metadata: Record<string, any> = {};
+    if (!obj) return metadata;
+    
+    // Check for reach metadata via _reach property (legacy) or WeakMap
+    if (obj.prototype?._reach) {
+      metadata.reach = obj.prototype._reach;
+    }
+    
+    // Check for AndroidSpiraler specific data
+    if (obj.serviceOptions) {
+      metadata.serviceOptions = obj.serviceOptions;
+    }
+    
+    // Check for RustCore metadata
+    if (obj.getMetadata) {
+      try {
+        metadata.core = obj.getMetadata();
+      } catch {
+        // ignore
+      }
+    }
+    
+    return metadata;
+  }
+  
+  function traverse(obj: any, exportName: string, parentId: string | null, viaProperty: string, depth: number = 0): string | null {
+    if (!obj || typeof obj !== 'object') return null;
+    if (visited.has(obj)) {
+      // Return existing node id
+      for (const [id, node] of nodes) {
+        if (node.exportName === exportName && obj.constructor?.name === node.classType) {
+          return id;
+        }
+      }
+      return null;
+    }
+    
+    visited.add(obj);
+    
+    const classType = obj.constructor?.name || 'Unknown';
+    const id = getNodeId(obj, exportName);
+    const metadata = extractMetadata(obj);
+    
+    nodes.set(id, {
+      id,
+      exportName,
+      classType,
+      metadata,
+      depth,
     });
     
-    const warpUrl = pathToFileURL(warpPath).href;
-    return await import(warpUrl);
-  } catch (error: any) {
-    console.error('❌ Cannot load TypeScript files.');
-    console.error('   Please either:');
-    console.error('   1. Compile loom/WARP.ts first:');
-    console.error('      cd loom && npx tsc WARP.ts');
-    console.error('   2. Install ts-node:');
-    console.error('      npm install -D ts-node');
-    throw new Error('TypeScript support requires ts-node');
+    if (parentId) {
+      edges.push({
+        from: parentId,
+        to: id,
+        label: viaProperty,
+      });
+    }
+    
+    // Traverse inner properties
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === 'constructor') continue;
+      
+      // Look for SpiralRing properties
+      if (value && typeof value === 'object') {
+        const valueClass = value.constructor?.name;
+        if (valueClass && (
+          valueClass.includes('Spiral') ||
+          valueClass.includes('Spiraler') ||
+          valueClass.includes('Core') ||
+          valueClass.includes('Ring')
+        )) {
+          traverse(value, exportName, id, key, depth + 1);
+        }
+      }
+    }
+    
+    return id;
   }
+  
+  // Build the graph starting from each export
+  for (const [exportName, value] of Object.entries(warp)) {
+    if (value && typeof value === 'object') {
+      traverse(value, exportName, null, 'export', 0);
+    }
+  }
+  
+  // Print nodes by depth level
+  console.log('\n📦 NODES (by export):\n');
+  
+  const nodesByExport = new Map<string, typeof nodes extends Map<any, infer V> ? V[] : never>();
+  for (const node of nodes.values()) {
+    if (!nodesByExport.has(node.exportName)) {
+      nodesByExport.set(node.exportName, []);
+    }
+    nodesByExport.get(node.exportName)!.push(node);
+  }
+  
+  for (const [exportName, exportNodes] of nodesByExport) {
+    console.log(`\n┌─ ${exportName}`);
+    console.log(`│`);
+    
+    for (const node of exportNodes.sort((a, b) => a.depth - b.depth)) {
+      const indent = '│  '.repeat(node.depth);
+      const icon = node.depth === 0 ? '📍' : '└─';
+      const metadataStr = Object.keys(node.metadata).length > 0
+        ? ' {' + Object.entries(node.metadata)
+            .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+            .join(', ') + '}'
+        : '';
+      
+      console.log(`${indent}${icon} [${node.classType}]${metadataStr}`);
+    }
+  }
+  
+  // Print edges
+  console.log('\n\n🔗 EDGES (connections):\n');
+  
+  if (edges.length === 0) {
+    console.log('   (no edges found)');
+  } else {
+    for (const edge of edges) {
+      const fromNode = nodes.get(edge.from);
+      const toNode = nodes.get(edge.to);
+      if (fromNode && toNode) {
+        console.log(`   ${fromNode.classType} ──${edge.label}──> ${toNode.classType}`);
+      }
+    }
+  }
+  
+  // Summary
+  console.log('\n\n📈 Summary:');
+  console.log(`   Total nodes: ${nodes.size}`);
+  console.log(`   Total edges: ${edges.length}`);
+  console.log(`   Exports: ${Object.keys(warp).join(', ')}`);
+  console.log('\n' + '═'.repeat(60));
 }
 
 /**
@@ -194,9 +351,17 @@ async function main() {
       console.log();
     }
     
+    // Graph visualization mode
+    if (options.graph) {
+      printDependencyGraph(warp, workspace.root);
+      return;
+    }
+    
     // Configure weaver
+    const loomDir = path.join(workspace.root, 'loom');
     const config: WeaverConfig = {
       workspaceRoot: workspace.root,
+      loomDir,
       verbose: options.verbose,
     };
     

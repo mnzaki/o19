@@ -11,10 +11,14 @@
  * 4. Beater - Formats and packs the generated code
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { SpiralOut, SpiralMux, SpiralRing } from '../warp/index.js';
 import { Heddles, type WeavingPlan, type GenerationTask, GeneratorMatrix } from './heddles/index.js';
 import { createDefaultMatrix } from './treadles/index.js';
 import { collectManagements, type ManagementMetadata } from './reed/index.js';
+import { ensureFile } from './shuttle/file-system-operations.js';
+import { startGeneration, cleanupAllBlocks } from './shuttle/block-registry.js';
 
 // Placeholder for future implementation
 export interface WeaverConfig {
@@ -26,6 +30,8 @@ export interface WeaverConfig {
   outputDir?: string;
   /** Which rings to generate (default: all) */
   rings?: string[];
+  /** Filter to specific package by export name (e.g., 'foundframe', 'android') */
+  packageFilter?: string;
   /** Verbosity level */
   verbose?: boolean;
   /** Pre-loaded managements (optional) */
@@ -103,6 +109,9 @@ export class Weaver {
    * 3. Format the generated code (Beater)
    */
   async weave(config?: WeaverConfig): Promise<WeavingResult> {
+    // Start a new generation for block tracking
+    startGeneration();
+    
     const errors: Error[] = [];
     let filesGenerated = 0;
     let filesModified = 0;
@@ -133,14 +142,24 @@ export class Weaver {
     if (config?.verbose) {
       console.log(`\nPlan built:`);
       console.log(`  - ${plan.edges.length} edges in spiral graph`);
+      for (const edge of plan.edges) {
+        const fromName = edge.from.constructor.name;
+        const toName = edge.to.constructor.name;
+        console.log(`    Edge: ${fromName} -> ${toName}`);
+      }
       console.log(`  - ${plan.tasks.length} generation tasks`);
+      for (const task of plan.tasks) {
+        console.log(`    Task: ${task.match.join(' -> ')}`);
+      }
       console.log(`  - ${plan.nodesByType.size} node types`);
+      // DEBUG: Show what matrix lookups were attempted
+      console.log(`  - Matrix has ${(plan as any).matrix?.size ?? 'unknown'} entries`);
     }
 
     // Phase 2: Execute generation tasks (Shuttle)
     for (const task of plan.tasks) {
       try {
-        const result = await this.executeTask(task, config);
+        const result = await this.executeTask(task, plan, config);
         filesGenerated += result.generated;
         filesModified += result.modified;
         filesUnchanged += result.unchanged;
@@ -154,6 +173,15 @@ export class Weaver {
 
     // Phase 3: Format code (Beater)
     // TODO: Implement beater formatting
+
+    // Phase 4: Cleanup orphaned blocks
+    const cleanup = cleanupAllBlocks();
+    if (config?.verbose && cleanup.blocksRemoved > 0) {
+      console.log(`\nCleanup: removed ${cleanup.blocksRemoved} orphaned blocks from ${cleanup.filesProcessed} files`);
+      for (const detail of cleanup.details) {
+        console.log(`  - ${detail.filePath}: removed ${detail.removed.join(', ')}`);
+      }
+    }
 
     return {
       filesGenerated,
@@ -169,6 +197,7 @@ export class Weaver {
    */
   private async executeTask(
     task: GenerationTask,
+    plan: WeavingPlan,
     config?: WeaverConfig
   ): Promise<{ generated: number; modified: number; unchanged: number }> {
     // Get the generator from the matrix via the heddles
@@ -186,18 +215,41 @@ export class Weaver {
       console.log(`\nGenerating: ${task.match.join(' → ')} (${task.exportName})`);
     }
 
-    // Call the generator
-    const files = await generator(task.current, task.previous);
+    // Call the generator with context
+    const context = {
+      plan,
+      workspaceRoot: config?.workspaceRoot ?? process.cwd(),
+      outputDir: config?.outputDir,
+    };
+    const files = await generator(task.current, task.previous, context);
 
-    // TODO: Write files using shuttle
-    if (config?.verbose) {
-      console.log(`  Generated ${files.length} files`);
-      for (const file of files) {
-        console.log(`    - ${file.path}`);
+    // Write files using shuttle
+    let written = 0;
+    for (const file of files) {
+      // If path starts with 'o19/' or 'packages/', it's relative to project root
+      // Otherwise join with workspace root
+      let fullPath: string;
+      if (path.isAbsolute(file.path)) {
+        fullPath = file.path;
+      } else if (file.path.startsWith('o19/') || file.path.startsWith('packages/') || file.path.startsWith('apps/')) {
+        // Path is relative to project root (parent of workspace root)
+        fullPath = path.join(config?.workspaceRoot ?? '.', '..', file.path);
+      } else {
+        fullPath = path.join(config?.workspaceRoot ?? '.', file.path);
+      }
+      
+      try {
+        ensureFile(fullPath, file.content);
+        written++;
+        if (config?.verbose) {
+          console.log(`    ✓ ${file.path}`);
+        }
+      } catch (error) {
+        console.error(`    ✗ Failed to write ${file.path}:`, error);
       }
     }
 
-    return { generated: files.length, modified: 0, unchanged: 0 };
+    return { generated: written, modified: 0, unchanged: 0 };
   }
 }
 

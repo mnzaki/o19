@@ -43,11 +43,14 @@ export function loadTemplate(templatePath: string): string {
 
 /**
  * Get path to built-in templates directory.
+ * Always runs from source via tsx.
  */
 export function getBuiltinTemplateDir(): string {
-  // Navigate from dist/tools/templates.js to templates/
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(currentDir, '..', '..', 'templates');
+  // Running from source via tsx
+  // Current: machinery/shuttle/template-renderer.ts
+  // Templates: machinery/bobbin/templates/
+  return path.resolve(currentDir, '..', 'bobbin', 'templates');
 }
 
 /**

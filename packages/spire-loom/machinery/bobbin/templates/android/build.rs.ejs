@@ -1,0 +1,47 @@
+use std::env;
+use std::path::PathBuf;
+
+fn main() {
+    // Tell cargo to rerun if AIDL files change
+    println!("cargo:rerun-if-changed=android/aidl/");
+
+    // Get the Android SDK path
+    let sdk_path = env::var("ANDROID_SDK_HOME")
+        .or_else(|_| env::var("ANDROID_HOME"))
+        .expect("ANDROID_SDK_HOME or ANDROID_HOME must be set");
+
+    // Find build-tools version (use the latest available)
+    let build_tools_dir = PathBuf::from(&sdk_path)
+        .join("build-tools");
+    
+    let build_tools_version = env::var("ANDROID_BUILD_TOOLS_VERSION")
+        .unwrap_or_else(|_| {
+            // Auto-detect latest build-tools version
+            std::fs::read_dir(&build_tools_dir)
+                .expect("Failed to read build-tools directory")
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+                .map(|e| e.file_name().to_string_lossy().to_string())
+                .filter(|n| n.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false))
+                .max()
+                .expect("No build-tools version found")
+        });
+
+    let aidl_path = build_tools_dir
+        .join(&build_tools_version)
+        .join("aidl");
+
+    // Verify aidl exists
+    if !aidl_path.exists() {
+        panic!("aidl not found at: {:?}\nInstall build-tools: sdkmanager \"build-tools;{}\"", 
+               aidl_path, build_tools_version);
+    }
+
+    // Get output directory
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+
+    // Generate AIDL sources
+    // This will be populated by the actual AIDL files during build
+    println!("cargo:rustc-env=ANDROID_AIDL_EXE={}", aidl_path.display());
+    println!("cargo:rustc-env=ANDROID_SDK={}", sdk_path);
+}

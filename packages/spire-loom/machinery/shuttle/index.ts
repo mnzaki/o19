@@ -20,6 +20,14 @@ export {
   type InsertTextOptions,
 } from './file-system-operations.js';
 
+// XML block management
+export {
+  ensureXmlBlock,
+  clearXmlBlockRegistry,
+  type XmlBlock,
+  type XmlBlockMap,
+} from './xml-block-manager.js';
+
 // Package management
 export {
   ensureTypeScriptPackageCreated,
@@ -64,6 +72,35 @@ export {
   type TauriPermission,
 } from './configuration-writer.js';
 
+// Gradle management
+export {
+  ensureGradleBlock,
+  ensureGradleBlockRemoved,
+  ensureGradleSourceSet,
+  clearGradleBlockRegistry,
+} from './gradle-manager.js';
+
+// Cargo tools
+export {
+  isCargoToolInstalled,
+  getCargoToolVersion,
+  ensureCargoToolInstalled,
+  ensureCargoNdkInstalled,
+  ensureCbindgenInstalled,
+  checkAndroidPrerequisites,
+  printAndroidPrerequisites,
+} from './cargo-tools.js';
+
+// Android Gradle integration
+export {
+  configureAndroidGradle,
+} from './android-gradle-integration.js';
+
+// Tauri generator
+export {
+  generateTauriPlugin,
+} from '../treadles/tauri-generator.js';
+
 // Hookup management
 export {
   hookupRustCrate,
@@ -72,3 +109,13 @@ export {
   addSpireSubmodule,
   autoHookup,
 } from './hookup-manager.js';
+
+// Block registry (global cleanup)
+export {
+  registerFile,
+  registerBlock,
+  scanExistingBlocks,
+  cleanupAllBlocks,
+  startGeneration,
+  clearBlockRegistry,
+} from './block-registry.js';

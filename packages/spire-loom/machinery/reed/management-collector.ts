@@ -3,11 +3,68 @@
  *
  * Collects and parses Management Imprints from loom/ files.
  * Extracts @reach and @crud metadata for code generation.
+ * Uses Stage 3 decorator metadata (WeakMap-based).
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { getReach, getCrudMethods, type CrudMetadata } from '../../warp/imprint.js';
+
+// TypeScript method signature parser
+interface ParsedMethod {
+  name: string;
+  params: Array<{ name: string; type: string; optional?: boolean }>;
+  returnType: string;
+}
+
+/**
+ * Parse TypeScript source file to extract method signatures.
+ * This is a simple regex-based parser for Management classes.
+ */
+function parseMethodSignatures(sourceFile: string): Map<string, ParsedMethod> {
+  const methods = new Map<string, ParsedMethod>();
+  const content = fs.readFileSync(sourceFile, 'utf-8');
+  
+  // Match method signatures like:
+  //   addBookmark(url: string, title?: string, notes?: string): string
+  //   getNodeId(): string
+  //   confirmPairing(deviceId: string, code: string): boolean
+  const methodRegex = /^(\s+)(\w+)\s*\(([^)]*)\)\s*:\s*(\w+(?:\[\])?)\s*\{/gm;
+  
+  let match;
+  while ((match = methodRegex.exec(content)) !== null) {
+    const [, , name, paramsStr, returnType] = match;
+    
+    // Skip constructor and private methods
+    if (name === 'constructor' || name.startsWith('_')) continue;
+    
+    // Parse parameters
+    const params: Array<{ name: string; type: string; optional?: boolean }> = [];
+    if (paramsStr.trim()) {
+      const paramParts = paramsStr.split(',').map(p => p.trim()).filter(Boolean);
+      for (const param of paramParts) {
+        // Match: name: type or name?: type
+        const paramMatch = param.match(/^(\w+)(\?)?:\s*(.+)$/);
+        if (paramMatch) {
+          params.push({
+            name: paramMatch[1],
+            type: paramMatch[3].trim(),
+            optional: !!paramMatch[2],
+          });
+        }
+      }
+    }
+    
+    methods.set(name, {
+      name,
+      params,
+      returnType: returnType.trim(),
+    });
+  }
+  
+  return methods;
+}
 
 /**
  * CRUD operation type.
@@ -88,13 +145,11 @@ async function loadManagement(filePath: string): Promise<ManagementMetadata | nu
   const moduleUrl = pathToFileURL(filePath).href;
   const module = await import(moduleUrl);
   
-  // Find classes with @reach decorator (indicated by _reach property)
-  const exports = Object.values(module);
-  
-  for (const exp of exports) {
-    if (typeof exp === 'function' && exp.prototype?._reach && exp.prototype.constructor) {
+  // Find classes with @reach decorator (indicated by reachMetadata)
+  for (const [exportName, exported] of Object.entries(module)) {
+    if (typeof exported === 'function' && getReach(exported)) {
       // This is a Management class
-      return extractMetadata(exp as new (...args: any[]) => any, filePath);
+      return extractMetadata(exported as new (...args: any[]) => any, filePath);
     }
   }
   
@@ -108,43 +163,40 @@ function extractMetadata(
   mgmtClass: new (...args: any[]) => any,
   sourceFile: string
 ): ManagementMetadata {
-  const prototype = mgmtClass.prototype;
+  // Get reach from decorator metadata (Stage 3)
+  const reach = getReach(mgmtClass) ?? 'Private';
   
-  // Get reach from decorator
-  const reach: ReachLevel = prototype._reach || 'Private';
+  // Get CRUD methods from decorator metadata
+  const crudMethods = getCrudMethods(mgmtClass);
   
-  // Get CRUD methods from decorator
-  const crudMethods: MethodMetadata[] = [];
-  const crudMap: Map<string, { operation: CrudOperation; options?: any }> = 
-    prototype._crudMethods || new Map();
+  // Parse method signatures from source file
+  const parsedMethods = parseMethodSignatures(sourceFile);
   
-  // Extract method signatures from class
-  const propertyNames = Object.getOwnPropertyNames(prototype);
+  const methods: MethodMetadata[] = [];
   
-  for (const name of propertyNames) {
-    if (name === 'constructor') continue;
-    
-    const descriptor = Object.getOwnPropertyDescriptor(prototype, name);
-    if (typeof descriptor?.value === 'function') {
-      // Check if this method has @crud decorator
-      const crudInfo = crudMap.get(name);
+  if (crudMethods) {
+    for (const [methodName, metadata] of crudMethods) {
+      // Get parsed signature if available
+      const parsed = parsedMethods.get(methodName);
       
-      if (crudInfo) {
-        crudMethods.push({
-          name,
-          operation: crudInfo.operation,
-          params: [], // Would need TypeScript reflection to get these
-          returnType: 'void', // Would need TypeScript reflection
-          isCollection: crudInfo.options?.collection,
-          isSoftDelete: crudInfo.options?.soft,
-        });
-      }
+      methods.push({
+        name: methodName,
+        operation: metadata.operation as CrudOperation,
+        params: parsed?.params ?? [],
+        returnType: parsed?.returnType ?? 'void',
+        isCollection: metadata.collection,
+        isSoftDelete: metadata.soft,
+      });
     }
   }
   
   // Get constants from prototype
   const constants: Record<string, unknown> = {};
+  const prototype = mgmtClass.prototype;
+  const propertyNames = Object.getOwnPropertyNames(prototype);
+  
   for (const name of propertyNames) {
+    if (name === 'constructor') continue;
     const descriptor = Object.getOwnPropertyDescriptor(prototype, name);
     if (descriptor?.value !== undefined && typeof descriptor.value !== 'function') {
       constants[name] = descriptor.value;
@@ -155,7 +207,7 @@ function extractMetadata(
     name: mgmtClass.name,
     reach,
     sourceFile,
-    methods: crudMethods,
+    methods,
     constants,
   };
 }

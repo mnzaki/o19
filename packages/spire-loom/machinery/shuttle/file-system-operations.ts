@@ -68,7 +68,7 @@ export function ensureTextBlockInserted(
   // Check if block already exists with same content
   const escapedMarker = options.marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const blockRegex = new RegExp(
-    `${escapedMarker} >>\\\\n([\\\\s\\\\S]*?)\\\\n${escapedMarker} <<`,
+    `${escapedMarker} >>\\n([\\s\\S]*?)\\n${escapedMarker} <<`,
     'g'
   );
   
@@ -122,7 +122,7 @@ export function ensureTextBlockRemoved(
   const content = fs.readFileSync(filePath, 'utf-8');
   const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const blockRegex = new RegExp(
-    `\\n?${escapedMarker} >>\\\\n[\\\\s\\\\S]*?\\\\n${escapedMarker} <<\\n?`,
+    `\\n?${escapedMarker} >>\\n[\\s\\S]*?\\n${escapedMarker} <<\\n?`,
     'g'
   );
   

@@ -7,11 +7,14 @@
  */
 
 import * as path from 'node:path';
-import { renderEjs } from '../shuttle/template-renderer.js';
-import { ensureSpireDirectory, autoHookup } from '../shuttle/hookup-manager.js';
-import type { SpiralNode, GeneratedFile } from '../heddles/index.js';
+import { ensureXmlBlock } from '../shuttle/xml-block-manager.js';
+import { configureAndroidGradle } from '../shuttle/android-gradle-integration.js';
+import type { SpiralNode, GeneratedFile, GeneratorContext } from '../heddles/index.js';
+import { ensurePlanComplete } from '../heddles/index.js';
 import { AndroidSpiraler } from '../../warp/spiral/spiralers/android.js';
 import { RustCore } from '../../warp/spiral/core.js';
+import { filterByReach, type ManagementMetadata } from '../reed/index.js';
+import { generateCode, generateBatch, type RawMethod } from '../bobbin/index.js';
 
 export interface AndroidGenerationOptions {
   /** Output directory for the generated crate */
@@ -22,7 +25,7 @@ export interface AndroidGenerationOptions {
   packageName: string;
   /** Service name (e.g., "FoundframeRadicleService") */
   serviceName: string;
-  /** Management methods to include in AIDL */
+  /** Management methods to include */
   methods?: Array<{
     name: string;
     returnType: string;
@@ -37,21 +40,26 @@ export interface AndroidGenerationOptions {
  * This is called when the matrix matches (AndroidSpiraler, RustCore).
  * It generates:
  * - Kotlin service class
- * - AIDL interface
- * - Cargo.toml
- * - build.rs (for AIDL compilation)
+ * - AIDL interface (for reference)
+ * - Rust JNI bridge
+ * 
+ * The bobbin handles all type transformations based on output file extensions.
  */
 export async function generateAndroidService(
   current: SpiralNode,
   previous: SpiralNode,
-  options?: Partial<AndroidGenerationOptions>
+  context?: GeneratorContext
 ): Promise<GeneratedFile[]> {
-  const opts = options ?? {};
   const files: GeneratedFile[] = [];
+  const plan = context?.plan;
+  const workspaceRoot = context?.workspaceRoot ?? process.cwd();
   
-  // Validate node types
+  // Validate node types (be lenient for deduplicated tasks)
   if (!(current.ring instanceof AndroidSpiraler)) {
-    throw new Error('Expected AndroidSpiraler as current node');
+    if (process.env.DEBUG_MATRIX) {
+      console.log(`[ANDROID] Skipping: current ring is ${current.ring.constructor.name}, not AndroidSpiraler`);
+    }
+    return [];
   }
   if (!(previous.ring instanceof RustCore)) {
     throw new Error('Expected RustCore as previous node');
@@ -59,74 +67,179 @@ export async function generateAndroidService(
   
   const core = previous.ring as RustCore;
   const android = current.ring as AndroidSpiraler;
-  
-  // Get metadata from the core
   const metadata = core.getMetadata();
   
-  // Build options with defaults
-  // Output goes to {package}/spire/ directory
-  const packageDir = opts.outputDir ?? `o19/crates/${metadata.packageName}-android`;
-  const fullOpts: AndroidGenerationOptions = {
-    outputDir: path.join(packageDir, 'spire'),
-    coreCrateName: opts.coreCrateName ?? metadata.crateName ?? 'o19-foundframe',
-    packageName: opts.packageName ?? `ty.circulari.${metadata.packageName}`,
-    serviceName: opts.serviceName ?? `${pascalCase(metadata.packageName)}Service`,
-    methods: opts.methods ?? defaultMethods(),
-  };
+  // Build names and paths
+  const nameAffix = android.getNameAffix();
+  const pascalAffix = nameAffix ? pascalCase(nameAffix) : '';
+  const gradleNamespace = android.getGradleNamespace(metadata.packageName);
+  const packageDir = `o19/crates/${metadata.packageName}-android`;
+  const coreNamePascal = pascalCase(metadata.packageName);
   
-  // 1. Generate Kotlin service
-  const serviceContent = await renderEjs({
-    templateString: serviceTemplate,
-    data: {
-      packageName: fullOpts.packageName,
-      serviceName: fullOpts.serviceName,
-      logTag: fullOpts.serviceName.toUpperCase().replace(/\s/g, '_'),
-      channelId: fullOpts.serviceName.toLowerCase().replace(/\s/g, '_'),
-      channelName: fullOpts.serviceName,
-      channelDescription: `Background service for ${metadata.packageName}`,
-      notificationTitle: `${metadata.packageName} Service`,
-      notificationText: 'Running in background',
-      nativeLibName: 'android',
-      homeDirName: `.${metadata.packageName}`,
+  const interfaceName = pascalAffix 
+    ? `I${coreNamePascal}${pascalAffix}`
+    : `I${coreNamePascal}`;
+  
+  const serviceClassName = pascalAffix
+    ? `${coreNamePascal}${pascalAffix}Service`
+    : `${coreNamePascal}Service`;
+  
+  // Collect raw Management methods (bobbin will transform by language)
+  const rawMethods = collectManagementMethods(plan?.managements ?? []);
+  
+  // Path components for package structure
+  const packagePath = gradleNamespace.replace(/\./g, '/');
+  
+  // ==========================================================================
+  // Generate all files using bobbin's unified API
+  // Language is auto-detected from output extensions
+  // ==========================================================================
+  
+  const generationTasks = [
+    // Kotlin service
+    generateCode({
+      template: 'android/service.kt.ejs',
+      outputPath: path.join(packageDir, 'spire', 'android', 'java', packagePath, 'service', `${serviceClassName}.kt`),
+      data: {
+        packageName: gradleNamespace,
+        serviceName: serviceClassName,
+        logTag: serviceClassName.toUpperCase().replace(/\s/g, '_'),
+        channelId: serviceClassName.toLowerCase().replace(/\s/g, '_'),
+        channelName: serviceClassName,
+        channelDescription: `Background service for ${metadata.packageName}`,
+        notificationTitle: `${metadata.packageName} Service`,
+        notificationText: 'Running in background',
+        nativeLibName: 'android',
+        homeDirName: `.${metadata.packageName}`,
+      },
+      methods: rawMethods,
+    }),
+    
+    // AIDL interface
+    generateCode({
+      template: 'android/aidl_interface.aidl.ejs',
+      outputPath: path.join(packageDir, 'spire', 'android', 'aidl', packagePath, `${interfaceName}.aidl`),
+      data: {
+        interfaceName,
+        packageName: gradleNamespace,
+        coreName: metadata.packageName,
+        imports: [`${gradleNamespace}.IEventCallback`],
+      },
+      methods: rawMethods,
+    }),
+    
+    // Rust JNI bridge
+    generateCode({
+      template: 'android/jni_bridge.jni.rs.ejs',
+      outputPath: path.join(packageDir, 'spire', 'src', 'lib.rs'),
+      data: {
+        serviceName: serviceClassName,
+        coreCrateName: metadata.crateName ?? 'o19-foundframe',
+        packageName: gradleNamespace,
+        coreName: metadata.packageName,
+        jniPackagePath: gradleNamespace.replace(/\./g, '_'),
+      },
+      methods: rawMethods,
+    }),
+  ];
+  
+  const generatedFiles = await Promise.all(generationTasks);
+  files.push(...generatedFiles);
+  
+  // IEventCallback AIDL (static template - no methods transformation needed)
+  const callbackContent = `// IEventCallback.aidl
+// Callback interface for ${metadata.packageName} events
+
+package ${gradleNamespace};
+
+interface IEventCallback {
+    // Event is a JSON string representing ${coreNamePascal}Event
+    oneway void onEvent(String eventJson);
+}`;
+  
+  files.push({
+    path: path.join(packageDir, 'spire', 'android', 'aidl', packagePath, 'IEventCallback.aidl'),
+    content: callbackContent,
+  });
+  
+  // ==========================================================================
+  // Hook up AndroidManifest.xml entries
+  // ==========================================================================
+  
+  const resolvedPackageDir = path.join(workspaceRoot, '..', packageDir);
+  const manifestPath = path.join(resolvedPackageDir, 'android', 'AndroidManifest.xml');
+  const bindPermissionName = `${gradleNamespace}.BIND_${coreNamePascal.toUpperCase()}_RADICLE`;
+  
+  ensureXmlBlock(manifestPath, {
+    ForegroundServicePermission: {
+      content: `<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />`,
+      parent: 'permissions'
+    },
+    ForegroundServiceDataSyncPermission: {
+      content: `<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />`,
+      parent: 'permissions'
+    },
+    BindRadiclePermission: {
+      content: `<permission
+        android:name="${bindPermissionName}"
+        android:label="Bind to ${coreNamePascal} Radicle Service"
+        android:protectionLevel="signature|normal" />
+    <uses-permission android:name="${bindPermissionName}" />`,
+      parent: 'permissions'
+    },
+    RadicleService: {
+      content: `<service
+            android:name=".service.${serviceClassName}"
+            android:process=":foundframe"
+            android:exported="true"
+            android:permission="${bindPermissionName}"
+            android:foregroundServiceType="dataSync"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="${gradleNamespace}.${interfaceName}" />
+            </intent-filter>
+        </service>`,
+      parent: 'application'
     }
   });
   
-  files.push({
-    path: path.join(packageDir, 'android/java', fullOpts.packageName.replace(/\./g, '/'), 'service', `${fullOpts.serviceName}.kt`),
-    content: serviceContent,
-  });
+  // ==========================================================================
+  // Hook up Gradle build configuration
+  // ==========================================================================
   
-  // 2. Generate AIDL interface
-  const interfaceName = `I${pascalCase(metadata.packageName)}`;
-  const aidlContent = await renderEjs({
-    template: 'machinery/bobbin/templates/android/aidl_interface.aidl.ejs',
-    data: {
-      interfaceName,
-      packageName: fullOpts.packageName,
-      coreName: metadata.packageName,
-      imports: [],
-      methods: fullOpts.methods,
-    }
-  });
+  const gradlePath = path.join(resolvedPackageDir, 'build.gradle');
   
-  files.push({
-    path: path.join(packageDir, 'android/aidl', fullOpts.packageName.replace(/\./g, '/'), `${interfaceName}.aidl`),
-    content: aidlContent,
-  });
+  // Compute task name: buildRust{CoreName}
+  const rustCore = previous.ring;
+  let coreName = 'Unknown';
   
-  // Ensure spire/ directory exists and is hooked up
-  const spirePath = ensureSpireDirectory(packageDir, 'rust');
-  const { hooked, type } = autoHookup(packageDir);
-  
-  if (hooked) {
-    console.log(`  Hooked up spire module to ${type} package`);
+  if (context?.plan) {
+    ensurePlanComplete(context.plan, 'compute Gradle task name');
   }
   
-  // TODO: Hook up individual generated files to spire/mod.rs
-  // addSpireSubmodule(packageDir, 'android_service', 'rust');
+  const spiralOutNodes = context?.plan.nodesByType.get('SpiralOut') ?? [];
+  for (const node of spiralOutNodes) {
+    const spiralOut = node.ring as any;
+    if (spiralOut.inner === rustCore && node.exportName) {
+      coreName = node.exportName.charAt(0).toUpperCase() + node.exportName.slice(1);
+      break;
+    }
+  }
+  
+  const taskName = `buildRust${coreName}`;
+  
+  configureAndroidGradle(gradlePath, {
+    spireDir: './spire',
+    hasCargoToml: true,
+    taskName,
+  });
   
   return files;
 }
+
+// ============================================================================
+// Helpers
+// ============================================================================
 
 function pascalCase(str: string): string {
   return str
@@ -135,101 +248,39 @@ function pascalCase(str: string): string {
     .join('');
 }
 
-function defaultMethods() {
-  // Default methods for the AIDL interface
-  return [
-    {
-      name: 'getNodeId',
-      returnType: 'String',
-      params: [],
-      description: 'Get the node ID',
-    },
-    {
-      name: 'isNodeRunning',
-      returnType: 'boolean',
-      params: [],
-      description: 'Check if node is running',
-    },
-  ];
+/**
+ * Collect raw Management methods without type mapping.
+ * 
+ * The bobbin's code-generator will apply language-specific transformations
+ * based on the output file extension.
+ */
+function collectManagementMethods(
+  managements: ManagementMetadata[]
+): RawMethod[] {
+  if (managements.length === 0) {
+    return [];
+  }
+
+  // Filter for Android platform (Local + Global reach)
+  const platformManagements = filterByReach(managements, 'platform');
+  
+  const methods: RawMethod[] = [];
+
+  for (const mgmt of platformManagements) {
+    for (const method of mgmt.methods) {
+      methods.push({
+        name: method.name,
+        returnType: method.returnType,
+        isCollection: method.isCollection ?? false,
+        params: method.params.map(p => ({
+          name: p.name,
+          type: p.type,
+          optional: p.optional,
+        })),
+        description: `${mgmt.name}.${method.name}`,
+      });
+    }
+  }
+
+  return methods;
 }
-
-// Inline template for the service (for testing, will move to file)
-const serviceTemplate = `package <%= packageName %>.service
-
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.Service
-import android.content.Context
-import android.content.Intent
-import android.os.Build
-import android.os.IBinder
-import android.os.Process
-import android.util.Log
-
-class <%= serviceName %> : Service() {
-    
-    companion object {
-        private const val TAG = "<%= logTag %>"
-        private const val NOTIFICATION_ID = 1
-        private const val CHANNEL_ID = "<%= channelId %>"
-        
-        init {
-            try {
-                System.loadLibrary("<%= nativeLibName %>")
-            } catch (e: Throwable) {
-                Log.e(TAG, "Failed to load native library", e)
-            }
-        }
-    }
-    
-    private external fun nativeStartService(homeDir: String, alias: String)
-    
-    override fun onCreate() {
-        super.onCreate()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "<%= channelName %>",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            getSystemService(Context.NOTIFICATION_SERVICE)?.let {
-                (it as NotificationManager).createNotificationChannel(channel)
-            }
-        }
-        startForeground(NOTIFICATION_ID, createNotification())
-    }
-    
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val homeDir = getDir("<%= homeDirName %>", Context.MODE_PRIVATE).absolutePath
-        val alias = intent?.getStringExtra("alias") ?: "android"
-        
-        Thread {
-            try {
-                nativeStartService(homeDir, alias)
-            } catch (e: Exception) {
-                Log.e(TAG, "Native service error", e)
-            }
-            stopSelf(startId)
-        }.start()
-        
-        return START_STICKY
-    }
-    
-    override fun onBind(intent: Intent): IBinder? = null
-    
-    private fun createNotification(): Notification {
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-        } else {
-            Notification.Builder(this)
-        }
-        return builder
-            .setContentTitle("<%= notificationTitle %>")
-            .setContentText("<%= notificationText %>")
-            .setSmallIcon(android.R.drawable.ic_menu_share)
-            .setOngoing(true)
-            .build()
-    }
-}
-`;
