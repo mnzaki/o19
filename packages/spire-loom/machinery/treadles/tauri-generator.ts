@@ -311,6 +311,7 @@ export async function generateTauriPlugin(
 function toRawMethod(method: MgmtMethod): RawMethod & { operation?: string; tags?: string[] } {
   return {
     name: method.name,
+    implName: method.name,  // Same as name for TypeScript (camelCase)
     jsName: method.jsName,
     returnType: method.returnType,
     isCollection: method.isCollection,
@@ -319,7 +320,7 @@ function toRawMethod(method: MgmtMethod): RawMethod & { operation?: string; tags
       type: p.tsType,
       optional: p.optional,
     })),
-    description: method.description || `${method.managementName}.${method.originalName}`,
+    description: method.description || `${method.managementName}.${method.name}`,
     operation: method.crudOperation,
     tags: method.tags,
   };

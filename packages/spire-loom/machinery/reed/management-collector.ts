@@ -9,7 +9,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { getReach, getCrudMethods, getMethodTags, type CrudMetadata } from '../../warp/imprint.js';
+import { getReach, getCrudMethods, getMethodTags, getLinkTarget, type CrudMetadata } from '../../warp/imprint.js';
+import type { LinkMetadata } from '../../warp/imprint.js';
 
 // TypeScript method signature parser
 interface ParsedMethod {
@@ -82,8 +83,8 @@ export type ReachLevel = 'Private' | 'Local' | 'Global';
 export interface MethodMetadata {
   /** Method name */
   name: string;
-  /** CRUD operation type */
-  operation: CrudOperation;
+  /** CRUD operation type (if CRUD-tagged) */
+  operation?: CrudOperation;
   /** Parameter types (parsed from signature) */
   params: Array<{ name: string; type: string; optional?: boolean }>;
   /** Return type */
@@ -112,6 +113,8 @@ export interface ManagementMetadata {
   methods: MethodMetadata[];
   /** Constants defined in the management */
   constants: Record<string, unknown>;
+  /** Link target for routing (e.g., Foundframe.device_manager) */
+  link?: LinkMetadata;
 }
 
 /**
@@ -168,6 +171,9 @@ function extractMetadata(
   // Get reach from decorator metadata (Stage 3)
   const reach = getReach(mgmtClass) ?? 'Private';
   
+  // Get link target from decorator metadata
+  const link = getLinkTarget(mgmtClass);
+  
   // Get CRUD methods from decorator metadata
   const crudMethods = getCrudMethods(mgmtClass);
   
@@ -178,7 +184,9 @@ function extractMetadata(
   const parsedMethods = parseMethodSignatures(sourceFile);
   
   const methods: MethodMetadata[] = [];
+  const processedMethods = new Set<string>();
   
+  // First, collect all CRUD-tagged methods
   if (crudMethods) {
     for (const [methodName, metadata] of crudMethods) {
       // Get parsed signature if available
@@ -196,7 +204,25 @@ function extractMetadata(
         isSoftDelete: metadata.soft,
         tags,
       });
+      processedMethods.add(methodName);
     }
+  }
+  
+  // Then, collect all other parsed methods (non-CRUD)
+  for (const [methodName, parsed] of parsedMethods.entries()) {
+    if (processedMethods.has(methodName)) continue;
+    
+    // Get tags for this method (if any)
+    const tags = methodTags?.get(methodName);
+    
+    methods.push({
+      name: methodName,
+      params: parsed.params,
+      returnType: parsed.returnType,
+      isCollection: false,
+      isSoftDelete: false,
+      tags,
+    });
   }
   
   // Get constants from prototype
@@ -218,11 +244,17 @@ function extractMetadata(
     sourceFile,
     methods,
     constants,
+    link,
   };
 }
 
 /**
  * Filter managements by reach level for a specific ring.
+ * 
+ * Reach levels:
+ * - Global: Available in all rings (core → platform → tauri → ddd → front)
+ * - Local:  Available in core, platform, tauri, ddd (NOT front/typescript)
+ * - Private: Core only
  */
 export function filterByReach(
   managements: ManagementMetadata[],
@@ -231,9 +263,9 @@ export function filterByReach(
   const reachMap: Record<string, ReachLevel[]> = {
     core: ['Private', 'Local', 'Global'],
     platform: ['Local', 'Global'],
-    tauri: ['Global'],
-    ddd: ['Global'],
-    front: ['Global'],
+    tauri: ['Local', 'Global'],  // Local includes tauri
+    ddd: ['Local', 'Global'],     // Local includes ddd
+    front: ['Global'],            // Only Global reaches front
   };
   
   const allowedReach = reachMap[ringType] || ['Global'];
@@ -248,7 +280,7 @@ export function filterByCrud(
   management: ManagementMetadata,
   operations: CrudOperation[]
 ): MethodMetadata[] {
-  return management.methods.filter(m => operations.includes(m.operation));
+  return management.methods.filter(m => m.operation && operations.includes(m.operation));
 }
 
 /**

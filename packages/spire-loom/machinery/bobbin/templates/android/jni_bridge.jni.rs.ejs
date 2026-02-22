@@ -168,8 +168,12 @@ pub extern "C" fn Java_<%- jniPackagePath %>_service_<%- serviceName %>_native<%
     <% } %>
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.<%= method.name %>(<% method.params.forEach(function(param, idx) { %><%= param.name %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+        <% method.serviceAccessPreamble.forEach(function(line) { -%>
+        <%- line %>
+        <% }); -%>
+        Ok(__service.<%= method.implName %>(<% method.params.forEach(function(param, idx) { %><%= param.name %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>))
     }) {
         Ok(result) => {
             <%- method.returnConversion %>

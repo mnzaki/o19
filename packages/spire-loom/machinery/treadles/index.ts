@@ -45,3 +45,43 @@ export function createDefaultMatrix(): GeneratorMatrix {
   
   return matrix;
 }
+
+// ============================================================================
+// Declarative API
+// ============================================================================
+
+/**
+ * Define treadles declaratively instead of writing generator functions.
+ *
+ * @example
+ * ```typescript
+ * import { defineTreadle } from '@o19/spire-loom/machinery/treadles';
+ * import { addManagementPrefix } from '@o19/spire-loom/machinery/sley';
+ *
+ * const myTreadle = defineTreadle({
+ *   matches: [{ current: 'MySpiraler', previous: 'RustCore' }],
+ *   methods: {
+ *     filter: 'platform',
+ *     pipeline: [addManagementPrefix]
+ *   },
+ *   outputs: [
+ *     {
+ *       template: 'my-platform/service.ts.ejs',
+ *       path: '{packageDir}/spire/service.ts',
+ *       language: 'typescript'
+ *     }
+ *   ]
+ * });
+ *
+ * matrix.setPair('MySpiraler', 'RustCore', generateFromTreadle(myTreadle));
+ * ```
+ */
+export {
+  defineTreadle,
+  generateFromTreadle,
+  type TreadleDefinition,
+  type MatchPattern,
+  type MethodConfig,
+  type OutputSpec,
+  type HookupConfig,
+} from './declarative-api.js';

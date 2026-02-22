@@ -37,19 +37,23 @@ export interface RustCoreMetadata {
 /**
  * Rust Core implementation.
  * The standard core for o19-foundframe.
+ * 
+ * Usage:
+ *   new RustCore(Foundframe)  // layer first, then options
+ *   new RustCore(Foundframe, { packageName: 'foundframe' })
  */
 export class RustCore extends p.CoreRing<{
   android: spiralers.AndroidSpiraler;
   desktop: spiralers.DesktopSpiraler;
-}> {
+}, RustExternalLayer> {
   constructor(
+    layer: RustExternalLayer,
     public options: {
-      structs?: Record<string, any>;
       packageName?: string;
       crateName?: string;
     } = {}
   ) {
-    super();
+    super(layer);
   }
 
   getSpiralers() {
@@ -61,10 +65,16 @@ export class RustCore extends p.CoreRing<{
   }
 
   getMetadata(): RustCoreMetadata {
-    // TODO get packageName and crateName from heddles if we don't have them in
-    // options
-    let packageName = this.options.packageName || '';
-    let crateName = this.options.crateName || '';
+    // Derive from layer class name if not provided in options
+    const layerName = (this.layer as any)?.name || 
+                      (this.layer?.constructor as any)?.name ||
+                      'unknown';
+    
+    // Convert class name to package name (e.g., Foundframe -> foundframe)
+    const derivedName = layerName.charAt(0).toLowerCase() + layerName.slice(1);
+    
+    const packageName = this.options.packageName || derivedName;
+    const crateName = this.options.crateName || `o19-${derivedName}`;
 
     return {
       language: 'rust',
@@ -76,10 +86,13 @@ export class RustCore extends p.CoreRing<{
 
 /**
  * Factory function for creating a Rust core.
- * Usage: loom.spiral(loom.rustCore())
+ * Usage: loom.spiral(loom.rustCore(Foundframe))
  */
-export function rustCore(options?: ConstructorParameters<typeof RustCore>[0]): RustCore {
-  return new RustCore(options);
+export function rustCore(
+  layer: RustExternalLayer,
+  options?: { packageName?: string; crateName?: string }
+): RustCore {
+  return new RustCore(layer, options);
 }
 
 // ============================================================================
@@ -125,14 +138,20 @@ export function spiral<S extends Partial<i.Spiralers>>(
   ...innerRings: (ExternalLayer | i.CoreRing<S> | i.SpiralRing)[]
 ): any {
   if (innerRings.length === 1) {
-    if (innerRings[0] instanceof p.CoreRing) {
-      return spiralCore(innerRings[0]);
-    } else if (innerRings[0] instanceof RustExternalLayer) {
-      return rustCore(innerRings[0]);
-    } else if (innerRings[0] instanceof p.SpiralRing) {
-      return innerRings[0];
+    const ring = innerRings[0];
+    if (ring instanceof p.CoreRing) {
+      return spiralCore(ring);
+    } else if (ring instanceof p.SpiralRing) {
+      return ring;
+    } else if (RustExternalLayer.isRustStruct(ring)) {
+      // ring is a class constructor decorated with @rust.Struct
+      const core = rustCore(ring as unknown as RustExternalLayer);
+      return spiralCore(core);
+    } else if (ring instanceof RustExternalLayer) {
+      const core = rustCore(ring);
+      return spiralCore(core);
     } else {
-      throw new Error('wat are u doin');
+      throw new Error(`Cannot spiral from ${typeof ring}: ${ring?.constructor?.name || ring}. Expected CoreRing, SpiralRing, or @rust.Struct class.`);
     }
   }
 

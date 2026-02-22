@@ -140,13 +140,53 @@ export abstract class Layer {}
 
 export abstract class ExternalLayer extends Layer {}
 
-export function link<L extends typeof ExternalLayer>(linkTarget: L) {
-  // TODO: takes an ExternalLayer subclass and adds metadata to it regarding
-  // translation from Mgmt Imprint interface
+// Symbol for link metadata (to avoid property collision)
+export const LINK_TARGET = Symbol('loom:linkTarget');
 
-  return <T extends typeof Management>(target: T, context: ClassDecoratorContext<T>): T => {
-    // TODO takes the Management subclass from which to get the methods that link to
-    // the ExternalLayer
+/**
+ * Minimal metadata stored by @loom.link decorator.
+ * Heavy processing (resolving methods, mapping types) happens in heddles.
+ */
+export interface LinkMetadata {
+  /** The target struct class (e.g., Foundframe) */
+  structClass: typeof ExternalLayer;
+  /** The field name within the struct (e.g., 'device_manager') */
+  fieldName: string;
+}
+
+/**
+ * Link a Management to an ExternalLayer field.
+ * Attaches minimal metadata; processing happens in heddles.
+ *
+ * Usage:
+ *   @loom.link(Foundframe.device_manager)
+ *   class DeviceMgmt extends Management { ... }
+ */
+export function link<L extends ExternalLayer>(linkTarget: L) {
+  return <T extends typeof Management>(
+    target: T,
+    context: ClassDecoratorContext<T>
+  ): T => {
+    // Extract metadata from RustExternalLayer if available
+    const fieldName = (linkTarget as any).fieldName;
+    const structClass = (linkTarget as any).structClass;
+
+    // Attach minimal metadata directly
+    (target as any)[LINK_TARGET] = {
+      structClass: structClass || linkTarget.constructor,
+      fieldName: fieldName || String(context.name).toLowerCase(),
+    } as LinkMetadata;
+
     return target;
   };
+}
+
+/**
+ * Get link metadata from a Management class.
+ * Returns undefined if not linked.
+ */
+export function getLinkTarget(
+  mgmtClass: typeof Management
+): LinkMetadata | undefined {
+  return (mgmtClass as any)[LINK_TARGET];
 }

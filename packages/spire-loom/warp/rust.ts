@@ -1,32 +1,266 @@
+/**
+ * Rust DSL - Metadata decorators for Rust type generation
+ *
+ * These decorators attach minimal metadata directly available at decoration time.
+ * Heavy processing happens in heddles.
+ *
+ * Usage:
+ *   @rust.Struct
+ *   class Foundframe {
+ *     @rust.Mutex
+ *     @rust.Option
+ *     device_manager = DeviceManager;  // attaches wrapper metadata
+ *   }
+ */
+
 import { ExternalLayer } from './imprint.js';
 
-export function Mutex<T extends (...args: any[]) => any>(
-  target?: T,
-  context?: ClassFieldDecoratorContext
-): T {
-  if (target === undefined) {
-    // @ts-ignore hack to allow using with or without calling the decorator
-    return Mutex;
-  }
+// ============================================================================
+// Metadata Symbols (for property access without collision)
+// ============================================================================
 
-  // TODO: wrap with metadata about being a rust value wrapped in a Mutex
-  return target;
+export const RUST_WRAPPERS = Symbol('rust:wrappers');
+export const RUST_TYPE = Symbol('rust:type');
+export const RUST_STRUCT_MARK = Symbol('rust:struct');
+
+// Use Symbol.metadata (Stage 3 standard) for decorator metadata
+// This is stored on the class and accessible via context.metadata
+const RUST_FIELD_META = Symbol('rust:fieldMeta');
+
+/**
+ * Wrapper types for Rust values
+ */
+export type RustWrapper = 'Mutex' | 'Option' | 'Arc' | 'RwLock';
+
+/**
+ * Metadata attached to class fields by @rust.Mutex, @rust.Option, etc.
+ */
+export interface RustFieldMetadata {
+  [RUST_WRAPPERS]?: RustWrapper[];
+  [RUST_TYPE]?: string;
 }
 
-export function Option<T extends (...args: any[]) => any>(
-  target?: T,
-  context?: ClassFieldDecoratorContext
-): T {
-  if (target === undefined) {
-    // @ts-ignore hack to allow using with or without calling the decorator
-    return Option;
+// ============================================================================
+// Base External Layer
+// ============================================================================
+
+/**
+ * Base class for Rust external types.
+ * Can be subclassed by @rust.Struct or used directly.
+ */
+export class RustExternalLayer extends ExternalLayer {
+  /** Field name if this represents a struct field */
+  fieldName?: string;
+  /** Wrapper types (Mutex, Option, etc.) */
+  wrappers?: RustWrapper[];
+  /** Parent struct class (when this is a field) */
+  structClass?: typeof RustExternalLayer;
+
+  /**
+   * Check if a class is marked as a Rust struct.
+   */
+  static isRustStruct(target: unknown): boolean {
+    return typeof target === 'function' && (target as any)[RUST_STRUCT_MARK] === true;
   }
-  // TODO: wrap with metadata about being a rust value wrapped in an Option
-  return target;
+
+  /**
+   * Get field metadata from a Rust struct class.
+   */
+  static getFieldMetadata(target: unknown): Map<string, RustFieldMetadata> | undefined {
+    if (typeof target !== 'function') return undefined;
+    return (target as any).__rustFields;
+  }
 }
 
-export class RustExternalLayer extends ExternalLayer {}
+// ============================================================================
+// Field Decorators - Attach wrapper metadata
+// ============================================================================
 
+/**
+ * Mark a field as wrapped in a Rust Mutex.
+ * Attaches minimal metadata: { wrappers: ['Mutex'] }
+ */
+export function Mutex<T>(target: T, context: ClassFieldDecoratorContext): void {
+  const key = String(context.name);
+
+  // Use Symbol.metadata (Stage 3 standard)
+  if (!context.metadata) {
+    (context as any).metadata = {};
+  }
+
+  const meta = context.metadata as any;
+  if (!meta[RUST_FIELD_META]) {
+    meta[RUST_FIELD_META] = new Map();
+  }
+
+  const existing = meta[RUST_FIELD_META].get(key) || {};
+  const wrappers = existing[RUST_WRAPPERS] || [];
+
+  meta[RUST_FIELD_META].set(key, {
+    ...existing,
+    [RUST_WRAPPERS]: [...wrappers, 'Mutex']
+  });
+}
+
+/**
+ * Mark a field as wrapped in a Rust Option.
+ * Attaches minimal metadata: { wrappers: ['Option'] }
+ */
+export function Option<T>(target: T, context: ClassFieldDecoratorContext): void {
+  const key = String(context.name);
+
+  // Use Symbol.metadata (Stage 3 standard)
+  if (!context.metadata) {
+    (context as any).metadata = {};
+  }
+
+  const meta = context.metadata as any;
+  if (!meta[RUST_FIELD_META]) {
+    meta[RUST_FIELD_META] = new Map();
+  }
+
+  const existing = meta[RUST_FIELD_META].get(key) || {};
+  const wrappers = existing[RUST_WRAPPERS] || [];
+
+  meta[RUST_FIELD_META].set(key, {
+    ...existing,
+    [RUST_WRAPPERS]: [...wrappers, 'Option']
+  });
+}
+
+/**
+ * Helper to create type decorator functions.
+ * Attaches the Rust type name to the field metadata.
+ */
+function createTypeDecorator(rustType: string) {
+  return function <T>(target: T, context: ClassFieldDecoratorContext): void {
+    const key = String(context.name);
+
+    if (!context.metadata) {
+      (context as any).metadata = {};
+    }
+
+    const meta = context.metadata as any;
+    if (!meta[RUST_FIELD_META]) {
+      meta[RUST_FIELD_META] = new Map();
+    }
+
+    const existing = meta[RUST_FIELD_META].get(key) || {};
+    meta[RUST_FIELD_META].set(key, {
+      ...existing,
+      [RUST_TYPE]: rustType
+    });
+  };
+}
+
+/**
+ * Mark a field as Rust i64.
+ * Usage: @rust.i64 nodeId: number
+ */
+export const i64 = createTypeDecorator('i64');
+
+/**
+ * Mark a field as Rust u64.
+ * Usage: @rust.u64 timestamp: number
+ */
+export const u64 = createTypeDecorator('u64');
+
+/**
+ * Mark a field as Rust String.
+ * Usage: @rust.string alias: string
+ */
+export const string = createTypeDecorator('String');
+
+/**
+ * Mark a field as Rust bool.
+ * Usage: @rust.bool isOnline: boolean
+ */
+export const bool = createTypeDecorator('bool');
+
+/**
+ * Mark a field as Rust f64.
+ * Usage: @rust.f64 score: number
+ */
+export const f64 = createTypeDecorator('f64');
+
+/**
+ * Mark a field as a Vec<T>.
+ * The inner type should be specified via the field assignment:
+ *   @rust.Vec followers: string[] = User
+ */
+export const Vec = createTypeDecorator('Vec');
+
+// ============================================================================
+// Class Decorators - Mark as Rust struct
+// ============================================================================
+
+/**
+ * Mark a class as a Rust struct.
+ * Attaches minimal metadata; field processing happens in heddles.
+ */
+export function Struct<T extends new (...args: any[]) => any>(
+  target: T,
+  context: ClassDecoratorContext<T>
+): T {
+  // Get field metadata from Symbol.metadata
+  const metadata = (context.metadata as any) || {};
+  const fieldMeta = metadata[RUST_FIELD_META] || new Map();
+
+  // Store metadata on the class for later access
+  (target as any).__rustFields = fieldMeta;
+  (target as any)[RUST_STRUCT_MARK] = true;
+
+  return createRustStructClass(target);
+}
+
+/**
+ * Create a Rust struct class that returns RustExternalLayer instances
+ * when its properties are accessed.
+ */
+function createRustStructClass<T extends new (...args: any[]) => any>(OriginalClass: T): T {
+  const fieldMeta = (OriginalClass as any).__rustFields || new Map();
+
+  class RustStructClass extends RustExternalLayer {
+    static [RUST_STRUCT_MARK] = true;
+    static __originalClass = OriginalClass;
+    static __rustFields = fieldMeta;
+
+    static get [Symbol.for('rust:structName')](): string {
+      return OriginalClass.name;
+    }
+  }
+
+  Object.defineProperty(RustStructClass, 'name', {
+    value: OriginalClass.name,
+    writable: false
+  });
+
+  // Create accessors for each field - return RustExternalLayer instances
+  for (const [fieldName, meta] of fieldMeta.entries()) {
+    Object.defineProperty(RustStructClass, fieldName, {
+      get: () => {
+        const layer = new RustExternalLayer();
+        layer.fieldName = fieldName;
+        layer.wrappers = meta[RUST_WRAPPERS] || [];
+        layer.structClass = RustStructClass; // Reference to parent struct
+        return layer;
+      },
+      enumerable: true,
+      configurable: true
+    });
+  }
+
+  return RustStructClass as unknown as T;
+}
+
+// ============================================================================
+// Rust Data Types (for method signatures)
+// ============================================================================
+
+/**
+ * A Rust method signature (for use in method metadata).
+ * Pure metadata - no implementation.
+ */
 export class RustMethod {
   constructor(
     public params: RustDataType[],
@@ -34,30 +268,31 @@ export class RustMethod {
   ) {}
 }
 
+/**
+ * A Rust data type (for params/returns).
+ */
 export class RustDataType {
   constructor(public rustType: string) {}
 }
 
+// ============================================================================
+// Helper exports for heddles
+// ============================================================================
+
 /**
- * TODO
- * Return a new class that extends RustExternalLayer and stores a reference to the input class
- *
- * Walk the class prototype, if we find another RustExternalLayer subclass as a property, also make it static memeber
- *
- * Walk the given Management class prototype looking for functions. Redefine them as static properties holding RustMethod instances on the new class being built
- * and if we find a basic data type property, make a static version that is a RustDataType instance,
- *
- * point is later we wanna be able to say things like `@rust.link(Somestruct)`
- * and maybe later link to particular methods
+ * Get rust struct metadata from a class if it exists.
+ * Used by heddles for further processing.
  */
-export function Struct<T extends new (...args: any[]) => any>(
-  target?: T,
-  context?: ClassDecoratorContext<T>
-): T {
-  if (target === undefined) {
-    // @ts-ignore hack to allow using with or without calling the decorator
-    return Struct;
+export function getRustStructMetadata(
+  target: unknown
+): { name: string; fields: Map<string, RustFieldMetadata> } | undefined {
+  if (!RustExternalLayer.isRustStruct(target)) {
+    return undefined;
   }
 
-  return target;
+  const ctor = target as any;
+  return {
+    name: ctor.name,
+    fields: ctor.__rustFields || new Map()
+  };
 }

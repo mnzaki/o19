@@ -18,6 +18,7 @@ import {
   MethodPipeline,
   addManagementPrefix,
   fromSourceMethods,
+  toSnakeCase,
   type MgmtMethod
 } from '../sley/index.js';
 import { generateCode, type RawMethod } from '../bobbin/index.js';
@@ -271,10 +272,25 @@ function pascalCase(str: string): string {
 
 /**
  * Convert MgmtMethod to RawMethod for template compatibility.
+ * 
+ * At this point, method.name has the management prefix (e.g., "device_generatePairingCode")
+ * and is still camelCase. We need to convert to snake_case.
  */
 function toRawMethod(method: MgmtMethod): RawMethod {
+  // The bind-point name already has the management prefix from addManagementPrefix()
+  // Convert it to snake_case: "device_generatePairingCode" -> "device_generate_pairing_code"
+  const bindPointName = toSnakeCase(method.name);
+  
+  // Extract just the method name for the implementation call
+  // Remove the management prefix: "device_generate_pairing_code" -> "generate_pairing_code"
+  const mgmtPrefix = toSnakeCase(method.managementName.replace(/Mgmt$/, '')) + '_';
+  const implName = bindPointName.startsWith(mgmtPrefix) 
+    ? bindPointName.slice(mgmtPrefix.length)
+    : bindPointName;
+  
   return {
-    name: method.name,
+    name: bindPointName,      // Prefixed bind-point name (e.g., "device_generate_pairing_code")
+    implName,                 // Just the method name (e.g., "generate_pairing_code")
     returnType: method.returnType,
     isCollection: method.isCollection,
     params: method.params.map((p) => ({
@@ -282,7 +298,21 @@ function toRawMethod(method: MgmtMethod): RawMethod {
       type: p.tsType,
       optional: p.optional
     })),
-    description: method.description || `${method.managementName}.${method.originalName}`
+    description: method.description || `${method.managementName}.${method.name}`
+  };
+}
+
+/**
+ * Build MethodLink from management link metadata.
+ */
+function buildMethodLink(mgmt: ManagementMetadata): { fieldName: string; wrappers?: string[] } | undefined {
+  if (!mgmt.link) return undefined;
+  
+  return {
+    fieldName: mgmt.link.fieldName,
+    // TODO: Get wrappers from struct field metadata
+    // For now, assume Option<Mutex<T>> pattern for linked fields
+    wrappers: ['Option', 'Mutex'],
   };
 }
 
@@ -304,15 +334,24 @@ function collectManagementMethods(managements: ManagementMetadata[]): RawMethod[
   // Build pipeline with management prefixing
   const pipeline = new MethodPipeline().translate(addManagementPrefix()); // bookmark_add, device_pair, etc.
 
-  const methods: MgmtMethod[] = [];
+  const rawMethods: RawMethod[] = [];
 
   for (const mgmt of platformManagements) {
     // Convert and process through pipeline
     const sourceMethods = fromSourceMethods(mgmt.name, mgmt.methods);
     const processedMethods = pipeline.process(sourceMethods);
-    methods.push(...processedMethods);
+    
+    // Get link metadata for this management
+    const link = buildMethodLink(mgmt);
+    
+    // Convert to RawMethod with link metadata
+    for (const method of processedMethods) {
+      rawMethods.push({
+        ...toRawMethod(method),
+        link,
+      });
+    }
   }
 
-  // Convert to RawMethod for template compatibility
-  return methods.map(toRawMethod);
+  return rawMethods;
 }

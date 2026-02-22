@@ -30,19 +30,33 @@ import {
 // ============================================================================
 
 /**
+ * Link metadata for routing to struct fields.
+ */
+export interface MethodLink {
+  /** Field name to access (e.g., 'device_manager') */
+  fieldName: string;
+  /** Wrapper types: e.g., ['Option', 'Mutex'] */
+  wrappers?: string[];
+}
+
+/**
  * Raw Management method as collected from Management classes.
  * 
  * Cross-language naming:
- * - name: Rust function name (snake_case)
+ * - name: Bind-point name with management prefix (e.g., "device_generate_pairing_code")
+ * - implName: Original Rust method name (e.g., "generate_pairing_code")
  * - jsName: JavaScript/TypeScript command name (camelCase, from WARP)
  */
 export interface RawMethod {
-  name: string;        // Rust: snake_case
+  name: string;        // Bind-point name with prefix (e.g., "device_generate_pairing_code")
+  implName: string;    // Original method name (e.g., "generate_pairing_code")
   jsName?: string;     // JavaScript: camelCase (original WARP name)
   returnType: string;
   isCollection: boolean;
   params: Array<{ name: string; type: string; optional?: boolean }>;
   description?: string;
+  /** Link metadata for routing to struct fields */
+  link?: MethodLink;
 }
 
 /**
@@ -76,6 +90,10 @@ export interface RustJniMethod extends TransformedMethod {
     rustType: string;
     conversion: string;
   }>;
+  /** Service access preamble: code to access the service with proper error handling */
+  serviceAccessPreamble: string[];
+  /** Original method name for calling the implementation (e.g., 'generate_pairing_code') */
+  implName: string;
 }
 
 /**
@@ -159,24 +177,71 @@ export function transformForKotlin(methods: RawMethod[]): KotlinMethod[] {
 }
 
 /**
+ * Build Rust service access preamble based on link metadata.
+ * 
+ * Returns lines of code to access the service, handling Option and Mutex
+ * with proper error handling instead of unwrap.
+ * 
+ * Examples:
+ * - No link: `let __service = service;`
+ * - device_manager: 
+ *   ```
+ *   let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
+ *   let mut __service = __field.lock().map_err(|_| "mutex poisoned")?;
+ *   ```
+ */
+function buildServiceAccessPreamble(link: MethodLink | undefined): string[] {
+  if (!link) {
+    return ['let __service = service;'];
+  }
+
+  const fieldName = link.fieldName;
+  const wrappers = link.wrappers || [];
+  const lines: string[] = [];
+
+  // Handle Option<Mutex<T>> pattern
+  if (wrappers.includes('Option') && wrappers.includes('Mutex')) {
+    lines.push(`let __field = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`);
+    lines.push(`let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`);
+  } else if (wrappers.includes('Option')) {
+    // Just Option<T>
+    lines.push(`let __service = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`);
+  } else if (wrappers.includes('Mutex')) {
+    // Just Mutex<T>
+    lines.push(`let mut __service = service.${fieldName}.lock().map_err(|_| "${fieldName} mutex poisoned")?;`);
+  } else {
+    // No wrappers
+    lines.push(`let __service = service.${fieldName};`);
+  }
+
+  return lines;
+}
+
+/**
  * Transform raw methods for Rust JNI output.
  */
 export function transformForRustJni(methods: RawMethod[]): RustJniMethod[] {
-  return methods.map(method => ({
-    name: method.name,
-    pascalName: pascalCase(method.name),
-    description: method.description,
-    jniReturnType: mapToJniType(method.returnType),
-    rustReturnType: mapToRustType(method.returnType),
-    returnConversion: generateRustToJniConversion('result', method.returnType),
-    errorValue: getJniErrorValue(method.returnType),
-    params: method.params.map(p => ({
-      name: p.name,
-      jniType: mapToJniType(p.type),
-      rustType: mapToRustType(p.type),
-      conversion: generateJniToRustConversion(p.name, p.type),
-    })),
-  }));
+  return methods.map(method => {
+    const serviceAccessPreamble = buildServiceAccessPreamble(method.link);
+    
+    return {
+      name: method.name,
+      implName: method.implName,
+      pascalName: pascalCase(method.name),
+      description: method.description,
+      jniReturnType: mapToJniType(method.returnType),
+      rustReturnType: mapToRustType(method.returnType),
+      returnConversion: generateRustToJniConversion('result', method.returnType),
+      errorValue: getJniErrorValue(method.returnType),
+      params: method.params.map(p => ({
+        name: p.name,
+        jniType: mapToJniType(p.type),
+        rustType: mapToRustType(p.type),
+        conversion: generateJniToRustConversion(p.name, p.type),
+      })),
+      serviceAccessPreamble,
+    };
+  });
 }
 
 /**

@@ -38,21 +38,26 @@ import type { CrudOperation } from '../../warp/imprint.js';
  *
  * This is the unified representation that flows through the pipeline.
  * Each translation layer can modify fields, but the method identity is preserved.
+ * 
+ * Note: name is the high-level TypeScript method name (e.g., "generatePairingCode").
+ * Transformations like snake_case happen when converting to RawMethod.
+ * 
+ * IMPORTANT: The management layer does NO translation of the WARP.
+ * It merely collects and carries the WARP definitions forward.
+ * All transformations (prefixing, snake_case, etc.) happen in the pipeline
+ * when converting MgmtMethod → RawMethod.
  */
 export interface MgmtMethod {
-  /** Unique identifier: "{managementName}.{originalMethodName}" */
+  /** Unique identifier: "{managementName}.{methodName}" */
   readonly id: string;
 
   /** Management this method belongs to (e.g., "BookmarkMgmt") */
   managementName: string;
 
-  /** Method name for the current ring's bind-point (e.g., "bookmark_add") */
+  /** Method name from Management Imprint (e.g., "generatePairingCode") - as written in WARP.ts */
   name: string;
 
-  /** Original method name from Management Imprint (e.g., "add") */
-  originalName: string;
-
-  /** JavaScript/TypeScript method name (camelCase, e.g., "add") */
+  /** JavaScript/TypeScript method name (camelCase, same as name) */
   jsName: string;
 
   /** Parameters for the method */
@@ -430,6 +435,11 @@ function buildDestructuringExpr(
  *
  * This is the ENTRY POINT to the pipeline - call this first to get
  * methods in the right shape, then apply translations.
+ * 
+ * NOTE: This function preserves the WARP names exactly as written.
+ * No transformation (snake_case, prefixing, etc.) happens here.
+ * Those transformations are applied later by pipeline translations
+ * when converting MgmtMethod → RawMethod.
  */
 export function fromSourceMethods(
   managementName: string,
@@ -443,13 +453,12 @@ export function fromSourceMethods(
   }>
 ): MgmtMethod[] {
   return methods.map((method) => {
-    const snakeName = toSnakeCase(method.name);
-
+    // Keep the original high-level name (e.g., "generatePairingCode")
+    // Snake_case conversion happens later in toRawMethod
     return {
       id: `${managementName}.${method.name}`,
       managementName,
-      name: snakeName,
-      originalName: method.name,
+      name: method.name,
       jsName: method.name,
       params: method.params.map((p) => ({
         name: p.name,

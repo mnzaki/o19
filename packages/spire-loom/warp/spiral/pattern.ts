@@ -29,8 +29,20 @@ export interface CoreMetadata {
 /**
  * Abstract base for all core rings.
  * Cores are the innermost rings that provide the domain logic.
+ * 
+ * Each core is backed by an ExternalLayer (the metadata definition).
  */
-export abstract class CoreRing<S extends Partial<Spiralers>> extends SpiralRing {
+export abstract class CoreRing<
+  S extends Partial<Spiralers>,
+  L extends SpiralRing = SpiralRing
+> extends SpiralRing {
+  constructor(
+    /** The external layer (struct definition) backing this core */
+    public layer: L
+  ) {
+    super();
+  }
+
   /**
    * Get the spiralers available for this core.
    * Each core type (Rust, Go, etc.) provides its own set of spiralers
