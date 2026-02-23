@@ -47,107 +47,87 @@ class FoundframeRadicleService : Service() {
     /** Stop the native service and release the handle */
     private external fun nativeStopService(handle: Long)
     
-    /** BookmarkMgmt.addBookmark */
-    private external fun nativeAddbookmark(
+    /** BookmarkMgmt.bookmark_addBookmark */
+    private external fun nativeBookmarkAddBookmark(
         handle: Long,
                 url: String,
                 title: String,
                 notes: String
         
-    ): String
+    ): Unit
     
-    /** BookmarkMgmt.getBookmark */
-    private external fun nativeGetbookmark(
+    /** BookmarkMgmt.bookmark_getBookmarkByUrl */
+    private external fun nativeBookmarkGetBookmarkByUrl(
         handle: Long,
                 pkbUrl: String
         
     ): String
     
-    /** BookmarkMgmt.listBookmarks */
-    private external fun nativeListbookmarks(
+    /** BookmarkMgmt.bookmark_listBookmarks */
+    private external fun nativeBookmarkListBookmarks(
         handle: Long,
                 directory: String
         
     ): List<String>
     
-    /** BookmarkMgmt.deleteBookmark */
-    private external fun nativeDeletebookmark(
+    /** BookmarkMgmt.bookmark_deleteBookmark */
+    private external fun nativeBookmarkDeleteBookmark(
         handle: Long,
                 pkbUrl: String
         
     ): Boolean
     
-    /** DeviceMgmt.generatePairingCode */
-    private external fun nativeGeneratepairingcode(
+    /** DeviceMgmt.device_generatePairingCode */
+    private external fun nativeDeviceGeneratePairingCode(
         handle: Long
         
     ): String
     
-    /** DeviceMgmt.confirmPairing */
-    private external fun nativeConfirmpairing(
+    /** DeviceMgmt.device_confirmPairing */
+    private external fun nativeDeviceConfirmPairing(
         handle: Long,
                 deviceId: String,
                 code: String
         
     ): Boolean
     
-    /** DeviceMgmt.unpairDevice */
-    private external fun nativeUnpairdevice(
+    /** DeviceMgmt.device_unpairDevice */
+    private external fun nativeDeviceUnpairDevice(
         handle: Long,
                 deviceId: String
         
     ): Unit
     
-    /** DeviceMgmt.listPairedDevices */
-    private external fun nativeListpaireddevices(
+    /** DeviceMgmt.device_listPairedDevices */
+    private external fun nativeDeviceListPairedDevices(
         handle: Long
         
     ): List<String>
     
-    /** DeviceMgmt.followDevice */
-    private external fun nativeFollowdevice(
+    /** DeviceMgmt.device_followDevice */
+    private external fun nativeDeviceFollowDevice(
         handle: Long,
                 deviceId: String
         
     ): Boolean
     
-    /** DeviceMgmt.unfollowDevice */
-    private external fun nativeUnfollowdevice(
+    /** DeviceMgmt.device_unfollowDevice */
+    private external fun nativeDeviceUnfollowDevice(
         handle: Long,
                 deviceId: String
         
     ): Unit
     
-    /** DeviceMgmt.listFollowers */
-    private external fun nativeListfollowers(
+    /** DeviceMgmt.device_listFollowers */
+    private external fun nativeDeviceListFollowers(
         handle: Long
         
     ): List<String>
     
-    /** DeviceMgmt.isFollowing */
-    private external fun nativeIsfollowing(
+    /** DeviceMgmt.device_isFollowing */
+    private external fun nativeDeviceIsFollowing(
         handle: Long,
                 deviceId: String
-        
-    ): Boolean
-    
-    /** EventMgmt.subscribeEvents */
-    private external fun nativeSubscribeevents(
-        handle: Long,
-                callback: String
-        
-    ): Unit
-    
-    /** EventMgmt.unsubscribeEvents */
-    private external fun nativeUnsubscribeevents(
-        handle: Long,
-                callback: String
-        
-    ): Unit
-    
-    /** EventMgmt.supportsEvents */
-    private external fun nativeSupportsevents(
-        handle: Long
         
     ): Boolean
     
@@ -238,182 +218,147 @@ class FoundframeRadicleService : Service() {
     // ==========================================================================
     
     /**
-     * BookmarkMgmt.addBookmark
+     * BookmarkMgmt.bookmark_addBookmark
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun addBookmark(
+    fun bookmark_add_bookmark(
         url: String, 
         title: String, 
-        notes: String): String {
+        notes: String): Unit {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeAddbookmark(nativeHandle, url, title, notes)
+        return nativeBookmarkAddBookmark(nativeHandle, url, title, notes)
     }
     
     /**
-     * BookmarkMgmt.getBookmark
+     * BookmarkMgmt.bookmark_getBookmarkByUrl
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun getBookmark(
+    fun bookmark_get_bookmark_by_url(
         pkbUrl: String): String {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeGetbookmark(nativeHandle, pkbUrl)
+        return nativeBookmarkGetBookmarkByUrl(nativeHandle, pkbUrl)
     }
     
     /**
-     * BookmarkMgmt.listBookmarks
+     * BookmarkMgmt.bookmark_listBookmarks
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun listBookmarks(
+    fun bookmark_list_bookmarks(
         directory: String): List<String> {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeListbookmarks(nativeHandle, directory)
+        return nativeBookmarkListBookmarks(nativeHandle, directory)
     }
     
     /**
-     * BookmarkMgmt.deleteBookmark
+     * BookmarkMgmt.bookmark_deleteBookmark
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun deleteBookmark(
+    fun bookmark_delete_bookmark(
         pkbUrl: String): Boolean {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeDeletebookmark(nativeHandle, pkbUrl)
+        return nativeBookmarkDeleteBookmark(nativeHandle, pkbUrl)
     }
     
     /**
-     * DeviceMgmt.generatePairingCode
+     * DeviceMgmt.device_generatePairingCode
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun generatePairingCode(): String {
+    fun device_generate_pairing_code(): String {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeGeneratepairingcode(nativeHandle)
+        return nativeDeviceGeneratePairingCode(nativeHandle)
     }
     
     /**
-     * DeviceMgmt.confirmPairing
+     * DeviceMgmt.device_confirmPairing
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun confirmPairing(
+    fun device_confirm_pairing(
         deviceId: String, 
         code: String): Boolean {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeConfirmpairing(nativeHandle, deviceId, code)
+        return nativeDeviceConfirmPairing(nativeHandle, deviceId, code)
     }
     
     /**
-     * DeviceMgmt.unpairDevice
+     * DeviceMgmt.device_unpairDevice
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun unpairDevice(
+    fun device_unpair_device(
         deviceId: String): Unit {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeUnpairdevice(nativeHandle, deviceId)
+        return nativeDeviceUnpairDevice(nativeHandle, deviceId)
     }
     
     /**
-     * DeviceMgmt.listPairedDevices
+     * DeviceMgmt.device_listPairedDevices
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun listPairedDevices(): List<String> {
+    fun device_list_paired_devices(): List<String> {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeListpaireddevices(nativeHandle)
+        return nativeDeviceListPairedDevices(nativeHandle)
     }
     
     /**
-     * DeviceMgmt.followDevice
+     * DeviceMgmt.device_followDevice
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun followDevice(
+    fun device_follow_device(
         deviceId: String): Boolean {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeFollowdevice(nativeHandle, deviceId)
+        return nativeDeviceFollowDevice(nativeHandle, deviceId)
     }
     
     /**
-     * DeviceMgmt.unfollowDevice
+     * DeviceMgmt.device_unfollowDevice
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun unfollowDevice(
+    fun device_unfollow_device(
         deviceId: String): Unit {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeUnfollowdevice(nativeHandle, deviceId)
+        return nativeDeviceUnfollowDevice(nativeHandle, deviceId)
     }
     
     /**
-     * DeviceMgmt.listFollowers
+     * DeviceMgmt.device_listFollowers
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun listFollowers(): List<String> {
+    fun device_list_followers(): List<String> {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeListfollowers(nativeHandle)
+        return nativeDeviceListFollowers(nativeHandle)
     }
     
     /**
-     * DeviceMgmt.isFollowing
+     * DeviceMgmt.device_isFollowing
      * 
      * This method locks the service handle on the Rust side, calls the 
      * underlying core method, and returns the result after unlocking.
      */
-    fun isFollowing(
+    fun device_is_following(
         deviceId: String): Boolean {
         check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeIsfollowing(nativeHandle, deviceId)
-    }
-    
-    /**
-     * EventMgmt.subscribeEvents
-     * 
-     * This method locks the service handle on the Rust side, calls the 
-     * underlying core method, and returns the result after unlocking.
-     */
-    fun subscribeEvents(
-        callback: String): Unit {
-        check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeSubscribeevents(nativeHandle, callback)
-    }
-    
-    /**
-     * EventMgmt.unsubscribeEvents
-     * 
-     * This method locks the service handle on the Rust side, calls the 
-     * underlying core method, and returns the result after unlocking.
-     */
-    fun unsubscribeEvents(
-        callback: String): Unit {
-        check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeUnsubscribeevents(nativeHandle, callback)
-    }
-    
-    /**
-     * EventMgmt.supportsEvents
-     * 
-     * This method locks the service handle on the Rust side, calls the 
-     * underlying core method, and returns the result after unlocking.
-     */
-    fun supportsEvents(): Boolean {
-        check(nativeHandle != 0L) { "Service not initialized" }
-        return nativeSupportsevents(nativeHandle)
+        return nativeDeviceIsFollowing(nativeHandle, deviceId)
     }
     
     

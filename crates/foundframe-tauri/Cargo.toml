@@ -30,3 +30,7 @@ o19-foundframe-android = { workspace = true }
 [build-dependencies]
 tauri-plugin = { workspace = true, features = ["build"] }
 tauri-build = { workspace = true }
+# SPIRE-LOOM:CARGO:SPIRE-DEPENDENCIES
+# Dependencies for generated spire code
+# (add workspace deps here if needed)
+# /SPIRE-LOOM:CARGO:SPIRE-DEPENDENCIES

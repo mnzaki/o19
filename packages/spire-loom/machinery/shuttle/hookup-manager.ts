@@ -53,3 +53,151 @@ export function hookupRustCrate(cratePath: string, spireModuleName: string = 'sp
 // Re-exports from specialized managers
 export { hookupTauriPlugin, unhookTauriPlugin } from './tauri-manager.js';
 export type { TauriHookupOptions, TauriHookupResult } from './tauri-manager.js';
+
+// ============================================================================
+// Android Hookup
+// ============================================================================
+
+import type { GeneratorContext } from '../heddles/index.js';
+import type { GeneratedFile } from '../heddles/index.js';
+import { ensureXmlBlock } from './xml-block-manager.js';
+import { configureAndroidGradle } from './android-gradle-integration.js';
+import { writeEventCallbackAidl } from '../bobbin/android.js';
+
+export interface AndroidManifestConfig {
+  coreName: string;
+  coreNamePascal: string;
+  packageName: string;
+  serviceName: string;
+  interfaceName: string;
+}
+
+/**
+ * Configure AndroidManifest.xml with service declarations.
+ */
+export function configureAndroidManifest(
+  resolvedPackageDir: string,
+  config: AndroidManifestConfig
+): void {
+  const manifestPath = path.join(resolvedPackageDir, 'android', 'AndroidManifest.xml');
+  const bindPermissionName = `${config.packageName}.BIND_${config.coreNamePascal.toUpperCase()}_RADICLE`;
+
+  ensureXmlBlock(manifestPath, {
+    ForegroundServicePermission: {
+      content: `<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />`,
+      parent: 'permissions',
+    },
+    ForegroundServiceDataSyncPermission: {
+      content: `<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />`,
+      parent: 'permissions',
+    },
+    BindRadiclePermission: {
+      content: `<permission
+        android:name="${bindPermissionName}"
+        android:label="Bind to ${config.coreNamePascal} Radicle Service"
+        android:protectionLevel="signature|normal" />
+      <uses-permission android:name="${bindPermissionName}" />`,
+      parent: 'permissions',
+    },
+    RadicleService: {
+      content: `<service
+            android:name=".service.${config.serviceName}"
+            android:process=":foundframe"
+            android:exported="true"
+            android:permission="${bindPermissionName}"
+            android:foregroundServiceType="dataSync"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="${config.packageName}.${config.interfaceName}" />
+            </intent-filter>
+        </service>`,
+      parent: 'application',
+    },
+  });
+}
+
+export interface GradleConfig {
+  resolvedPackageDir: string;
+  taskName: string;
+}
+
+/**
+ * Configure Android Gradle build.
+ */
+export function configureGradleBuild(config: GradleConfig): void {
+  const gradlePath = path.join(config.resolvedPackageDir, 'build.gradle');
+
+  configureAndroidGradle(gradlePath, {
+    spireDir: './spire',
+    hasCargoToml: true,
+    taskName: config.taskName,
+  });
+}
+
+export interface AndroidHookupData {
+  workspaceRoot: string;
+  packageDir: string;
+  coreName: string;
+  coreNamePascal: string;
+  packageName: string;
+  packagePath: string;
+  serviceName: string;
+  interfaceName: string;
+  currentRing: unknown;
+}
+
+/**
+ * Find core name for Gradle task naming from plan.
+ */
+export function findCoreNameForTask(
+  context: GeneratorContext,
+  currentRing: unknown
+): string {
+  const spiralOutNodes = context.plan.nodesByType.get('SpiralOut') ?? [];
+
+  for (const node of spiralOutNodes) {
+    const spiralOut = node.ring as any;
+    if (spiralOut.inner === currentRing && node.exportName) {
+      return node.exportName.charAt(0).toUpperCase() + node.exportName.slice(1);
+    }
+  }
+
+  return 'Unknown';
+}
+
+/**
+ * Complete Android hookup - manifest, callback AIDL, and Gradle config.
+ * This is the main entry point for Android treadle hookup.
+ */
+export async function executeAndroidHookup(
+  context: GeneratorContext,
+  files: GeneratedFile[],
+  data: AndroidHookupData
+): Promise<void> {
+  const workspaceRoot = context.workspaceRoot ?? process.cwd();
+  const resolvedPackageDir = path.join(workspaceRoot, '..', data.packageDir);
+
+  // 1. AndroidManifest.xml
+  configureAndroidManifest(resolvedPackageDir, {
+    coreName: data.coreName,
+    coreNamePascal: data.coreNamePascal,
+    packageName: data.packageName,
+    serviceName: data.serviceName,
+    interfaceName: data.interfaceName,
+  });
+
+  // 2. IEventCallback AIDL
+  writeEventCallbackAidl(resolvedPackageDir, files, {
+    coreName: data.coreName,
+    coreNamePascal: data.coreNamePascal,
+    packageName: data.packageName,
+    packagePath: data.packagePath,
+  });
+
+  // 3. Gradle configuration
+  const coreName = findCoreNameForTask(context, data.currentRing);
+  configureGradleBuild({
+    resolvedPackageDir,
+    taskName: `buildRust${coreName}`,
+  });
+}

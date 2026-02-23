@@ -34,11 +34,14 @@ export interface CoreMetadata {
  */
 export abstract class CoreRing<
   S extends Partial<Spiralers>,
-  L extends SpiralRing = SpiralRing
+  L extends SpiralRing = SpiralRing,
+  CoreData = unknown
 > extends SpiralRing {
   constructor(
     /** The external layer (struct definition) backing this core */
-    public layer: L
+    public layer: L,
+    /** The core data/struct that defines the domain model */
+    public core: CoreData
   ) {
     super();
   }
@@ -83,24 +86,33 @@ export abstract class MuxSpiraler implements Spiraling {
 /**
  * Spiralers is a map of all Spiraler instances for a particular SpiralOut.
  * These are the objects that create the next ring in the spiral.
+ * 
+ * Uses 'any' for values to allow specific Spiraler subclasses without widening.
+ * Type safety is enforced by the generic parameter O in SpiralOut/SpiralOutType.
  */
-export type Spiralers = Record<string, Spiraler | MuxSpiraler>;
+export type Spiralers = Record<string, any>;
 
 /**
- * A SpiralOut wraps a single inner ring with outters.
+ * A SpiralOut wraps a single inner ring with spiralers.
  * Represents one step in a linear spiral.
  */
-export class SpiralOut<O extends Partial<Spiralers> = Spiralers> extends SpiralRing {
+export class SpiralOut<
+  O extends Partial<Spiralers> = Spiralers,
+  Inner extends SpiralRing = SpiralRing
+> extends SpiralRing {
   constructor(
-    public inner: SpiralRing,
-    outters: O
+    public inner: Inner,
+    spiralers: O
   ) {
     super();
-    Object.assign(this, outters);
+    Object.assign(this, spiralers);
   }
 }
 
-export type SpiralOutType<O extends Partial<Spiralers> = Spiralers> = SpiralOut<O> & O;
+export type SpiralOutType<
+  O extends Partial<Spiralers> = Spiralers,
+  Inner extends SpiralRing = SpiralRing
+> = SpiralOut<O, Inner> & O;
 
 // ============================================================================
 // SpiralMux - Multiple Ring Wrapper
@@ -113,10 +125,10 @@ export type SpiralOutType<O extends Partial<Spiralers> = Spiralers> = SpiralOut<
 export class SpiralMux<O extends Partial<Spiralers> = Spiralers> extends SpiralRing {
   constructor(
     public innerRings: SpiralRing[],
-    outters: O
+    spiralers: O
   ) {
     super();
-    Object.assign(this, outters);
+    Object.assign(this, spiralers);
   }
 }
 
@@ -128,9 +140,9 @@ export type SpiralMuxType<O extends Partial<Spiralers> = Spiralers> = SpiralMux<
  */
 export function spiralOut<O extends Partial<Spiralers> = Spiralers>(
   inner: SpiralRing,
-  outters: O
+  spiralers: O
 ): SpiralOutType<O> {
-  return new SpiralOut(inner, outters) as unknown as SpiralOutType<O>;
+  return new SpiralOut(inner, spiralers) as unknown as SpiralOutType<O>;
 }
 
 /**
@@ -139,7 +151,7 @@ export function spiralOut<O extends Partial<Spiralers> = Spiralers>(
  */
 export function spiralMux<O extends Partial<Spiralers> = Spiralers>(
   innerRings: SpiralRing[],
-  outters: O
+  spiralers: O
 ): SpiralMuxType<O> {
-  return new SpiralMux(innerRings, outters) as unknown as SpiralMuxType<O>;
+  return new SpiralMux(innerRings, spiralers) as unknown as SpiralMuxType<O>;
 }

@@ -49,8 +49,8 @@ export function getBuiltinTemplateDir(): string {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   // Running from source via tsx
   // Current: machinery/shuttle/template-renderer.ts
-  // Templates: machinery/bobbin/templates/
-  return path.resolve(currentDir, '..', 'bobbin', 'templates');
+  // Templates: machinery/bobbin/
+  return path.resolve(currentDir, '..', 'bobbin');
 }
 
 /**

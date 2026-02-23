@@ -31,107 +31,87 @@ pub trait SpireFoundframePlatformTrait: Send + Sync {
   /// Called when the app is shutting down.
   fn shutdown(&self) -> Result<()>;
 
-  /// BookmarkMgmt.addBookmark
-  fn add_bookmark(
+  /// BookmarkMgmt.bookmark_addBookmark
+  fn bookmark_addBookmark(
     &self,
         url: String,
         title: Option<String>,
         notes: Option<String>
     
-  ) -> Result<String>;
+  ) -> Result<()>;
 
-  /// BookmarkMgmt.getBookmark
-  fn get_bookmark(
+  /// BookmarkMgmt.bookmark_getBookmarkByUrl
+  fn bookmark_getBookmarkByUrl(
     &self,
         pkbUrl: String
     
   ) -> Result<String>;
 
-  /// BookmarkMgmt.listBookmarks
-  fn list_bookmarks(
+  /// BookmarkMgmt.bookmark_listBookmarks
+  fn bookmark_listBookmarks(
     &self,
         directory: Option<String>
     
   ) -> Result<Vec<String>>;
 
-  /// BookmarkMgmt.deleteBookmark
-  fn delete_bookmark(
+  /// BookmarkMgmt.bookmark_deleteBookmark
+  fn bookmark_deleteBookmark(
     &self,
         pkbUrl: String
     
   ) -> Result<bool>;
 
-  /// DeviceMgmt.generatePairingCode
-  fn generate_pairing_code(
+  /// DeviceMgmt.device_generatePairingCode
+  fn device_generatePairingCode(
     &self,
     
   ) -> Result<String>;
 
-  /// DeviceMgmt.confirmPairing
-  fn confirm_pairing(
+  /// DeviceMgmt.device_confirmPairing
+  fn device_confirmPairing(
     &self,
         deviceId: String,
         code: String
     
   ) -> Result<bool>;
 
-  /// DeviceMgmt.unpairDevice
-  fn unpair_device(
+  /// DeviceMgmt.device_unpairDevice
+  fn device_unpairDevice(
     &self,
         deviceId: String
     
   ) -> Result<()>;
 
-  /// DeviceMgmt.listPairedDevices
-  fn list_paired_devices(
+  /// DeviceMgmt.device_listPairedDevices
+  fn device_listPairedDevices(
     &self,
     
-  ) -> Result<Vec<String>>;
+  ) -> Result<String>;
 
-  /// DeviceMgmt.followDevice
-  fn follow_device(
-    &self,
-        deviceId: String
-    
-  ) -> Result<bool>;
-
-  /// DeviceMgmt.unfollowDevice
-  fn unfollow_device(
-    &self,
-        deviceId: String
-    
-  ) -> Result<()>;
-
-  /// DeviceMgmt.listFollowers
-  fn list_followers(
-    &self,
-    
-  ) -> Result<Vec<String>>;
-
-  /// DeviceMgmt.isFollowing
-  fn is_following(
+  /// DeviceMgmt.device_followDevice
+  fn device_followDevice(
     &self,
         deviceId: String
     
   ) -> Result<bool>;
 
-  /// EventMgmt.subscribeEvents
-  fn subscribe_events(
+  /// DeviceMgmt.device_unfollowDevice
+  fn device_unfollowDevice(
     &self,
-        callback: String
+        deviceId: String
     
   ) -> Result<()>;
 
-  /// EventMgmt.unsubscribeEvents
-  fn unsubscribe_events(
+  /// DeviceMgmt.device_listFollowers
+  fn device_listFollowers(
     &self,
-        callback: String
     
-  ) -> Result<()>;
+  ) -> Result<String>;
 
-  /// EventMgmt.supportsEvents
-  fn supports_events(
+  /// DeviceMgmt.device_isFollowing
+  fn device_isFollowing(
     &self,
+        deviceId: String
     
   ) -> Result<bool>;
 

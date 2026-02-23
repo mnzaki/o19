@@ -25,6 +25,7 @@ class TheStream {}
 @rust.Struct
 class DeviceManager {}
 
+@rust.Struct
 export class Foundframe {
   @rust.Mutex
   @rust.Option
@@ -74,7 +75,7 @@ export const android = foundframe.android.foregroundService({
  *
  * Desktop apps call Core directly (same process).
  */
-export const desktop = spiral.desktop.direct();
+export const desktop = foundframe.desktop.direct();
 
 /**
  * iOS Ring - future platform support
@@ -102,6 +103,13 @@ export const tauri = loom.spiral(android, desktop).tauri.plugin({
     adaptors: {
       filterOut: ['crud:read']
     }
+    /*
+    translators: {
+      [Foundframe.thestream]: {
+        returnValues: streamEntryTranslator
+      }
+    }
+    */
   }
 });
 
@@ -151,3 +159,41 @@ export const myTauriApp = front.tauri.app({ adaptorOverrides: [drizzle] });
  * Path: packages/foundframe-drizzle
  */
 // export const drizzle = foundframe.drizzle.schema();
+
+/*
+class StreamEntry {
+  @rust.i64
+  id?: number;
+
+  /// When *I* first encountered this (milliseconds since epoch).
+  @rust.u64
+  seen_at!: number;
+
+  /// Git commit hash when this was recorded.
+  commit_hash!: string;
+
+  /// Reference to the actual content.
+  /// Format: `pkb://{identity}/{repo}/{path}?v={commit}`
+  reference!: string;
+
+  /// inline summary for quick display, we always get it for the methods we use,
+  //  although it is an Option in the rust struct
+  summary!: StreamSummary;
+}
+
+class StreamSummary {
+  /// Title for display.
+  title!: string;
+  /// Type of content (post, media, bookmark, etc.).
+  content_type!: string;
+  /// Brief preview.
+  preview?: string;
+}
+
+const streamEntryTranslator = (entry: StreamEntry) => {
+  if (entry.summary.content_type === 'bookmark') {
+    return function(service: any) {
+    }
+  }
+};
+*/

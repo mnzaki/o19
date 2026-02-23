@@ -141,9 +141,9 @@ where
     Ok(f(&mut *guard))
 }
 
-/// BookmarkMgmt.addBookmark
+/// BookmarkMgmt.bookmark_addBookmark
 /// 
-/// JNI Signature: Addbookmark(long handle, JString, JString, JString) -> JString
+/// JNI Signature: BookmarkAddBookmark(long handle, JString, JString, JString) -> ()
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -151,7 +151,7 @@ where
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeAddbookmark(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeBookmarkAddBookmark(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -159,7 +159,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeA
         title: JString,
         notes: JString
     
-) -> JString {
+) -> () {
     
     // Convert JNI parameters to Rust types
         let url: String = env.get_string(&url).expect("Failed to get url").into();
@@ -169,22 +169,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeA
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.addBookmark(url, title, notes)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.thestream.as_ref().ok_or("thestream not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "thestream mutex poisoned")?;
+                Ok(__service.add_bookmark(url, title, notes))
     }) {
         Ok(result) => {
-            env.new_string(&result).expect("Failed to create Java string").into_raw()
+            
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] addBookmark failed: {}", e);
-            std::ptr::null_mut()
+            log::error!("[FoundframeRadicleService] bookmark_add_bookmark failed: {}", e);
+            
         }
     }
 }
 
-/// BookmarkMgmt.getBookmark
+/// BookmarkMgmt.bookmark_getBookmarkByUrl
 /// 
-/// JNI Signature: Getbookmark(long handle, JString) -> JString
+/// JNI Signature: BookmarkGetBookmarkByUrl(long handle, JString) -> JString
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -192,7 +195,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeA
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeGetbookmark(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeBookmarkGetBookmarkByUrl(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -206,22 +209,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeG
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.getBookmark(pkbUrl)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.thestream.as_ref().ok_or("thestream not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "thestream mutex poisoned")?;
+                Ok(__service.get_bookmark_by_url(pkbUrl))
     }) {
         Ok(result) => {
             env.new_string(&result).expect("Failed to create Java string").into_raw()
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] getBookmark failed: {}", e);
+            log::error!("[FoundframeRadicleService] bookmark_get_bookmark_by_url failed: {}", e);
             std::ptr::null_mut()
         }
     }
 }
 
-/// BookmarkMgmt.listBookmarks
+/// BookmarkMgmt.bookmark_listBookmarks
 /// 
-/// JNI Signature: Listbookmarks(long handle, JString) -> JString
+/// JNI Signature: BookmarkListBookmarks(long handle, JString) -> JString
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -229,7 +235,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeG
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeListbookmarks(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeBookmarkListBookmarks(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -243,22 +249,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeL
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.listBookmarks(directory)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.thestream.as_ref().ok_or("thestream not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "thestream mutex poisoned")?;
+                Ok(__service.list_bookmarks(directory))
     }) {
         Ok(result) => {
             env.new_string(&result).expect("Failed to create Java string").into_raw()
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] listBookmarks failed: {}", e);
+            log::error!("[FoundframeRadicleService] bookmark_list_bookmarks failed: {}", e);
             std::ptr::null_mut()
         }
     }
 }
 
-/// BookmarkMgmt.deleteBookmark
+/// BookmarkMgmt.bookmark_deleteBookmark
 /// 
-/// JNI Signature: Deletebookmark(long handle, JString) -> jboolean
+/// JNI Signature: BookmarkDeleteBookmark(long handle, JString) -> jboolean
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -266,7 +275,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeL
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeDeletebookmark(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeBookmarkDeleteBookmark(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -280,22 +289,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeD
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.deleteBookmark(pkbUrl)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.thestream.as_ref().ok_or("thestream not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "thestream mutex poisoned")?;
+                Ok(__service.delete_bookmark(pkbUrl))
     }) {
         Ok(result) => {
             result as jboolean
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] deleteBookmark failed: {}", e);
+            log::error!("[FoundframeRadicleService] bookmark_delete_bookmark failed: {}", e);
             0
         }
     }
 }
 
-/// DeviceMgmt.generatePairingCode
+/// DeviceMgmt.device_generatePairingCode
 /// 
-/// JNI Signature: Generatepairingcode(long handle) -> JString
+/// JNI Signature: DeviceGeneratePairingCode(long handle) -> JString
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -303,7 +315,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeD
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeGeneratepairingcode(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeDeviceGeneratePairingCode(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -312,22 +324,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeG
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.generatePairingCode()
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "device_manager mutex poisoned")?;
+                Ok(__service.generate_pairing_code())
     }) {
         Ok(result) => {
             env.new_string(&result).expect("Failed to create Java string").into_raw()
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] generatePairingCode failed: {}", e);
+            log::error!("[FoundframeRadicleService] device_generate_pairing_code failed: {}", e);
             std::ptr::null_mut()
         }
     }
 }
 
-/// DeviceMgmt.confirmPairing
+/// DeviceMgmt.device_confirmPairing
 /// 
-/// JNI Signature: Confirmpairing(long handle, JString, JString) -> jboolean
+/// JNI Signature: DeviceConfirmPairing(long handle, JString, JString) -> jboolean
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -335,7 +350,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeG
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeConfirmpairing(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeDeviceConfirmPairing(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -351,22 +366,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeC
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.confirmPairing(deviceId, code)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "device_manager mutex poisoned")?;
+                Ok(__service.confirm_pairing(deviceId, code))
     }) {
         Ok(result) => {
             result as jboolean
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] confirmPairing failed: {}", e);
+            log::error!("[FoundframeRadicleService] device_confirm_pairing failed: {}", e);
             0
         }
     }
 }
 
-/// DeviceMgmt.unpairDevice
+/// DeviceMgmt.device_unpairDevice
 /// 
-/// JNI Signature: Unpairdevice(long handle, JString) -> ()
+/// JNI Signature: DeviceUnpairDevice(long handle, JString) -> ()
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -374,7 +392,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeC
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeUnpairdevice(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeDeviceUnpairDevice(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -388,22 +406,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeU
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.unpairDevice(deviceId)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "device_manager mutex poisoned")?;
+                Ok(__service.unpair_device(deviceId))
     }) {
         Ok(result) => {
             
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] unpairDevice failed: {}", e);
+            log::error!("[FoundframeRadicleService] device_unpair_device failed: {}", e);
             
         }
     }
 }
 
-/// DeviceMgmt.listPairedDevices
+/// DeviceMgmt.device_listPairedDevices
 /// 
-/// JNI Signature: Listpaireddevices(long handle) -> JString
+/// JNI Signature: DeviceListPairedDevices(long handle) -> JString
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -411,7 +432,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeU
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeListpaireddevices(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeDeviceListPairedDevices(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -420,22 +441,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeL
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.listPairedDevices()
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "device_manager mutex poisoned")?;
+                Ok(__service.list_paired_devices())
     }) {
         Ok(result) => {
             env.new_string(&result).expect("Failed to create Java string").into_raw()
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] listPairedDevices failed: {}", e);
+            log::error!("[FoundframeRadicleService] device_list_paired_devices failed: {}", e);
             std::ptr::null_mut()
         }
     }
 }
 
-/// DeviceMgmt.followDevice
+/// DeviceMgmt.device_followDevice
 /// 
-/// JNI Signature: Followdevice(long handle, JString) -> jboolean
+/// JNI Signature: DeviceFollowDevice(long handle, JString) -> jboolean
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -443,7 +467,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeL
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeFollowdevice(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeDeviceFollowDevice(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -457,22 +481,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeF
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.followDevice(deviceId)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "device_manager mutex poisoned")?;
+                Ok(__service.follow_device(deviceId))
     }) {
         Ok(result) => {
             result as jboolean
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] followDevice failed: {}", e);
+            log::error!("[FoundframeRadicleService] device_follow_device failed: {}", e);
             0
         }
     }
 }
 
-/// DeviceMgmt.unfollowDevice
+/// DeviceMgmt.device_unfollowDevice
 /// 
-/// JNI Signature: Unfollowdevice(long handle, JString) -> ()
+/// JNI Signature: DeviceUnfollowDevice(long handle, JString) -> ()
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -480,7 +507,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeF
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeUnfollowdevice(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeDeviceUnfollowDevice(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -494,22 +521,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeU
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.unfollowDevice(deviceId)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "device_manager mutex poisoned")?;
+                Ok(__service.unfollow_device(deviceId))
     }) {
         Ok(result) => {
             
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] unfollowDevice failed: {}", e);
+            log::error!("[FoundframeRadicleService] device_unfollow_device failed: {}", e);
             
         }
     }
 }
 
-/// DeviceMgmt.listFollowers
+/// DeviceMgmt.device_listFollowers
 /// 
-/// JNI Signature: Listfollowers(long handle) -> JString
+/// JNI Signature: DeviceListFollowers(long handle) -> JString
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -517,7 +547,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeU
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeListfollowers(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeDeviceListFollowers(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -526,22 +556,25 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeL
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.listFollowers()
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "device_manager mutex poisoned")?;
+                Ok(__service.list_followers())
     }) {
         Ok(result) => {
             env.new_string(&result).expect("Failed to create Java string").into_raw()
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] listFollowers failed: {}", e);
+            log::error!("[FoundframeRadicleService] device_list_followers failed: {}", e);
             std::ptr::null_mut()
         }
     }
 }
 
-/// DeviceMgmt.isFollowing
+/// DeviceMgmt.device_isFollowing
 /// 
-/// JNI Signature: Isfollowing(long handle, JString) -> jboolean
+/// JNI Signature: DeviceIsFollowing(long handle, JString) -> jboolean
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -549,7 +582,7 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeL
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeIsfollowing(
+pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeDeviceIsFollowing(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
@@ -563,120 +596,17 @@ pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeI
     
     
     // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.isFollowing(deviceId)
+    match with_service(|service| -> Result<_, String> {
+        // Access service field with proper error handling
+                let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
+                let mut __service = __field.lock().map_err(|_| "device_manager mutex poisoned")?;
+                Ok(__service.is_following(deviceId))
     }) {
         Ok(result) => {
             result as jboolean
         }
         Err(e) => {
-            log::error!("[FoundframeRadicleService] isFollowing failed: {}", e);
-            0
-        }
-    }
-}
-
-/// EventMgmt.subscribeEvents
-/// 
-/// JNI Signature: Subscribeevents(long handle, JString) -> ()
-/// 
-/// This function:
-/// 1. Locks the service handle (Mutex::lock)
-/// 2. Calls the core method on the handle
-/// 3. Converts the result to JNI types
-/// 4. Unlocks the handle (when guard drops)
-#[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeSubscribeevents(
-    mut env: JNIEnv,
-    _class: JClass,
-    _handle: jlong,
-        callback: JString
-    
-) -> () {
-    
-    // Convert JNI parameters to Rust types
-        let callback: String = env.get_string(&callback).expect("Failed to get callback").into();
-    
-    
-    
-    // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.subscribeEvents(callback)
-    }) {
-        Ok(result) => {
-            
-        }
-        Err(e) => {
-            log::error!("[FoundframeRadicleService] subscribeEvents failed: {}", e);
-            
-        }
-    }
-}
-
-/// EventMgmt.unsubscribeEvents
-/// 
-/// JNI Signature: Unsubscribeevents(long handle, JString) -> ()
-/// 
-/// This function:
-/// 1. Locks the service handle (Mutex::lock)
-/// 2. Calls the core method on the handle
-/// 3. Converts the result to JNI types
-/// 4. Unlocks the handle (when guard drops)
-#[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeUnsubscribeevents(
-    mut env: JNIEnv,
-    _class: JClass,
-    _handle: jlong,
-        callback: JString
-    
-) -> () {
-    
-    // Convert JNI parameters to Rust types
-        let callback: String = env.get_string(&callback).expect("Failed to get callback").into();
-    
-    
-    
-    // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.unsubscribeEvents(callback)
-    }) {
-        Ok(result) => {
-            
-        }
-        Err(e) => {
-            log::error!("[FoundframeRadicleService] unsubscribeEvents failed: {}", e);
-            
-        }
-    }
-}
-
-/// EventMgmt.supportsEvents
-/// 
-/// JNI Signature: Supportsevents(long handle) -> jboolean
-/// 
-/// This function:
-/// 1. Locks the service handle (Mutex::lock)
-/// 2. Calls the core method on the handle
-/// 3. Converts the result to JNI types
-/// 4. Unlocks the handle (when guard drops)
-#[no_mangle]
-pub extern "C" fn Java_ty_circulari_o19_service_FoundframeRadicleService_nativeSupportsevents(
-    mut env: JNIEnv,
-    _class: JClass,
-    _handle: jlong,
-    
-) -> jboolean {
-    
-    
-    // Lock handle → execute → unlock
-    match with_service(|service| {
-        service.supportsEvents()
-    }) {
-        Ok(result) => {
-            result as jboolean
-        }
-        Err(e) => {
-            log::error!("[FoundframeRadicleService] supportsEvents failed: {}", e);
+            log::error!("[FoundframeRadicleService] device_is_following failed: {}", e);
             0
         }
     }

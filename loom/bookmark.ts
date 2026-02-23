@@ -9,10 +9,12 @@
  * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
-import { reach, rust, Management, crud } from '@o19/spire-loom';
+import loom from '@o19/spire-loom';
+import { foundframe } from './WARP.js';
 
-@reach('Global')
-class BookmarkMgmt extends Management {
+@loom.reach('Global')
+@loom.link(foundframe.inner.core.thestream)
+class BookmarkMgmt extends loom.Management {
   // ========================================================================
   // CONSTANTS (available in all rings)
   // ========================================================================
@@ -30,32 +32,32 @@ class BookmarkMgmt extends Management {
   /**
    * Add a bookmark to the stream
    */
-  @crud('create')
-  create(url: string, title?: string, notes?: string): string {
+  @loom.crud.create
+  addBookmark(url: string, title?: string, notes?: string): void {
     throw new Error('Imprint only');
   }
 
   /**
    * Get a bookmark by its PKB URL
    */
-  @crud('read')
-  getByUrl(pkbUrl: string): Bookmark {
+  @loom.crud.read
+  getBookmarkByUrl(pkbUrl: string): Bookmark {
     throw new Error('Imprint only');
   }
 
   /**
    * List all bookmarks in a directory
    */
-  @crud('list', { collection: true })
-  list(directory?: string): string[] {
+  @loom.crud.list({ collection: true })
+  listBookmarks(directory?: string): string[] {
     throw new Error('Imprint only');
   }
 
   /**
    * Delete a bookmark (soft delete)
    */
-  @crud('delete', { soft: true })
-  delete(pkbUrl: string): boolean {
+  @loom.crud.delete_({ soft: true })
+  deleteBookmark(pkbUrl: string): boolean {
     throw new Error('Imprint only');
   }
 }

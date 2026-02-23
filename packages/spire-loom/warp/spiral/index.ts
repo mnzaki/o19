@@ -15,7 +15,7 @@ import * as spiralers from './spiralers/index.js';
 import * as p from './pattern.js';
 import type * as i from './pattern.js';
 import { ExternalLayer } from '../imprint.js';
-import { RustExternalLayer } from '../rust.js';
+import { RustExternalLayer, RUST_STRUCT_MARK } from '../rust.js';
 
 export * from './pattern.js';
 export * from './spiralers/index.js';
@@ -37,23 +37,32 @@ export interface RustCoreMetadata {
 /**
  * Rust Core implementation.
  * The standard core for o19-foundframe.
- * 
+ *
  * Usage:
  *   new RustCore(Foundframe)  // layer first, then options
  *   new RustCore(Foundframe, { packageName: 'foundframe' })
  */
-export class RustCore extends p.CoreRing<{
-  android: spiralers.AndroidSpiraler;
-  desktop: spiralers.DesktopSpiraler;
-}, RustExternalLayer> {
+export class RustCore<
+  Layer extends RustExternalLayer = RustExternalLayer,
+  StructClass = Layer
+> extends p.CoreRing<
+  {
+    android: spiralers.AndroidSpiraler;
+    desktop: spiralers.DesktopSpiraler;
+  },
+  Layer,
+  Layer & StructClass
+> {
+  declare core: Layer & StructClass;
+
   constructor(
-    layer: RustExternalLayer,
+    layer: Layer,
     public options: {
       packageName?: string;
       crateName?: string;
     } = {}
   ) {
-    super(layer);
+    super(layer, layer as any); // layer is both the layer and the core data
   }
 
   getSpiralers() {
@@ -66,13 +75,12 @@ export class RustCore extends p.CoreRing<{
 
   getMetadata(): RustCoreMetadata {
     // Derive from layer class name if not provided in options
-    const layerName = (this.layer as any)?.name || 
-                      (this.layer?.constructor as any)?.name ||
-                      'unknown';
-    
+    const layerName =
+      (this.layer as any)?.name || (this.layer?.constructor as any)?.name || 'unknown';
+
     // Convert class name to package name (e.g., Foundframe -> foundframe)
     const derivedName = layerName.charAt(0).toLowerCase() + layerName.slice(1);
-    
+
     const packageName = this.options.packageName || derivedName;
     const crateName = this.options.crateName || `o19-${derivedName}`;
 
@@ -109,10 +117,47 @@ export function rustCore(
  *   // foundframe.desktop.direct()
  */
 export function spiralCore<S extends Partial<i.Spiralers>>(
-  core: p.CoreRing<S>
+  core: i.CoreRing<S>
 ): i.SpiralOutType<S> {
   return p.spiralOut(core, core.getSpiralers()) as i.SpiralOutType<S>;
 }
+
+/**
+ * Create a spiral from a @rust.Struct decorated class.
+ * This is the most common way to create a core spiral.
+ *
+ * Usage:
+ *   @rust.Struct
+ *   class Foundframe { ... }
+ *   const foundframe = spiral(Foundframe);
+ *   // foundframe.inner.core.thestream
+ *   // foundframe.android.foregroundService()
+ */
+export function spiral<T extends new (...args: any[]) => any>(
+  structClass: T & { [RUST_STRUCT_MARK]?: true }
+): i.SpiralOutType<
+  { android: spiralers.AndroidSpiraler; desktop: spiralers.DesktopSpiraler },
+  RustCore<InstanceType<T>, T>
+>;
+
+/**
+ * Create a spiral from a RustExternalLayer (e.g., a @rust.Struct class).
+ * This overload provides proper typing for the core's struct fields.
+ */
+export function spiral<T extends new (...args: any[]) => any>(
+  core: T
+): p.SpiralOutType<
+  { android: spiralers.AndroidSpiraler; desktop: spiralers.DesktopSpiraler },
+  RustCore<InstanceType<T>, T>
+>;
+
+/**
+ * Create a spiral from an ExternalLayer instance.
+ *
+ * Usage:
+ *   const foundframe = spiral(myCustomCore());
+ */
+export function spiral(core: ExternalLayer): i.SpiralOutType;
 
 /**
  * Create a multiplexed spiral wrapping multiple rings.
@@ -125,18 +170,8 @@ export function spiral(
   ...innerRings: i.SpiralRing[]
 ): i.SpiralMuxType<{ tauri: spiralers.TauriSpiraler }>;
 
-/**
- * Create a spiral from an ExternalLayer
- *
- * Usage:
- *   const foundframe = spiral(myCustomCore());
- */
-export function spiral(core: ExternalLayer): i.SpiralOutType;
-
 // Implementation
-export function spiral<S extends Partial<i.Spiralers>>(
-  ...innerRings: (ExternalLayer | i.CoreRing<S> | i.SpiralRing)[]
-): any {
+export function spiral(...innerRings: unknown[]) {
   if (innerRings.length === 1) {
     const ring = innerRings[0];
     if (ring instanceof p.CoreRing) {
@@ -151,7 +186,9 @@ export function spiral<S extends Partial<i.Spiralers>>(
       const core = rustCore(ring);
       return spiralCore(core);
     } else {
-      throw new Error(`Cannot spiral from ${typeof ring}: ${ring?.constructor?.name || ring}. Expected CoreRing, SpiralRing, or @rust.Struct class.`);
+      throw new Error(
+        `Cannot spiral from ${typeof ring}: ${ring?.constructor?.name || ring}. Expected CoreRing, SpiralRing, or @rust.Struct class.`
+      );
     }
   }
 

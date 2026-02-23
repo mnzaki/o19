@@ -262,7 +262,7 @@ spire-loom --help
 
 ```typescript
 // Desktop is a pass-through, not a package
-desktop.direct() → returns SpiralOut with no outters
+desktop.direct() → returns SpiralOut with no additional spiralers
 // Generator detects this: Object.keys(ring).length === 1 (just 'inner')
 ```
 

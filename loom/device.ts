@@ -10,12 +10,12 @@
  * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
-import { Management, loom } from '@o19/spire-loom';
-import { Foundframe } from './WARP.js';
+import loom from '@o19/spire-loom';
+import { foundframe } from './WARP.js';
 
 @loom.reach('Local')
-@loom.link(Foundframe.device_manager)
-class DeviceMgmt extends Management {
+@loom.link(foundframe.inner.core.device_manager)
+class DeviceMgmt extends loom.Management {
   // ========================================================================
   // CONSTANTS
   // ========================================================================

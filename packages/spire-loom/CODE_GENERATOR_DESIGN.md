@@ -17,6 +17,141 @@ The generator reads `loom/*.ts` files and produces concrete code in multiple tar
 
 ---
 
+## Architecture: The Machinery
+
+Code generation is orchestrated by the **machinery**—organized by loom parts:
+
+```
+machinery/
+├── reed/               # Workspace discovery (scans monorepo)
+├── heddles/            # Pattern matching (rings → generators)
+├── bobbin/             # Template & IR storage
+├── shuttle/            # File generation (file ops, deps, templates, configs)
+├── beater/             # Code formatting (prettier, rustfmt)
+├── treadle-kit/        # Foundation for building treadles ⭐ NEW
+│   ├── core.ts         # TreadleKit implementation
+│   ├── declarative.ts  # defineTreadle, generateFromTreadle
+│   ├── discovery.ts    # Treadle discovery system
+│   └── platform-wrapper.ts  # High-level abstraction
+├── treadles/           # Generation phases (uses treadle-kit)
+├── tieups/             # Link treadles to spiralers ⭐ NEW
+│   └── spiral.ts       # Spiraler extension system
+├── sley/               # Binding resolution (method pipelines)
+└── weaver.ts           # Entry point—operates the loom
+```
+
+### The Treadle-Kit: Three Layers of Abstraction
+
+The machinery provides **three layers** for building generators:
+
+#### Layer 1: Treadle Kit (Foundation)
+
+Low-level utilities for building treadles:
+
+```typescript
+import { createTreadleKit } from '@o19/spire-loom/machinery/treadle-kit';
+
+const kit = createTreadleKit(context);
+
+// Validate node types
+if (!kit.validateNodes(current, previous, { current: 'MySpiraler', previous: 'RustCore' })) {
+  return [];
+}
+
+// Collect methods with filtering and transformation
+const methods = kit.collectMethods({
+  filter: 'platform',  // 'core' | 'platform' | 'front'
+  pipeline: [addManagementPrefix()]
+});
+
+// Generate files from templates
+const files = await kit.generateFiles([
+  { template: 'my/service.ts.ejs', path: '{packageDir}/spire/service.ts', language: 'typescript' }
+], data, methods);
+
+// Hookup to existing code
+await kit.hookup.android(androidData);
+```
+
+#### Layer 2: Declarative API (Common Cases)
+
+For 80% of use cases, define treadles as configuration:
+
+```typescript
+import { defineTreadle, generateFromTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+
+export const myTreadle = defineTreadle({
+  // When does this run?
+  matches: [{ current: 'AndroidSpiraler', previous: 'RustCore' }],
+  
+  // Extra validation
+  validate: (current, previous) => current.ring instanceof AndroidSpiraler,
+  
+  // Method collection
+  methods: {
+    filter: 'platform',
+    pipeline: [addManagementPrefix()]
+  },
+  
+  // Method transformation (optional)
+  transformMethods: (methods, context) => methods.map(m => ({ ...m, link: computeLink(m) })),
+  
+  // Template data
+  data: (context, current, previous) => ({
+    packageName: (current.ring as AndroidSpiraler).getGradleNamespace('foundframe')
+  }),
+  
+  // Output files
+  outputs: [
+    { template: 'android/service.kt.ejs', path: '{packageDir}/spire/{serviceName}.kt', language: 'kotlin' }
+  ],
+  
+  // Package integration
+  hookup: {
+    type: 'custom',
+    async customHookup(context, files, data) {
+      // AndroidManifest.xml, Gradle config, etc.
+    }
+  }
+});
+
+export const generateMyService = generateFromTreadle(myTreadle);
+```
+
+#### Layer 3: Platform Wrapper (High-Level Abstraction)
+
+For platform wrappers that follow the common pattern (wrap RustCore, expose Managements):
+
+```typescript
+import { definePlatformWrapperTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+
+export const genAndroidForegroundService = definePlatformWrapperTreadle({
+  platform: { name: 'Android', spiraler: 'AndroidSpiraler' },
+  wrapperType: 'foreground-service',
+  
+  methods: {
+    filter: 'platform',
+    pipeline: [addManagementPrefix()]
+  },
+  
+  naming: (coreName, affix) => ({
+    wrapperName: `${coreName}${affix}Service`,
+    interfaceName: `I${coreName}${affix}`,
+    fileName: toSnakeCase(`${coreName}${affix}Service`)
+  }),
+  
+  outputs: [
+    { template: 'android/service.kt.ejs', file: '{packageDir}/spire/...', language: 'kotlin' },
+    { template: 'android/aidl_interface.aidl.ejs', file: '...', language: 'aidl' },
+    { template: 'android/jni_bridge.jni.rs.ejs', file: '...', language: 'rust_jni' }
+  ],
+  
+  hookup: 'android-gradle'
+});
+```
+
+---
+
 ## Phase 1: Discovery (Reading WARP.ts)
 
 ### Package Name Derivation
@@ -94,51 +229,6 @@ const android = foundframe.android.foregroundService();
    - Record: `X` wraps `inner`
 4. Build the containment graph from the runtime objects
 
-### The Machinery
-
-Code generation is orchestrated by the **machinery**—organized by loom parts:
-
-```
-machinery/
-├── reed/          # Workspace discovery (scans monorepo)
-├── heddles/       # Pattern matching (rings → generators)
-├── bobbin/        # Template & IR storage
-├── shuttle/       # File generation (file ops, deps, templates, configs)
-├── beater/        # Code formatting (prettier, rustfmt)
-├── treadles/      # Generation phases (Core, Platform, Tauri, DDD, Adaptors)
-├── sley/          # Binding resolution (adaptor overrides)
-└── weaver.ts      # Entry point—operates the loom
-```
-
-### Method-Specific Generation
-
-Each spiraler method determines WHAT gets generated:
-
-```typescript
-// AndroidSpiraler
-foregroundService() {
-  return spiralOut(this, {});
-}
-// Generates: FoundframeRadicleService.kt, AndroidManifest.xml, JNI bindings
-
-// TauriSpiraler  
-plugin() {
-  return spiralOut(this, { typescript: ... });
-}
-// Generates: Platform trait, Tauri commands, permissions/default.toml
-
-// DDDTypescriptSpiraler
-drizzle_adaptors({ filter: ['read'] }) {
-  return spiralOut(this, { drizzle: ... });
-}
-// Generates: Drizzle ORM implementations, filtered by CRUD operations
-```
-
-**Key insight**: The method name is semantic. The generator uses it to know:
-- What files to create
-- What templates to apply
-- What dependencies to inject
-
 ---
 
 ## Phase 2: Generation (Blooming Surfaces)
@@ -175,6 +265,62 @@ abstract BookmarkMgmt {
    - Front: Promise wrappers
 6. **Constants** - Simple `NAME = value` declarations, available in all rings
 7. **No boilerplate** - No `export`, `static`, `readonly`, `extends` (all implied)
+
+### The Heddles: Pattern Matching
+
+The [heddles](machinery/heddles/) match spiral patterns to generators:
+
+```typescript
+// Generator Matrix maps (current, previous) → generator
+matrix.setPair('AndroidSpiraler', 'RustCore', generateAndroidService);
+matrix.setPair('TauriSpiraler', 'AndroidSpiraler', generateTauriPlugin);
+matrix.setPair('TauriSpiraler', 'DesktopSpiraler', generateTauriPlugin);
+```
+
+**Edge Direction**:
+```
+Parent (outer ring) → Node (inner ring)
+     │                       │
+     │                       └── previous node in matrix
+     └── current node in matrix
+```
+
+**Temporal Constraints**:
+- **Heddles phase**: Plan is being built. Don't traverse `plan.nodesByType`.
+- **Treadles phase**: Plan is complete. Safe to access full graph.
+
+### Treadle Discovery
+
+Treadles can be discovered from the workspace:
+
+```typescript
+// Scans {workspace}/loom/treadles/*.ts
+const discovered = await discoverTreadles('./loom/treadles');
+const matrix = await createMatrixWithDiscovery(workspaceRoot);
+```
+
+Discovered treadles are automatically registered in the matrix.
+
+### The Tie-Up: Treadles Extending Spiralers
+
+Treadles can contribute methods to spiralers via the **tie-up** layer:
+
+```typescript
+// In loom/treadles/gen-android-foreground-service.ts
+export const treadle = defineTreadle({...});
+
+export const contributes = defineSpiralerContribution({
+  spiraler: 'AndroidSpiraler',
+  method: 'foregroundService',
+  optionsType: 'ForegroundServiceOptions',
+  returnType: 'AndroidSpiraler'
+});
+```
+
+This enables:
+1. **Type-safe API**: TypeScript knows `foundframe.android.foregroundService()` exists
+2. **Modular extensions**: New treadles add methods to existing spiralers
+3. **Clear contracts**: Treadles declare what they contribute
 
 ### Ring-Specific Generation
 
@@ -236,7 +382,7 @@ pub extern "C" fn Java_ty_circulari_o19_nativeAddBookmark(
 
 #### Tauri Ring (foundframe-tauri)
 
-**Input**: Management + `commands()` method call  
+**Input**: Management + `plugin()` method call  
 **Output**:
 - Platform trait
 - Command handlers
@@ -293,6 +439,33 @@ export async function addBookmark(
 
 ---
 
+## The Sley: Method Pipeline
+
+The [sley](machinery/sley/) provides a composable pipeline for processing Management methods:
+
+```typescript
+import { MethodPipeline, addManagementPrefix, crudInterfaceMapping, tagFilter } from '@o19/spire-loom/machinery/sley';
+
+// Build pipeline
+const pipeline = new MethodPipeline()
+  .translate(addManagementPrefix())      // bookmark_add, bookmark_get
+  .translate(crudInterfaceMapping());    // create, update, delete
+
+// Process methods (complete set)
+const allMethods = pipeline.process(rawMethods);
+
+// Filter at last second before generation
+const filtered = pipeline.filter(allMethods, tagFilter(['crud:read']));
+```
+
+**Key Principles**:
+1. **Translations Stack**: Each ring can add transformations
+2. **Methods Are Complete**: No data loss until filtering
+3. **Filtering Is Last-Second**: Right before templates render
+4. **Each Ring Sees All**: Full method visibility for decision-making
+
+---
+
 ## The Bottleneck Pattern (Android)
 
 Multiple Managements converge into a single service:
@@ -327,10 +500,12 @@ await weaver.weave();
 The weaver orchestrates the machinery:
 1. **Reed** scans the workspace
 2. **Heddles** match patterns to generators
-3. **Shuttle** weaves files into existence
-4. **Beater** formats the generated code
-5. **Treadles** execute generation phases
+3. **Treadles** execute generation phases (via treadle-kit)
+4. **Shuttle** weaves files into existence
+5. **Beater** formats the generated code
 6. **Sley** resolves binding configurations
+
+---
 
 ## The Loom - All Executable
 
@@ -402,6 +577,8 @@ These become:
 - Java: `public static final Pattern VALID_URL_REGEX = Pattern.compile("^https?://");`
 - TypeScript: `export const VALID_URL_REGEX = /^https?:\/\/.+/;`
 
+---
+
 ## Type Mapping
 
 | TypeScript (Surface) | Rust (Core) | Java (Android) | Tauri Command | TypeScript (Front) |
@@ -421,17 +598,17 @@ Generated code goes to predictable locations:
 
 ```
 o19/crates/{package}/
-├── spiral/                    # All generated code
+├── spire/                    # All generated code
 │   ├── i_content_mgmt/
-│   │   ├── mod.rs             # Re-exports
-│   │   ├── core_trait.rs      # Core trait (if Core)
-│   │   ├── jni_glue.rs        # JNI exports (if Android)
-│   │   ├── platform_trait.rs  # Platform trait (if Tauri)
-│   │   └── commands.rs        # Commands (if Tauri)
-│   └── mod.rs                 # Top-level re-exports
+│   │   ├── mod.rs            # Re-exports
+│   │   ├── core_trait.rs     # Core trait (if Core)
+│   │   ├── jni_glue.rs       # JNI exports (if Android)
+│   │   ├── platform_trait.rs # Platform trait (if Tauri)
+│   │   └── commands.rs       # Commands (if Tauri)
+│   └── mod.rs                # Top-level re-exports
 └── src/
-    ├── lib.rs                 # May include spiral/mod.rs
-    └── ...                    # Hand-written code
+    ├── lib.rs                # May include spiral/mod.rs
+    └── ...                   # Hand-written code
 ```
 
 ---
@@ -445,6 +622,22 @@ After generation, code must be integrated into the package:
 3. **AndroidManifest.xml**: Add service declarations (Android)
 4. **permissions/*.toml**: Add command permissions (Tauri)
 5. **build.rs**: Register commands (Tauri)
+
+The treadle-kit provides standard hookup implementations:
+
+```typescript
+// In treadle definition
+hookup: {
+  type: 'custom',
+  async customHookup(context, files, data) {
+    // Full control over integration
+  }
+}
+
+// Or use kit directly
+const kit = createTreadleKit(context);
+await kit.hookup.android(androidData);
+```
 
 ---
 
@@ -476,6 +669,35 @@ await renderEjs({
 });
 ```
 
+---
+
+## The Warp System: Multiple Topologies
+
+The **warp** is the potential field—the space through which architectural patterns flow. [Spiral](../warp/spiral/) is just one topology:
+
+### Spiral Warp (Implemented)
+
+**Pattern**: Rings wrapping rings (conservative growth)
+```
+Core → Platform → Front
+```
+
+### Fractal Warp (Vision)
+
+**Pattern**: Self-similar decomposition (horizontal scaling)
+```
+        Core (whole)
+           │
+           ▼ fractal split
+    ┌──────┼──────┐
+    ▼      ▼      ▼
+ Shard1  Shard2  Shard3  (each a mini-Core)
+```
+
+See [warp/fractal/README.md](../warp/fractal/README.md) for the vision.
+
+---
+
 ## Key Design Principles
 
 1. **Thin surface, thick generation**: WARP.ts should be minimal
@@ -487,6 +709,9 @@ await renderEjs({
 7. **Sync interface only**: Asyncness is a boundary concern added per-ring
 8. **Constants are universal**: Values available in all rings
 9. **Idempotent tooling**: All machinery operations are safe to run multiple times
+10. **Three-layer treadles**: Kit → Declarative → Platform Wrapper
+11. **Treadle discovery**: Custom treadles in `loom/treadles/*.ts`
+12. **Spiraler tie-up**: Treadles extend spiralers via contributions
 
 ### Imprint DSL Conventions
 
@@ -516,6 +741,11 @@ When writing Management Imprints (in `loom/*.ts` files like `bookmark.ts`):
 4. How do we version generated code?
    - Option: Hash of surface definitions in generated header
    - Option: Version field in WARP.ts
+
+5. How do we implement the fractal warp?
+   - Option: Consistent hashing for entity routing
+   - Option: CRDTs for state synchronization
+   - Option: Actor model with supervision
 
 ---
 

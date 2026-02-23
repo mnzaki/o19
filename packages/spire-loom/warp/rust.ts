@@ -47,14 +47,16 @@ export interface RustFieldMetadata {
 /**
  * Base class for Rust external types.
  * Can be subclassed by @rust.Struct or used directly.
+ * 
+ * The generic parameter T carries the struct class type for type-safe field access.
  */
-export class RustExternalLayer extends ExternalLayer {
+export class RustExternalLayer<T = any> extends ExternalLayer {
   /** Field name if this represents a struct field */
   fieldName?: string;
   /** Wrapper types (Mutex, Option, etc.) */
   wrappers?: RustWrapper[];
   /** Parent struct class (when this is a field) */
-  structClass?: typeof RustExternalLayer;
+  structClass?: T;
 
   /**
    * Check if a class is marked as a Rust struct.
@@ -191,12 +193,46 @@ export const f64 = createTypeDecorator('f64');
 export const Vec = createTypeDecorator('Vec');
 
 // ============================================================================
+// Type Helpers for Struct Field Definitions
+// ============================================================================
+
+/**
+ * Type helper for defining Rust struct fields.
+ * 
+ * This is a compile-time only construct - it has zero runtime overhead.
+ * Use with `declare` to add static field types to your struct class.
+ * 
+ * Usage:
+ *   @rust.Struct
+ *   export class Foundframe {
+ *     @rust.Mutex @rust.Option thestream = TheStream;
+ *     @rust.Mutex @rust.Option device_manager = DeviceManager;
+ *   }
+ *   // Add static field types:
+ *   export declare module './WARP.ts' {
+ *     interface Foundframe extends rust.StructFields<{
+ *       thestream: rust.RustExternalLayer;
+ *       device_manager: rust.RustExternalLayer;
+ *     }> {}
+ *   }
+ */
+export interface StructFields<Fields extends Record<string, RustExternalLayer>> {
+  // Static field types are added here
+}
+
+// ============================================================================
 // Class Decorators - Mark as Rust struct
 // ============================================================================
 
 /**
  * Mark a class as a Rust struct.
  * Attaches minimal metadata; field processing happens in heddles.
+ * 
+ * For proper TypeScript types on static fields, extend DefineStruct<Fields>:
+ *   @rust.Struct
+ *   export class MyStruct extends rust.DefineStruct<{ field: RustExternalLayer }> {
+ *     @rust.Mutex field = SomeType;
+ *   }
  */
 export function Struct<T extends new (...args: any[]) => any>(
   target: T,
@@ -217,7 +253,7 @@ export function Struct<T extends new (...args: any[]) => any>(
  * Create a Rust struct class that returns RustExternalLayer instances
  * when its properties are accessed.
  */
-function createRustStructClass<T extends new (...args: any[]) => any>(OriginalClass: T): T {
+function createRustStructClass<T extends new (...args: any[]) => any>(OriginalClass: T) {
   const fieldMeta = (OriginalClass as any).__rustFields || new Map();
 
   class RustStructClass extends RustExternalLayer {
@@ -250,7 +286,9 @@ function createRustStructClass<T extends new (...args: any[]) => any>(OriginalCl
     });
   }
 
-  return RustStructClass as unknown as T;
+  // Return type merges the struct class (T) with RustExternalLayer
+  // This makes static fields available while preserving the base class behavior
+  return RustStructClass as unknown as (new () => RustExternalLayer<T>) & T;
 }
 
 // ============================================================================

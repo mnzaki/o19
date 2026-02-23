@@ -46,17 +46,17 @@ impl<R: Runtime> SpireFoundframePlatformTrait for IosPlatform<R> {
     Ok(())
   }
 
-  fn add_bookmark(
+  fn bookmark_addBookmark(
     &self,
         _url: String,
         _title: Option<String>,
         _notes: Option<String>
     
-  ) -> Result<String> {
+  ) -> Result<()> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn get_bookmark(
+  fn bookmark_getBookmarkByUrl(
     &self,
         _pkbUrl: String
     
@@ -64,7 +64,7 @@ impl<R: Runtime> SpireFoundframePlatformTrait for IosPlatform<R> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn list_bookmarks(
+  fn bookmark_listBookmarks(
     &self,
         _directory: Option<String>
     
@@ -72,7 +72,7 @@ impl<R: Runtime> SpireFoundframePlatformTrait for IosPlatform<R> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn delete_bookmark(
+  fn bookmark_deleteBookmark(
     &self,
         _pkbUrl: String
     
@@ -80,14 +80,14 @@ impl<R: Runtime> SpireFoundframePlatformTrait for IosPlatform<R> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn generate_pairing_code(
+  fn device_generatePairingCode(
     &self,
     
   ) -> Result<String> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn confirm_pairing(
+  fn device_confirmPairing(
     &self,
         _deviceId: String,
         _code: String
@@ -96,7 +96,7 @@ impl<R: Runtime> SpireFoundframePlatformTrait for IosPlatform<R> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn unpair_device(
+  fn device_unpairDevice(
     &self,
         _deviceId: String
     
@@ -104,37 +104,14 @@ impl<R: Runtime> SpireFoundframePlatformTrait for IosPlatform<R> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn list_paired_devices(
+  fn device_listPairedDevices(
     &self,
     
-  ) -> Result<Vec<String>> {
+  ) -> Result<String> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn follow_device(
-    &self,
-        _deviceId: String
-    
-  ) -> Result<bool> {
-    Err(Error::Other("iOS platform not implemented".into()))
-  }
-
-  fn unfollow_device(
-    &self,
-        _deviceId: String
-    
-  ) -> Result<()> {
-    Err(Error::Other("iOS platform not implemented".into()))
-  }
-
-  fn list_followers(
-    &self,
-    
-  ) -> Result<Vec<String>> {
-    Err(Error::Other("iOS platform not implemented".into()))
-  }
-
-  fn is_following(
+  fn device_followDevice(
     &self,
         _deviceId: String
     
@@ -142,24 +119,24 @@ impl<R: Runtime> SpireFoundframePlatformTrait for IosPlatform<R> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn subscribe_events(
+  fn device_unfollowDevice(
     &self,
-        _callback: String
+        _deviceId: String
     
   ) -> Result<()> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn unsubscribe_events(
+  fn device_listFollowers(
     &self,
-        _callback: String
     
-  ) -> Result<()> {
+  ) -> Result<String> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-  fn supports_events(
+  fn device_isFollowing(
     &self,
+        _deviceId: String
     
   ) -> Result<bool> {
     Err(Error::Other("iOS platform not implemented".into()))

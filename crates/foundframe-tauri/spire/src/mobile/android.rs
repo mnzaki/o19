@@ -55,18 +55,18 @@ impl<R: Runtime> SpireFoundframePlatformTrait for AndroidPlatform<R> {
     Ok(())
   }
 
-  fn add_bookmark(
+  fn bookmark_addBookmark(
     &self,
         url: String,
         title: Option<String>,
         notes: Option<String>
     
-  ) -> Result<String> {
+  ) -> Result<()> {
     // TODO: Call into foundframe-android service via JNI
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn get_bookmark(
+  fn bookmark_getBookmarkByUrl(
     &self,
         pkbUrl: String
     
@@ -75,7 +75,7 @@ impl<R: Runtime> SpireFoundframePlatformTrait for AndroidPlatform<R> {
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn list_bookmarks(
+  fn bookmark_listBookmarks(
     &self,
         directory: Option<String>
     
@@ -84,7 +84,7 @@ impl<R: Runtime> SpireFoundframePlatformTrait for AndroidPlatform<R> {
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn delete_bookmark(
+  fn bookmark_deleteBookmark(
     &self,
         pkbUrl: String
     
@@ -93,7 +93,7 @@ impl<R: Runtime> SpireFoundframePlatformTrait for AndroidPlatform<R> {
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn generate_pairing_code(
+  fn device_generatePairingCode(
     &self,
     
   ) -> Result<String> {
@@ -101,7 +101,7 @@ impl<R: Runtime> SpireFoundframePlatformTrait for AndroidPlatform<R> {
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn confirm_pairing(
+  fn device_confirmPairing(
     &self,
         deviceId: String,
         code: String
@@ -111,7 +111,7 @@ impl<R: Runtime> SpireFoundframePlatformTrait for AndroidPlatform<R> {
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn unpair_device(
+  fn device_unpairDevice(
     &self,
         deviceId: String
     
@@ -120,41 +120,15 @@ impl<R: Runtime> SpireFoundframePlatformTrait for AndroidPlatform<R> {
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn list_paired_devices(
+  fn device_listPairedDevices(
     &self,
     
-  ) -> Result<Vec<String>> {
+  ) -> Result<String> {
     // TODO: Call into foundframe-android service via JNI
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn follow_device(
-    &self,
-        deviceId: String
-    
-  ) -> Result<bool> {
-    // TODO: Call into foundframe-android service via JNI
-    Err(Error::Other("Android not implemented".into()))
-  }
-
-  fn unfollow_device(
-    &self,
-        deviceId: String
-    
-  ) -> Result<()> {
-    // TODO: Call into foundframe-android service via JNI
-    Err(Error::Other("Android not implemented".into()))
-  }
-
-  fn list_followers(
-    &self,
-    
-  ) -> Result<Vec<String>> {
-    // TODO: Call into foundframe-android service via JNI
-    Err(Error::Other("Android not implemented".into()))
-  }
-
-  fn is_following(
+  fn device_followDevice(
     &self,
         deviceId: String
     
@@ -163,26 +137,26 @@ impl<R: Runtime> SpireFoundframePlatformTrait for AndroidPlatform<R> {
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn subscribe_events(
+  fn device_unfollowDevice(
     &self,
-        callback: String
+        deviceId: String
     
   ) -> Result<()> {
     // TODO: Call into foundframe-android service via JNI
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn unsubscribe_events(
+  fn device_listFollowers(
     &self,
-        callback: String
     
-  ) -> Result<()> {
+  ) -> Result<String> {
     // TODO: Call into foundframe-android service via JNI
     Err(Error::Other("Android not implemented".into()))
   }
 
-  fn supports_events(
+  fn device_isFollowing(
     &self,
+        deviceId: String
     
   ) -> Result<bool> {
     // TODO: Call into foundframe-android service via JNI

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+#
+# Saw-Tooth Order Lines 🪚
+#
+# Orders lines by length in a saw-tooth pattern.
+#
+# Without -d: Arranges lines short→long→short (mirrored, no duplication)
+#   Input:  [a, bb, ccc, dddd, eeeee]
+#   Output: [a, bb, ccc, eeeee, dddd]  (ccc is peak, then reverse remaining)
+#
+# With -d: Duplicates the longest line at the peak
+#   Input:  [a, bb, ccc, dddd, eeeee]
+#   Output: [a, bb, ccc, dddd, eeeee, eeeee, dddd, ccc, bb, a]
+#
+# Usage:
+#   cat file.txt | ./saw-tooth-order-lines.sh
+#   echo -e "a\nbb\nccc\ndddd\neeeee" | ./saw-tooth-order-lines.sh -d
+#
+# Options:
+#   -d    Duplicate the longest line at the peak
+
+# Parse flags
+DUPLICATE_PEAK=false
+while getopts "d" opt; do
+  case $opt in
+    d) DUPLICATE_PEAK=true ;;
+    *) echo "Usage: $0 [-d]" >&2; exit 1 ;;
+  esac
+done
+
+mapfile -t lines
+
+[[ ${#lines[@]} -eq 0 ]] && exit 0
+
+# Sort by length with original index
+pairs=()
+for i in "${!lines[@]}"; do
+    len=${#lines[$i]}
+    pairs+=("$len $i")
+done
+
+IFS=$'\n' sorted=($(printf '%s\n' "${pairs[@]}" | sort -t' ' -k1 -n))
+unset IFS
+
+count=${#sorted[@]}
+
+# Calculate split point (middle element is the peak)
+half=$(( (count + 1) / 2 ))
+
+# Build output order
+order=()
+
+if $DUPLICATE_PEAK; then
+    # With -d: ascending all, duplicate longest, descending all
+    for ((i=0; i<count; i++)); do
+        idx=$(echo "${sorted[$i]}" | cut -d' ' -f2)
+        order+=($idx)
+    done
+    # Duplicate longest
+    idx=$(echo "${sorted[$((count-1))]}" | cut -d' ' -f2)
+    order+=($idx)
+    # Descending all
+    for ((i=count-1; i>=0; i--)); do
+        idx=$(echo "${sorted[$i]}" | cut -d' ' -f2)
+        order+=($idx)
+    done
+else
+    # Without -d: ascending to middle, then descending the rest
+    # Ascending: first half (0 to half-1)
+    for ((i=0; i<half; i++)); do
+        idx=$(echo "${sorted[$i]}" | cut -d' ' -f2)
+        order+=($idx)
+    done
+    # Descending: second half in reverse (count-1 down to half)
+    for ((i=count-1; i>=half; i--)); do
+        idx=$(echo "${sorted[$i]}" | cut -d' ' -f2)
+        order+=($idx)
+    done
+fi
+
+# Print lines
+for idx in "${order[@]}"; do
+    echo "${lines[$idx]}"
+done

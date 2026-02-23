@@ -9,152 +9,123 @@ use crate::spire::{SpireFoundframeExt, Result};
 use crate::spire::models::*;
 use tauri::{AppHandle, Manager, Runtime};
 
-/// BookmarkMgmt.addBookmark
+/// BookmarkMgmt.bookmark_addBookmark
 #[tauri::command]
-pub(crate) async fn add_bookmark<R: Runtime>(
+pub(crate) async fn bookmark_addBookmark<R: Runtime>(
   app: AppHandle<R>,
     url: String,
     title: Option<String>,
     notes: Option<String>
   
-) -> Result<String> {
-  app.spireFoundframePlatform().add_bookmark(url, title, notes)
+) -> Result<()> {
+  app.spireFoundframePlatform().bookmark_addBookmark(url, title, notes)
 }
 
-/// BookmarkMgmt.getBookmark
+/// BookmarkMgmt.bookmark_getBookmarkByUrl
 #[tauri::command]
-pub(crate) async fn get_bookmark<R: Runtime>(
+pub(crate) async fn bookmark_getBookmarkByUrl<R: Runtime>(
   app: AppHandle<R>,
     pkbUrl: String
   
 ) -> Result<String> {
-  app.spireFoundframePlatform().get_bookmark(pkbUrl)
+  app.spireFoundframePlatform().bookmark_getBookmarkByUrl(pkbUrl)
 }
 
-/// BookmarkMgmt.listBookmarks
+/// BookmarkMgmt.bookmark_listBookmarks
 #[tauri::command]
-pub(crate) async fn list_bookmarks<R: Runtime>(
+pub(crate) async fn bookmark_listBookmarks<R: Runtime>(
   app: AppHandle<R>,
     directory: Option<String>
   
 ) -> Result<Vec<String>> {
-  app.spireFoundframePlatform().list_bookmarks(directory)
+  app.spireFoundframePlatform().bookmark_listBookmarks(directory)
 }
 
-/// BookmarkMgmt.deleteBookmark
+/// BookmarkMgmt.bookmark_deleteBookmark
 #[tauri::command]
-pub(crate) async fn delete_bookmark<R: Runtime>(
+pub(crate) async fn bookmark_deleteBookmark<R: Runtime>(
   app: AppHandle<R>,
     pkbUrl: String
   
 ) -> Result<bool> {
-  app.spireFoundframePlatform().delete_bookmark(pkbUrl)
+  app.spireFoundframePlatform().bookmark_deleteBookmark(pkbUrl)
 }
 
-/// DeviceMgmt.generatePairingCode
+/// DeviceMgmt.device_generatePairingCode
 #[tauri::command]
-pub(crate) async fn generate_pairing_code<R: Runtime>(
+pub(crate) async fn device_generatePairingCode<R: Runtime>(
   app: AppHandle<R>,
   
 ) -> Result<String> {
-  app.spireFoundframePlatform().generate_pairing_code()
+  app.spireFoundframePlatform().device_generatePairingCode()
 }
 
-/// DeviceMgmt.confirmPairing
+/// DeviceMgmt.device_confirmPairing
 #[tauri::command]
-pub(crate) async fn confirm_pairing<R: Runtime>(
+pub(crate) async fn device_confirmPairing<R: Runtime>(
   app: AppHandle<R>,
     deviceId: String,
     code: String
   
 ) -> Result<bool> {
-  app.spireFoundframePlatform().confirm_pairing(deviceId, code)
+  app.spireFoundframePlatform().device_confirmPairing(deviceId, code)
 }
 
-/// DeviceMgmt.unpairDevice
+/// DeviceMgmt.device_unpairDevice
 #[tauri::command]
-pub(crate) async fn unpair_device<R: Runtime>(
+pub(crate) async fn device_unpairDevice<R: Runtime>(
   app: AppHandle<R>,
     deviceId: String
   
 ) -> Result<()> {
-  app.spireFoundframePlatform().unpair_device(deviceId)
+  app.spireFoundframePlatform().device_unpairDevice(deviceId)
 }
 
-/// DeviceMgmt.listPairedDevices
+/// DeviceMgmt.device_listPairedDevices
 #[tauri::command]
-pub(crate) async fn list_paired_devices<R: Runtime>(
+pub(crate) async fn device_listPairedDevices<R: Runtime>(
   app: AppHandle<R>,
   
-) -> Result<Vec<String>> {
-  app.spireFoundframePlatform().list_paired_devices()
+) -> Result<String> {
+  app.spireFoundframePlatform().device_listPairedDevices()
 }
 
-/// DeviceMgmt.followDevice
+/// DeviceMgmt.device_followDevice
 #[tauri::command]
-pub(crate) async fn follow_device<R: Runtime>(
-  app: AppHandle<R>,
-    deviceId: String
-  
-) -> Result<bool> {
-  app.spireFoundframePlatform().follow_device(deviceId)
-}
-
-/// DeviceMgmt.unfollowDevice
-#[tauri::command]
-pub(crate) async fn unfollow_device<R: Runtime>(
-  app: AppHandle<R>,
-    deviceId: String
-  
-) -> Result<()> {
-  app.spireFoundframePlatform().unfollow_device(deviceId)
-}
-
-/// DeviceMgmt.listFollowers
-#[tauri::command]
-pub(crate) async fn list_followers<R: Runtime>(
-  app: AppHandle<R>,
-  
-) -> Result<Vec<String>> {
-  app.spireFoundframePlatform().list_followers()
-}
-
-/// DeviceMgmt.isFollowing
-#[tauri::command]
-pub(crate) async fn is_following<R: Runtime>(
+pub(crate) async fn device_followDevice<R: Runtime>(
   app: AppHandle<R>,
     deviceId: String
   
 ) -> Result<bool> {
-  app.spireFoundframePlatform().is_following(deviceId)
+  app.spireFoundframePlatform().device_followDevice(deviceId)
 }
 
-/// EventMgmt.subscribeEvents
+/// DeviceMgmt.device_unfollowDevice
 #[tauri::command]
-pub(crate) async fn subscribe_events<R: Runtime>(
+pub(crate) async fn device_unfollowDevice<R: Runtime>(
   app: AppHandle<R>,
-    callback: String
+    deviceId: String
   
 ) -> Result<()> {
-  app.spireFoundframePlatform().subscribe_events(callback)
+  app.spireFoundframePlatform().device_unfollowDevice(deviceId)
 }
 
-/// EventMgmt.unsubscribeEvents
+/// DeviceMgmt.device_listFollowers
 #[tauri::command]
-pub(crate) async fn unsubscribe_events<R: Runtime>(
+pub(crate) async fn device_listFollowers<R: Runtime>(
   app: AppHandle<R>,
-    callback: String
   
-) -> Result<()> {
-  app.spireFoundframePlatform().unsubscribe_events(callback)
+) -> Result<String> {
+  app.spireFoundframePlatform().device_listFollowers()
 }
 
-/// EventMgmt.supportsEvents
+/// DeviceMgmt.device_isFollowing
 #[tauri::command]
-pub(crate) async fn supports_events<R: Runtime>(
+pub(crate) async fn device_isFollowing<R: Runtime>(
   app: AppHandle<R>,
+    deviceId: String
   
 ) -> Result<bool> {
-  app.spireFoundframePlatform().supports_events()
+  app.spireFoundframePlatform().device_isFollowing(deviceId)
 }
 

@@ -50,137 +50,111 @@ impl<R: Runtime> SpireFoundframePlatformTrait for DesktopPlatform<R> {
     Ok(())
   }
 
-  fn add_bookmark(
+  fn bookmark_addBookmark(
     &self,
         url: String,
         title: Option<String>,
         notes: Option<String>
     
-  ) -> Result<String> {
-    // TODO: Implement BookmarkMgmt.addBookmark
+  ) -> Result<()> {
+    // TODO: Implement BookmarkMgmt.bookmark_addBookmark
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn get_bookmark(
+  fn bookmark_getBookmarkByUrl(
     &self,
         pkbUrl: String
     
   ) -> Result<String> {
-    // TODO: Implement BookmarkMgmt.getBookmark
+    // TODO: Implement BookmarkMgmt.bookmark_getBookmarkByUrl
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn list_bookmarks(
+  fn bookmark_listBookmarks(
     &self,
         directory: Option<String>
     
   ) -> Result<Vec<String>> {
-    // TODO: Implement BookmarkMgmt.listBookmarks
+    // TODO: Implement BookmarkMgmt.bookmark_listBookmarks
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn delete_bookmark(
+  fn bookmark_deleteBookmark(
     &self,
         pkbUrl: String
     
   ) -> Result<bool> {
-    // TODO: Implement BookmarkMgmt.deleteBookmark
+    // TODO: Implement BookmarkMgmt.bookmark_deleteBookmark
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn generate_pairing_code(
+  fn device_generatePairingCode(
     &self,
     
   ) -> Result<String> {
-    // TODO: Implement DeviceMgmt.generatePairingCode
+    // TODO: Implement DeviceMgmt.device_generatePairingCode
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn confirm_pairing(
+  fn device_confirmPairing(
     &self,
         deviceId: String,
         code: String
     
   ) -> Result<bool> {
-    // TODO: Implement DeviceMgmt.confirmPairing
+    // TODO: Implement DeviceMgmt.device_confirmPairing
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn unpair_device(
+  fn device_unpairDevice(
     &self,
         deviceId: String
     
   ) -> Result<()> {
-    // TODO: Implement DeviceMgmt.unpairDevice
+    // TODO: Implement DeviceMgmt.device_unpairDevice
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn list_paired_devices(
+  fn device_listPairedDevices(
     &self,
     
-  ) -> Result<Vec<String>> {
-    // TODO: Implement DeviceMgmt.listPairedDevices
+  ) -> Result<String> {
+    // TODO: Implement DeviceMgmt.device_listPairedDevices
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn follow_device(
-    &self,
-        deviceId: String
-    
-  ) -> Result<bool> {
-    // TODO: Implement DeviceMgmt.followDevice
-    Err(Error::Other("Not implemented".into()))
-  }
-
-  fn unfollow_device(
-    &self,
-        deviceId: String
-    
-  ) -> Result<()> {
-    // TODO: Implement DeviceMgmt.unfollowDevice
-    Err(Error::Other("Not implemented".into()))
-  }
-
-  fn list_followers(
-    &self,
-    
-  ) -> Result<Vec<String>> {
-    // TODO: Implement DeviceMgmt.listFollowers
-    Err(Error::Other("Not implemented".into()))
-  }
-
-  fn is_following(
+  fn device_followDevice(
     &self,
         deviceId: String
     
   ) -> Result<bool> {
-    // TODO: Implement DeviceMgmt.isFollowing
+    // TODO: Implement DeviceMgmt.device_followDevice
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn subscribe_events(
+  fn device_unfollowDevice(
     &self,
-        callback: String
+        deviceId: String
     
   ) -> Result<()> {
-    // TODO: Implement EventMgmt.subscribeEvents
+    // TODO: Implement DeviceMgmt.device_unfollowDevice
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn unsubscribe_events(
+  fn device_listFollowers(
     &self,
-        callback: String
     
-  ) -> Result<()> {
-    // TODO: Implement EventMgmt.unsubscribeEvents
+  ) -> Result<String> {
+    // TODO: Implement DeviceMgmt.device_listFollowers
     Err(Error::Other("Not implemented".into()))
   }
 
-  fn supports_events(
+  fn device_isFollowing(
     &self,
+        deviceId: String
     
   ) -> Result<bool> {
-    // TODO: Implement EventMgmt.supportsEvents
+    // TODO: Implement DeviceMgmt.device_isFollowing
     Err(Error::Other("Not implemented".into()))
   }
 

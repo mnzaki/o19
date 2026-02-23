@@ -1,21 +1,12 @@
-// ============================================================================
-// Management Imprint Types - Stage 3 Decorators
-// ============================================================================
-
 /**
- * CRUD operation type.
+ * Management Imprint Types - Stage 3 Decorators
  */
-export type CrudOperation = 'create' | 'read' | 'update' | 'delete' | 'list';
 
-/**
- * Metadata for CRUD operations.
- */
-export interface CrudMetadata {
-  operation: CrudOperation;
-  entity?: string;
-  soft?: boolean;
-  collection?: boolean;
-}
+import type { CrudMetadata } from './crud.js';
+import { flushPendingCrudMethods } from './crud.js';
+
+export type { CrudMetadata } from './crud.js';
+export type { CrudOperation } from './crud.js';
 
 /**
  * Storage for decorator metadata using WeakMaps.
@@ -23,12 +14,6 @@ export interface CrudMetadata {
  */
 const reachMetadata = new WeakMap<Function, 'Private' | 'Local' | 'Global'>();
 const crudMetadata = new WeakMap<Function, Map<string, CrudMetadata>>();
-
-/**
- * Temporary storage for method metadata before class is known.
- * Method decorators run before class decorators in Stage 3.
- */
-let pendingCrudMethods: Array<{ methodName: string; metadata: CrudMetadata; tag: string }> = [];
 
 /**
  * Decorator for Management reach (Stage 3 format).
@@ -43,11 +28,11 @@ export function reach(level: 'Private' | 'Local' | 'Global') {
     target: T,
     context: ClassDecoratorContext<T>
   ): T {
-    // Collect pending method metadata
+    // Collect pending method metadata from crud decorators
     const methods = new Map<string, CrudMetadata>();
     const tags = new Map<string, string[]>(); // methodName -> tags
 
-    for (const pending of pendingCrudMethods) {
+    for (const pending of flushPendingCrudMethods()) {
       methods.set(pending.methodName, pending.metadata);
 
       // Collect tags per method
@@ -55,7 +40,6 @@ export function reach(level: 'Private' | 'Local' | 'Global') {
       methodTags.push(pending.tag);
       tags.set(pending.methodName, methodTags);
     }
-    pendingCrudMethods = []; // Clear
 
     // Store metadata
     crudMetadata.set(target, methods);
@@ -80,31 +64,6 @@ export interface TagMetadata {
  * Storage for all method tags using WeakMap.
  */
 const methodTags = new WeakMap<Function, Map<string, string[]>>();
-
-/**
- * Decorator for CRUD operations (Stage 3 format).
- * Attaches tags in format 'crud:operation'.
- *
- * Usage:
- *   @crud('create')
- *   addBookmark() { ... }
- */
-export function crud(
-  operation: CrudOperation,
-  options?: Omit<CrudMetadata, 'operation'>
-): (_target: any, context: ClassMethodDecoratorContext) => any {
-  return function (_target: any, context: ClassMethodDecoratorContext) {
-    // Store temporarily with namespaced tag
-    pendingCrudMethods.push({
-      methodName: String(context.name),
-      metadata: { operation, ...options },
-      tag: `crud:${operation}`
-    });
-
-    // Return original method unchanged
-    return _target;
-  };
-}
 
 /**
  * Get reach level for a Management class.
@@ -159,24 +118,15 @@ export interface LinkMetadata {
  * Attaches minimal metadata; processing happens in heddles.
  *
  * Usage:
- *   @loom.link(Foundframe.device_manager)
- *   class DeviceMgmt extends Management { ... }
+ *   @loom.link(foundframe.inner.core.thestream)
  */
-export function link<L extends ExternalLayer>(linkTarget: L) {
+export function link<L extends ExternalLayer>(linkTarget: L | (() => L)) {
   return <T extends typeof Management>(
     target: T,
     context: ClassDecoratorContext<T>
   ): T => {
-    // Extract metadata from RustExternalLayer if available
-    const fieldName = (linkTarget as any).fieldName;
-    const structClass = (linkTarget as any).structClass;
-
-    // Attach minimal metadata directly
-    (target as any)[LINK_TARGET] = {
-      structClass: structClass || linkTarget.constructor,
-      fieldName: fieldName || String(context.name).toLowerCase(),
-    } as LinkMetadata;
-
+    // Store the link target (function or value) for resolution at weave time
+    (target as any)[LINK_TARGET] = linkTarget;
     return target;
   };
 }
