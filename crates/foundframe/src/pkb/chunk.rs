@@ -173,7 +173,7 @@ impl StreamChunk {
 /// Sanitize a string for use as a filename.
 ///
 /// Removes or replaces filesystem-unsafe characters.
-fn sanitize_filename(name: &str) -> String {
+pub fn sanitize_filename(name: &str) -> String {
   let unsafe_chars: &[char] = &['/', '\\', '<', '>', ':', '"', '|', '?', '*'];
 
   name

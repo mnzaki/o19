@@ -67,3 +67,56 @@ impl MediaStream for TheStream {
     self.add_media_link(directory, None, url, title, None)
   }
 }
+
+// ============================================================================
+// Media Source Module (Polling-based ingestion)
+// ============================================================================
+
+pub mod source;
+
+// Re-export main types
+pub use source::{MediaSourceRegistry, PullConfig, PushConfig, MediaItem, MediaLocation};
+
+/// Handle to the media service thread.
+///
+/// The media service runs in its own thread to isolate resource usage
+/// (file system scanning, network requests) from the main application.
+/// This handle allows controlled shutdown and health monitoring.
+pub struct MediaServiceHandle {
+    /// Thread handle for joining on shutdown
+    pub thread: std::thread::JoinHandle<()>,
+    /// Cancellation token for graceful shutdown
+    pub cancel: tokio_util::sync::CancellationToken,
+    /// Channel for sending commands to the service
+    pub command_tx: tokio::sync::mpsc::UnboundedSender<MediaServiceCommand>,
+}
+
+/// Commands that can be sent to the media service
+pub enum MediaServiceCommand {
+    /// Register a new pull source
+    RegisterPull { url: String, config: PullConfig },
+    /// Register a new push source
+    RegisterPush { url: String, config: PushConfig },
+    /// Unregister a source by ID
+    Unregister { source_id: i64 },
+    /// Trigger manual poll
+    PollNow { source_id: i64 },
+    /// Get health status (response sent back via oneshot)
+    GetHealth { respond: tokio::sync::oneshot::Sender<Vec<source::SourceHealthEntry>> },
+    /// Graceful shutdown
+    Shutdown,
+}
+
+impl MediaServiceHandle {
+    /// Send a command to the media service
+    pub fn send(&self, cmd: MediaServiceCommand) -> std::result::Result<(), String> {
+        self.command_tx.send(cmd).map_err(|_| "Media service stopped".to_string())
+    }
+    
+    /// Request graceful shutdown
+    pub fn shutdown(self) {
+        let _ = self.send(MediaServiceCommand::Shutdown);
+        self.cancel.cancel();
+        // Don't wait for thread here - let caller decide
+    }
+}

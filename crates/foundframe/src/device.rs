@@ -23,11 +23,14 @@
 use core::str::FromStr;
 
 use radicle::identity::RepoId;
-use radicle::node::{Alias, NodeId, policy::Scope};
+use radicle::node::{Alias, policy::Scope};
 use radicle::storage::{ReadRepository, ReadStorage};
 
 use crate::error::{Error, Result};
 use crate::radicle::{NodeHandle, PolicyStore};
+
+// Re-export NodeId and Policy for external use
+pub use radicle::node::{NodeId, policy::Policy};
 
 // Re-export emoji identity for QR generation
 pub use emoji_from_entropy::EmojiIdentity;
@@ -36,7 +39,7 @@ pub use emoji_from_entropy::EmojiIdentity;
 ///
 /// A paired device is one of your own identities on another physical device.
 /// This is a Foundframe concept built on Radicle's peer following.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PairedDevice {
   /// The device's node ID (public key).
   pub nid: NodeId,
@@ -45,6 +48,7 @@ pub struct PairedDevice {
   /// When this device was paired.
   pub paired_at: Option<radicle::node::Timestamp>,
   /// Which repositories this device has access to.
+  #[serde(skip)] // RepoId doesn't implement Serialize
   pub delegated_repos: Vec<RepoId>,
 }
 
@@ -140,7 +144,7 @@ impl DeviceManager {
 
     for policy in policies {
       // Skip blocked devices
-      if policy.policy == radicle::node::policy::Policy::Block {
+      if policy.policy == Policy::Block {
         continue;
       }
 
@@ -157,13 +161,55 @@ impl DeviceManager {
     Ok(devices)
   }
 
+  /// List devices that are following us.
+  ///
+  /// TODO: This should query the Radicle node for actual followers.
+  /// For now, returns all known nodes as potential followers.
+  pub fn list_followers(&self) -> Result<Vec<PairedDevice>> {
+    // Get nodes from our follow policies (nodes we know about)
+    let policies = self.handle.follow_policies()?;
+    let mut followers = Vec::new();
+
+    for policy in policies {
+      // Include all nodes we're tracking (both followed and following)
+      followers.push(PairedDevice {
+        nid: policy.nid,
+        alias: policy.alias.as_ref().map(|a| a.to_string()),
+        paired_at: None,
+        delegated_repos: Vec::new(),
+      });
+    }
+
+    Ok(followers)
+  }
+
+  /// Follow a device (add to our social graph).
+  pub fn follow_device(&mut self, nid: NodeId) -> Result<bool> {
+    self.handle.follow(nid, None::<Alias>)
+  }
+
+  /// Unfollow a device.
+  pub fn unfollow_device(&mut self, nid: NodeId) -> Result<bool> {
+    self.handle.unfollow(nid)
+  }
+
+  /// Check if we're following a specific device.
+  pub fn is_following(&self, nid: NodeId) -> Result<bool> {
+    // Check our follow policies - if we have an Allow policy for this node, we're following them
+    let policy_store = PolicyStore::new(self.handle.profile().clone());
+    match policy_store.follow_policy(nid)? {
+      Some(policy) => Ok(policy.policy == Policy::Allow),
+      None => Ok(false),
+    }
+  }
+
   /// Get a specific paired device.
   pub fn get(&self, nid: NodeId) -> Result<Option<PairedDevice>> {
     let policy_store = PolicyStore::new(self.handle.profile().clone());
 
     match policy_store.follow_policy(nid)? {
       Some(policy) => {
-        if policy.policy == radicle::node::policy::Policy::Block {
+        if policy.policy == Policy::Block {
           return Ok(None);
         }
 
@@ -190,6 +236,66 @@ impl DeviceManager {
     // Re-follow with new alias
     let alias = Some(Alias::new(new_alias.as_ref()));
     self.handle.follow(nid, alias)
+  }
+
+  //=========================================================================
+  // High-Level Pairing Flow (moved from Platform trait)
+  //=========================================================================
+
+  /// Generate pairing QR code data for this device.
+  ///
+  /// Returns the pairing URL, emoji identity, and node ID hex.
+  pub fn generate_pairing_qr(&mut self, device_name: impl Into<String>) -> Result<(String, String, String)> {
+    // Get our node ID
+    let node_id = self.handle.local_id()
+      .map_err(|e| Error::Other(format!("Failed to get node ID: {e}")))?;
+
+    let qr_data = PairingQrData::new(node_id, device_name);
+    let url = qr_data.to_url();
+
+    // Extract node_id_hex and emoji_identity from the URL
+    let node_id_hex = qr_data.node_id.clone();
+    let emoji_identity = qr_data.emoji_identity.clone();
+
+    Ok((url, emoji_identity, node_id_hex))
+  }
+
+  /// Parse a scanned pairing URL.
+  ///
+  /// Returns emoji identity, device name, node ID hex, and full node ID string.
+  pub fn parse_pairing_url(url: &str) -> Result<(String, String, String, String)> {
+    let parsed = PairingUrl::parse(url)?;
+
+    Ok((
+      parsed.emoji_identity,
+      parsed.device_name,
+      parsed.node_id,
+      parsed.node_id_parsed.to_string(),
+    ))
+  }
+
+  /// Check for followers and auto-follow them back.
+  ///
+  /// Returns list of newly paired device node IDs and aliases.
+  pub fn check_followers_and_pair(&mut self) -> Result<Vec<(String, String)>> {
+    let followers = self.list_followers()?;
+
+    let mut newly_paired = Vec::new();
+
+    for follower in followers {
+      let alias = format!("Device {}", &follower.nid.to_string()[..8.min(follower.nid.to_string().len())]);
+
+      match self.follow_device(follower.nid) {
+        Ok(_) => {
+          newly_paired.push((follower.nid.to_string(), alias));
+        }
+        Err(e) => {
+          tracing::warn!("Failed to auto-follow {}: {}", follower.nid, e);
+        }
+      }
+    }
+
+    Ok(newly_paired)
   }
 
   //=========================================================================
@@ -277,6 +383,33 @@ impl DeviceManager {
     }
 
     Ok(())
+  }
+
+  // ===========================================================================
+  // Method Aliases (for generated code compatibility)
+  // ===========================================================================
+
+  /// Alias for `generate_pairing_qr` (used by generated Tauri code).
+  pub fn generate_pairing_code(&mut self, device_name: impl Into<String>) -> Result<(String, String, String)> {
+    self.generate_pairing_qr(device_name)
+  }
+
+  /// Alias for `unpair` (used by generated Tauri code).
+  pub fn unpair_device(&mut self, nid: NodeId) -> Result<bool> {
+    self.unpair(nid)
+  }
+
+  /// Alias for `list` (used by generated Tauri code).
+  pub fn list_paired_devices(&self) -> Result<Vec<PairedDevice>> {
+    self.list()
+  }
+
+  /// Stub for confirm_pairing (not yet implemented, used by generated Tauri code).
+  /// 
+  /// TODO: Implement actual confirm_pairing logic.
+  pub fn confirm_pairing(&mut self, _device_id: &str, _code: &str) -> Result<bool> {
+    tracing::warn!("confirm_pairing not yet implemented");
+    Ok(false)
   }
 }
 
@@ -596,7 +729,8 @@ mod tests {
   #[test]
   fn test_paired_device_has_access() {
     let nid = PublicKey::from([0u8; 32]);
-    let rid = RepoId::from_str("rad:zbababa").unwrap();
+    // Valid RepoId format: rad: + multibase Base58-encoded 20-byte OID
+    let rid = RepoId::from_str("rad:z3gqcJUoA1n9HaHKufZs5FCSGazv5").unwrap();
 
     let device = PairedDevice {
       nid,

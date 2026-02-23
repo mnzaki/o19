@@ -23,6 +23,12 @@
 //! - Database reflects the experience (reaction)
 //!
 //! But variance is encoded: some identities may use O-F-F or other patterns.
+//!
+//! # Extension Methods
+//!
+//! Additional TheStream methods are implemented in other modules:
+//! - [`BookmarkStream`](crate::bookmark::BookmarkStream) - `add_bookmark()` and related bookmark operations
+//!   (see `src/bookmark.rs` for the trait implementation)
 
 use std::path::PathBuf;
 

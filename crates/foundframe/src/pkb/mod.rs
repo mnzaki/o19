@@ -37,8 +37,8 @@ pub mod merge;
 pub mod radicle;
 pub mod service;
 
-pub use chunk::{ChunkId, EntryId, MediaLink, StreamChunk};
-pub use directory::{Directory, DirectoryId, DirectoryMeta, DirectoryRegistry};
+pub use chunk::{sanitize_filename, ChunkId, EntryId, MediaLink, StreamChunk};
+pub use directory::{Directory, DirectoryId, DirectoryMeta, DirectoryRegistry, PkbBase};
 pub use entry::{Entry, EntryMeta};
 pub use merge::{MergeResult, MergeStrategy};
 pub use service::PkbService;

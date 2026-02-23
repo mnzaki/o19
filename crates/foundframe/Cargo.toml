@@ -45,6 +45,15 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 hex = { workspace = true }
 
+# Async utilities
+chrono = { version = "0.4", features = ["serde"] }
+tokio-util = "0.7"
+async-trait = "0.1"
+regex = "1.11"
+
 # Emoji identity encoding
 emoji-from-entropy = { path = "../emoji-from-entropy" }
 urlencoding = "2.1"
+
+# MIME type detection
+mime_guess = "2.0"
