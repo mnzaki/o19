@@ -81,6 +81,8 @@ export interface MgmtMethod {
   /**
    * Arbitrary metadata that translations can attach.
    * Use namespacing: 'myTranslation.key' to avoid collisions.
+   * 
+   * NOTE: Heddles use this to store computed metadata like useResult, wrappers.
    */
   metadata?: Record<string, unknown>;
 }
@@ -431,6 +433,16 @@ function buildDestructuringExpr(
 // ============================================================================
 
 /**
+ * Extended method metadata with enriched fields from heddles.
+ * Heddles compute these from the ownership chain (struct config, field wrappers).
+ */
+export interface EnrichedMethodFields {
+  useResult?: boolean;
+  wrappers?: string[];
+  fieldName?: string;
+}
+
+/**
  * Convert raw Management metadata to MgmtMethod pipeline format.
  *
  * This is the ENTRY POINT to the pipeline - call this first to get
@@ -440,6 +452,9 @@ function buildDestructuringExpr(
  * No transformation (snake_case, prefixing, etc.) happens here.
  * Those transformations are applied later by pipeline translations
  * when converting MgmtMethod → RawMethod.
+ * 
+ * NOTE: This function preserves enriched fields (useResult, wrappers) if present.
+ * These come from heddles enrichment, not computed here.
  */
 export function fromSourceMethods(
   managementName: string,
@@ -450,7 +465,7 @@ export function fromSourceMethods(
     params: Array<{ name: string; type: string; optional?: boolean }>;
     description?: string;
     tags?: string[];
-  }>
+  } & EnrichedMethodFields>
 ): MgmtMethod[] {
   return methods.map((method) => {
     // Keep the original high-level name (e.g., "generatePairingCode")
@@ -470,6 +485,12 @@ export function fromSourceMethods(
       description: method.description,
       tags: method.tags,
       crudOperation: extractCrudOperation(method.tags),
+      // Preserve enriched fields from heddles in metadata
+      metadata: {
+        useResult: (method as EnrichedMethodFields).useResult,
+        wrappers: (method as EnrichedMethodFields).wrappers,
+        fieldName: (method as EnrichedMethodFields).fieldName,
+      },
     };
   });
 }

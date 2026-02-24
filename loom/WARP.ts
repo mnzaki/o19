@@ -14,6 +14,8 @@
  */
 
 import loom, { rust } from '@o19/spire-loom';
+import { dbBindingTreadle } from './treadles/dbbindings.js';
+import { kyselyAdaptorTreadle } from './treadles/kysely-adaptor.js';
 
 // ============================================================================
 // CORE
@@ -25,7 +27,7 @@ class TheStream {}
 @rust.Struct
 class DeviceManager {}
 
-@rust.Struct
+@rust.Struct({ useResult: true })
 export class Foundframe {
   @rust.Mutex
   @rust.Option
@@ -36,16 +38,22 @@ export class Foundframe {
   device_manager = DeviceManager;
 }
 
-//const core = loom.spiral.rust.core({ structs: { Foundframe } });
-
 /**
  * The Core - foundframe (Rust)
  * Package: foundframe
  * Path: o19/crates/foundframe
  *
  * The center that holds. Pure domain logic.
+ *
+ * With DbActor bindings via custom treadle.
  */
-export const foundframe = loom.spiral(Foundframe);
+export const foundframe = loom.spiral(Foundframe).tieup({
+  treadles: [dbBindingTreadle],
+  warpData: {
+    entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+    operations: ['create', 'read', 'update', 'delete', 'list']
+  }
+});
 
 // ============================================================================
 // PLATFORM RINGS (spiral out from Core)
@@ -124,8 +132,16 @@ export const tauri = loom.spiral(android, desktop).tauri.plugin({
  *
  * Generates TypeScript domain types and Port interfaces
  * from Management Imprints.
+ * 
+ * With Kysely adaptor implementations via custom treadle.
  */
-export const front = tauri.typescript.ddd();
+export const front = tauri.typescript.ddd().tieup({
+  treadles: [kyselyAdaptorTreadle],
+  warpData: {
+    entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+    operations: ['create', 'read', 'update', 'delete', 'list']
+  }
+});
 
 /**
  * Drizzle Adaptor Ring - ORM implementation of Ports

@@ -17,7 +17,7 @@ pub(crate) async fn <%= method.name %><R: Runtime>(
   <% method.params.forEach(function(param, idx) { -%>
   <%= param.name %>: <%- param.rsType %><% if (idx < method.params.length - 1) { %>,<% } %>
   <% }); %>
-) -> Result<<%- method.rsReturnType %>> {
+) -> <%- method.useResult ? `Result<${method.innerReturnType}>` : method.rsReturnType %> {
   app.<%= platformMethodName %>().<%= method.name %>(<% method.params.forEach(function(param, idx) { %><%= param.name %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>)
 }
 

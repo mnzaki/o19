@@ -49,6 +49,7 @@ import {
   type TreadleDefinition,
   type MethodConfig,
   type OutputSpec,
+  type MatchPattern,
 } from './declarative.js';
 import {
   createTreadleKit,
@@ -118,6 +119,12 @@ export interface PlatformWrapperConfig {
   platform: PlatformConfig;
   /** Type of wrapper (e.g., 'foreground-service', 'plugin') */
   wrapperType: string;
+  /**
+   * Optional: Custom match patterns for matrix matching.
+   * Defaults to [{ current: platform.spiraler, previous: 'RustCore' }]
+   * Use this for mux patterns like Tauri that wrap platform spiralers instead of RustCore.
+   */
+  matches?: MatchPattern[];
   /** Method collection configuration */
   methods: MethodConfig;
   /**
@@ -182,10 +189,13 @@ export interface PlatformWrapperTreadle extends TreadleDefinition {
 export function definePlatformWrapperTreadle(
   config: PlatformWrapperConfig
 ): PlatformWrapperTreadle {
+  // Determine match patterns: custom or default
+  const matches = config.matches ?? [{ current: config.platform.spiraler, previous: 'RustCore' }];
+  
   // Build the base treadle definition
   const definition = defineTreadle({
-    // Match: {Platform}Spiraler wrapping RustCore
-    matches: [{ current: config.platform.spiraler, previous: 'RustCore' }],
+    // Match: either custom patterns or default {Platform}Spiraler wrapping RustCore
+    matches,
 
     // Validation
     validate: (current, previous) => {

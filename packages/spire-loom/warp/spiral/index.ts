@@ -18,6 +18,7 @@ import { ExternalLayer } from '../imprint.js';
 import { RustExternalLayer, RUST_STRUCT_MARK } from '../rust.js';
 
 export * from './pattern.js';
+export * from './operation-mux.js';
 export * from './spiralers/index.js';
 
 // import type { MgmtTranslator } from '../imprint.js';
@@ -60,9 +61,26 @@ export class RustCore<
     public options: {
       packageName?: string;
       crateName?: string;
+      packagePath?: string;  // Path to the crate directory
     } = {}
   ) {
-    super(layer, layer as any); // layer is both the layer and the core data
+    // Derive metadata
+    const layerName = (layer as any)?.name || (layer?.constructor as any)?.name || 'unknown';
+    const derivedName = layerName.charAt(0).toLowerCase() + layerName.slice(1);
+    const packageName = options.packageName || derivedName;
+    const crateName = options.crateName || `o19-${derivedName}`;
+    
+    // Build RingPackageMetadata
+    // Default path is relative to workspace root: crates/{crateName}
+    // (without the o19- prefix since that's the workspace member name)
+    const defaultCratePath = `crates/${packageName}`;
+    const metadata: p.RingPackageMetadata = {
+      packagePath: options.packagePath || defaultCratePath,
+      packageName,
+      language: 'rust'
+    };
+    
+    super(layer, layer as any, metadata); // layer is both the layer and the core data
   }
 
   getSpiralers() {

@@ -79,6 +79,9 @@ export type ReachLevel = 'Private' | 'Local' | 'Global';
 
 /**
  * Method metadata from @crud decorator.
+ * 
+ * NOTE: This contains ONLY immediately available metadata from the loom source.
+ * Computed values (useResult, wrappers) are added by heddles, not here.
  */
 export interface MethodMetadata {
   /** Method name */
@@ -101,6 +104,9 @@ export interface MethodMetadata {
 
 /**
  * Management Imprint metadata.
+ * 
+ * NOTE: This contains ONLY immediately available metadata from the loom source.
+ * The link is stored as-is; heddles will resolve it to compute wrappers/useResult.
  */
 export interface ManagementMetadata {
   /** Management class name (e.g., "BookmarkMgmt") */
@@ -113,7 +119,7 @@ export interface ManagementMetadata {
   methods: MethodMetadata[];
   /** Constants defined in the management */
   constants: Record<string, unknown>;
-  /** Link target for routing (e.g., Foundframe.device_manager) */
+  /** Link target for routing (raw, unresolved) */
   link?: LinkMetadata;
 }
 
@@ -172,7 +178,14 @@ function extractMetadata(
   const reach = getReach(mgmtClass) ?? 'Private';
   
   // Get link target from decorator metadata
-  const link = getLinkTarget(mgmtClass);
+  const rawLink = getLinkTarget(mgmtClass);
+  
+  // Build link metadata (raw, unresolved - heddles will compute useResult/wrappers)
+  const link: LinkMetadata | undefined = rawLink ? {
+    structClass: rawLink.structClass ?? (rawLink as any).constructor,
+    fieldName: rawLink.fieldName ?? '',
+    // useResult and wrappers are NOT computed here - heddles will resolve them
+  } : undefined;
   
   // Get CRUD methods from decorator metadata
   const crudMethods = getCrudMethods(mgmtClass);
@@ -203,6 +216,7 @@ function extractMetadata(
         isCollection: metadata.collection,
         isSoftDelete: metadata.soft,
         tags,
+        // useResult is NOT set here - heddles will compute it from struct config
       });
       processedMethods.add(methodName);
     }
@@ -222,6 +236,7 @@ function extractMetadata(
       isCollection: false,
       isSoftDelete: false,
       tags,
+      // useResult is NOT set here - heddles will compute it from struct config
     });
   }
   

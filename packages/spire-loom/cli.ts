@@ -10,6 +10,9 @@
  *   spire-loom --package <name>  # Generate specific package only
  */
 
+// Polyfill for decorator metadata
+import 'reflect-metadata';
+
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -45,6 +48,10 @@ function parseArgs(args: string[]): CliOptions {
       case '-G':
         options.graph = true;
         break;
+      case '--interactive':
+      case '-i':
+        // Handled by bin/spire-loom.js, skip here
+        break;
       case '--help':
       case '-h':
         options.help = true;
@@ -67,13 +74,22 @@ Options:
   -p, --package <name> Generate specific package only
   -v, --verbose        Verbose output
   -G, --graph          Show dependency graph visualization
+  -i, --interactive    Launch interactive menu (Ink-based UI)
   -h, --help           Show this help
 
 Examples:
   spire-loom                    # Generate all packages in workspace
   spire-loom -w                 # Watch mode for development
   spire-loom -p foundframe      # Generate only foundframe package
+  spire-loom -i                 # Launch interactive menu
   
+Interactive Mode:
+  Use --interactive for the new Ink-based UI with:
+    • Visual dressing inspector
+    • Treadle forge for creating generators
+    • MUD mode for text commands
+    • Watch mode with live reload
+
 Package Detection:
   When run from a package directory (e.g., o19/crates/foundframe-tauri),
   spire-loom automatically detects the package and only generates for it.

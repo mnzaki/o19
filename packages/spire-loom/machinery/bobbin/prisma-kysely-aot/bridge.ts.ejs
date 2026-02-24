@@ -1,0 +1,81 @@
+/**
+ * Prisma-Kysely Bridge
+ *
+ * "Prisma steers, Kysely reveals the path."
+ *
+ * Intercepts Prisma queries and captures SQL via query logging.
+ * Future: Full Kysely translation.
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+export type QueryCaptureCallback = (
+  sql: string,
+  params: unknown[],
+  model: string,
+  operation: string
+) => void;
+
+export function createPrismaKyselyBridge(
+  basePrisma: PrismaClient,
+  onQuery: QueryCaptureCallback
+): PrismaClient {
+  return basePrisma.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          const queries: Array<{ query: string; params: string }> = [];
+          
+          const handler = (e: any) => {
+            queries.push({ query: e.query, params: e.params });
+          };
+          
+          basePrisma.$on('query', handler);
+          
+          try {
+            const result = await query(args);
+            
+            if (queries.length > 0) {
+              const lastQuery = queries[queries.length - 1];
+              onQuery(
+                lastQuery.query,
+                JSON.parse(lastQuery.params || '[]'),
+                model,
+                operation
+              );
+            }
+            
+            return result;
+          } finally {
+            basePrisma.$off('query', handler);
+          }
+        }
+      }
+    }
+  }) as PrismaClient;
+}
+
+export async function capturePrismaSQL<T>(
+  prisma: PrismaClient,
+  queryFn: (prisma: PrismaClient) => Promise<T>
+): Promise<{
+  result: T;
+  sql: string;
+  params: unknown[];
+  model: string;
+  operation: string;
+}> {
+  let captured: any = null;
+
+  const bridged = createPrismaKyselyBridge(prisma, (sql, params, model, operation) => {
+    captured = { sql, params, model, operation };
+  });
+
+  const result = await queryFn(bridged);
+
+  if (!captured) {
+    throw new Error('No SQL captured - query may be cached');
+  }
+
+  return { result, ...captured };
+}

@@ -1,0 +1,67 @@
+/**
+ * Capture Orchestrator
+ *
+ * Executes @loom.crud.query lambdas and captures SQL.
+ */
+
+import { PrismaClient } from '@prisma/client';
+import { capturePrismaSQL } from './bridge.js';
+import { generateKyselyCode } from './codegen.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+
+const QUERIES = <%- JSON.stringify(queries, null, 2) %>;
+
+async function main() {
+  const outputDir = process.env.OUTPUT_DIR;
+  if (!outputDir) {
+    throw new Error('OUTPUT_DIR required');
+  }
+
+  await fs.mkdir(outputDir, { recursive: true });
+
+  const prisma = new PrismaClient({
+    log: [{ emit: 'event', level: 'query' }]
+  });
+
+  const capturedQueries: Array<{
+    name: string;
+    sql: string;
+    params: unknown[];
+    model: string;
+    operation: string;
+  }> = [];
+
+  try {
+    // Note: In a real implementation, we'd need to load and execute
+    // the actual query lambdas from loom files. For now, this is a
+    // placeholder showing the flow.
+    
+    for (const query of QUERIES) {
+      console.log(`Capturing: ${query.className}.${query.methodName}`);
+      
+      // TODO: Deserialize and execute the queryFn
+      // This requires serializing the lambda in the decorator
+      // and deserializing it here — a complex problem!
+      
+      // Placeholder: We'd do something like:
+      // const { sql, params } = await capturePrismaSQL(prisma, query.queryFn);
+      // capturedQueries.push({ name: query.methodName, sql, params, ... });
+    }
+
+    // Generate TypeScript/Kysely output
+    const tsCode = generateKyselyCode(capturedQueries);
+    
+    const outputPath = path.join(outputDir, 'queries.gen.ts');
+    await fs.writeFile(outputPath, tsCode);
+    console.log(`GENERATED:${outputPath}`);
+
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+main().catch(err => {
+  console.error('CRINKLE! Capture failed:', err);
+  process.exit(1);
+});

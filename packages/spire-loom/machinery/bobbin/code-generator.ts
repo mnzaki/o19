@@ -24,6 +24,7 @@ import {
   generateRustToJniConversion,
   getJniErrorValue,
 } from './type-mappings.js';
+import { toSnakeCase } from '../sley/method-pipeline.js';
 
 // ============================================================================
 // Types
@@ -57,6 +58,11 @@ export interface RawMethod {
   description?: string;
   /** Link metadata for routing to struct fields */
   link?: MethodLink;
+  /**
+   * Whether methods return Result<T, E> for error handling.
+   * When true, generated code wraps return types in Result and uses ? for error propagation.
+   */
+  useResult?: boolean;
 }
 
 /**
@@ -266,6 +272,28 @@ export function transformForAidl(methods: RawMethod[]): AidlMethod[] {
 export interface RustMethod extends TransformedMethod {
   rsReturnType: string;
   params: Array<{ name: string; rsType: string; optional?: boolean }>;
+  /**
+   * Whether methods return Result<T, E> for error handling.
+   * When true, the method signature should be wrapped in Result<T, Error>.
+   */
+  useResult: boolean;
+  /**
+   * The inner return type (without Result wrapper) for use in method bodies.
+   */
+  innerReturnType: string;
+  /**
+   * Service access preamble: code to access the service (handling Option/Mutex wrappers).
+   * Lines of Rust code to access the service from self.foundframe.
+   */
+  serviceAccessPreamble: string[];
+  /**
+   * The variable name that holds the service after preamble execution (e.g., '__service').
+   */
+  serviceVarName: string;
+  /**
+   * The impl name to call on the service (original method name without prefix).
+   */
+  implName: string;
 }
 
 /**
@@ -335,24 +363,114 @@ function generateResponseMapping(_returnType: string): string {
  * Transform raw methods for pure Rust output (Tauri platform trait).
  * 
  * Optional parameters are mapped to Option<T> in Rust.
+ * When useResult is true, return types are wrapped in Result<T, Error>.
  */
 export function transformForRust(methods: RawMethod[]): RustMethod[] {
-  return methods.map(method => ({
-    name: method.name,
-    pascalName: pascalCase(method.name),
-    description: method.description,
-    rsReturnType: mapToTauriRustType(method.returnType, method.isCollection),
-    params: method.params.map(p => {
-      const baseType = mapToTauriRustType(p.type, false);
-      // Wrap optional parameters in Option<T>
-      const rsType = p.optional ? `Option<${baseType}>` : baseType;
-      return {
-        name: p.name,
-        rsType,
-        optional: p.optional,
-      };
-    }),
-  }));
+  return methods.map(method => {
+    const innerType = mapToTauriRustType(method.returnType, method.isCollection);
+    const useResult = method.useResult ?? false;
+    // When useResult is true, wrap the return type in Result
+    const rsReturnType = useResult && method.returnType !== 'void'
+      ? `Result<${innerType}, crate::Error>`
+      : innerType;
+    
+    // Build service access preamble based on link metadata
+    const serviceAccessPreamble = buildTauriServiceAccessPreamble(method.link);
+    // Convert impl name to snake_case for Rust
+    const implName = toSnakeCase(method.implName || method.name);
+    
+    return {
+      name: toSnakeCase(method.name),
+      implName,
+      pascalName: pascalCase(method.name),
+      description: method.description,
+      rsReturnType,
+      innerReturnType: innerType,
+      useResult,
+      serviceAccessPreamble,
+      serviceVarName: '__service',
+      params: method.params.map(p => {
+        const baseType = mapToTauriRustType(p.type, false);
+        // Wrap optional parameters in Option<T>
+        const rsType = p.optional ? `Option<${baseType}>` : baseType;
+        return {
+          name: toSnakeCase(p.name),  // Convert param names to snake_case too
+          rsType,
+          optional: p.optional,
+        };
+      }),
+    };
+  });
+}
+
+/**
+ * Extract the implementation name from the bind-point name.
+ * E.g., "bookmark_add_bookmark" -> "add_bookmark" (remove management prefix)
+ */
+function extractImplName(bindPointName: string): string {
+  // Find the first underscore that separates management from method
+  // E.g., "bookmark_add_bookmark" -> "add_bookmark"
+  const parts = bindPointName.split('_');
+  if (parts.length >= 2) {
+    // Remove the management prefix (first part)
+    return parts.slice(1).join('_');
+  }
+  return bindPointName;
+}
+
+/**
+ * Build Tauri service access preamble based on link metadata.
+ * 
+ * Handles wrapper patterns for struct fields. The order of wrappers in the
+ * metadata reflects decorator application order (bottom-to-top), which
+ * determines the actual nesting: @rust.Mutex @rust.Option -> Mutex<Option<T>>
+ * 
+ * Supported patterns:
+ * - No link: direct access to foundframe
+ * - Mutex<Option<T>>: lock mutex, then access Option (most common)
+ * - Option<Mutex<T>>: access Option, then lock Mutex
+ * - Option<T>: optional services
+ * - Mutex<T>: mutex-wrapped services
+ */
+function buildTauriServiceAccessPreamble(link: MethodLink | undefined): string[] {
+  if (!link) {
+    // No link - use foundframe directly
+    return ['let __service = foundframe;'];
+  }
+
+  const fieldName = link.fieldName;
+  const wrappers = link.wrappers || [];
+  const lines: string[] = [];
+
+  // Determine wrapper order: decorators apply bottom-to-top
+  // @rust.Mutex @rust.Option thestream = T  ->  Mutex<Option<T>>
+  // So we check if Mutex comes before Option in the array (applied after)
+  const mutexIndex = wrappers.indexOf('Mutex');
+  const optionIndex = wrappers.indexOf('Option');
+  const mutexIsOuter = mutexIndex > optionIndex; // Mutex applied after Option = outer
+
+  if (wrappers.includes('Mutex') && wrappers.includes('Option')) {
+    if (mutexIsOuter) {
+      // Mutex<Option<T>> - lock first, then access Option
+      lines.push(`let __guard = foundframe.${fieldName}.lock().map_err(|_| Error::Other("${fieldName} mutex poisoned".into()))?`);
+      lines.push(`let __service = __guard.as_ref().ok_or_else(|| Error::Other("${fieldName} not initialized".into()))?`);
+    } else {
+      // Option<Mutex<T>> - access Option, then lock
+      lines.push(`let __field = foundframe.${fieldName}.as_ref().ok_or_else(|| Error::Other("${fieldName} not initialized".into()))?`);
+      lines.push(`let __service = __field.lock().map_err(|_| Error::Other("${fieldName} mutex poisoned".into()))?`);
+    }
+  } else if (wrappers.includes('Option')) {
+    // Just Option<T>
+    lines.push(`let __service = foundframe.${fieldName}.as_ref().ok_or_else(|| Error::Other("${fieldName} not initialized".into()))?`);
+  } else if (wrappers.includes('Mutex')) {
+    // Just Mutex<T>
+    lines.push(`let mut __service = foundframe.${fieldName}.lock().map_err(|_| Error::Other("${fieldName} mutex poisoned".into()))?`);
+  } else {
+    // No wrappers - direct access
+    lines.push(`let __service = &foundframe.${fieldName}`);
+  }
+
+  return lines;
 }
 
 function mapToAidlType(tsType: string, isCollection: boolean): string {
@@ -442,16 +560,100 @@ export async function generateCode(options: GenerateOptions): Promise<GeneratedF
   };
   
   // Render template
-  const content = await renderEjs({
+  let content = await renderEjs({
     template: templatePath,
     data,
     ejsOptions: options.ejsOptions,
   });
   
+  // Add header comment based on output file extension
+  const headerComment = generateHeaderComment(options.outputPath, templatePath, options.template);
+  if (headerComment) {
+    content = headerComment + '\n' + content;
+  }
+  
   return {
     path: options.outputPath,
     content,
   };
+}
+
+/**
+ * Generate a header comment warning not to edit the file.
+ * Returns empty string if file type is not recognized.
+ * 
+ * @param outputPath - Path where the file will be written
+ * @param resolvedTemplatePath - Full resolved path to the template
+ * @param originalTemplatePath - Original template path as specified (may be relative)
+ */
+function generateHeaderComment(
+  outputPath: string, 
+  resolvedTemplatePath: string,
+  originalTemplatePath: string
+): string {
+  const ext = path.extname(outputPath).toLowerCase();
+  const filename = path.basename(outputPath);
+  
+  // Map extensions to comment styles
+  const commentStyles: Record<string, { start: string; end?: string; line?: string }> = {
+    '.rs': { start: '//', end: '' },
+    '.ts': { start: '//', end: '' },
+    '.js': { start: '//', end: '' },
+    '.kt': { start: '//', end: '' },
+    '.java': { start: '//', end: '' },
+    '.aidl': { start: '//', end: '' },
+    '.md': { start: '<!--', end: '-->' },
+    '.toml': { start: '#', end: '' },
+    '.json': { start: '', end: '' }, // JSON doesn't support comments
+  };
+  
+  const style = commentStyles[ext];
+  if (!style) {
+    return ''; // Unknown file type, no header
+  }
+  
+  // Skip JSON files (they can't have comments)
+  if (ext === '.json') {
+    return '';
+  }
+  
+  // Determine if this is a builtin template or custom
+  const builtinDir = getBuiltinTemplateDir();
+  const isBuiltin = resolvedTemplatePath.startsWith(builtinDir);
+  
+  // Get relative path for display
+  let templateDisplayPath: string;
+  let overrideInstructions: string;
+  
+  if (isBuiltin) {
+    // Builtin template - show path in node_modules
+    const relativeToBuiltin = path.relative(builtinDir, resolvedTemplatePath);
+    templateDisplayPath = `node_modules/@o19/spire-loom/machinery/bobbin/${relativeToBuiltin}`;
+    overrideInstructions = `// To override: Copy this template to loom/bobbin/${relativeToBuiltin}`;
+  } else {
+    // Custom template (would be in workspace)
+    templateDisplayPath = originalTemplatePath;
+    overrideInstructions = `// This is a custom template in your workspace`;
+  }
+  
+  const templateFile = path.basename(resolvedTemplatePath);
+  
+  const message = `GENERATED BY SPIRE-LOOM - DO NOT EDIT (even if LLM)
+// 
+// This file is automatically generated from a template.
+// Changes will be overwritten on next generation.
+// 
+// Template: ${templateDisplayPath}
+// Template file: ${templateFile}
+${overrideInstructions}
+//
+// To modify the generated output, edit the template file above.`;
+  
+  if (style.end) {
+    return `${style.start}\n${message}\n${style.end}`;
+  } else {
+    return message.split('\n').map(line => `${style.start} ${line.replace(/^[\/]{2} ?/, '')}`).join('\n');
+  }
 }
 
 /**

@@ -110,3 +110,10 @@ export {
 
 export { generateAndroidService, type AndroidGenerationOptions } from './android-generator.js';
 export { generateTauriPlugin, type TauriGenerationOptions } from './tauri-generator.js';
+export {
+  generateCompositeAdaptor,
+  compositeAdaptorTreadle,
+  type CompositeAdaptorOptions,
+  type CompositeGenerationOptions,
+  type CompositeMethod,
+} from './composite-adaptor-generator.js';

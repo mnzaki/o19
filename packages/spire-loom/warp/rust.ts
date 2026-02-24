@@ -22,10 +22,22 @@ import { ExternalLayer } from './imprint.js';
 export const RUST_WRAPPERS = Symbol('rust:wrappers');
 export const RUST_TYPE = Symbol('rust:type');
 export const RUST_STRUCT_MARK = Symbol('rust:struct');
+export const RUST_STRUCT_CONFIG = Symbol('rust:structConfig');
 
 // Use Symbol.metadata (Stage 3 standard) for decorator metadata
 // This is stored on the class and accessible via context.metadata
 const RUST_FIELD_META = Symbol('rust:fieldMeta');
+
+/**
+ * Configuration options for @rust.Struct decorator
+ */
+export interface RustStructOptions {
+  /** 
+   * If true, methods returning non-void will be wrapped in Result<T, E>.
+   * This affects code generation for error handling patterns.
+   */
+  useResult?: boolean;
+}
 
 /**
  * Wrapper types for Rust values
@@ -233,10 +245,38 @@ export interface StructFields<Fields extends Record<string, RustExternalLayer>> 
  *   export class MyStruct extends rust.DefineStruct<{ field: RustExternalLayer }> {
  *     @rust.Mutex field = SomeType;
  *   }
+ * 
+ * With configuration options:
+ *   @rust.Struct({ useResult: true })
+ *   export class MyStruct { ... }
  */
+export function Struct<T extends new (...args: any[]) => any>(
+  options: RustStructOptions
+): (target: T, context: ClassDecoratorContext<T>) => T;
 export function Struct<T extends new (...args: any[]) => any>(
   target: T,
   context: ClassDecoratorContext<T>
+): T;
+export function Struct<T extends new (...args: any[]) => any>(
+  optionsOrTarget: RustStructOptions | T,
+  context?: ClassDecoratorContext<T>
+): T | ((target: T, context: ClassDecoratorContext<T>) => T) {
+  // Overload 1: @rust.Struct({ useResult: true }) - with options
+  if (typeof optionsOrTarget === 'object' && context === undefined) {
+    const options = optionsOrTarget as RustStructOptions;
+    return function(target: T, ctx: ClassDecoratorContext<T>): T {
+      return applyStructDecorator(target, ctx, options);
+    };
+  }
+  
+  // Overload 2: @rust.Struct - without options
+  return applyStructDecorator(optionsOrTarget as T, context!, {});
+}
+
+function applyStructDecorator<T extends new (...args: any[]) => any>(
+  target: T,
+  context: ClassDecoratorContext<T>,
+  options: RustStructOptions
 ): T {
   // Get field metadata from Symbol.metadata
   const metadata = (context.metadata as any) || {};
@@ -245,6 +285,7 @@ export function Struct<T extends new (...args: any[]) => any>(
   // Store metadata on the class for later access
   (target as any).__rustFields = fieldMeta;
   (target as any)[RUST_STRUCT_MARK] = true;
+  (target as any)[RUST_STRUCT_CONFIG] = options;
 
   return createRustStructClass(target);
 }
@@ -255,11 +296,13 @@ export function Struct<T extends new (...args: any[]) => any>(
  */
 function createRustStructClass<T extends new (...args: any[]) => any>(OriginalClass: T) {
   const fieldMeta = (OriginalClass as any).__rustFields || new Map();
+  const structConfig = (OriginalClass as any)[RUST_STRUCT_CONFIG];
 
   class RustStructClass extends RustExternalLayer {
     static [RUST_STRUCT_MARK] = true;
     static __originalClass = OriginalClass;
     static __rustFields = fieldMeta;
+    static [RUST_STRUCT_CONFIG] = structConfig;
 
     static get [Symbol.for('rust:structName')](): string {
       return OriginalClass.name;

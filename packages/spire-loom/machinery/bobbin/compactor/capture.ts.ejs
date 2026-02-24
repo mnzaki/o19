@@ -1,0 +1,60 @@
+/**
+ * SQL Capture Harness
+ * "Intercept Prisma's optimized queries."
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+/**
+ * Execute a Prisma query and capture the generated SQL.
+ */
+export async function captureQuery(prisma, queryFn) {
+  return new Promise((resolve, reject) => {
+    let captured = null;
+    
+    const handler = (e) => {
+      captured = { sql: e.query, params: e.params, duration: e.duration };
+    };
+    
+    prisma.$on('query', handler);
+    
+    queryFn(prisma)
+      .then(result => {
+        prisma.$off('query', handler);
+        if (!captured) {
+          reject(new Error('No query captured - may be cached'));
+        } else {
+          resolve({ result, ...captured });
+        }
+      })
+      .catch(err => {
+        prisma.$off('query', handler);
+        reject(err);
+      });
+  });
+}
+
+/**
+ * Validate query plan for performance issues.
+ */
+export async function validateQueryPlan(prisma, sql) {
+  const warnings = [];
+  
+  try {
+    // Note: Prisma doesn't expose EXPLAIN directly, we'd need raw query
+    // This is a placeholder for the validation logic
+    const plan = await prisma.$queryRaw`EXPLAIN QUERY PLAN ${sql}`;
+    const planStr = JSON.stringify(plan);
+    
+    if (planStr.includes('SCAN TABLE')) {
+      warnings.push('Full table scan detected');
+    }
+    if (planStr.includes('USE TEMP B-TREE')) {
+      warnings.push('Temporary sort detected');
+    }
+    
+    return { valid: warnings.length === 0, plan: planStr, warnings };
+  } catch (e) {
+    return { valid: false, plan: '', warnings: [`Explain failed: ${e.message}`] };
+  }
+}

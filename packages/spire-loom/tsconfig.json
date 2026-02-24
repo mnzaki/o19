@@ -10,5 +10,8 @@
     "warp/**/*",
     "machinery/**/*",
     "cli.ts"
+  ],
+  "exclude": [
+    "cli/**/*"
   ]
 }

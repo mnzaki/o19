@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
- * Spire-Loom CLI Entry Point
+ * spire-loom CLI Entry Point
  * 
- * This script runs the CLI via tsx, resolving it from spire-loom's
- * own dependencies regardless of where it's invoked from.
+ * "The loom that weaves spires from surfaces."
  * 
- * tsx is faster than ts-node and handles ESM out of the box.
+ * Minimal command-line interface for code generation.
+ * 
+ * For interactive mode:
+ *   - spire-loom-warp        (menu UI)
+ *   - spire-loom-mud-warp    (MUD text adventure)
  */
 
 import { spawn } from 'node:child_process';
@@ -16,7 +19,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Resolve tsx from spire-loom's node_modules
 const tsxPath = join(__dirname, '..', 'node_modules', '.bin', 'tsx');
-const cliPath = join(__dirname, '..', 'cli.ts');
+const cliPath = join(__dirname, '..', 'cli', 'index.ts');
 
 // Run tsx with the CLI
 const child = spawn(

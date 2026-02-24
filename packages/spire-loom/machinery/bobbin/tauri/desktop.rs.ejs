@@ -6,7 +6,13 @@ use crate::spire::platform::<%= platformTraitName %>;
 use crate::spire::error::{Error, Result};
 use crate::spire::models::*;
 use serde::de::DeserializeOwned;
+use std::path::PathBuf;
 use tauri::{AppHandle, Manager, Runtime, plugin::PluginApi};
+
+// Import core traits and types needed for method implementations
+use <%= coreCrateName.replace("o19-", "") %>::bookmark::BookmarkStream;
+use <%= coreCrateName.replace("o19-", "") %>::device::NodeId;
+use core::str::FromStr;
 
 /// Initialize the desktop platform.
 pub fn init<R: Runtime, C: DeserializeOwned>(
@@ -21,17 +27,35 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 /// Holds the <%= coreName %> runtime and provides direct access to all operations.
 pub struct DesktopPlatform<R: Runtime> {
   app_handle: AppHandle<R>,
+  foundframe: std::sync::Mutex<Option<<%= coreCrateName.replace("o19-", "") %>::Foundframe>>,
 }
 
 impl<R: Runtime> DesktopPlatform<R> {
   fn new(app_handle: AppHandle<R>) -> Result<Self> {
-    // TODO: Initialize <%= coreCrateName %> here
-    Ok(Self { app_handle })
+    // Initialize <%= coreCrateName %>
+    let app_data_dir = app_handle.path().app_data_dir()
+      .map_err(|e| Error::Other(format!("Failed to get app data dir: {e}")))?;
+    let radicle_home = app_data_dir.join(".<%= coreName %>.radicle");
+
+    let init_options = <%= coreCrateName.replace("o19-", "") %>::InitOptions::new(&radicle_home, "<%= coreName %>")
+      .pkb_base(default_pkb_path());
+
+    let foundframe = <%= coreCrateName.replace("o19-", "") %>::init(init_options, None)
+      .map_err(|e| Error::Other(format!("Failed to initialize <%= coreCrateName %>: {e}")))?;
+
+    Ok(Self { 
+      app_handle,
+      foundframe: std::sync::Mutex::new(Some(foundframe)),
+    })
   }
 
   pub fn app_handle(&self) -> &AppHandle<R> {
     &self.app_handle
   }
+}
+
+fn default_pkb_path() -> PathBuf {
+  PathBuf::from("pkb")
 }
 
 impl<R: Runtime> <%= platformTraitName %> for DesktopPlatform<R> {
@@ -56,9 +80,22 @@ impl<R: Runtime> <%= platformTraitName %> for DesktopPlatform<R> {
     <% method.params.forEach(function(param, idx) { -%>
     <%= param.name %>: <%- param.rsType %><% if (idx < method.params.length - 1) { %>,<% } %>
     <% }); %>
-  ) -> Result<<%- method.rsReturnType %>> {
-    // TODO: Implement <%= method.description || method.name %>
-    Err(Error::Other("Not implemented".into()))
+  ) -> <%- method.useResult ? `Result<${method.innerReturnType}>` : method.rsReturnType %> {
+    let guard = self.foundframe.lock().map_err(|_| Error::Other("Foundframe mutex poisoned".into()))?;
+    let foundframe = guard.as_ref().ok_or_else(|| Error::Other("Foundframe not initialized".into()))?;
+    
+<% method.serviceAccessPreamble.forEach(function(line) { -%>
+    <%- line %>;
+<% }); -%>
+    
+<% if (method.useResult) { -%>
+    // Call the implementation and map errors
+    let result: Result<<%- method.innerReturnType %>, <%= coreCrateName.replace("o19-", "") %>::Error> = <%= method.serviceVarName %>.<%= method.implName %>(<% method.params.forEach(function(param, idx) { %>&<%= param.name %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>);
+    result.map_err(|e| Error::Other(e.to_string()))
+<% } else { -%>
+    // Call the implementation (non-Result, errors ignored/panics)
+    <%= method.serviceVarName %>.<%= method.implName %>(<% method.params.forEach(function(param, idx) { %>&<%= param.name %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>)
+<% } -%>
   }
 
 <% }); -%>

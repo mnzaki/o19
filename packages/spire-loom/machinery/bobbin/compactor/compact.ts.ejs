@@ -1,0 +1,145 @@
+/**
+ * The Compaction Orchestrator
+ * "Prisma devours itself to feed the spire."
+ */
+
+import { PrismaClient } from '@prisma/client';
+import { captureQuery, validateQueryPlan } from './capture.js';
+import { generateRustModule } from './rust-codegen.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+
+const TABLES = <%- JSON.stringify(tables, null, 2) %>;
+
+async function main() {
+  const outputDir = process.env.OUTPUT_DIR;
+  if (!outputDir) {
+    throw new Error('OUTPUT_DIR environment variable required');
+  }
+
+  await fs.mkdir(outputDir, { recursive: true });
+
+  const prisma = new PrismaClient({
+    log: [{ emit: 'event', level: 'query' }],
+  });
+
+  try {
+    const tableQueries = new Map();
+
+    for (const table of TABLES) {
+      const queries = [];
+      
+      // Capture CREATE
+      try {
+        const createData = generateSampleData(table, 'create');
+        const { sql, params } = await captureQuery(prisma, p => 
+          p[table.name].create({ data: createData, select: { id: true } })
+        );
+        
+        if (sql) {
+          const validation = await validateQueryPlan(prisma, sql);
+          if (!validation.valid) {
+            console.warn(`⚠️  ${table.name}.create:`, validation.warnings);
+          }
+          
+          queries.push({
+            name: `create_${table.name}`,
+            sql: sql,
+            params: Object.keys(createData),
+            returnType: table.name
+          });
+        }
+      } catch (e) {
+        console.warn(`Could not capture CREATE for ${table.name}:`, e.message);
+      }
+
+      // Capture READ by ID
+      if (table.primaryKey) {
+        try {
+          const { sql } = await captureQuery(prisma, p =>
+            p[table.name].findUnique({ where: { [table.primaryKey]: 1 } })
+          );
+          
+          if (sql) {
+            queries.push({
+              name: `get_${table.name}_by_id`,
+              sql,
+              params: [table.primaryKey],
+              returnType: `Option<${table.name}>`
+            });
+          }
+        } catch (e) {
+          console.warn(`Could not capture READ for ${table.name}:`, e.message);
+        }
+      }
+
+      // Capture LIST ALL
+      try {
+        const { sql } = await captureQuery(prisma, p =>
+          p[table.name].findMany({ take: 1 })
+        );
+        
+        if (sql) {
+          queries.push({
+            name: `list_${table.name}_all`,
+            sql: sql.replace(/LIMIT \$\d+/i, ''), // Remove test limit
+            params: [],
+            returnType: `Vec<${table.name}>`
+          });
+        }
+      } catch (e) {
+        console.warn(`Could not capture LIST for ${table.name}:`, e.message);
+      }
+
+      tableQueries.set(table.name, queries);
+    }
+
+    // Generate Rust output
+    for (const table of TABLES) {
+      const queries = tableQueries.get(table.name) || [];
+      const rustCode = generateRustModule(table, queries);
+      
+      const outputPath = path.join(outputDir, `${table.name}.gen.rs`);
+      await fs.writeFile(outputPath, rustCode);
+      console.log(`GENERATED:${outputPath}`);
+    }
+
+    // Generate report
+    await fs.writeFile(
+      path.join(outputDir, 'compaction-report.json'),
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        tables: TABLES.map(t => ({
+          name: t.name,
+          queries: tableQueries.get(t.name)?.map(q => q.name) || []
+        }))
+      }, null, 2)
+    );
+
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+function generateSampleData(table, operation) {
+  const data = {};
+  for (const col of table.columns) {
+    if (col.name === table.primaryKey && operation === 'create') continue;
+    
+    switch (col.type) {
+      case 'integer': data[col.name] = 1; break;
+      case 'text': data[col.name] = 'sample'; break;
+      case 'boolean': data[col.name] = true; break;
+      case 'real': data[col.name] = 1.0; break;
+      case 'timestamp': data[col.name] = new Date().toISOString(); break;
+      case 'json': data[col.name] = {}; break;
+      default: data[col.name] = null;
+    }
+  }
+  return data;
+}
+
+main().catch(err => {
+  console.error('🔧 CRINKLE! Compaction failed:', err);
+  process.exit(1);
+});

@@ -322,6 +322,56 @@ A system where:
 - The system grows organically (add shards, migrate tenants)
 - Failures are contained (shard dies, others live)
 - Changes are gradual (migrate one tenant at a time)
+- And data lifecycle is managed so:
+  - Every entity has a manifest like the Managements
+  - Entities are created by system input
+  - Entites can "exit" the system by being marked as "inthepast" which means
+    they are ready for garbage collection when space is needed
+  - Every core runtime has its own fully schemaed database (we are fractal!) but
+    it has only entities that it needs to know about because its users are
+    interacting with them actively
+  - If it doesn't have an entry, it asks a neighbour
+    - this is all generated code, an entire runtime for keeping a healthy data
+      mesh
+      - keep track of neighbours (define "neighbour" in terms of interlap in
+        entity interest based on which managements are implemented by the
+        neighbour and thus which Entities are needed by them and us)
+      - exchange neighbour information
+      - exchange capacity and load information
+      - generally every thing that is needed to implement p2worker, as
+        explaiened in the P2Worker subsection below, where the entity is a
+        generic "Task", but we will implement the meshing in the treadle code,
+        and let p2worker define the idea of a "Task". In other words the "Task"
+        is just a "database entry" for us, the bits about passing it on and find
+        appropriate next and so on is all handled by the p2worker code.
+
+### P2Worker
+
+If we eliminate the central task database,
+
+and use a "CompoundTask" structure that describes a plan of steps (each a subtask)
+including error management (who to talk to on failure), and suggested next
+workers (who can do the required next tasks, if known)
+
+and pass this full "CompoundTask" around from worker to worker, each worker
+doing one of the subtasks and accumulating the final result,
+
+and set a final task of contacting a management layer,
+
+and make each worker check on the next worker's progress (potentially 2-step),
+
+and normalize worker-worker connections by having busy workers suggest less busy
+ones during connection request,
+
+and make workers with similar task types connect in a special group to share
+more info, while also connecting to a sample of workers of other task types,
+
+and give workers the ability to spawn new workers if their collective of workers
+with similar task types decide it is necessary,
+
+then the central Management layer is reduced to a secretary API,
+
+and we can scale to Billions easily.
 
 ## The Reality
 

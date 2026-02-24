@@ -117,11 +117,13 @@ export const androidServiceTreadle = defineTreadle({
       path: '{packageDir}/spire/android/java/{packagePath}/service/{serviceName}.kt',
       language: 'kotlin',
     },
-    {
-      template: 'android/aidl_interface.aidl.ejs',
-      path: '{packageDir}/spire/android/aidl/{packagePath}/{interfaceName}.aidl',
-      language: 'aidl',
-    },
+    // AIDL disabled - using binder_ndk directly instead
+    // See discussion: binder_ndk requires Android 12+, AIDL not needed
+    // {
+    //   template: 'android/aidl_interface.aidl.ejs',
+    //   path: '{packageDir}/spire/android/aidl/{packagePath}/{interfaceName}.aidl',
+    //   language: 'aidl',
+    // },
     {
       template: 'android/jni_bridge.jni.rs.ejs',
       path: '{packageDir}/spire/src/lib.rs',

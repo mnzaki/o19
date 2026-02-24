@@ -5,7 +5,9 @@
   "main": "index.js",
   "type": "module",
   "bin": {
-    "spire-loom": "./bin/spire-loom.js"
+    "spire-loom": "./bin/spire-loom.js",
+    "spire-loom-warp": "./bin/spire-loom-warp.js",
+    "spire-loom-mud-warp": "./bin/spire-loom-mud-warp.js"
   },
   "scripts": {
     "dev": "tsc --watch",
@@ -19,13 +21,21 @@
   "dependencies": {
     "ejs": "^3.1.9",
     "fast-xml-parser": "^5.3.7",
+    "fuse.js": "^7.1.0",
+    "ink": "^5.2.0",
+    "ink-select-input": "^6.1.0",
+    "ink-text-input": "^6.0.0",
     "mrm-core": "^7.1.22",
+    "pastel": "^3.0.0",
+    "react": "^18.3.1",
+    "reflect-metadata": "^0.2.2",
     "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/ejs": "^3.1.5",
-    "@types/node": "^25.3.0"
+    "@types/node": "^25.3.0",
+    "@types/react": "^18.3.18"
   },
   "exports": {
     ".": {
@@ -47,6 +57,10 @@
     "./machinery/weaver": {
       "types": "./machinery/weaver.ts",
       "import": "./machinery/weaver.ts"
+    },
+    "./machinery/reed": {
+      "types": "./machinery/reed/workspace-discovery.ts",
+      "import": "./machinery/reed/workspace-discovery.ts"
     }
   },
   "keywords": [

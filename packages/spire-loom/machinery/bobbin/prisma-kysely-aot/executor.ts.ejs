@@ -1,0 +1,215 @@
+/**
+ * Query Executor
+ *
+ * "Execute the weaver's intent, capture the SQL."
+ *
+ * This module imports loom files and executes @loom.crud.query lambdas
+ * through the Prisma-Kysely bridge, capturing the generated SQL.
+ */
+
+import { PrismaClient } from '@prisma/client';
+import { capturePrismaSQL } from './bridge.js';
+import { generateKyselyCode } from './codegen.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+
+// Types for query definitions
+interface QueryDef {
+  className: string;
+  methodName: string;
+  filePath: string;
+  // The serialized lambda will be reconstructed
+}
+
+// Queries to execute
+const QUERIES: QueryDef[] = <%- JSON.stringify(queries.map(q => ({
+  className: q.className,
+  methodName: q.methodName,
+  filePath: q.filePath
+})), null, 2) %>;
+
+// Track captured queries
+interface CapturedQuery {
+  name: string;
+  className: string;
+  sql: string;
+  params: unknown[];
+  model: string;
+  operation: string;
+  returnType: string;
+}
+
+async function main() {
+  const outputDir = process.env.OUTPUT_DIR;
+  if (!outputDir) {
+    throw new Error('OUTPUT_DIR environment variable required');
+  }
+
+  await fs.mkdir(outputDir, { recursive: true });
+
+  const prisma = new PrismaClient({
+    log: [{ emit: 'event', level: 'query' }]
+  });
+
+  const capturedQueries: CapturedQuery[] = [];
+
+  try {
+    // Import loom modules
+    const loomModules = await importLoomModules();
+
+    // Execute each query lambda and capture SQL
+    for (const queryDef of QUERIES) {
+      try {
+        const captured = await executeQuery(prisma, queryDef, loomModules);
+        capturedQueries.push(captured);
+        console.log(`✓ Captured: ${queryDef.className}.${queryDef.methodName}`);
+      } catch (error) {
+        console.error(`✗ Failed: ${queryDef.className}.${queryDef.methodName}:`, error);
+        // Continue with other queries
+      }
+    }
+
+    // Generate TypeScript/Kysely output
+    const tsCode = generateKyselyCode(capturedQueries);
+    
+    // Write output file
+    const outputPath = path.join(outputDir, 'queries.gen.ts');
+    await fs.writeFile(outputPath, tsCode);
+    console.log(`GENERATED:${outputPath}`);
+
+    // Write individual files per table/class
+    const byClass = groupBy(capturedQueries, 'className');
+    for (const [className, queries] of byClass) {
+      const classCode = generateKyselyCode(queries);
+      const classPath = path.join(outputDir, `${className.toLowerCase()}.gen.ts`);
+      await fs.writeFile(classPath, classCode);
+      console.log(`GENERATED:${classPath}`);
+    }
+
+    // Write capture report
+    const reportPath = path.join(outputDir, 'capture-report.json');
+    await fs.writeFile(reportPath, JSON.stringify({
+      timestamp: new Date().toISOString(),
+      totalQueries: QUERIES.length,
+      capturedQueries: capturedQueries.length,
+      failedQueries: QUERIES.length - capturedQueries.length,
+      queries: capturedQueries.map(q => ({
+        name: q.name,
+        className: q.className,
+        model: q.model,
+        operation: q.operation
+      }))
+    }, null, 2));
+
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+/**
+ * Import loom modules that contain query definitions.
+ * 
+ * This assumes the loom files are importable from the midstage.
+ * The loom files should export classes with @loom.crud.query decorators.
+ */
+async function importLoomModules(): Map<string, any> {
+  const modules = new Map<string, any>();
+  
+  // Get unique file paths
+  const filePaths = [...new Set(QUERIES.map(q => q.filePath))];
+  
+  for (const filePath of filePaths) {
+    try {
+      // Convert file path to import path
+      // This is a simplified version - real implementation needs proper path resolution
+      const importPath = pathToFileURL(filePath).href;
+      const module = await import(importPath);
+      modules.set(filePath, module);
+    } catch (error) {
+      console.warn(`Failed to import ${filePath}:`, error);
+    }
+  }
+  
+  return modules;
+}
+
+/**
+ * Execute a single query and capture its SQL.
+ */
+async function executeQuery(
+  prisma: PrismaClient,
+  queryDef: QueryDef,
+  loomModules: Map<string, any>
+): Promise<CapturedQuery> {
+  const { className, methodName } = queryDef;
+  
+  // Get the module
+  const module = loomModules.get(queryDef.filePath);
+  if (!module) {
+    throw new Error(`Module not found: ${queryDef.filePath}`);
+  }
+  
+  // Get the class
+  const Class = module[className];
+  if (!Class) {
+    throw new Error(`Class not found: ${className}`);
+  }
+  
+  // Instantiate the class
+  const instance = new Class();
+  
+  // Get the method
+  const method = instance[methodName];
+  if (typeof method !== 'function') {
+    throw new Error(`Method not found: ${methodName}`);
+  }
+  
+  // Execute through the bridge to capture SQL
+  // The method should have a queryFn attached via decorator
+  const queryFn = method.__queryFn;
+  if (!queryFn) {
+    throw new Error(`No queryFn found for ${methodName}. Is it decorated with @loom.crud.query?`);
+  }
+  
+  // Capture the SQL
+  const { sql, params, model, operation } = await capturePrismaSQL(prisma, queryFn);
+  
+  return {
+    name: methodName,
+    className,
+    sql,
+    params,
+    model,
+    operation,
+    returnType: 'unknown' // TODO: Extract from TypeScript
+  };
+}
+
+/**
+ * Group array items by a key.
+ */
+function groupBy<T>(array: T[], key: keyof T): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const item of array) {
+    const groupKey = String(item[key]);
+    const existing = groups.get(groupKey) || [];
+    groups.set(groupKey, [...existing, item]);
+  }
+  return groups;
+}
+
+/**
+ * Convert file path to file URL for dynamic import.
+ */
+function pathToFileURL(filePath: string): URL {
+  // Handle both absolute and relative paths
+  const absolute = path.isAbsolute(filePath) 
+    ? filePath 
+    : path.join(process.cwd(), filePath);
+  return new URL('file://' + absolute);
+}
+
+main().catch(err => {
+  console.error('🔧 CRINKLE! Execution failed:', err);
+  process.exit(1);
+});

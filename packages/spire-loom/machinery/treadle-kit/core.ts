@@ -130,6 +130,8 @@ export function toSnakeCase(str: string): string {
  * After addManagementPrefix(), method.name looks like "bookmark_addBookmark".
  * This converts the entire thing to snake_case for the bind-point.
  * The implName is the method part without the management prefix.
+ * 
+ * Includes enriched metadata from heddles (useResult, wrappers, fieldName).
  */
 export function toRawMethod(method: MgmtMethod): RawMethod {
   // The name already has format "mgmtPrefix_methodName" (e.g., "bookmark_addBookmark")
@@ -140,6 +142,9 @@ export function toRawMethod(method: MgmtMethod): RawMethod {
   // Split by first underscore: "bookmark_add_bookmark" -> ["bookmark", "add_bookmark"]
   const firstUnderscore = bindPointName.indexOf('_');
   const implName = firstUnderscore > 0 ? bindPointName.slice(firstUnderscore + 1) : bindPointName;
+
+  // Extract enriched metadata from heddles (stored in method.metadata)
+  const heddlesMeta = method.metadata ?? {};
 
   return {
     name: bindPointName,
@@ -153,6 +158,12 @@ export function toRawMethod(method: MgmtMethod): RawMethod {
       optional: p.optional,
     })),
     description: method.description || `${method.managementName}.${method.name}`,
+    // Enriched fields from heddles (computed from ownership chain)
+    useResult: heddlesMeta.useResult as boolean | undefined,
+    link: heddlesMeta.fieldName ? {
+      fieldName: heddlesMeta.fieldName as string,
+      wrappers: heddlesMeta.wrappers as string[] | undefined,
+    } : undefined,
   };
 }
 

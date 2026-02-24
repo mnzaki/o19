@@ -7,6 +7,19 @@
  * The sley ensures every bind-point connects to its correct destination.
  */
 
+// Operation Router - CRUD routing for OperationMux
+export {
+  routeOperation,
+  routeOperations,
+  analyzeRouting,
+  isHybridRouting,
+  getReadAdaptor,
+  getWriteAdaptor,
+  generateCompositeImports,
+  generateCompositeMethod,
+  type RoutingInfo,
+} from './operation-router.js';
+
 // Method Pipeline - composable translations for Management methods
 export {
   // Core types

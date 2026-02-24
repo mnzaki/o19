@@ -1,0 +1,136 @@
+/**
+ * ⚠️  ARCHIVED — NOT CURRENTLY USED
+ *
+ * Rust Query Builder Precompiler
+ * 
+ * "Pack the ORM tight with Rust and a minimal query builder."
+ *
+ * VISION: A concrete implementation of the ORM Compactor using:
+ * - Rust as the midstage language
+ * - A minimal Rust query builder (like SeaQuery or custom) for SQL generation
+ * - rusqlite for database access
+ * 
+ * OUTPUT: `*.gen.rs` files with query builder calls, not raw SQL!
+ *
+ * ============================================================================
+ * WHY THIS IS ARCHIVED (2024-02-23)
+ * ============================================================================
+ *
+ * The original approach (below) generated raw SQL strings:
+ *   static STMT: OnceLock<Statement> = OnceLock::new();
+ *   conn.prepare("SELECT * FROM media WHERE id = ?")
+ *
+ * This has the same problem as raw SQL in TypeScript — it's not type-safe
+ * and doesn't leverage a query builder.
+ *
+ * THE NEW VISION:
+ * Just like we generate Kysely calls for TypeScript:
+ *   db.selectFrom('media').where('id', '=', id).execute()
+ *
+ * We should generate query builder calls for Rust:
+ *   db.select_from("media").where("id", "=", id).execute()
+ *
+ * REQUIRED: A minimal Rust query builder runtime with:
+ * - Type-safe table/column references
+ * - Query builder API (select, insert, update, delete)
+ * - SQL generation
+ * - rusqlite integration
+ *
+ * CANDIDATES:
+ * - SeaQuery: https://github.com/SeaQL/sea-query
+ *   - Pros: Mature, feature-rich, already exists
+ *   - Cons: Heavy, many features we don't need
+ * 
+ * - Custom minimal runtime:
+ *   - Pros: Exactly what we need, lightweight
+ *   - Cons: Build it ourselves
+ *
+ * RECOMMENDED APPROACH:
+ * Build a custom minimal query builder inspired by Kysely:
+ * 
+ *   // generated/media.gen.rs
+ *   use spire_loom_runtime::QueryBuilder;
+ *   
+ *   pub fn get_media_by_id(db: &Database, id: i64) -> Result<Option<Media>> {
+ *     db.select_from("media")
+ *       .where_eq("id", id)
+ *       .fetch_optional()
+ *   }
+ *
+ *   // The runtime (minimal!)
+ *   pub struct QueryBuilder { ... }
+ *   impl QueryBuilder {
+ *     pub fn select_from(self, table: &str) -> SelectQuery { ... }
+ *     pub fn where_eq<T>(self, col: &str, val: T) -> Self { ... }
+ *     pub fn fetch_optional<T>(self) -> Result<Option<T>> { ... }
+ *   }
+ *
+ * ============================================================================
+ * ORIGINAL IMPLEMENTATION (for reference)
+ * ============================================================================
+ */
+
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { OrmCompactor, defineOrmCompactor } from './orm-compactor.js';
+import type { OrmCompactorConfig } from './orm-compactor.js';
+
+export { defineOrmCompactor };
+
+/**
+ * @deprecated This generates raw SQL. Future implementation should generate
+ * query builder calls like SeaQuery or a custom minimal runtime.
+ * 
+ * See file header for architecture vision.
+ */
+export class RustOrmlitePrecompiler extends OrmCompactor {
+  
+  protected mapSqlType(sqlType: string): string {
+    const mapping: Record<string, string> = {
+      'integer': 'i64',
+      'text': 'String',
+      'boolean': 'bool',
+      'real': 'f64',
+      'blob': 'Vec<u8>',
+      'timestamp': 'chrono::DateTime<chrono::Utc>',
+      'json': 'serde_json::Value',
+    };
+    return mapping[sqlType] || 'String';
+  }
+  
+  protected async generateOrmMidstage(): Promise<void> {
+    throw new Error(
+      'RustOrmlitePrecompiler is archived. ' +
+      'Future implementation should use a query builder approach (see file header). ' +
+      'For now, use TsCompactor for TypeScript/Kysely output.'
+    );
+  }
+  
+  protected compile() {
+    throw new Error('RustOrmlitePrecompiler is archived');
+  }
+  
+  protected run() {
+    throw new Error('RustOrmlitePrecompiler is archived');
+  }
+  
+  protected parse(stdout: string): string[] {
+    throw new Error('RustOrmlitePrecompiler is archived');
+  }
+  
+  protected async verify(files: string[]): Promise<void> {
+    throw new Error('RustOrmlitePrecompiler is archived');
+  }
+}
+
+/**
+ * @deprecated Use TsCompactor for TypeScript/Kysely output.
+ * Future: Implement Rust query builder approach.
+ */
+export async function precompileRustOrmlite(config: OrmCompactorConfig) {
+  throw new Error(
+    'precompileRustOrmlite is archived. ' +
+    'Use compactTypeScript() from ts-compactor.js for TypeScript/Kysely output. ' +
+    'See rust-query-builder-precompiler.ts for future Rust architecture.'
+  );
+}

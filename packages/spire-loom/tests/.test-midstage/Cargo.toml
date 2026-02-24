@@ -1,0 +1,14 @@
+[package]
+name = "midstage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ormlite = { version = "0.18", features = ["sqlite"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dependencies.rusqlite]
+version = "0.30"
+features = ["bundled"]

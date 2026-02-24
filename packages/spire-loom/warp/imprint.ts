@@ -95,9 +95,9 @@ export abstract class Management {
   // Marker class - used for typechecking only
 }
 
-export abstract class Layer {}
-
-export abstract class ExternalLayer extends Layer {}
+// Import and re-export Layer/Layering from layers.ts for backward compatibility
+import { Layer, Layering, ExternalLayer } from './layers.js';
+export { Layer, Layering, ExternalLayer };
 
 // Symbol for link metadata (to avoid property collision)
 export const LINK_TARGET = Symbol('loom:linkTarget');
@@ -111,6 +111,16 @@ export interface LinkMetadata {
   structClass: typeof ExternalLayer;
   /** The field name within the struct (e.g., 'device_manager') */
   fieldName: string;
+  /**
+   * Whether methods return Result<T, E> for error handling.
+   * Inherited from @rust.Struct({ useResult: true }) on the linked struct.
+   */
+  useResult?: boolean;
+  /**
+   * Wrapper types for the linked field (e.g., ['Mutex', 'Option']).
+   * Used to generate proper field access code.
+   */
+  wrappers?: string[];
 }
 
 /**
@@ -121,10 +131,7 @@ export interface LinkMetadata {
  *   @loom.link(foundframe.inner.core.thestream)
  */
 export function link<L extends ExternalLayer>(linkTarget: L | (() => L)) {
-  return <T extends typeof Management>(
-    target: T,
-    context: ClassDecoratorContext<T>
-  ): T => {
+  return <T extends typeof Management>(target: T, context: ClassDecoratorContext<T>): T => {
     // Store the link target (function or value) for resolution at weave time
     (target as any)[LINK_TARGET] = linkTarget;
     return target;
@@ -135,8 +142,6 @@ export function link<L extends ExternalLayer>(linkTarget: L | (() => L)) {
  * Get link metadata from a Management class.
  * Returns undefined if not linked.
  */
-export function getLinkTarget(
-  mgmtClass: typeof Management
-): LinkMetadata | undefined {
+export function getLinkTarget(mgmtClass: typeof Management): LinkMetadata | undefined {
   return (mgmtClass as any)[LINK_TARGET];
 }

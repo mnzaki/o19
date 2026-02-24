@@ -1,0 +1,15 @@
+<%// Custom Handler Template (Example)
+// Place this file in your project's loom/bobbin/rust/ directory
+// 
+// Available variables from the loom:
+//   - management: The management class metadata
+//   - method: The current method being generated
+//   - spiral: The spiral object
+//   - config: Additional configuration
+%>
+pub fn handle_<%= method.name %>(ctx: Context) -> Result<<%= method.returnType %>> {
+    // TODO: Implement <%= method.name %>
+    // Access the core via: ctx.core.<%= management.fieldName %>
+    
+    todo!("Implement <%= method.name %>")
+}
