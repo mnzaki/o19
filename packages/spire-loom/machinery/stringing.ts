@@ -10,6 +10,8 @@
  * naming conventions: WARP names → code names → bind-point names.
  */
 
+import type { RawMethod } from './bobbin/index.js';
+
 // ============================================================================
 // Case Conversions
 // ============================================================================
@@ -157,6 +159,92 @@ export function buildAndroidPackageData(
 }
 
 // ============================================================================
+// Wrapper Naming (Generic pattern for platform wrappers)
+// ============================================================================
+
+/**
+ * Generic wrapper naming data.
+ */
+export interface WrapperNaming {
+  /** The main wrapper name (e.g., 'MyService', 'MyPlugin') */
+  wrapperName: string;
+  /** Interface/protocol name (e.g., 'IMyService', 'MyPlatform') */
+  interfaceName?: string;
+  /** File/module name (e.g., 'my_service') */
+  fileName?: string;
+  /** Additional platform-specific names */
+  [key: string]: string | undefined;
+}
+
+/**
+ * Build generic wrapper naming from core name and affix.
+ * 
+ * @param coreName - Base core name (e.g., 'foundframe')
+ * @param affix - Optional affix (e.g., 'radicle')
+ * @param options - Naming pattern options
+ * @returns Wrapper naming data
+ * 
+ * @example
+ * // For Tauri plugin:
+ * buildWrapperNaming('foundframe', 'radicle', {
+ *   wrapperSuffix: 'Plugin',
+ *   interfaceSuffix: 'Platform'
+ * })
+ * // { wrapperName: 'FoundframeRadiclePlugin', interfaceName: 'FoundframeRadiclePlatform', fileName: 'foundframe_radicle' }
+ */
+export function buildWrapperNaming(
+  coreName: string,
+  affix: string | undefined,
+  options: {
+    wrapperSuffix: string;
+    interfaceSuffix?: string;
+  }
+): WrapperNaming {
+  const pascalCore = pascalCase(coreName);
+  const pascalAffix = affix ? pascalCase(affix) : '';
+  
+  const baseName = pascalAffix ? `${pascalCore}${pascalAffix}` : pascalCore;
+  const snakeBase = affix ? `${toSnakeCase(coreName)}_${toSnakeCase(affix)}` : toSnakeCase(coreName);
+
+  return {
+    wrapperName: `${baseName}${options.wrapperSuffix}`,
+    interfaceName: options.interfaceSuffix ? `${baseName}${options.interfaceSuffix}` : undefined,
+    fileName: snakeBase
+  };
+}
+
+/**
+ * Create naming for an Android-style foreground service.
+ *
+ * @param coreName - The core package name (e.g., 'foundframe')
+ * @param affix - Optional name affix (e.g., 'radicle')
+ * @returns Wrapper naming
+ */
+export function buildAndroidServiceNaming(coreName: string, affix?: string): WrapperNaming {
+  const naming = buildServiceNaming(coreName, affix);
+  return {
+    ...naming,
+    wrapperName: naming.serviceName,
+    interfaceName: naming.interfaceName,
+    fileName: toSnakeCase(naming.serviceName)
+  };
+}
+
+/**
+ * Create naming for a Tauri-style plugin.
+ *
+ * @param coreName - The core package name (e.g., 'foundframe')
+ * @param affix - Optional name affix
+ * @returns Wrapper naming
+ */
+export function buildTauriPluginNaming(coreName: string, affix?: string): WrapperNaming {
+  return buildWrapperNaming(coreName, affix, {
+    wrapperSuffix: 'Plugin',
+    interfaceSuffix: 'Platform'
+  });
+}
+
+// ============================================================================
 // Type Mapping (AIDL)
 // ============================================================================
 
@@ -221,6 +309,16 @@ export interface AidlParam {
 }
 
 /**
+ * Extended RawMethod with AIDL-specific type information.
+ */
+export interface AidlMethod extends RawMethod {
+  /** AIDL return type */
+  aidlReturnType?: string;
+  /** Parameters with AIDL types */
+  params: AidlParam[];
+}
+
+/**
  * Map method parameters for AIDL generation.
  * Adds AIDL-specific type info and direction qualifiers.
  * 
@@ -232,5 +330,20 @@ export function addAidlTypesToParams(params: Array<{ name: string; type: string;
     ...param,
     aidlType: mapToAidlType(param.type),
     direction: 'in' // Default: client sends data to service
+  }));
+}
+
+/**
+ * Add AIDL type information to all methods.
+ * Adds aidlReturnType and aidlType to each method's params.
+ * 
+ * @param methods - Raw methods to transform
+ * @returns Methods with AIDL type information added
+ */
+export function addAidlTypesToMethods(methods: RawMethod[]): AidlMethod[] {
+  return methods.map(method => ({
+    ...method,
+    aidlReturnType: mapToAidlType(method.returnType),
+    params: addAidlTypesToParams(method.params)
   }));
 }

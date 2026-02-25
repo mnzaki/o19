@@ -38,7 +38,7 @@ import type {
 } from '../heddles/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 import type { MgmtMethod } from '../sley/index.js';
-import { createTreadleKit } from './core.js';
+import { createTreadleKit } from './kit.js';
 import { resolveSpecs, resolveSpecsWithCondition, type SpecOrFn } from './spec-resolver.js';
 import type { HookupSpec } from '../shuttle/hookups/types.js';
 import * as path from 'node:path';

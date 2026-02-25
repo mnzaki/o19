@@ -78,17 +78,13 @@ export {
   type SpiralerContribution
 } from '../treadle-kit/discovery.js';
 
-// Platform Wrapper Abstraction
+// Stringing (pattern mapping utilities)
 export {
   buildAndroidServiceNaming,
   buildTauriPluginNaming,
-  type PlatformWrapperConfig,
-  type PlatformWrapperTreadle,
-  type PlatformConfig,
+  buildWrapperNaming,
   type WrapperNaming,
-  type PlatformOutput,
-  type PlatformHookup
-} from '../treadle-kit/platform-wrapper.js';
+} from '../stringing.js';
 
 // Shuttle utilities (re-exported for convenience)
 export {

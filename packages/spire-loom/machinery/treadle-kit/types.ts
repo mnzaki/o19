@@ -5,7 +5,8 @@
  */
 
 import type { MgmtMethod } from '../sley/index.js';
-import type { RawMethod, GeneratedFile } from '../bobbin/index.js';
+import type { RawMethod } from '../bobbin/index.js';
+import type { GeneratedFile } from '../heddles/index.js';
 import type { SpiralNode, GeneratorContext, WeavingPlan, MethodHelpers } from '../heddles/index.js';
 import type { AndroidHookupData } from '../shuttle/hookup-manager.js';
 

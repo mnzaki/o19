@@ -25,7 +25,7 @@ import {
   generateRustToJniConversion,
   getJniErrorValue,
 } from './type-mappings.js';
-import { toSnakeCase } from '../sley/method-pipeline.js';
+import { toSnakeCase } from '../stringing.js';
 
 // ============================================================================
 // Types

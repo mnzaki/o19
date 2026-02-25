@@ -10,7 +10,8 @@ import { ensurePlanComplete } from '../heddles/index.js';
 import type { ManagementMetadata } from '../reed/index.js';
 import { filterByReach } from '../reed/index.js';
 import type { MgmtMethod } from '../sley/index.js';
-import type { RawMethod, GeneratedFile } from '../bobbin/index.js';
+import type { RawMethod } from '../bobbin/index.js';
+import type { GeneratedFile } from '../heddles/index.js';
 import { generateCode } from '../bobbin/index.js';
 import {
   configureAndroidManifest,

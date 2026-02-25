@@ -52,7 +52,6 @@ export {
   type OutputSpec,
   type PatchSpec,
   type HookupConfig,
-  type TreadleConfig,
   type TreadleDefinition,
   type OutputSpecOrFn,
   type PatchSpecOrFn,
@@ -73,8 +72,15 @@ export {
   type AndroidPackageData,
   buildServiceNaming,
   buildAndroidPackageData,
+  // Wrapper naming
+  type WrapperNaming,
+  buildWrapperNaming,
+  buildAndroidServiceNaming,
+  buildTauriPluginNaming,
   // AIDL type mapping
   mapToAidlType,
   addAidlTypesToParams,
+  addAidlTypesToMethods,
   type AidlParam,
+  type AidlMethod,
 } from '../stringing.js';

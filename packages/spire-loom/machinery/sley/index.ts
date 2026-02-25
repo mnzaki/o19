@@ -37,7 +37,6 @@ export {
   tagFilter,
   crudOperationFilter,
   // Utilities
-  toSnakeCase,
   fromSourceMethods
 } from './method-pipeline.js';
 
