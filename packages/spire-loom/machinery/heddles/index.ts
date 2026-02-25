@@ -6,18 +6,77 @@
  * what code to generate.
  */
 
+// ============================================================================
+// Core Types
+// ============================================================================
+
 export {
-  Heddles,
-  GeneratorMatrix,
-  DEFAULT_MATRIX,
-  createHeddles,
-  ensurePlanComplete,
+  type EnrichedMethodMetadata,
   type SpiralEdge,
   type SpiralNode,
   type GenerationTask,
   type WeavingPlan,
+  type MethodHelpers,
+  type GeneratorContext,
   type GeneratorFunction,
   type GeneratedFile,
-  type GeneratorContext,
-  type MethodHelpers,
-} from './pattern-matcher.js';
+  ensurePlanComplete,
+} from './types.js';
+
+// ============================================================================
+// Matrix
+// ============================================================================
+
+export {
+  GeneratorMatrix,
+  DEFAULT_MATRIX,
+} from './matrix.js';
+
+// ============================================================================
+// Enrichment (computed metadata from ownership chain)
+// ============================================================================
+
+export {
+  enrichManagementMethods,
+} from './enrichment.js';
+
+// ============================================================================
+// Traversal Utilities
+// ============================================================================
+
+export {
+  getEffectiveTypeName,
+  findNodeForRing,
+  collectAllLayers,
+  collectLayersFromRing,
+  detectRelationship,
+  findRoots,
+  getPathToRoot,
+} from './traversal.js';
+
+// ============================================================================
+// Metadata
+// ============================================================================
+
+export {
+  ensureMetadata,
+} from './metadata.js';
+
+// ============================================================================
+// Plan Builder (Main Heddles class)
+// ============================================================================
+
+export {
+  Heddles,
+  createHeddles,
+} from './plan-builder.js';
+
+// ============================================================================
+// Legacy Re-export (for backward compatibility)
+// ============================================================================
+
+/** 
+ * @deprecated Import from specific modules instead. 
+ * This re-export will be removed in a future version.
+ */
+export * from './pattern-matcher.js';
