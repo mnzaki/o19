@@ -114,15 +114,36 @@ export function extractManagementFromBindPoint(
  * @returns Method helpers with grouping and filtering
  */
 export function buildContextMethods(methods: RawMethod[]): MethodHelpers {
+  // Extract management name from method (from metadata or name prefix)
+  const methodsWithMgmt = methods.map(m => {
+    const mgmtName = (m as any).managementName || 
+                     m.name.split('_')[0] || 
+                     'unknown';
+    if (mgmtName === 'unknown') {
+      console.warn(`[context-methods] Could not extract management name from method: ${m.name}`);
+    }
+    return { ...m, managementName: mgmtName };
+  });
+
   // Pre-compute groupings using sley utilities
-  const byMgmtMap = groupByManagement(methods as Array<{ managementName: string }>);
+  const byMgmtMap = groupByManagement(methodsWithMgmt);
   const byCrudMap = groupByCrud(methods);
 
   return {
     all: methods,
     
     byManagement(): Map<string, RawMethod[]> {
-      return byMgmtMap as Map<string, RawMethod[]>;
+      // Filter out 'unknown' entries and warn if any exist
+      const result = new Map<string, RawMethod[]>();
+      byMgmtMap.forEach((methods, mgmtName) => {
+        if (mgmtName === 'unknown') {
+          console.warn(`[context-methods] ${methods.length} method(s) without management name:`, 
+            methods.map(m => m.name).join(', '));
+          return;
+        }
+        result.set(mgmtName, methods as RawMethod[]);
+      });
+      return result;
     },
     
     byCrud(): Map<string, RawMethod[]> {

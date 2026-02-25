@@ -54,7 +54,10 @@ interface ManagementService {
 // Helper Functions
 // ============================================================================
 
-function extractEntityName(managementName: string): string {
+function extractEntityName(managementName: string | undefined): string {
+  if (!managementName) {
+    return 'Unknown';
+  }
   return managementName.replace(/Mgmt$/, '');
 }
 
