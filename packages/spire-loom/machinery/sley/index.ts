@@ -41,7 +41,13 @@ export {
   fromSourceMethods
 } from './method-pipeline.js';
 
-// CRUD Mapping - legacy CRUD resolution (use method-pipeline for new code)
+// CRUD Mapping - DEPRECATED: Use method-pipeline for new code
+/**
+ * @deprecated These exports are legacy and will be removed in a future version.
+ * Use MethodPipeline from './method-pipeline.js' instead:
+ *   - Replace `shouldFilterMethod` / `filterMethodsByTags` with `tagFilter()`
+ *   - Replace `mapManagementCrud` with `crudInterfaceMapping()`
+ */
 export {
   type Tag,
   type TagFilter,
@@ -57,7 +63,13 @@ export {
   mapManagementCrud
 } from './crud-mapping.js';
 
-// Method Translator - legacy translation (use method-pipeline for new code)
+// Method Translator - DEPRECATED: Use method-pipeline for new code
+/**
+ * @deprecated These exports are legacy and will be removed in a future version.
+ * Use MethodPipeline from './method-pipeline.js' instead:
+ *   - Replace `translateMethods` with `MethodPipeline`
+ *   - Replace `TranslatedMethod` with `MgmtMethod`
+ */
 export {
   type TranslatedMethod,
   type TranslatedParam,

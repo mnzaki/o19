@@ -168,10 +168,6 @@ import {
   toSnakeCase,
   fromSourceMethods,
   
-  // CRUD mapping (legacy - prefer method-pipeline)
-  mapManagementCrud,
-  filterMethodsByTags,
-  
   // Operation routing
   routeOperation,
   routeOperations,

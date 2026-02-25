@@ -136,7 +136,7 @@ export function translateMethods(
 
   for (const method of methods) {
     // Step 1: Check if method should be filtered out
-    if (shouldFilterMethod(method.tags, filterOut)) {
+    if (method.tags?.some(tag => filterOut.has(tag))) {
       continue;
     }
 
@@ -158,16 +158,6 @@ export function translateMethods(
  */
 function findReadMethod(methods: SourceMethod[]): SourceMethod | undefined {
   return methods.find(m => m.tags?.includes('crud:read'));
-}
-
-/**
- * Check if a method should be filtered out.
- */
-function shouldFilterMethod(tags: string[] | undefined, filterOut: Set<string>): boolean {
-  if (!tags || tags.length === 0) {
-    return false; // Methods without tags are never filtered
-  }
-  return tags.some(tag => filterOut.has(tag));
 }
 
 /**
