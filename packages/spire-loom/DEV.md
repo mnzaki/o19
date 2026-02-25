@@ -502,4 +502,299 @@ The complete pattern:
 
 ---
 
+## Testing Guidelines
+
+### Test Philosophy
+
+Tests in spire-loom follow these principles:
+
+1. **Use Node.js built-in test runner** - No external test frameworks (vitest, jest, etc.)
+2. **Test behavior, not implementation** - Test what the code does, not how it does it
+3. **Isolate with mocks** - Use the test kit for full graph tests
+4. **Test at the right level** - Unit tests for utilities, integration tests for workflows
+
+### Test File Structure
+
+```
+tests/
+├── kit/                    # Test utilities (runner, mocks, fixtures)
+├── *.test.ts               # Feature/integration tests
+└── README.md               # Testing documentation
+```
+
+### Writing Unit Tests
+
+For testing individual functions and modules:
+
+```typescript
+// tests/patches-system.test.ts
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import * as assert from 'node:assert';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { defineTreadle } from '../machinery/treadle-kit/declarative.js';
+
+describe('Patches System', () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('should define a treadle with patches', () => {
+    const treadle = defineTreadle({
+      matches: [{ current: 'Test', previous: 'Core' }],
+      methods: { filter: 'core', pipeline: [] },
+      outputs: [{ template: 'test.ejs', path: 'test.rs', language: 'rust' }],
+      patches: [{
+        type: 'ensureBlock',
+        targetFile: 'Cargo.toml',
+        marker: 'spire-deps',
+        template: 'deps.ejs',
+        language: 'toml',
+      }],
+    });
+
+    assert.strictEqual(treadle.patches!.length, 1);
+    assert.strictEqual(treadle.patches![0].marker, 'spire-deps');
+  });
+});
+```
+
+**Key points for unit tests:**
+- Use `node:test` and `node:assert` (built-in)
+- Create temp directories with `fs.mkdtempSync()`
+- Always clean up in `afterEach()`
+- Use real templates from `machinery/bobbin/templates/` when testing generation
+- Provide all required template data fields
+
+### Writing Integration Tests (Full Graph Tests)
+
+For testing the complete weaving pipeline, use the **Test Kit**:
+
+```typescript
+// tests/full-graph.test.ts
+import { describe, it } from 'node:test';
+import * as assert from 'node:assert';
+import { createTestRunner, warpMock } from './kit/index.js';
+import { createMockSpiralChain } from './kit/warp-mock.js';
+
+describe('Full Graph Tests', () => {
+  it('should weave a complete spiral chain', async () => {
+    // Create a mock spiral chain
+    const warp = await createMockSpiralChain({
+      core: 'Foundframe',
+      platforms: ['android', 'desktop'],
+      tauri: true,
+    });
+
+    // Create test runner
+    const runner = createTestRunner({
+      warp,
+      verbose: false,  // Set true to see console output
+    });
+
+    // Run the weaver
+    const result = await runner.weave();
+
+    // Assert on results
+    assert.strictEqual(result.errors.length, 0);
+    assert.ok(result.raw.plan);
+    assert.ok(result.output);  // Captured console output
+  });
+
+  it('should test with custom matrix', async () => {
+    const runner = createTestRunner({
+      warp: warpMock({
+        foundframe: createMockCore('Foundframe'),
+      }),
+      weaverConfig: {
+        matrix: createCustomMatrix(),  // Inject custom generator matrix
+      },
+    });
+
+    const result = await runner.weave();
+    // ... assertions
+  });
+});
+```
+
+### Test Kit API Reference
+
+**`createTestRunner(config)`** - Creates an isolated test environment
+
+```typescript
+interface TestRunnerConfig {
+  warp: Record<string, SpiralRing>;        // Required: WARP module exports
+  weaverConfig?: Partial<WeaverConfig>;    // Optional: Weaver configuration
+  virtualFs?: Map<string, string>;         // Optional: Virtual filesystem
+  verbose?: boolean;                       // Optional: Enable console output
+}
+
+interface TestRunner {
+  weave(): Promise<WeaveResult>;           // Run the weaver
+  getRing(name: string): SpiralRing | undefined;  // Access a specific ring
+  readFile(path: string): string | undefined;     // Read from virtual FS
+  listFiles(): string[];                  // List all virtual files
+}
+```
+
+**`warpMock(config)`** - Creates mock WARP configurations
+
+```typescript
+// Minimal mock
+const warp = warpMock({ autoMock: true });
+
+// Custom rings
+const warp = warpMock({
+  rings: {
+    foundframe: createMockCore('Foundframe'),
+    android: createMockSpiralOut('Android', foundframe),
+  }
+});
+```
+
+**`createMockSpiralChain(config)`** - Creates complete spiral chains
+
+```typescript
+const warp = await createMockSpiralChain({
+  core: 'Foundframe',           // Core ring name
+  platforms: ['android'],       // Platform spiral outs
+  tauri: true,                  // Create Tauri mux
+});
+// Returns: { foundframe, android, tauri }
+```
+
+### Testing Treadles
+
+When testing treadles, test both definition and execution:
+
+```typescript
+describe('MyTreadle', () => {
+  // Test 1: Treadle definition
+  it('should have correct matches', () => {
+    assert.deepStrictEqual(myTreadle.matches, [
+      { current: 'MySpiraler', previous: 'RustCore' }
+    ]);
+  });
+
+  // Test 2: Generator execution
+  it('should generate files', async () => {
+    const generator = generateFromTreadle(myTreadle);
+    const files = await generator(
+      { typeName: 'MySpiraler', ring: mockRing },
+      { typeName: 'RustCore', ring: mockCore },
+      mockContext
+    );
+
+    assert.strictEqual(files.length, 1);
+    assert.ok(files[0].path.includes('spire/'));
+  });
+
+  // Test 3: Patch application
+  it('should apply patches after generation', async () => {
+    // Create target file
+    const cargoPath = path.join(tempDir, 'Cargo.toml');
+    fs.writeFileSync(cargoPath, '[package]\nname = "test"\n');
+
+    const generator = generateFromTreadle(myTreadleWithPatches);
+    await generator(mockCurrent, mockPrevious, mockContext);
+
+    const content = fs.readFileSync(cargoPath, 'utf-8');
+    assert.ok(content.includes('SPIRE-LOOM:'));
+  });
+});
+```
+
+### Testing Pitfalls & Best Practices
+
+#### ✅ DO:
+
+1. **Use real templates when possible**
+   ```typescript
+   // Good: Uses actual template
+   outputs: [{ template: 'tauri/README.md.ejs', ... }]
+   
+   // Bad: Template doesn't exist
+   outputs: [{ template: 'dummy.ejs', ... }]
+   ```
+
+2. **Provide all required template data**
+   ```typescript
+   data: { 
+     coreNamePascal: 'TestCore',
+     pluginName: 'test-plugin',
+     coreName: 'test',
+   }
+   ```
+
+3. **Set treadle names for marker scope**
+   ```typescript
+   const treadle = defineTreadle({
+     name: 'myTreadle',  // Used as marker scope
+     matches: [...],
+   });
+   ```
+
+4. **Clean up temp files**
+   ```typescript
+   afterEach(() => {
+     fs.rmSync(tempDir, { recursive: true, force: true });
+   });
+   ```
+
+#### ❌ DON'T:
+
+1. **Don't import vitest/jest**
+   ```typescript
+   // Wrong
+   import { describe, it, expect } from 'vitest';
+   
+   // Correct
+   import { describe, it } from 'node:test';
+   import * as assert from 'node:assert';
+   ```
+
+2. **Don't use undefined template data**
+   ```typescript
+   // This will fail with "xyz is not defined" from EJS
+   data: {}  // Missing required fields!
+   ```
+
+3. **Don't forget the spire/ prefix**
+   ```typescript
+   // Generated files automatically go to spire/
+   assert.ok(content.includes('SPIRE-LOOM:MYTREADLE:BLOCK'));
+   ```
+
+4. **Don't use expect() style assertions**
+   ```typescript
+   // Wrong
+   expect(value).toBe(true);
+   
+   // Correct
+   assert.strictEqual(value, true);
+   assert.ok(value);
+   ```
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test file
+node --test --import=tsx tests/patches-system.test.ts
+
+# Run with verbose output
+DEBUG_MATRIX=1 npm test
+```
+
+---
+
 *"The loom turns, and the spire rises."* 🏗️

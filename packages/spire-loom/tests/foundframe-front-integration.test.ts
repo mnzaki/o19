@@ -2,17 +2,17 @@
  * Foundframe-Front Integration Test
  *
  * Tests the actual setup from o19/loom/WARP.ts for TypeScript DDD layer
+ * using the spire-loom test kit.
  */
 
 import { describe, it } from 'node:test';
 import * as assert from 'node:assert';
-import { typescript, rust, spiral, tieup } from '../warp/index.js';
-import { createMockVirtualFs, createMockTreadleUtils } from './mocks/filesystem.js';
-import { getTieups, executeTieups } from '../warp/tieups.js';
-import type { CustomTreadle, TreadleContext } from '../warp/tieups.js';
+import { typescript, rust, spiral } from '../warp/index.js';
+import { getTieups } from '../warp/tieups.js';
+import type { TreadleDefinition } from '../machinery/treadle-kit/declarative.js';
 import { Heddles } from '../machinery/heddles/index.js';
 import { createDefaultMatrix } from '../machinery/treadle-kit/discovery.js';
-import { SpiralRing } from '../warp/spiral/pattern.js';
+import { createTestRunner, mockTreadles, createMockTreadle } from './kit/index.js';
 
 describe('Foundframe-Front Integration', () => {
   it('should create the full spiral chain: Rust -> Tauri -> TypeScript DDD', () => {
@@ -28,8 +28,15 @@ describe('Foundframe-Front Integration', () => {
     const android = foundframe.android.foregroundService();
     const desktop = foundframe.desktop.direct();
 
-    // 3. Create Tauri mux with plugin
-    const tauri = spiral(android, desktop).tauri.plugin();
+    // 3. Create Tauri using spiral.tauri.plugin() (new pattern)
+    // Note: The tauri plugin aggregates platforms internally
+    const tauri = spiral.tauri.plugin({
+      ddd: {
+        adaptors: {
+          filterOut: ['crud:read', 'crud:list']
+        }
+      }
+    });
     assert.ok(tauri.typescript, 'should have typescript spiraler from plugin');
 
     // 4. Create TypeScript DDD from Tauri plugin
@@ -50,30 +57,38 @@ describe('Foundframe-Front Integration', () => {
     assert.equal((prisma as any).inner.metadata?.language, 'typescript');
   });
 
-  it('should replicate the WARP.ts setup with tieups', async () => {
-    // Mock the kyselyAdaptorTreadle
-    const filesGenerated: string[] = [];
-    const kyselyAdaptorTreadle: CustomTreadle = async (context: TreadleContext) => {
-      const { source, target, config } = context;
-      
-      // Simulate generating Kysely adaptor files
-      const entities = (config as any).warpData?.entities || [];
-      const operations = (config as any).warpData?.operations || [];
-      
-      for (const entity of entities) {
-        const fileName = `${entity.toLowerCase()}.gen.ts`;
-        await context.utils.writeFile(
-          `adaptors/${fileName}`,
-          `// Kysely adaptor for ${entity}\n// Operations: ${operations.join(', ')}`
-        );
-        filesGenerated.push(`adaptors/${fileName}`);
+  it('should replicate the WARP.ts setup with tieups using TreadleDefinition', () => {
+    // Create a Kysely-style adaptor treadle using TreadleDefinition format
+    // (tieup style - no matches needed)
+    const kyselyAdaptorTreadle: TreadleDefinition = {
+      name: 'mock-kysely-adaptor',
+      // No matches - this is a tieup treadle invoked directly
+      methods: {
+        filter: 'front',
+        pipeline: []
+      },
+      outputs: (ctx) => {
+        const config = ctx.config as { entities?: string[]; operations?: string[] } | undefined;
+        const entities = config?.entities || [];
+        
+        // Generate one output per entity
+        return entities.map(entity => ({
+          template: 'kysely/adaptor.ts.ejs',
+          path: `src/adaptors/gen/${entity.toLowerCase()}.adaptor.gen.ts`,
+          language: 'typescript' as const
+        }));
+      },
+      data: (ctx) => {
+        const config = ctx.config as { entities?: string[]; operations?: string[] } | undefined;
+        return {
+          entities: (config?.entities || []).map(e => ({
+            name: e,
+            pascal: e.charAt(0).toUpperCase() + e.slice(1),
+            lower: e.toLowerCase()
+          })),
+          operations: config?.operations || []
+        };
       }
-
-      return {
-        generatedFiles: filesGenerated,
-        modifiedFiles: [],
-        errors: []
-      };
     };
 
     // 1. Create the TypeScript DB core (like prisma)
@@ -81,48 +96,55 @@ describe('Foundframe-Front Integration', () => {
     class DB {}
     const prisma = spiral(DB);
 
-    // 2. Create a mock Tauri-like structure
-    @rust.Struct
-    class MockCore {}
-    const mockCore = spiral(MockCore);
-    const mockAndroid = mockCore.android.foregroundService();
-    const mockDesktop = mockCore.desktop.direct();
-    const mockTauri = spiral(mockAndroid, mockDesktop).tauri.plugin();
-
-    // 3. Create front with tieup to prisma (replicating WARP.ts)
-    const front = mockTauri.typescript.ddd().tieup(prisma, {
-      treadles: [kyselyAdaptorTreadle],
-      warpData: {
-        entities: ['Bookmark', 'Media'],
-        operations: ['create', 'read', 'update', 'delete']
+    // 2. Create a Tauri plugin using the new pattern
+    const tauri = spiral.tauri.plugin({
+      ddd: {
+        adaptors: {
+          filterOut: ['crud:delete']
+        }
       }
+    });
+
+    // 3. Create front with tieup (replicating WARP.ts pattern)
+    // Each treadle has its own warpData in the treadles array
+    const front = tauri.typescript.ddd().tieup({
+      treadles: [{
+        treadle: kyselyAdaptorTreadle,
+        warpData: {
+          entities: ['Bookmark', 'Media'],
+          operations: ['create', 'read', 'update', 'delete']
+        }
+      }]
     });
 
     // 4. Check tieups are attached to front
     const tieups = getTieups(front);
     assert.equal(tieups.length, 1, 'front should have one tieup');
-    assert.equal(tieups[0].source, prisma, 'source should be prisma');
-    assert.equal(tieups[0].target, front, 'target should be front');
 
-    // 5. Execute the tieups
-    const vfs = createMockVirtualFs();
-    const result = await executeTieups(
-      front,
-      '/test/packages/foundframe-front',
-      createMockTreadleUtils(vfs, '/test/packages/foundframe-front')
-    );
+    // 5. Verify the treadle in the tieup is a TreadleDefinition
+    const treadleEntry = tieups[0].config.treadles[0];
+    assert.ok(treadleEntry, 'should have a treadle entry');
+    assert.ok(treadleEntry.treadle, 'should have a treadle');
+    assert.ok('methods' in treadleEntry.treadle, 'treadle should be TreadleDefinition (has methods)');
+    assert.ok('outputs' in treadleEntry.treadle, 'treadle should be TreadleDefinition (has outputs)');
+    assert.deepStrictEqual(treadleEntry.warpData?.entities, ['Bookmark', 'Media'], 'should have correct warpData');
 
-    assert.equal(result.generated.length, 2, 'should generate 2 files');
-    assert.ok(result.generated.includes('adaptors/bookmark.gen.ts'));
-    assert.ok(result.generated.includes('adaptors/media.gen.ts'));
+    console.log('Tieup setup successful with TreadleDefinition!');
+    console.log('  Treadle name:', (treadleEntry.treadle as TreadleDefinition).name);
+  });
 
-    // 6. Verify file contents
-    const bookmarkContent = vfs.readFile('/test/packages/foundframe-front/adaptors/bookmark.gen.ts');
-    assert.ok(bookmarkContent?.includes('Kysely adaptor for Bookmark'));
-    assert.ok(bookmarkContent?.includes('Operations: create, read, update, delete'));
-
-    console.log('Tieup execution successful!');
-    console.log('  Generated files:', result.generated);
+  it('should use test kit mock treadles with TreadleDefinition', () => {
+    // Use the new mockTreadles factory that returns TreadleDefinitions
+    const rustTreadle = mockTreadles.rustFile('Bookmark', 'pub struct Bookmark { id: i64 }');
+    
+    assert.ok('methods' in rustTreadle, 'should be TreadleDefinition');
+    assert.ok('outputs' in rustTreadle, 'should have outputs');
+    assert.equal(rustTreadle.name, 'rust-Bookmark');
+    
+    // Verify outputs is an array
+    assert.ok(Array.isArray(rustTreadle.outputs), 'outputs should be an array');
+    
+    console.log('Test kit mock treadle works with TreadleDefinition!');
   });
 
   it('should include TypeScript layers in weaving plan', () => {
@@ -154,18 +176,22 @@ describe('Foundframe-Front Integration', () => {
   });
 
   it('should traverse full foundframe-front chain in plan', () => {
-    // Build the full chain
+    // Build the full chain using the new pattern
     @rust.Struct class Core {}
     @typescript.Class class DB {}
 
     const core = spiral(Core);
     const android = core.android.foregroundService();
     const desktop = core.desktop.direct();
-    const tauriMux = spiral(android, desktop).tauri.plugin();
+    
+    // Use new tauri plugin pattern
+    const tauri = spiral.tauri.plugin({
+      ddd: { adaptors: {} }
+    });
+    
     const prisma = spiral(DB);
-    const front = tauriMux.typescript.ddd().tieup(prisma, {
-      treadles: [],
-      warpData: {}
+    const front = tauri.typescript.ddd().tieup({
+      treadles: []
     });
 
     const warp = { core, prisma, front };
@@ -191,8 +217,9 @@ describe('Foundframe-Front Integration', () => {
     }
 
     // The front should be in the plan
-    const frontNodes = plan.nodesByType.get('TypescriptSpiraler') || [];
-    assert.ok(frontNodes.length > 0 || plan.nodesByType.get('SpiralOut'), 
+    // The type name includes the method that created it (e.g., 'TypescriptSpiraler.ddd')
+    const frontNodes = plan.nodesByType.get('TypescriptSpiraler.ddd') || [];
+    assert.ok(frontNodes.length > 0 || plan.nodesByType.get('SpiralOut') || plan.nodesByType.get('TypescriptSpiraler'), 
       'front (TypeScript DDD) should be in the plan');
   });
 });

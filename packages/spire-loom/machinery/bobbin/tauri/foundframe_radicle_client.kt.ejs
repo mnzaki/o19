@@ -1,0 +1,169 @@
+package <%- packageName %>.service
+
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.os.IBinder
+import android.os.RemoteException
+import android.util.Log
+import <%- servicePackage %>.<%- interfaceName %>
+
+/**
+ * <%- serviceClient %> - Generated service client for AIDL IPC
+ *
+ * This client binds to the FoundframeRadicleService (running in :foundframe process)
+ * and provides typed methods for all AIDL operations.
+ *
+ * Usage:
+ * ```kotlin
+ * val client = <%- serviceClient %>(context)
+ * client.ensureStarted()  // Start the service first
+ * client.connect { success ->
+ *     if (success) {
+ *         val result = client.addBookmark(url, title, notes)
+ *     }
+ * }
+ * ```
+ *
+ * Security: Requires caller to have permission:
+ *   <%- permission %>
+ */
+class <%- serviceClient %>(private val context: Context) {
+    
+    companion object {
+        private const val TAG = "<%- serviceClient %>"
+        private const val SERVICE_PACKAGE = "<%- servicePackage %>"
+        private const val SERVICE_CLASS = "<%- servicePackage %>.service.FoundframeRadicleService"
+        
+        /**
+         * Permission required to bind to the service.
+         * This is a signature-level permission - only apps signed with the same
+         * certificate can bind.
+         */
+        const val PERMISSION = "<%- permission %>"
+    }
+    
+    private var service: <%- interfaceName %>? = null
+    private var isConnected = false
+    
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            Log.i(TAG, "Connected to FoundframeRadicleService")
+            service = <%- interfaceName %>.Stub.asInterface(binder)
+            isConnected = true
+        }
+        
+        override fun onServiceDisconnected(name: ComponentName?) {
+            Log.i(TAG, "Disconnected from FoundframeRadicleService")
+            service = null
+            isConnected = false
+        }
+    }
+    
+    /**
+     * Bind to the FoundframeRadicleService.
+     *
+     * The service must already be running (started) before binding.
+     * Call [ensureStarted] first to start the service.
+     *
+     * @return true if bind request was sent successfully
+     */
+    fun connect(): Boolean {
+        if (isConnected) {
+            Log.d(TAG, "Already connected")
+            return true
+        }
+        
+        val intent = Intent().apply {
+            setClassName(SERVICE_PACKAGE, SERVICE_CLASS)
+        }
+        
+        return try {
+            context.bindService(intent, connection, Context.BIND_AUTO_CREATE).also {
+                if (!it) {
+                    Log.e(TAG, "bindService returned false")
+                }
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException: Missing $PERMISSION permission")
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to bind: ${e.message}")
+            false
+        }
+    }
+    
+    /**
+     * Unbind from the service.
+     * Safe to call even if not connected.
+     */
+    fun disconnect() {
+        if (isConnected) {
+            try {
+                context.unbindService(connection)
+            } catch (e: IllegalArgumentException) {
+                // Service was already unbound
+                Log.w(TAG, "Service already unbound")
+            }
+            isConnected = false
+            service = null
+        }
+    }
+    
+    /**
+     * Ensure the service is started before binding.
+     *
+     * For apps with the same signing key, this works via the signature permission.
+     * The service will run in its own process (:foundframe).
+     *
+     * @param alias Node alias for the service
+     * @return true if start request was sent successfully
+     */
+    fun ensureStarted(alias: String = "android"): Boolean {
+        val intent = Intent().apply {
+            setClassName(SERVICE_PACKAGE, SERVICE_CLASS)
+            putExtra("alias", alias)
+        }
+        return try {
+            context.startService(intent)
+            Log.i(TAG, "Started FoundframeRadicleService with alias=$alias")
+            true
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException: Missing $PERMISSION permission")
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start: ${e.message}")
+            false
+        }
+    }
+    
+    /**
+     * Check if connected to the service.
+     */
+    fun isConnected(): Boolean = isConnected
+    
+    // Generated convenience methods
+<% methods.forEach(function(method) { -%>
+    
+    /**
+     * <%- method.description || method.name %>
+     *
+<% method.params.forEach(function(param) { -%>
+     * @param <%- param.name %> <%- param.description || param.name %>
+<% }); -%>
+     * @return <%- method.returnDescription || method.returnType %>
+     * @throws IllegalStateException if not connected
+     * @throws RemoteException if IPC fails
+     */
+    @Throws(RemoteException::class)
+    fun <%- method.name %>(<%-
+      method.params.map(function(p) {
+        return p.name + ': ' + (p.aidlType || p.type);
+      }).join(', ')
+    %>): <%- method.aidlReturnType || method.returnType %> {
+        val s = service ?: throw IllegalStateException("Not connected to service. Call connect() first.")
+        return s.<%- method.name %>(<%- method.params.map(function(p) { return p.name; }).join(', ') %>)
+    }
+<% }); %>
+}

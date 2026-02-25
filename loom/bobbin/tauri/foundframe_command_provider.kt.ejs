@@ -1,0 +1,154 @@
+package <%- packageName %>
+
+import android.app.Activity
+import android.util.Log
+import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
+import app.tauri.plugin.Invoke
+import app.tauri.plugin.JSObject
+import <%- packageName %>.service.<%- serviceClient %>
+
+/**
+ * FoundframeCommandProvider - Generated command handlers for foundframe operations
+ *
+ * This class is instantiated by ApiPlugin and provides all foundframe-related
+ * Tauri commands. It manages the service client lifecycle and exposes methods
+ * via the @Command annotation for Tauri to call from JavaScript.
+ *
+ * Generated from management methods. Do not edit manually.
+ * Regenerate with: spire-loom
+ */
+class FoundframeCommandProvider(private val activity: Activity) {
+    
+    companion object {
+        private const val TAG = "FoundframeCommandProvider"
+    }
+    
+    private var client: <%- serviceClient %>? = null
+    
+    /**
+     * Initialize the command provider.
+     * Starts and binds to the FoundframeRadicleService.
+     * Called by ApiPlugin.load()
+     */
+    fun initialize() {
+        Log.i(TAG, "Initializing FoundframeCommandProvider")
+        
+        client = <%- serviceClient %>(activity)
+        
+        // Step 1: Start the service (it runs in :foundframe process)
+        val started = client?.ensureStarted("deardiary") ?: false
+        if (!started) {
+            Log.e(TAG, "Failed to start FoundframeRadicleService")
+        } else {
+            Log.i(TAG, "FoundframeRadicleService started")
+        }
+        
+        // Step 2: Bind to the service for AIDL IPC
+        val connected = client?.connect() ?: false
+        if (!connected) {
+            Log.e(TAG, "Failed to connect to FoundframeRadicleService")
+        } else {
+            Log.i(TAG, "Connected to FoundframeRadicleService")
+        }
+    }
+    
+    /**
+     * Cleanup resources.
+     * Called by ApiPlugin.onDestroy()
+     */
+    fun cleanup() {
+        Log.i(TAG, "Cleaning up FoundframeCommandProvider")
+        client?.disconnect()
+        client = null
+    }
+    
+    // ==========================================================================
+    // Service Status Commands
+    // ==========================================================================
+    
+    /**
+     * Check if connected to the service.
+     */
+    @Command
+    fun isServiceReady(invoke: Invoke) {
+        val ready = client?.isConnected() ?: false
+        val response = JSObject()
+        response.put("ready", ready)
+        invoke.resolve(response)
+    }
+    
+    /**
+     * Explicitly connect to the service.
+     */
+    @Command
+    fun connectService(invoke: Invoke) {
+        val connected = client?.connect() ?: false
+        val response = JSObject()
+        response.put("connected", connected)
+        invoke.resolve(response)
+    }
+    
+    // ==========================================================================
+    // Generated Command Handlers
+    // ==========================================================================
+    
+<% 
+// Filter to create/update/delete operations for commands
+const commandMethods = methods.filter(function(m) {
+    return m.crudOperation === 'create' || m.crudOperation === 'update' || m.crudOperation === 'delete';
+});
+
+commandMethods.forEach(function(method) {
+    const argsClassName = method.pascalName + 'Args';
+    const commandName = method.snakeName || method.name.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+%>
+    // -------------------------------------------------------------------------
+    // <%- method.name %> - <%- method.crudOperation %>
+    // -------------------------------------------------------------------------
+    
+    @InvokeArg
+    class <%- argsClassName %> {
+<% method.params.forEach(function(param) { -%>
+        lateinit var <%- param.name %>: <%- param.aidlType || param.type %>
+<% }); -%>
+    }
+    
+    /**
+     * <%- method.description || method.name %>
+<% method.params.forEach(function(param) { -%>
+     * @param <%- param.name %> <%- param.description || param.name %>
+<% }); -%>
+<% if (method.crudOperation === 'delete') { -%>
+     * @return success boolean
+<% } else { -%>
+     * @return PKB URL of the entity
+<% } -%>
+     */
+    @Command
+    fun <%- commandName %>(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(<%- argsClassName %>::class.java)
+            
+            val result = client?.<%- method.name %>(<%-
+                method.params.map(function(p) { return 'args.' + p.name; }).join(', ')
+            %>)
+            
+            val response = JSObject()
+<% if (method.crudOperation === 'delete') { -%>
+            response.put("success", result)
+<% } else { -%>
+            response.put("pkbUrl", result)
+<% } -%>
+            invoke.resolve(response)
+            
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "<%- method.name %> failed: not connected", e)
+            invoke.reject("Service not connected. Ensure the service is running.")
+        } catch (e: Exception) {
+            Log.e(TAG, "<%- method.name %> failed: ${e.message}", e)
+            invoke.reject(e.message ?: "Unknown error")
+        }
+    }
+<% }); %>
+}

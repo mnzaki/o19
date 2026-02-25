@@ -19,4 +19,5 @@ export {
   type GeneratorFunction,
   type GeneratedFile,
   type GeneratorContext,
+  type MethodHelpers,
 } from './pattern-matcher.js';

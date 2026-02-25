@@ -39,6 +39,8 @@ import type {
 import type { RawMethod } from '../bobbin/index.js';
 import type { MgmtMethod } from '../sley/index.js';
 import { createTreadleKit } from './core.js';
+import { resolveSpecs, resolveSpecsWithCondition, type SpecOrFn } from './spec-resolver.js';
+import type { HookupSpec } from '../shuttle/hookups/types.js';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { createMarkers, ensureFileBlock, type MarkerPair } from '../shuttle/markers.js';
@@ -62,6 +64,12 @@ export interface OutputSpec {
   path: string;
   language: 'kotlin' | 'rust' | 'rust_jni' | 'aidl' | 'typescript';
   condition?: (context: GeneratorContext) => boolean;
+  /**
+   * Per-output context data merged with main data for this output only.
+   * Useful for per-entity generation with shared templates.
+   * Context properties take precedence over main data properties.
+   */
+  context?: Record<string, unknown>;
 }
 
 /**
@@ -90,11 +98,15 @@ export interface PatchSpec {
   };
 }
 
-/** Patch spec or a function that returns one based on context */
-export type PatchSpecOrFn = PatchSpec | ((context: GeneratorContext) => PatchSpec | undefined);
+/** Patch spec or a function that returns one (or an array) based on context */
+export type PatchSpecOrFn = 
+  | PatchSpec 
+  | ((context: GeneratorContext) => PatchSpec | PatchSpec[] | undefined);
 
-/** Output spec or a function that returns one based on context */
-export type OutputSpecOrFn = OutputSpec | ((context: GeneratorContext) => OutputSpec | undefined);
+/** Output spec or a function that returns one (or an array) based on context */
+export type OutputSpecOrFn = 
+  | OutputSpec 
+  | ((context: GeneratorContext) => OutputSpec | OutputSpec[] | undefined);
 
 export interface HookupConfig {
   type: 'rust-crate' | 'tauri-plugin' | 'npm-package' | 'android-gradle' | 'custom';
@@ -109,7 +121,11 @@ export interface HookupConfig {
 export interface TreadleDefinition {
   /** Treadle name (auto-populated during loading) */
   name?: string;
-  matches: MatchPattern[];
+  /** 
+   * Match patterns for matrix-based generation.
+   * Optional for tieup treadles (invoked directly via .tieup()).
+   */
+  matches?: MatchPattern[];
   methods: MethodConfig;
   /** Output files to generate (into spire/). Accepts specs or functions. */
   outputs: OutputSpecOrFn[];
@@ -119,7 +135,31 @@ export interface TreadleDefinition {
    * Accepts specs or functions.
    */
   patches?: PatchSpecOrFn[];
+  
+  /**
+   * Declarative hookups - configure external files (AndroidManifest.xml, Cargo.toml, etc.)
+   * Type is inferred from path. Runs after patches.
+   * Accepts specs or functions.
+   */
+  hookups?: Array<SpecOrFn<HookupSpec, GeneratorContext>>;
+  
+  /**
+   * Legacy hookup config (deprecated).
+   * @deprecated Use hookups array instead
+   */
   hookup?: HookupConfig;
+  
+  /**
+   * Configuration schema for tieup treadles.
+   * Declares expected warpData shape. Used for validation and type inference.
+   * @example
+   * config: {
+   *   entities: [] as string[],
+   *   operations: [] as ('create' | 'read')[]
+   * }
+   */
+  config?: Record<string, unknown>;
+  
   data?:
     | Record<string, unknown>
     | ((context: GeneratorContext, current: SpiralNode, previous: SpiralNode) => Record<string, unknown>);
@@ -138,12 +178,13 @@ export interface TreadleDefinition {
  * that can be used with `generateFromTreadle()`.
  */
 export function defineTreadle(definition: TreadleDefinition): TreadleDefinition {
-  if (!definition.matches?.length) {
-    throw new Error('TreadleDefinition must have at least one match pattern');
-  }
-  for (const match of definition.matches) {
-    if (!match.current || !match.previous) {
-      throw new Error('Match pattern must have both current and previous');
+  // Matrix treadles (with matches) need match validation
+  // Tieup treadles (without matches) are invoked directly
+  if (definition.matches && definition.matches.length > 0) {
+    for (const match of definition.matches) {
+      if (!match.current || !match.previous) {
+        throw new Error('Match pattern must have both current and previous');
+      }
     }
   }
   if (!definition.methods) {
@@ -172,7 +213,7 @@ export function defineTreadle(definition: TreadleDefinition): TreadleDefinition 
  * 3. **Hookup** - Custom hookup runs last
  */
 export function generateFromTreadle(definition: TreadleDefinition): GeneratorFunction {
-  return async (current: SpiralNode, previous: SpiralNode, context?: GeneratorContext): Promise<GeneratedFile[]> => {
+  const generator = async (current: SpiralNode, previous: SpiralNode, context?: GeneratorContext): Promise<GeneratedFile[]> => {
     if (!context) {
       throw new Error('GeneratorContext is required for declarative treadles');
     }
@@ -184,15 +225,19 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
     const currentType = current.typeName;
     const previousType = previous.typeName;
 
-    const matches = definition.matches.some(
-      (m) => m.current === currentType && m.previous === previousType
-    );
+    // Skip match validation for tieup treadles (no matches defined)
+    // Tieup treadles are invoked directly, not via matrix lookup
+    if (definition.matches && definition.matches.length > 0) {
+      const matches = definition.matches.some(
+        (m) => m.current === currentType && m.previous === previousType
+      );
 
-    if (!matches) {
-      if (process.env.DEBUG_MATRIX) {
-        console.log(`[DECLARATIVE] Skipping: ${currentType} → ${previousType} not in matches`);
+      if (!matches) {
+        if (process.env.DEBUG_MATRIX) {
+          console.log(`[DECLARATIVE] Skipping: ${currentType} → ${previousType} not in matches`);
+        }
+        return [];
       }
-      return [];
     }
 
     if (definition.validate) {
@@ -222,10 +267,8 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
       data = { ...data, ...userData };
     }
 
-    // Resolve output specs (handle functions)
-    const resolvedOutputs = definition.outputs
-      .map((o) => (typeof o === 'function' ? o(context) : o))
-      .filter((o): o is OutputSpec => o !== undefined);
+    // Resolve output specs (handle functions returning single OR array)
+    const resolvedOutputs = resolveSpecs(definition.outputs, context);
 
     // Phase 1: Generate files using the kit (into spire/)
     const files = await kit.generateFiles(
@@ -234,6 +277,7 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
         path: o.path,
         language: o.language,
         condition: o.condition,
+        context: o.context,
       })),
       data,
       finalMethods
@@ -245,16 +289,41 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
     }
 
     // Phase 3: Hookup (runs last)
+    
+    // 3a: New declarative hookups (preferred)
+    if (definition.hookups && definition.hookups.length > 0) {
+      const { runHookups } = await import('../shuttle/hookups/index.js');
+      
+      // Resolve hookup specs (handle functions returning single OR array)
+      const resolvedHookups = resolveSpecsWithCondition(definition.hookups, context);
+      
+      if (resolvedHookups.length > 0) {
+        const results = await runHookups(resolvedHookups, context);
+        
+        if (process.env.DEBUG_MATRIX) {
+          for (const result of results) {
+            console.log(`[HOOKUP] ${result.type}: ${result.status} - ${result.message}`);
+          }
+        }
+      }
+    }
+    
+    // 3b: Legacy hookup config (backward compatibility)
     if (definition.hookup) {
       if (definition.hookup.type === 'custom' && definition.hookup.customHookup) {
         await definition.hookup.customHookup(context, files, data);
       } else if (definition.hookup.type !== 'custom') {
-        console.log(`[DECLARATIVE] ${definition.hookup.type} hookup not yet implemented. Use customHookup.`);
+        console.log(`[DECLARATIVE] ${definition.hookup.type} hookup not yet implemented. Use customHookup or declarative hookups.`);
       }
     }
 
     return files;
   };
+  
+  // Attach treadle name for logging
+  (generator as any).treadleName = definition.name || 'anonymous';
+  
+  return generator;
 }
 
 /**
@@ -273,11 +342,10 @@ async function applyPatches(
   // Get the treadle name for marker scope
   const treadleName = definition.name || 'treadle';
   
-  for (const patchOrFn of patches) {
-    // Resolve patch spec (handle functions)
-    const patch = typeof patchOrFn === 'function' ? patchOrFn(context) : patchOrFn;
-    if (!patch) continue;
-
+  // Resolve patches (handle functions returning single OR array)
+  const resolvedPatches = resolveSpecs(patches, context);
+  
+  for (const patch of resolvedPatches) {
     // Resolve target file path
     const targetPath = path.isAbsolute(patch.targetFile)
       ? patch.targetFile

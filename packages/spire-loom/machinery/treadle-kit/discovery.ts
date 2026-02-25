@@ -88,6 +88,7 @@ export async function discoverTreadles(searchPath: string): Promise<DiscoveredTr
     try {
       const treadle = await loadTreadleFromFile(filePath, name);
       if (treadle) {
+        console.log('[DISCOVERY] Discovered treadle:', name);
         discovered.push(treadle);
       }
     } catch (error) {
@@ -142,17 +143,23 @@ async function loadTreadleFromFile(
 
 /**
  * Type guard to check if a value is a TreadleDefinition.
+ * 
+ * Supports both matrix treadles (with matches) and tieup treadles (without matches).
  */
 function isTreadleDefinition(value: unknown): value is TreadleDefinition {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'matches' in value &&
-    Array.isArray((value as TreadleDefinition).matches) &&
-    'methods' in value &&
-    'outputs' in value &&
-    Array.isArray((value as TreadleDefinition).outputs)
-  );
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  
+  const v = value as Record<string, unknown>;
+  
+  // Must have methods and outputs
+  const hasMethods = 'methods' in v && typeof v.methods === 'object' && v.methods !== null;
+  const hasOutputs = 'outputs' in v && Array.isArray(v.outputs);
+  
+  // Matrix treadles have matches, tieup treadles don't
+  // Both are valid TreadleDefinitions
+  return hasMethods && hasOutputs;
 }
 
 // ============================================================================
@@ -163,11 +170,20 @@ function isTreadleDefinition(value: unknown): value is TreadleDefinition {
  * Build a generator matrix from an array of treadles.
  *
  * Each treadle's `matches` patterns are registered in the matrix.
+ * Treadles without matches (tieup treadles) are skipped - they're invoked directly.
  */
 export function buildMatrixFromTreadles(treadles: DiscoveredTreadle[]): GeneratorMatrix {
   const matrix = new GeneratorMatrix();
 
   for (const { name, definition } of treadles) {
+    // Skip tieup treadles (no matches) - they're invoked directly via .tieup()
+    if (!definition.matches || definition.matches.length === 0) {
+      if (process.env.DEBUG_MATRIX) {
+        console.log(`[MATRIX] Skipping "${name}" (tieup treadle - no matches)`);
+      }
+      continue;
+    }
+    
     const generator = generateFromTreadle(definition);
 
     for (const match of definition.matches) {
@@ -222,7 +238,7 @@ export async function createMatrix(workspaceRoot?: string): Promise<GeneratorMat
     const userTreadles = await discoverTreadles(userPath);
     allTreadles.push(...userTreadles);
 
-    if (userTreadles.length > 0) {
+    if (userTreadles.length > 0 || process.env.DEBUG_MATRIX) {
       console.log(`[DISCOVERY] Loaded ${userTreadles.length} user treadle(s) from ${userPath}`);
     }
   }

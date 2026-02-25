@@ -1,13 +1,41 @@
 // <%- interfaceName %>.aidl
 // Generated AIDL interface for <%= coreName %> service
+//
+// This interface defines the contract between the Android service (running in
+// :foundframe process) and client applications (running in their own processes).
+//
+// The NDK aidl tool generates:
+// - <%- interfaceName %>.java (interface)
+// - <%- interfaceName %>.Stub (binder implementation base class)
+// - <%- interfaceName %>.Default (proxy for client-side)
 
 package <%- packageName %>;
 
 <%- imports.map(i => `import ${i};`).join('\n') %>
 
+/**
+ * <%- interfaceName %> defines cross-process API for <%= coreName %>.
+ *
+ * Methods are called via Binder IPC. All parameters are 'in' (client→service).
+ * Return values are marshalled back via Binder.
+ *
+ * Security: Implementations should verify caller has:
+ *   <%- packageName %>.ACCESS_FOUNDFRAME permission (signature level)
+ */
 interface <%- interfaceName %> {
-<% methods.forEach(method => { %>
-    // <%= method.description || method.name %>
-    <%- method.returnType %> <%- method.name %>(<%- method.params.map(p => `${p.type} ${p.name}`).join(', ') %>);
+<% methods.forEach(function(method) { %>
+    /**
+     * <%- method.description || method.name %>
+<% method.params.forEach(function(param) { -%>
+     * @param <%- param.name %> <%- param.description || param.name %>
+<% }); -%>
+     * @return <%- method.returnDescription || method.aidlReturnType || method.returnType %>
+     * @throws RemoteException if IPC fails
+     */
+    <%- method.aidlReturnType || method.returnType %> <%- method.name %>(<%-
+      method.params.map(function(p) {
+        return (p.direction || 'in') + ' ' + (p.aidlType || p.type) + ' ' + p.name;
+      }).join(', ')
+    %>);
 <% }); %>
 }

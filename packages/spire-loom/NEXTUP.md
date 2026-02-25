@@ -2,6 +2,37 @@
 
 ## Active Work
 
+### APP-006: Declarative Hookups for Treadles
+
+**Status**: 📋 Ready for implementation  
+**Docs**: `.kimi/kimprint/1NBOX/APP-006-declarative-hookups.md`
+
+Path-based hookup type detection — no more custom functions for Android/Gradle/Rust hookups.
+
+```typescript
+hookups: [
+  {
+    path: 'android/AndroidManifest.xml',
+    permissions: [{ name: 'android.permission.FOREGROUND_SERVICE' }],
+    applicationBlocks: [`<service android:name=".service.${serviceName}" />`]
+  },
+  {
+    path: 'Cargo.toml', 
+    dependencies: { 'serde': { version: '1.0', features: ['derive'] } }
+  }
+]
+```
+
+**Next Steps:**
+- [ ] Create `machinery/treadle-kit/hookup-types.ts`
+- [ ] Create `machinery/shuttle/hookup-handlers/` (android-manifest, cargo-toml, rust-module, gradle)
+- [ ] Create `machinery/treadle-kit/hookup-runner.ts`
+- [ ] Integrate into `declarative.ts` Phase 3
+- [ ] Migrate `treadles/platform-android.ts` to new API
+- [ ] Tests for hookup handlers
+
+---
+
 ### The Beater: Precompiled ORM Generation
 
 Building the three-stage ORM pipeline in `machinery/beater/`:

@@ -152,9 +152,7 @@ export function spiral(...innerRings: unknown[]) {
 
   // Otherwise creates a spiral multiplexer
   const innerRingsArr = innerRings as i.SpiralRing[];
-  const mux = p.spiralMux(innerRingsArr, {
-    tauri: new spiralers.TauriSpiraler(innerRingsArr)
-  });
+  const mux = p.spiralMux(innerRingsArr, {});
   return mux;
 }
 

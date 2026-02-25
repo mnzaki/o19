@@ -14,7 +14,7 @@
     "build": "tsc",
     "lint": "eslint .",
     "check-types": "tsc --noEmit",
-    "test": "node --test --import=tsx tests/*.test.ts",
+    "test": "node --test-force-exit --test --import=tsx tests/*.test.ts",
     "test:xml": "node --test --import=tsx tests/xml-block-manager.test.ts",
     "test:gradle": "node --test --import=tsx tests/gradle-manager.test.ts"
   },
@@ -46,6 +46,10 @@
       "types": "./warp/index.ts",
       "import": "./warp/index.ts"
     },
+    "./machinery/treadle-kit": {
+      "types": "./machinery/treadle-kit/index.ts",
+      "import": "./machinery/treadle-kit/index.ts"
+    },
     "./machinery/treadles": {
       "types": "./machinery/treadles/index.ts",
       "import": "./machinery/treadles/index.ts"
@@ -61,6 +65,10 @@
     "./machinery/reed": {
       "types": "./machinery/reed/workspace-discovery.ts",
       "import": "./machinery/reed/workspace-discovery.ts"
+    },
+    "./machinery/sley": {
+      "types": "./machinery/sley/index.ts",
+      "import": "./machinery/sley/index.ts"
     }
   },
   "keywords": [

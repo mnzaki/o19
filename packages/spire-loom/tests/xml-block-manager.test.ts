@@ -49,7 +49,7 @@ describe('xml-block-manager', () => {
     assert.deepStrictEqual(result.updated, []);
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(content.includes('spire-loom:TestPermission:uses-permission'));
+    assert.ok(content.includes('SPIRE-LOOM:XML:TESTPERMISSION'))
     assert.ok(content.includes('android.permission.TEST'));
   });
 
@@ -170,8 +170,8 @@ describe('xml-block-manager', () => {
     assert.deepStrictEqual(result.added, []);
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(!content.includes('spire-loom:BindJobPermission'));
-    assert.ok(!content.includes('spire-loom:RadicleService'));
+    assert.ok(!content.includes('SPIRE-LOOM:XML:BINDJOBPERMISSION'));
+    assert.ok(!content.includes('SPIRE-LOOM:XML:RADICLESERVICE'));
     assert.ok(content.includes('android:exported="false"'));
   });
 
@@ -180,34 +180,34 @@ describe('xml-block-manager', () => {
     
     fs.writeFileSync(manifestPath, `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- spire-loom:OldPermission:uses-permission -->
+    <!-- SPIRE-LOOM:XML:OLDPERMISSION -->
     <uses-permission android:name="android.permission.OLD" />
-    <!-- /spire-loom:OldPermission:uses-permission -->
-    <!-- spire-loom:KeepPermission:uses-permission -->
+    <!-- /SPIRE-LOOM:XML:OLDPERMISSION -->
+    <!-- SPIRE-LOOM:XML:KEEPPERMISSION -->
     <uses-permission android:name="android.permission.KEEP" />
-    <!-- /spire-loom:KeepPermission:uses-permission -->
+    <!-- /SPIRE-LOOM:XML:KEEPPERMISSION -->
     <application/>
 </manifest>`);
 
-    // First generation run: register both blocks
+    // First generation run: register both blocks (use UPPERCASE to match marker format)
     startGeneration();
     ensureXmlBlock(manifestPath, {
-      OldPermission: { content: '<uses-permission android:name="android.permission.OLD" />', parent: 'permissions' },
-      KeepPermission: { content: '<uses-permission android:name="android.permission.KEEP" />', parent: 'permissions' }
+      OLDPERMISSION: { content: '<uses-permission android:name="android.permission.OLD" />', parent: 'permissions' },
+      KEEPPERMISSION: { content: '<uses-permission android:name="android.permission.KEEP" />', parent: 'permissions' }
     });
 
-    // Second generation run: only KeepPermission (simulates config change)
+    // Second generation run: only KEEPPERMISSION (simulates config change)
     startGeneration();
     const result = ensureXmlBlock(manifestPath, {
-      KeepPermission: { content: '<uses-permission android:name="android.permission.KEEP" />', parent: 'permissions' }
+      KEEPPERMISSION: { content: '<uses-permission android:name="android.permission.KEEP" />', parent: 'permissions' }
     });
 
-    // Run global cleanup to remove orphaned blocks (OldPermission from previous gen)
+    // Run global cleanup to remove orphaned blocks (OLDPERMISSION from previous gen)
     const cleanup = cleanupAllBlocks();
     
-    // Cleanup result should show OldPermission was removed
+    // Cleanup result should show OLDPERMISSION was removed
     assert.ok(cleanup.blocksRemoved > 0, 'Should have removed orphaned blocks');
-    assert.ok(cleanup.details.some(d => d.removed.includes('OldPermission')), 'Should have removed OldPermission');
+    assert.ok(cleanup.details.some(d => d.removed.includes('OLDPERMISSION')), 'Should have removed OLDPERMISSION');
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
     assert.ok(!content.includes('android.permission.OLD'));
@@ -304,6 +304,6 @@ describe('xml-block-manager', () => {
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
     assert.ok(content.includes('android:value="old"'));
-    assert.ok(!content.includes('spire-loom:MetaData'));
+    assert.ok(!content.includes('SPIRE-LOOM:XML:METADATA'));
   });
 });

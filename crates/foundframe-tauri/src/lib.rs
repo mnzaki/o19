@@ -151,7 +151,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       crate::spire::commands::supports_events,
       /* SPIRE_COMMANDS_END */
     ])
-    .setup(|app, api| {
+    .setup(|app, api| {      // Initialize RustExternalLayer platform (generated)
+      let _RustExternalLayer = o19_foundframe_tauri::spire::setupSpireRustExternalLayer(app, &api)?;
+
       o19_foundframe::setup_logging();
 
       // Initialize foundframe platform (generated)

@@ -1,6 +1,6 @@
 /**
  * Custom Treadles for foundframe
- * 
+ *
  * These treadles extend spire-loom's code generation capabilities
  * for foundframe-specific patterns.
  */
@@ -10,3 +10,9 @@ export { dbBindingTreadle, type DbBindingConfig } from './dbbindings.js';
 
 // KyselyAdaptorTreadle - Generates TypeScript Kysely adaptor implementations
 export { kyselyAdaptorTreadle, type KyselyAdaptorConfig } from './kysely-adaptor.js';
+
+// TauriAndroidCommandsTreadle - Generates Kotlin service client and Tauri plugin
+export {
+  tauriAndroidCommandsTreadle,
+  type TauriAndroidGenerationOptions
+} from './tauri-android-commands.js';

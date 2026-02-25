@@ -182,7 +182,16 @@ impl Foundframe {
       // Initialize TheStream lazily
       let pkb = self.create_pkb_service().map_err(|e| E::from(e))?;
       let device_pubkey = [0u8; 32]; // TODO: Get from KERI when available
-      let stream = thestream::TheStream::with_pubkey(pkb, self.events.clone(), device_pubkey);
+      
+      // Get db handle if available
+      let db = self.db.lock().unwrap().as_ref().cloned();
+      
+      let stream = thestream::TheStream::with_pubkey(
+        pkb,
+        self.events.clone(),
+        device_pubkey,
+        db,
+      );
       *guard = Some(stream);
     }
 
@@ -404,6 +413,10 @@ impl Foundframe {
     let (db_handle, _actor_handle) = db::DbActor::spawn(db_path).await?;
     *self.db.lock().unwrap() = Some(db_handle.clone());
     info!("Database initialized");
+    
+    // Start event indexer to bridge PKB → SQLite
+    let _indexer_handle = db::start_indexer(db_handle.clone(), &self.events);
+    info!("Event indexer started - PKB events will update SQLite");
     
     // Initialize PKB service (if configured)
     if self.pkb_base.is_some() {

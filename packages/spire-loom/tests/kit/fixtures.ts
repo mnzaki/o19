@@ -4,7 +4,7 @@
  * Pre-built mock objects for common test scenarios.
  */
 
-import type { CustomTreadle, TreadleContext, TreadleResult } from '../../warp/tieups.js';
+import type { TreadleDefinition, OutputSpec } from '../../machinery/treadle-kit/declarative.js';
 
 /**
  * A mock file for testing.
@@ -26,12 +26,12 @@ export interface MockTreadleConfig {
   modifiedFiles?: string[];
   /** Simulate an error */
   shouldError?: boolean;
-  /** Custom generate logic */
-  customGenerate?: (context: TreadleContext) => Promise<TreadleResult>;
 }
 
 /**
- * Create a mock custom treadle for testing.
+ * Create a mock treadle definition for testing.
+ *
+ * Uses the TreadleDefinition format (tieup style - no matches needed).
  *
  * @example
  * ```typescript
@@ -45,31 +45,38 @@ export interface MockTreadleConfig {
  * const runner = createTestRunner({
  *   warp: {
  *     foundframe: loom.spiral(core)
- *       .tieup.intra(mockTreadle, { test: true })
+ *       .tieup({ treadles: [mockTreadle], warpData: {} })
  *   }
  * });
  * ```
  */
-export function createMockTreadle(config: MockTreadleConfig): CustomTreadle {
-  return async (context: TreadleContext): Promise<TreadleResult> => {
-    if (config.shouldError) {
-      throw new Error(`Mock treadle ${config.name} failed`);
-    }
+export function createMockTreadle(config: MockTreadleConfig): TreadleDefinition {
+  if (config.shouldError) {
+    throw new Error(`Mock treadle ${config.name} configured to fail on creation`);
+  }
 
-    if (config.customGenerate) {
-      return config.customGenerate(context);
+  return {
+    name: config.name,
+    // Tieup style - no matches needed
+    methods: {
+      filter: 'core',
+      pipeline: []
+    },
+    outputs: (ctx) => {
+      // Generate output specs for each mock file
+      return (config.files ?? []).map(file => ({
+        template: 'mock/template.ejs',
+        path: file.path,
+        language: 'rust' as const
+      }));
+    },
+    data: (ctx) => {
+      // Provide file contents to templates
+      return {
+        mockFiles: config.files ?? [],
+        mockModifiedFiles: config.modifiedFiles ?? []
+      };
     }
-
-    // Default: write mock files
-    for (const file of (config.files ?? [])) {
-      await context.utils.writeFile(file.path, file.content);
-    }
-
-    return {
-      generatedFiles: (config.files ?? []).map(f => f.path),
-      modifiedFiles: config.modifiedFiles ?? [],
-      errors: [],
-    };
   };
 }
 
@@ -80,64 +87,63 @@ export const mockTreadles = {
   /**
    * A treadle that generates a single Rust file.
    */
-  rustFile: (name: string, content?: string) => createMockTreadle({
+  rustFile: (name: string, content?: string): TreadleDefinition => ({
     name: `rust-${name}`,
-    files: [{
+    methods: { filter: 'core', pipeline: [] },
+    outputs: [{
+      template: 'mock/rust-file.ejs',
       path: `src/${name}.rs`,
-      content: content ?? `// Generated ${name}\npub struct ${name} {}`,
+      language: 'rust'
     }],
+    data: {
+      structName: name.charAt(0).toUpperCase() + name.slice(1),
+      defaultContent: content ?? `// Generated ${name}\npub struct ${name} {}`
+    }
   }),
 
   /**
    * A treadle that generates a TypeScript file.
    */
-  typescriptFile: (name: string, content?: string) => createMockTreadle({
+  typescriptFile: (name: string, content?: string): TreadleDefinition => ({
     name: `ts-${name}`,
-    files: [{
+    methods: { filter: 'front', pipeline: [] },
+    outputs: [{
+      template: 'mock/ts-file.ejs',
       path: `${name}.ts`,
-      content: content ?? `// Generated ${name}\nexport interface ${name} {}`,
+      language: 'typescript'
     }],
-  }),
-
-  /**
-   * A treadle that modifies an existing file.
-   */
-  fileModifier: (path: string, insertion: string) => createMockTreadle({
-    name: 'file-modifier',
-    customGenerate: async (context) => {
-      await context.utils.updateFile(path, (content) => {
-        return content + '\n' + insertion;
-      });
-      return {
-        generatedFiles: [],
-        modifiedFiles: [path],
-        errors: [],
-      };
-    },
+    data: {
+      interfaceName: name.charAt(0).toUpperCase() + name.slice(1),
+      defaultContent: content ?? `// Generated ${name}\nexport interface ${name} {}`
+    }
   }),
 
   /**
    * A treadle that fails.
    */
-  failing: (name: string) => createMockTreadle({
-    name,
-    shouldError: true,
+  failing: (name: string): TreadleDefinition => ({
+    name: `failing-${name}`,
+    methods: { filter: 'core', pipeline: [] },
+    outputs: () => {
+      throw new Error(`Mock treadle ${name} failed during output generation`);
+    },
+    data: {}
   }),
 
   /**
    * A treadle that echoes its config to output.
    */
-  echoConfig: () => createMockTreadle({
+  echoConfig: (): TreadleDefinition => ({
     name: 'echo-config',
-    customGenerate: async (context) => {
-      const configJson = JSON.stringify(context.config, null, 2);
-      await context.utils.writeFile('config.echo.json', configJson);
-      return {
-        generatedFiles: ['config.echo.json'],
-        modifiedFiles: [],
-        errors: [],
-      };
-    },
+    methods: { filter: 'core', pipeline: [] },
+    outputs: [{
+      template: 'mock/echo.ejs',
+      path: 'config.echo.json',
+      language: 'rust'
+    }],
+    data: (ctx) => ({
+      configJson: JSON.stringify(ctx.config, null, 2)
+    })
   }),
 };
 
@@ -155,8 +161,8 @@ export const warpFixtures = {
   /**
    * With tieup: Core + custom treadle.
    */
-  withTieup: (treadle: CustomTreadle, config: Record<string, unknown>) => ({
-    foundframe: {} as any, // Would have .tieup.intra(treadle, config)
+  withTieup: (treadle: TreadleDefinition, config: Record<string, unknown>) => ({
+    foundframe: {} as any, // Would have .tieup({ treadles: [treadle], warpData: config })
   }),
 
   /**

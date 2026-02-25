@@ -247,8 +247,8 @@ export function ensureXmlBlock(
       throw new Error(`Failed to parse block content for ${blockId}: ${e}`);
     }
     
-    // Check if already managed by us
-    if (isBlockRegistered(filePath, blockId) && hasBlock(content, markers)) {
+    // Check if block already exists in file (regardless of registry state)
+    if (hasBlock(content, markers)) {
       // Check if content changed using generic block operations
       const blockRegex = new RegExp(
         `${escapeMarkerForRegex(markers.start)}([\\s\\S]*?)${escapeMarkerForRegex(markers.end)}`
@@ -272,15 +272,13 @@ export function ensureXmlBlock(
       continue;
     }
     
-    // Check for manual override
-    if (!hasBlock(content, markers)) {
-      const exists = hasMatchingElement(parsed, blockInfo.tag, keyAttributes, blockInfo.attrs);
-      if (exists) {
-        const key = extractKey(blockInfo.attrs, keyAttributes);
-        console.log(`  Manual override: ${blockId} already exists (${key})`);
-        registerBlock(filePath, blockId);
-        continue;
-      }
+    // Check for manual override (element exists but not managed by us)
+    const exists = hasMatchingElement(parsed, blockInfo.tag, keyAttributes, blockInfo.attrs);
+    if (exists) {
+      const key = extractKey(blockInfo.attrs, keyAttributes);
+      console.log(`  Manual override: ${blockId} already exists (${key})`);
+      registerBlock(filePath, blockId);
+      continue;
     }
     
     // Add new block

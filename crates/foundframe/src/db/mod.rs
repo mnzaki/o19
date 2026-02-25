@@ -10,11 +10,8 @@
 //! See `actor.rs` for the full fractal discussion and implementation.
 
 pub mod actor;
+pub mod indexer;
 
-pub use actor::{
-    DbActor,
-    DbHandle,
-    DbCommand,
-    InsertMediaSource,
-    MediaSource,
-};
+pub use actor::{DbActor, DbCommand, DbHandle, InsertMediaSource, MediaSource};
+
+pub use indexer::start_indexer;

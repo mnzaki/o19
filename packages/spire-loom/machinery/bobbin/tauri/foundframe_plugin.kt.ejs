@@ -1,0 +1,165 @@
+package <%- packageName %>
+
+import android.app.Activity
+import android.util.Log
+import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
+import app.tauri.annotation.TauriPlugin
+import app.tauri.plugin.Invoke
+import app.tauri.plugin.JSObject
+import app.tauri.plugin.Plugin
+import <%- packageName %>.service.<%- serviceClient %>
+
+/**
+ * FoundframePlugin - Generated Tauri plugin for Android
+ *
+ * This plugin exposes foundframe operations to JavaScript via Tauri's command system.
+ * It uses the [<%- serviceClient %>] to communicate with the FoundframeRadicleService
+ * running in the :foundframe process via AIDL IPC.
+ *
+ * Generated from management methods. Do not edit manually.
+ *
+ * Commands:
+<% methods.filter(function(m) { return m.crudOperation === 'create' || m.crudOperation === 'update'; }).forEach(function(method) { -%>
+ * - <%- method.snakeName || method.name.replace(/([A-Z])/g, '_$1').toLowerCase() %>: <%- method.description || method.name %>
+<% }); -%>
+ */
+@TauriPlugin
+class FoundframePlugin(activity: Activity) : Plugin(activity) {
+    
+    companion object {
+        private const val TAG = "FoundframePlugin"
+    }
+    
+    private lateinit var client: <%- serviceClient %>
+    
+    /**
+     * Called when the plugin is loaded.
+     * Starts and binds to the FoundframeRadicleService for AIDL IPC.
+     */
+    override fun load(webView: android.webkit.WebView) {
+        super.load(webView)
+        Log.i(TAG, "Loading FoundframePlugin")
+        
+        client = <%- serviceClient %>(activity)
+        
+        // Step 1: Start the service (it runs in :foundframe process)
+        val started = client.ensureStarted("deardiary")
+        if (!started) {
+            Log.e(TAG, "Failed to start FoundframeRadicleService")
+        } else {
+            Log.i(TAG, "FoundframeRadicleService started")
+        }
+        
+        // Step 2: Bind to the service for AIDL IPC
+        val connected = client.connect()
+        if (!connected) {
+            Log.e(TAG, "Failed to connect to FoundframeRadicleService")
+        } else {
+            Log.i(TAG, "Connected to FoundframeRadicleService")
+        }
+    }
+    
+    /**
+     * Called when the plugin is being destroyed.
+     * Unbinds from the service.
+     */
+    override fun onDestroy() {
+        Log.i(TAG, "Destroying FoundframePlugin")
+        if (::client.isInitialized) {
+            client.disconnect()
+        }
+        super.onDestroy()
+    }
+    
+    // ==========================================================================
+    // Service Lifecycle Commands
+    // ==========================================================================
+    
+    /**
+     * Check if connected to the service.
+     * Can be called from JS to verify readiness.
+     */
+    @Command
+    fun isServiceReady(invoke: Invoke) {
+        val ready = if (::client.isInitialized) client.isConnected() else false
+        val response = JSObject()
+        response.put("ready", ready)
+        invoke.resolve(response)
+    }
+    
+    /**
+     * Explicitly connect to the service.
+     * Called automatically on load, but can be called again if disconnected.
+     */
+    @Command
+    fun connectService(invoke: Invoke) {
+        val connected = client.connect()
+        val response = JSObject()
+        response.put("connected", connected)
+        invoke.resolve(response)
+    }
+    
+    // ==========================================================================
+    // Generated Command Handlers
+    // ==========================================================================
+    
+<% 
+// Filter to create/update operations for commands
+const commandMethods = methods.filter(function(m) {
+    return m.crudOperation === 'create' || m.crudOperation === 'update' || m.crudOperation === 'delete';
+});
+
+commandMethods.forEach(function(method) {
+    const argsClassName = method.pascalName + 'Args';
+    const commandName = method.snakeName || method.name.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+%>
+    // -------------------------------------------------------------------------
+    // <%- method.name %> - <%- method.crudOperation %>
+    // -------------------------------------------------------------------------
+    
+    @InvokeArg
+    class <%- argsClassName %> {
+<% method.params.forEach(function(param) { -%>
+        lateinit var <%- param.name %>: <%- param.aidlType || param.type %>
+<% }); -%>
+    }
+    
+    /**
+     * <%- method.description || method.name %>
+<% method.params.forEach(function(param) { -%>
+     * @param <%- param.name %> <%- param.description || param.name %>
+<% }); -%>
+<% if (method.crudOperation === 'delete') { -%>
+     * @return success boolean
+<% } else { -%>
+     * @return PKB URL of the entity
+<% } -%>
+     */
+    @Command
+    fun <%- commandName %>(invoke: Invoke) {
+        try {
+            val args = invoke.parseArgs(<%- argsClassName %>::class.java)
+            
+            val result = client.<%- method.name %>(<%-
+                method.params.map(function(p) { return 'args.' + p.name; }).join(', ')
+            %>)
+            
+            val response = JSObject()
+<% if (method.crudOperation === 'delete') { -%>
+            response.put("success", result)
+<% } else { -%>
+            response.put("pkbUrl", result)
+<% } -%>
+            invoke.resolve(response)
+            
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "<%- method.name %> failed: not connected", e)
+            invoke.reject("Service not connected. Ensure the service is running.")
+        } catch (e: Exception) {
+            Log.e(TAG, "<%- method.name %> failed: ${e.message}", e)
+            invoke.reject(e.message ?: "Unknown error")
+        }
+    }
+<% }); %>
+}

@@ -42,8 +42,8 @@ android {
     assert.strictEqual(result, true);
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('// spire-loom:TestBlock'));
-    assert.ok(content.includes('// /spire-loom:TestBlock'));
+    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:TESTBLOCK'));
+    assert.ok(content.includes('// /SPIRE-LOOM:BLOCK:TESTBLOCK'));
     assert.ok(content.includes('compileSdk 34'));
   });
 
@@ -61,7 +61,7 @@ tasks.register('buildRust') {
 `, { after: 'plugins {' });
 
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('// spire-loom:RustTask'));
+    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:RUSTTASK'));
     assert.ok(content.includes('tasks.register'));
   });
 
@@ -95,10 +95,10 @@ tasks.register('buildRust') {
     const gradlePath = path.join(TEST_DIR, 'build.gradle');
     fs.writeFileSync(gradlePath, `plugins {
 }
-// spire-loom:TestBlock
+// SPIRE-LOOM:BLOCK:TESTBLOCK
 test {
 }
-// /spire-loom:TestBlock
+// /SPIRE-LOOM:BLOCK:TESTBLOCK
 android {
 }
 `);
@@ -178,7 +178,7 @@ android {
     const content = fs.readFileSync(gradlePath, 'utf-8');
     assert.ok(content.includes("namespace 'ty.circulari.test'"));
     assert.ok(content.includes('compileSdk 34'));
-    assert.ok(content.includes('// spire-loom:NewBlock'));
+    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:NEWBLOCK'));
   });
 
   it('handles multiple blocks in same file', () => {
@@ -189,12 +189,12 @@ android {
     ensureGradleBlock(gradlePath, 'Block2', '// Block 2 content');
 
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('// spire-loom:Block1'));
+    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:BLOCK1'));
     assert.ok(content.includes('// Block 1 content'));
-    assert.ok(content.includes('// spire-loom:Block2'));
+    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:BLOCK2'));
     assert.ok(content.includes('// Block 2 content'));
-    assert.ok(content.includes('// /spire-loom:Block1'));
-    assert.ok(content.includes('// /spire-loom:Block2'));
+    assert.ok(content.includes('// /SPIRE-LOOM:BLOCK:BLOCK1'));
+    assert.ok(content.includes('// /SPIRE-LOOM:BLOCK:BLOCK2'));
   });
 
   it('creates file if not exists', () => {
@@ -204,6 +204,6 @@ android {
 
     assert.ok(fs.existsSync(gradlePath));
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('// spire-loom:TestBlock'));
+    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:TESTBLOCK'));
   });
 });

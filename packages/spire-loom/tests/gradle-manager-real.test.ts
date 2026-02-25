@@ -166,9 +166,9 @@ preBuild.dependsOn buildRust
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
     
-    // Check the block was added
-    assert.ok(content.includes('// spire-loom:RustBuild'), 'Should have start marker');
-    assert.ok(content.includes('// /spire-loom:RustBuild'), 'Should have end marker');
+    // Check the block was added (markers use UPPERCASE format: SPIRE-LOOM:BLOCK:<ID>)
+    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:RUSTBUILD'), 'Should have start marker');
+    assert.ok(content.includes('// /SPIRE-LOOM:BLOCK:RUSTBUILD'), 'Should have end marker');
     assert.ok(content.includes('tasks.register(\'buildRust\''), 'Should have task registration');
     assert.ok(content.includes('preBuild.dependsOn buildRust'), 'Should have dependency');
     
@@ -234,8 +234,8 @@ preBuild.dependsOn buildRust
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
     
-    // Count occurrences of the marker
-    const matches = content.match(/spire-loom:RustBuild/g);
+    // Count occurrences of the marker (UPPERCASE format: SPIRE-LOOM:BLOCK:RUSTBUILD)
+    const matches = content.match(/SPIRE-LOOM:BLOCK:RUSTBUILD/g);
     assert.strictEqual(matches?.length, 2, 'Should have exactly one start and one end marker');
   });
 });

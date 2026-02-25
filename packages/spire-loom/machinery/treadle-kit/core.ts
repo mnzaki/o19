@@ -45,7 +45,7 @@
  */
 
 import * as path from 'node:path';
-import type { SpiralNode, GeneratedFile, GeneratorContext, WeavingPlan } from '../heddles/index.js';
+import type { SpiralNode, GeneratedFile, GeneratorContext, WeavingPlan, MethodHelpers } from '../heddles/index.js';
 import { ensurePlanComplete } from '../heddles/index.js';
 import type { ManagementMetadata } from '../reed/index.js';
 import { filterByReach } from '../reed/index.js';
@@ -262,6 +262,69 @@ export function buildAndroidPackageData(
 }
 
 // ============================================================================
+// Method Helpers Builder
+// ============================================================================
+
+/**
+ * Build method helpers for GeneratorContext.
+ * Provides convenient access to filtered and grouped methods.
+ */
+function buildMethodHelpers(methods: RawMethod[]): MethodHelpers {
+  return {
+    all: methods,
+    
+    byManagement(): Map<string, RawMethod[]> {
+      const map = new Map<string, RawMethod[]>();
+      for (const method of methods) {
+        // Extract management name from method name or metadata
+        const mgmtName = (method as any).managementName || 
+                         method.name.split('_')[0] || 
+                         'default';
+        const list = map.get(mgmtName) || [];
+        list.push(method);
+        map.set(mgmtName, list);
+      }
+      return map;
+    },
+    
+    byCrud(): Map<string, RawMethod[]> {
+      const map = new Map<string, RawMethod[]>();
+      for (const method of methods) {
+        const op = (method as any).crudOperation;
+        if (op) {
+          const list = map.get(op) || [];
+          list.push(method);
+          map.set(op, list);
+        }
+      }
+      return map;
+    },
+    
+    withTag(tag: string): RawMethod[] {
+      return methods.filter(m => (m as any).tags?.includes(tag));
+    },
+    
+    withCrud(op: string): RawMethod[] {
+      return methods.filter(m => (m as any).crudOperation === op);
+    },
+    
+    forEach(cb: (method: RawMethod) => void): void {
+      methods.forEach(cb);
+    },
+    
+    filteredForEach(filter: (method: RawMethod) => boolean, cb: (method: RawMethod) => void): void {
+      methods.filter(filter).forEach(cb);
+    },
+    
+    get creates(): RawMethod[] { return this.withCrud('create'); },
+    get reads(): RawMethod[] { return this.withCrud('read'); },
+    get updates(): RawMethod[] { return this.withCrud('update'); },
+    get deletes(): RawMethod[] { return this.withCrud('delete'); },
+    get lists(): RawMethod[] { return this.withCrud('list'); }
+  };
+}
+
+// ============================================================================
 // Treadle Kit Implementation
 // ============================================================================
 
@@ -310,6 +373,11 @@ export interface TreadleKit {
       path: string;
       language: 'kotlin' | 'rust' | 'rust_jni' | 'aidl' | 'typescript';
       condition?: (context: GeneratorContext) => boolean;
+      /** 
+       * Per-output context data merged with main data for this output only.
+       * Useful for per-entity generation with shared templates.
+       */
+      context?: Record<string, unknown>;
     }>,
     data: Record<string, unknown>,
     methods: RawMethod[]
@@ -395,7 +463,12 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       }
 
       // Convert to RawMethod
-      return processedMethods.map((m) => toRawMethod(m));
+      const rawMethods = processedMethods.map((m) => toRawMethod(m));
+      
+      // Build and attach method helpers to context
+      context.methods = buildMethodHelpers(rawMethods);
+      
+      return rawMethods;
     },
 
     buildData(dataFn, current, previous): Record<string, unknown> {
@@ -419,12 +492,18 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
           return match;
         });
 
-        // Generate the file
+        // Merge per-output context with main data (context takes precedence)
+        const mergedData = output.context
+          ? { ...data, ...output.context }
+          : data;
+
+        // Generate the file (workspace templates checked first)
         const file = await generateCode({
           template: output.template,
           outputPath,
-          data,
-          methods
+          data: mergedData,
+          methods,
+          workspaceRoot: context.workspaceRoot
         });
 
         files.push(file);
@@ -450,6 +529,76 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       }
     }
   };
+}
+
+// ============================================================================
+// AIDL Type Mapping
+// ============================================================================
+
+/**
+ * Map internal type representation to AIDL type.
+ * AIDL supports: primitives, String, Parcelable, arrays, interfaces
+ * 
+ * @param type The internal type (e.g., 'String', 'i32', 'Vec<u8>')
+ * @returns The AIDL type (e.g., 'String', 'int', 'byte[]')
+ */
+export function mapToAidlType(type: string): string {
+  // Handle nullable marker
+  const isNullable = type.startsWith('?');
+  const baseType = isNullable ? type.slice(1) : type;
+  
+  // Map to AIDL type
+  switch (baseType.toLowerCase()) {
+    // Primitives
+    case 'string':
+      return 'String';
+    case 'i32':
+    case 'int':
+      return 'int';
+    case 'i64':
+    case 'long':
+      return 'long';
+    case 'bool':
+    case 'boolean':
+      return 'boolean';
+    case 'f32':
+    case 'float':
+      return 'float';
+    case 'f64':
+    case 'double':
+      return 'double';
+    case 'u8':
+    case 'byte':
+      return 'byte';
+    // Arrays
+    case 'vec<u8>':
+    case 'bytes':
+      return 'byte[]';
+    case 'vec<string>':
+      return 'String[]';
+    // Complex types - assume Parcelable for now
+    default:
+      return baseType;
+  }
+}
+
+/**
+ * Map method parameters for AIDL generation.
+ * Adds AIDL-specific type info and direction qualifiers.
+ * 
+ * @param methods Raw methods to transform
+ * @returns Methods with AIDL type information added
+ */
+export function addAidlTypesToMethods(methods: RawMethod[]): RawMethod[] {
+  return methods.map(method => ({
+    ...method,
+    aidlReturnType: mapToAidlType(method.returnType),
+    params: method.params.map(param => ({
+      ...param,
+      aidlType: mapToAidlType(param.type),
+      direction: 'in' // Default: client sends data to service
+    }))
+  }));
 }
 
 // ============================================================================

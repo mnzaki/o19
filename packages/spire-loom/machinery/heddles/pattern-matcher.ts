@@ -9,7 +9,10 @@
 import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler } from '../../warp/index.js';
 import { CoreRing, RustCore, TsCore } from '../../warp/spiral/index.js';
 import type { ManagementMetadata, MethodMetadata } from '../reed/index.js';
+import type { RawMethod } from '../bobbin/index.js';
 import { RUST_STRUCT_CONFIG, RUST_WRAPPERS, type RustStructOptions } from '../../warp/rust.js';
+import { collectAllTieups, type TieupTreadle } from '../../warp/tieups.js';
+import { generateFromTreadle } from '../treadle-kit/declarative.js';
 
 /**
  * Enriched method metadata with computed values from heddles.
@@ -123,6 +126,16 @@ export interface GenerationTask {
   previous: SpiralNode;
   /** Export name from WARP.ts (the spiraler's export) */
   exportName: string;
+  /** 
+   * Optional generator function.
+   * If provided, bypasses matrix lookup (used for tieup tasks).
+   */
+  generator?: GeneratorFunction;
+  /**
+   * Optional config data from tieup (warpData).
+   * Passed to generator context.config when executing.
+   */
+  config?: Record<string, unknown>;
 }
 
 /**
@@ -168,6 +181,40 @@ export function ensurePlanComplete(plan: WeavingPlan, operation: string): void {
 }
 
 /**
+ * Method helpers available in generator context.
+ * Provides convenient access to filtered and grouped management methods.
+ */
+export interface MethodHelpers {
+  /** All collected methods (after pipeline transformation) */
+  all: RawMethod[];
+  
+  /** Group methods by management name */
+  byManagement(): Map<string, RawMethod[]>;
+  /** Group methods by CRUD operation */
+  byCrud(): Map<string, RawMethod[]>;
+  /** Get methods with specific tag */
+  withTag(tag: string): RawMethod[];
+  /** Get methods with specific CRUD operation */
+  withCrud(op: string): RawMethod[];
+  
+  /** Iterate all methods */
+  forEach(cb: (method: RawMethod) => void): void;
+  /** Iterate filtered methods */
+  filteredForEach(filter: (method: RawMethod) => boolean, cb: (method: RawMethod) => void): void;
+  
+  /** All create methods */
+  get creates(): RawMethod[];
+  /** All read methods */
+  get reads(): RawMethod[];
+  /** All update methods */
+  get updates(): RawMethod[];
+  /** All delete methods */
+  get deletes(): RawMethod[];
+  /** All list methods */
+  get lists(): RawMethod[];
+}
+
+/**
  * Generator context passed to generators.
  */
 export interface GeneratorContext {
@@ -181,6 +228,13 @@ export interface GeneratorContext {
   packagePath: string;
   /** Full package directory path */
   packageDir: string;
+  /** Method collection helpers (populated by treadle-kit) */
+  methods?: MethodHelpers;
+  /** 
+   * Configuration data from tieup (warpData).
+   * Available when treadle is invoked via .tieup()
+   */
+  config?: Record<string, unknown>;
 }
 
 /**
@@ -334,6 +388,58 @@ export class Heddles {
           }
         }
       });
+    }
+
+    // Collect tieup tasks from all layers
+    // Tieup treadles are added directly to tasks, bypassing matrix matching
+    const allLayers = this.collectAllLayers(warp);
+    const tieups = collectAllTieups(allLayers);
+    
+    if (process.env.DEBUG_MATRIX) {
+      console.log(`[HEDDLES] Collected ${tieups.length} tieup(s) from ${allLayers.size} layer(s)`);
+    }
+    
+    for (const tieup of tieups) {
+      const targetNode = this.findNodeForRing(nodesByType, tieup.target);
+      const sourceNode = this.findNodeForRing(nodesByType, tieup.source);
+      
+      if (process.env.DEBUG_MATRIX) {
+        console.log(`[HEDDLES] Processing tieup: source=${sourceNode?.exportName || 'NOT FOUND'}, target=${targetNode?.exportName || 'NOT FOUND'}`);
+      }
+      
+      if (!targetNode || !sourceNode) continue;
+      
+      for (const entry of tieup.config.treadles) {
+        const treadle = entry.treadle;
+        const warpData = entry.warpData;
+        
+        if (process.env.DEBUG_MATRIX) {
+          const isTdef = this.isTreadleDefinition(treadle);
+          console.log(`[HEDDLES]   Treadle: isTreadleDefinition=${isTdef}, hasWarpData=${!!warpData}`);
+        }
+        
+        // Get or create generator
+        let generator: GeneratorFunction;
+        if (this.isTreadleDefinition(treadle)) {
+          generator = generateFromTreadle(treadle);
+        } else {
+          generator = treadle as GeneratorFunction;
+        }
+        
+        // Create synthetic task with config (warpData) for tieup treadles
+        tasks.push({
+          match: [targetNode.typeName, sourceNode.typeName],
+          current: targetNode,
+          previous: sourceNode,
+          exportName: targetNode.exportName,
+          generator,  // Bypasses matrix lookup
+          config: warpData  // Pass warpData to weaver
+        });
+        
+        if (process.env.DEBUG_MATRIX) {
+          console.log(`[HEDDLES]   Added tieup task: ${targetNode.typeName} -> ${sourceNode.typeName}`);
+        }
+      }
     }
 
     // Mark plan as complete - now safe to traverse
@@ -585,6 +691,91 @@ export class Heddles {
       current = current.parent;
     }
     return path;
+  }
+
+  /**
+   * Collect all unique layers from the warp.
+   */
+  private collectAllLayers(warp: Record<string, SpiralRing>): Set<Layer> {
+    const layers = new Set<Layer>();
+    
+    for (const ring of Object.values(warp)) {
+      if (ring instanceof SpiralRing) {
+        this.collectLayersFromRing(ring, layers);
+      }
+    }
+    
+    return layers;
+  }
+
+  /**
+   * Recursively collect layers from a ring and its inner rings.
+   */
+  private collectLayersFromRing(ring: SpiralRing, layers: Set<Layer>): void {
+    if ((ring as any).tieup) {
+      // This is a Layer with potential tieups
+      layers.add(ring as unknown as Layer);
+    }
+    
+    // Recurse into inner rings
+    if (ring instanceof SpiralOut && ring.inner) {
+      this.collectLayersFromRing(ring.inner, layers);
+    } else if (ring instanceof Spiraler && ring.innerRing) {
+      this.collectLayersFromRing(ring.innerRing, layers);
+    } else if (ring instanceof MuxSpiraler) {
+      for (const inner of ring.innerRings) {
+        this.collectLayersFromRing(inner, layers);
+      }
+    } else if (ring instanceof SpiralMux) {
+      for (const inner of ring.innerRings) {
+        this.collectLayersFromRing(inner, layers);
+      }
+    }
+    
+    // Also check properties for SpiralOut/SpiralMux
+    if (ring instanceof SpiralOut || ring instanceof SpiralMux) {
+      for (const value of Object.values(ring)) {
+        if (value instanceof SpiralRing) {
+          this.collectLayersFromRing(value, layers);
+        }
+      }
+    }
+  }
+
+  /**
+   * Find a SpiralNode for a given ring from the nodesByType map.
+   */
+  private findNodeForRing(
+    nodesByType: Map<string, SpiralNode[]>,
+    ring: SpiralRing
+  ): SpiralNode | undefined {
+    for (const nodes of nodesByType.values()) {
+      for (const node of nodes) {
+        if (node.ring === ring) {
+          return node;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Check if a value is a TreadleDefinition.
+   */
+  private isTreadleDefinition(value: unknown): value is import('../treadle-kit/declarative.js').TreadleDefinition {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+    const v = value as Record<string, unknown>;
+    
+    // Traditional matrix treadle has matches
+    const hasMatches = 'matches' in v && Array.isArray(v.matches);
+    
+    // Tieup-style treadle has methods and outputs (no matches needed)
+    const hasMethods = 'methods' in v && typeof v.methods === 'object' && v.methods !== null;
+    const hasOutputs = 'outputs' in v && Array.isArray(v.outputs);
+    
+    return hasMatches || (hasMethods && hasOutputs);
   }
 }
 

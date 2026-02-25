@@ -146,6 +146,7 @@ pub enum TheStreamEvent {
 /// 1. Listens to PKB events
 /// 2. Converts them to TheStream™ events
 /// 3. Provides the API for adding content
+/// 4. Syncs to SQLite via DbActor (hybrid PKB + DB architecture)
 pub struct TheStream {
   /// Reference to the PKB service.
   pub(crate) pkb: PkbService,
@@ -155,6 +156,10 @@ pub struct TheStream {
 
   /// This device's emoji identity (for URL generation).
   pub(crate) identity: EmojiIdentity,
+  
+  /// Optional database handle for SQLite indexing.
+  /// When present, TheStream will sync PKB changes to SQLite.
+  pub(crate) db: Option<crate::db::DbHandle>,
 }
 
 /// Handle to a running listener.
@@ -173,18 +178,40 @@ impl TheStream {
   /// * `pkb` - The PKB service
   /// * `events` - Event bus for emitting events
   /// * `identity` - This device's emoji identity (derived from public key)
-  pub fn new(pkb: PkbService, events: EventBus, identity: EmojiIdentity) -> Self {
+  /// * `db` - Optional database handle for SQLite indexing
+  pub fn new(
+    pkb: PkbService,
+    events: EventBus,
+    identity: EmojiIdentity,
+    db: Option<crate::db::DbHandle>,
+  ) -> Self {
     Self {
       pkb,
       events,
       identity,
+      db,
     }
   }
 
   /// Create with a public key (generates emoji identity automatically).
-  pub fn with_pubkey(pkb: PkbService, events: EventBus, pubkey: [u8; 32]) -> Self {
+  pub fn with_pubkey(
+    pkb: PkbService,
+    events: EventBus,
+    pubkey: [u8; 32],
+    db: Option<crate::db::DbHandle>,
+  ) -> Self {
     let identity = EmojiIdentity::from_256_bits(pubkey);
-    Self::new(pkb, events, identity)
+    Self::new(pkb, events, identity, db)
+  }
+  
+  /// Get the database handle if available.
+  pub fn db(&self) -> Option<&crate::db::DbHandle> {
+    self.db.as_ref()
+  }
+  
+  /// Check if database indexing is enabled.
+  pub fn has_db(&self) -> bool {
+    self.db.is_some()
   }
 
   /// Get the filesystem path for a directory.

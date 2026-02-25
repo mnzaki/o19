@@ -18,12 +18,12 @@ import {
   buildAndroidPackageData,
   toRawMethod,
   buildMethodLink,
-  extractManagementFromBindPoint
+  extractManagementFromBindPoint,
+  addAidlTypesToMethods
 } from '../treadle-kit/index.js';
 import { executeAndroidHookup, type AndroidHookupData } from '../shuttle/hookup-manager.js';
 import { defineTreadle, generateFromTreadle } from './index.js';
 import type { GeneratorContext } from '../heddles/index.js';
-import type { MgmtMethod } from '../sley/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 
 // ============================================================================
@@ -51,18 +51,22 @@ export const androidServiceTreadle = defineTreadle({
     pipeline: [addManagementPrefix()]
   },
 
-  // Add link metadata for JNI routing
+  // Add link metadata for JNI routing and AIDL types
   transformMethods: (methods, context): RawMethod[] => {
     const linkMap = new Map(context.plan.managements.map((m) => [m.name, buildMethodLink(m)]));
     const mgmtNames = context.plan.managements.map((m) => m.name);
 
-    return methods.map((method) => {
+    // First add link metadata
+    const withLinks = methods.map((method) => {
       const mgmtName = extractManagementFromBindPoint(method.name, mgmtNames);
       return {
         ...method,
         link: mgmtName ? linkMap.get(mgmtName) : undefined
       };
     });
+    
+    // Then add AIDL type information for all methods
+    return addAidlTypesToMethods(withLinks);
   },
 
   // Template data
@@ -122,13 +126,12 @@ export const androidServiceTreadle = defineTreadle({
       path: 'android/java/{packagePath}/service/{serviceName}.kt',
       language: 'kotlin'
     },
-    // AIDL disabled - using binder_ndk directly instead
-    // See discussion: binder_ndk requires Android 12+, AIDL not needed
-    // {
-    //   template: 'android/aidl_interface.aidl.ejs',
-    //   path: 'android/aidl/{packagePath}/{interfaceName}.aidl',
-    //   language: 'aidl',
-    // },
+    // AIDL generation enabled - generates interface for NDK aidl tool
+    {
+      template: 'android/aidl_interface.aidl.ejs',
+      path: 'android/aidl/{packagePath}/{interfaceName}.aidl',
+      language: 'aidl'
+    },
     {
       template: 'android/jni_bridge.jni.rs.ejs',
       path: 'src/lib.rs',

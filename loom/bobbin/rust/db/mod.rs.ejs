@@ -1,0 +1,9 @@
+// spire-loom:db-modules
+<% entities.forEach(function(entity) { -%>
+pub mod <%= entity.lower %>;
+<% }); -%>
+
+<% entities.forEach(function(entity) { -%>
+pub use <%= entity.lower %>::<%= entity.name %>Db;
+<% }); -%>
+// /spire-loom:db-modules

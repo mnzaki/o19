@@ -17,6 +17,7 @@ import loom, { typescript, rust } from '@o19/spire-loom';
 import { dbBindingTreadle } from './treadles/dbbindings.js';
 import { kyselyAdaptorTreadle } from './treadles/kysely-adaptor.js';
 import { tauriAdaptorTreadle } from './treadles/tauri-adaptor.js';
+import { tauriAndroidCommandsTreadle } from './treadles/tauri-android-commands.js';
 
 // ============================================================================
 // CORE
@@ -48,17 +49,19 @@ export class Foundframe {
  *
  * With DbActor bindings via custom treadle.
  */
-export const foundframe = loom.spiral(Foundframe).tieup({
-  treadles: [
-    {
-      treadle: dbBindingTreadle,
-      warpData: {
-        entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
-        operations: ['create', 'read', 'update', 'delete', 'list']
-      }
-    }
-  ]
-});
+// TODO: Migrate dbBindingTreadle to new TreadleDefinition format
+// export const foundframe = loom.spiral(Foundframe).tieup({
+//   treadles: [
+//     {
+//       treadle: dbBindingTreadle,
+//       warpData: {
+//         entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+//         operations: ['create', 'read', 'update', 'delete', 'list']
+//       }
+//     }
+//   ]
+// });
+export const foundframe = loom.spiral(Foundframe);
 
 // ============================================================================
 // PLATFORM RINGS (spiral out from Core)
@@ -112,20 +115,32 @@ export const desktop = foundframe.desktop.direct();
  *   - Android → uses android ring (AIDL service)
  *   - iOS → uses ios ring (future)
  */
-export const tauri = loom.spiral(android, desktop).tauri.plugin({
-  ddd: {
-    adaptors: {
-      filterOut: ['crud:read', 'crud:list']
-    }
-    /*
-    translators: {
-      [Foundframe.thestream]: {
-        returnValues: streamEntryTranslator
+export const tauri = loom.spiral.tauri
+  .plugin({
+    ddd: {
+      adaptors: {
+        filterOut: ['crud:read', 'crud:list']
       }
+      /*
+      translators: {
+        [Foundframe.thestream]: {
+          returnValues: streamEntryTranslator
+        }
+      }
+      */
     }
-    */
-  }
-});
+  })
+  .tieup({
+    treadles: [
+      {
+        treadle: tauriAndroidCommandsTreadle,
+        warpData: {
+          servicePackage: 'ty.circulari.o19',
+          serviceClient: 'FoundframeRadicleClient'
+        }
+      }
+    ]
+  });
 tauri.name = 'foundframe-tauri';
 
 // ============================================================================
@@ -144,30 +159,39 @@ tauri.name = 'foundframe-tauri';
  *
  * With Kysely adaptor implementations via custom treadle.
  */
-export const front = loom.spiral.typescript.ddd().tieup({
-  treadles: [
-    {
-      treadle: kyselyAdaptorTreadle,
-      warpData: {
-        entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
-        operations: ['read', 'list']
+export const front = loom.spiral.typescript
+  .ddd()
+  .tieup({
+    treadles: [
+      {
+        treadle: kyselyAdaptorTreadle,
+        warpData: {
+          entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+          operations: ['read', 'list']
+        }
       }
-    }
-  ]
-});
+    ]
+  })
+  .tieup({
+    treadles: [
+      {
+        treadle: tauriAdaptorTreadle,
+        warpData: {
+          entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+          operations: ['create', 'update', 'delete']
+        }
+      }
+    ]
+  })
+  .tieup({
+    treadles: [
+      {
+        treadle: dddServicesTreadle, // TODO @ KIMI <--- this oneneeds to be created
+        warpData: {}
+      }
+    ]
+  });
 front.name = 'foundframe-front';
-
-//.tieup(tauri, {
-//  treadles: [
-//    {
-//      treadle: tauriAdaptorTreadle,
-//      warpData: {
-//        entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
-//        operations: ['create', 'update', 'delete']
-//      }
-//    }
-//  ]
-//});
 
 /**
  * Drizzle Adaptor Ring - ORM implementation of Ports

@@ -5,8 +5,8 @@
  */
 
 import type { SpiralRing, SpiralOut, Spiralers } from '../../warp/spiral/pattern.js';
-import { SpiralRing as SpiralRingClass, spiralOut } from '../../warp/spiral/pattern.js';
-import type { CustomTreadle } from '../../warp/tieups.js';
+import { SpiralRing as SpiralRingClass, SpiralOut as SpiralOutClass } from '../../warp/spiral/pattern.js';
+import type { TreadleDefinition } from '../../machinery/treadle-kit/declarative.js';
 
 /**
  * Configuration for creating a mock WARP module.
@@ -81,7 +81,9 @@ export function createMockSpiralOut<
   inner: SpiralRing,
   spiralers?: O
 ): SpiralOut<O> & MockSpiralRing {
-  const out = spiralOut(inner, spiralers ?? {} as O);
+  // Create SpiralOut directly using the class constructor
+  // SpiralOut takes (inner, treadleTag, spiralers)
+  const out = new SpiralOutClass(inner, name, spiralers ?? {} as O);
   
   // Add mock properties
   const mock = out as unknown as SpiralOut<O> & MockSpiralRing;
@@ -104,7 +106,7 @@ export function createMockSpiralOut<
  */
 export function createMockRingWithTieups(
   name: string,
-  tieups: Array<{ treadle: CustomTreadle; config: Record<string, unknown> }>
+  tieups: Array<{ treadle: TreadleDefinition; config: Record<string, unknown> }>
 ): MockSpiralRing {
   const ring = createMockCore(name);
   

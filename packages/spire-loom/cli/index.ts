@@ -22,6 +22,9 @@ import {
   loadWarp, 
   getSuggestedPackageFilter 
 } from '../machinery/reed/index.js';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 interface CliOptions {
   watch?: boolean;
@@ -29,6 +32,7 @@ interface CliOptions {
   verbose?: boolean;
   graph?: boolean;
   help?: boolean;
+  version?: boolean;
 }
 
 function parseArgs(args: string[]): CliOptions {
@@ -61,10 +65,26 @@ function parseArgs(args: string[]): CliOptions {
       case '-h':
         options.help = true;
         break;
+      case '--version':
+      case '-V':
+        options.version = true;
+        break;
     }
   }
   
   return options;
+}
+
+function showVersion() {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const packageJsonPath = join(__dirname, '..', 'package.json');
+  
+  try {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+    console.log(packageJson.version || 'unknown');
+  } catch {
+    console.log('unknown');
+  }
 }
 
 function showHelp() {
@@ -81,6 +101,7 @@ Options:
   -G, --graph           Show dependency graph visualization
   -i, --interactive     Launch interactive menu (Ink-based UI)
   -h, --help            Show this help
+  -V, --version         Show version
 
 Examples:
   spire-loom                    # Generate all packages in workspace
@@ -270,6 +291,11 @@ async function main() {
   
   if (options.help) {
     showHelp();
+    process.exit(0);
+  }
+  
+  if (options.version) {
+    showVersion();
     process.exit(0);
   }
   

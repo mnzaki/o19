@@ -12,6 +12,7 @@
  * The treadle says WHAT to generate. This module handles HOW.
  */
 
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { renderEjs, generateFromEjs } from '../shuttle/template-renderer.js';
 import { getBuiltinTemplateDir } from '../shuttle/template-renderer.js';
@@ -510,7 +511,7 @@ function mapToTauriRustType(tsType: string, isCollection: boolean = false): stri
 // ============================================================================
 
 export interface GenerateOptions {
-  /** Template path (absolute or relative to builtin templates) */
+  /** Template path (absolute or relative to builtin/workspace templates) */
   template: string;
   /** Output file path (determines transformation language) */
   outputPath: string;
@@ -520,6 +521,12 @@ export interface GenerateOptions {
   methods?: RawMethod[];
   /** EJS rendering options */
   ejsOptions?: import('ejs').Options;
+  /** 
+   * Workspace root for resolving workspace templates.
+   * If provided, templates are searched in {workspaceRoot}/loom/bobbin/ first,
+   * then fall back to builtin templates.
+   */
+  workspaceRoot?: string;
 }
 
 /**
@@ -538,11 +545,34 @@ export interface GenerateOptions {
  *   methods: rawMethods,  // Auto-transformed for Kotlin
  * });
  */
+/**
+ * Resolve template path, checking workspace first then builtin.
+ * 
+ * @param template - Template path (absolute or relative)
+ * @param workspaceRoot - Optional workspace root for workspace templates
+ * @returns Resolved absolute path to template
+ */
+function resolveTemplatePath(template: string, workspaceRoot?: string): string {
+  // If absolute, use as-is
+  if (path.isAbsolute(template)) {
+    return template;
+  }
+  
+  // Check workspace first if provided
+  if (workspaceRoot) {
+    const workspaceTemplatePath = path.join(workspaceRoot, 'loom', 'bobbin', template);
+    if (fs.existsSync(workspaceTemplatePath)) {
+      return workspaceTemplatePath;
+    }
+  }
+  
+  // Fall back to builtin templates
+  return path.join(getBuiltinTemplateDir(), template);
+}
+
 export async function generateCode(options: GenerateOptions): Promise<GeneratedFile> {
-  // Determine template path first (needed for language detection)
-  const templatePath = path.isAbsolute(options.template)
-    ? options.template
-    : path.join(getBuiltinTemplateDir(), options.template);
+  // Determine template path (workspace first, then builtin)
+  const templatePath = resolveTemplatePath(options.template, options.workspaceRoot);
   
   // Detect language from template filename (double extension pattern)
   const language = detectLanguage(templatePath);

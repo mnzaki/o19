@@ -19,22 +19,22 @@ export * as typescript from './typescript.js';
 // Rust generation helpers
 export * as rust from './rust.js';
 
-// === REFINEMENT SYSTEM ===
+// === REFINEMENT SYSTEM (TEMPORARILY DISABLED) ===
 // Refinement providers and decorators (@loom.refine.withPrisma)
-export * as refinement from './refine/index.js';
-export {
-  type RefinementProvider,
-  type RefinementMetadata,
-  type RefinementResult,
-  type WeavingContext,
-  REFINEMENT_KEY
-} from './refine/types.js';
-export {
-  withRefinement,
-  getRefinements,
-  hasRefinements,
-  getRefinement
-} from './refine/decorator.js';
+// export * as refinement from './refine/index.js';
+// export {
+//   type RefinementProvider,
+//   type RefinementMetadata,
+//   type RefinementResult,
+//   type WeavingContext,
+//   REFINEMENT_KEY
+// } from './refine/types.js';
+// export {
+//   withRefinement,
+//   getRefinements,
+//   hasRefinements,
+//   getRefinement
+// } from './refine/decorator.js';
 
 // === OPERATION ROUTING ===
 // OperationMux for read/write splitting (exported via spiral/index.js)
@@ -57,16 +57,16 @@ export {
   type StoredTieup,
   getTieups,
   addTieup,
-  executeTieups
+  collectAllTieups
 } from './tieups.js';
 
 // The loom namespace - main API
-import { refine } from './refine/index.js';
+// import { refine } from './refine/index.js';
 import { operationMux, hybridAdaptor, spiral } from './spiral/index.js';
 
 // Convenience: export loom namespace
 export const loom = {
-  refine,
+  // refine,  // TEMPORARILY DISABLED
   operationMux,
   hybridAdaptor,
   spiral
