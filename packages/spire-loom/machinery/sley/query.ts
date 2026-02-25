@@ -241,6 +241,24 @@ class BoundQueryImpl<T extends { tags?: string[]; crudOperation?: string; manage
   every(predicate: (method: T) => boolean): boolean {
     return this.evaluate().every(predicate);
   }
+
+  // =======================================================================
+  // Iterable Protocol
+  // =======================================================================
+
+  /**
+   * Make BoundQuery iterable - can use in for...of loops!
+   * 
+   * @example
+   * ```typescript
+   * for (const method of context.query?.methods) {
+   *   console.log(method.name);
+   * }
+   * ```
+   */
+  *[Symbol.iterator](): Iterator<T> {
+    yield* this.evaluate();
+  }
 }
 
 // ============================================================================

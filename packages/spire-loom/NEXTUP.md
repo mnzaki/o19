@@ -1,35 +1,124 @@
 # NEXTUP
 
-## Active Work
+## Completed ✅
 
-### APP-006: Declarative Hookups for Treadles
+### APP-010: Hookup System Implementation
 
-**Status**: 📋 Ready for implementation  
-**Docs**: `.kimi/kimprint/1NBOX/APP-006-declarative-hookups.md`
+**Status**: ✅ **COMPLETE** - All handlers implemented and tested
 
-Path-based hookup type detection — no more custom functions for Android/Gradle/Rust hookups.
+| Handler | Status | Tests |
+|---------|--------|-------|
+| `rust-module.ts` | ✅ Done | 13 |
+| `typescript.ts` | ✅ Done | 21 |
+| `cargo-toml.ts` | ✅ Done | 17 |
+| `vite-config.ts` | ✅ Done | 15 |
+| **TOTAL** | | **114** |
 
+Plus **8 new tests** for query iterator → **122 total** |
+
+**Usage Example**:
 ```typescript
 hookups: [
+  // Rust module hookup
   {
-    path: 'android/AndroidManifest.xml',
-    permissions: [{ name: 'android.permission.FOREGROUND_SERVICE' }],
-    applicationBlocks: [`<service android:name=".service.${serviceName}" />`]
+    path: 'src/lib.rs',
+    moduleDeclarations: [{ name: 'spire', path: '../spire.rs', pub: true }],
+    useStatements: ['use crate::spire::*;'],
+    tauriCommands: ['crate::spire::commands::ping']
   },
+  // TypeScript exports hookup
   {
-    path: 'Cargo.toml', 
-    dependencies: { 'serde': { version: '1.0', features: ['derive'] } }
+    path: 'src/index.ts',
+    exports: [{ source: '../spire/src/index.js', star: true }]
+  },
+  // Cargo.toml hookup
+  {
+    path: 'Cargo.toml',
+    dependencies: { 'tauri': { version: '2', features: ['test'] } }
+  },
+  // Vite config hookup
+  {
+    path: 'vite.config.ts',
+    build: {
+      rollupOptions: {
+        input: process.env.CIRCULARITY_TEST 
+          ? './src/test-entry.ts' 
+          : './src/main.ts'
+      }
+    }
   }
 ]
 ```
 
+---
+
+## Active Work
+
+### APP-011: API Ergonomics Improvements
+
+**Status**: 🚧 **IN PROGRESS** - Quick wins done, Ferris errors next
+
+#### ✅ Phase 1: Query Builder Iterable
+**Done!** Added `[Symbol.iterator]` to `BoundQueryImpl`
+```typescript
+// Now works:
+for (const method of context.query?.methods) { ... }
+const names = [...context.query?.methods].map(m => m.name);
+```
+
+#### ✅ Phase 2: Optional Pipeline  
+**Done!** Made `pipeline` optional with default `[]`
+```typescript
+// All valid now:
+methods: { filter: 'core' }  // No pipeline needed
+methods: { filter: 'core', pipeline: [] }  // Still works
+methods: { filter: 'core', pipeline: [addPrefix] }  // With transforms
+```
+
+#### 🚧 Phase 3: Hookups-Only Treadles + Ferris Errors
+**Next**: Make `methods`/`outputs` optional when `hookups` provided + add compassionate error messages
+
+See: **APP-012: Ferroring** for full error system design
+
+---
+
+### APP-012: Ferroring - Compassionate Error System 🦀
+
+**Status**: 📋 **DESIGN COMPLETE** - Ready for implementation  
+**Package**: `o19/packages/ferroring`  
+**Docs**: `.kimi/kimprint/1NBOX/APP-012-ferroring-compassionate-errors.md`
+
+**Vision**: Transform errors from cryptic crashes into teaching moments. Like Rust's compiler, understand intent and suggest fixes.
+
+```
+❌ Before: "TreadleDefinition must have methods configuration"
+
+✅ After:
+┌─ Treadle Has No Purpose ───────────────────────────────┐
+│                                                         │
+│  Your treadle 'my-treadle' has nothing to do!          │
+│                                                         │
+│  💡 Generate files from methods:                       │
+│     methods: { filter: 'core' },                        │
+│     outputs: [{ template: '...', path: '...' }]       │
+│                                                         │
+│  💡 Wire existing code into the app:                   │
+│     hookups: [{ path: 'src/lib.rs', ... }]            │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key Components:**
+- `ContextStack` - Async context capture for rich error context
+- `SuggestionEngine` - Intent inference + ranked fix suggestions  
+- `TerminalRenderer` - Beautiful CLI output
+- `MUDRenderer` - Narrative error mode
+
 **Next Steps:**
-- [ ] Create `machinery/treadle-kit/hookup-types.ts`
-- [ ] Create `machinery/shuttle/hookup-handlers/` (android-manifest, cargo-toml, rust-module, gradle)
-- [ ] Create `machinery/treadle-kit/hookup-runner.ts`
-- [ ] Integrate into `declarative.ts` Phase 3
-- [ ] Migrate `treadles/platform-android.ts` to new API
-- [ ] Tests for hookup handlers
+1. Create `o19/packages/ferroring` package
+2. Implement `Ferror` base class + `ContextStack`
+3. Convert spire-loom errors to use ferroring
+4. Integrate into Interactive CLI and MUD interfaces
 
 ---
 
@@ -47,7 +136,7 @@ Building the three-stage ORM pipeline in `machinery/beater/`:
 Input → Generate Midstage → Compile → Run → Output
 ```
 
-**Next Steps:**
+**Status:**
 - [x] Create `machinery/reed/drizzle-parser.ts` — import and parse schema.ts
 - [x] Create `machinery/beater/compactor.ts` — abstract base
 - [x] Create `machinery/beater/orm-compactor.ts` — ORM-specific layer
@@ -123,4 +212,60 @@ export default defineBeaterTreadle({
 
 ---
 
-*"The loom that can weave a loom is the loom that lives forever."* 🧵🌀
+## Appendix: MyTauriApp Integration Test Harness
+
+The hookup system now supports all requirements for the MyTauriApp test harness:
+
+```typescript
+// A. NPM Dependencies
+{
+  path: 'package.json',
+  dependencies: {
+    '@o19/foundframe-tauri': 'workspace:*'
+  },
+  scripts: {
+    'test:circularity:integration': 'tauri dev'
+  }
+}
+
+// B. Cargo Dependencies  
+{
+  path: 'src-tauri/Cargo.toml',
+  dependencies: {
+    'o19-foundframe-tauri': { path: '../../../crates/foundframe-tauri' }
+  }
+}
+
+// C. Rust Plugin Init
+{
+  path: 'src-tauri/src/lib.rs',
+  // Via rust-module.ts: builderPlugins, pluginInit
+}
+
+// D. Test Framework - via treadle outputs (not hookups)
+outputs: [
+  { template: 'test-harness/runner.ts.ejs', path: 'src/lib/test-circularity/runner.ts' }
+]
+
+// E. Test Entry Point - via file-block or file generation
+{
+  path: 'src/test-entry.ts',
+  // Generate file content via treadle output
+}
+
+// F. Vite Config Multi-Entry
+{
+  path: 'vite.config.ts',
+  build: {
+    rollupOptions: {
+      input: process.env.CIRCULARITY_TEST 
+        ? './src/test-entry.ts' 
+        : './src/main.ts'
+    }
+  }
+}
+```
+
+---
+
+> *"The loom that can weave a loom is the loom that lives forever."* 🧵🌀

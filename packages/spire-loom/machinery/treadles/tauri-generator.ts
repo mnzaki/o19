@@ -17,6 +17,7 @@ import { RustCore } from '../../warp/spiral/index.js';
 import { hookupRustCrate, hookupTauriPlugin } from '../shuttle/hookup-manager.js';
 import { configureSpireCargo } from '../shuttle/cargo-toml-manager.js';
 import { addManagementPrefix } from '../sley/index.js';
+import { buildCrateNaming } from '../stringing.js';
 
 // ============================================================================
 // Tauri Plugin Treadle Definition
@@ -41,15 +42,27 @@ export const tauriPluginTreadle = defineTreadle({
     const spiraler = (current.ring as any).spiraler as TauriSpiraler;
     const core = previous.ring as RustCore;
     const metadata = core.getMetadata();
-    const coreName = metadata.packageName || 'unknown';
+    
+    // Allow spiraler config to override the core name (for standalone spirals not connected to a named core)
+    const coreName = spiraler._config?.coreName || metadata.packageName || 'unknown';
+    const coreCrateName = spiraler._config?.coreCrateName || metadata.crateName || coreName;
+    
     const pascalCore = coreName.charAt(0).toUpperCase() + coreName.slice(1);
     const base = buildTauriPluginNaming(coreName, '');
+    
+    // Build crate naming data for Rust code generation
+    const crateNaming = buildCrateNaming(coreCrateName);
 
     return {
       ...base,
       coreName,
       coreNamePascal: pascalCore,
-      coreCrateName: metadata.crateName || coreName,
+      coreCrateName,
+      // Crate naming for Rust code generation (handles hyphen->underscore conversion)
+      crateNaming,
+      // Backwards compatibility aliases
+      coreCrateRustId: crateNaming.rustIdentifier,
+      coreCrateBaseName: crateNaming.baseName,
       extensionTraitName: `Spire${pascalCore}Ext`,
       platformMethodName: `spire${pascalCore}Platform`,
       platformStructName: `Spire${pascalCore}Platform`,

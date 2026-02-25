@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*", "heartwood/crates/radicle-node"]
+members = ["crates/*", "heartwood/crates/radicle-node", "apps/*/src-tauri"]
 resolver = "2"
 
 [workspace.package]

@@ -7,7 +7,17 @@ import { TypescriptSpiraler } from './typescript/index.js';
  */
 export class TauriSpiraler extends Spiraler {
   /** Configuration for CRUD adaptor generation */
-  _config?: { ddd?: { adaptors?: { filterOut?: string[] } } };
+  _config?: { 
+    ddd?: { adaptors?: { filterOut?: string[] } };
+    /** Override core name detection (for standalone spirals) */
+    coreName?: string;
+    /** Override core crate name */
+    coreCrateName?: string;
+  };
+
+  app() {
+    return this.spiralOut('app', {});
+  }
 
   constructor(public innerRing: SpiralRing) {
     super(innerRing);
@@ -17,7 +27,11 @@ export class TauriSpiraler extends Spiraler {
    * Create a Tauri plugin that aggregates platform rings.
    * Generates platform trait + commands with platform routing.
    */
-  plugin(config?: { ddd?: { adaptors?: { filterOut?: string[] } } }) {
+  plugin(config?: { 
+    ddd?: { adaptors?: { filterOut?: string[] } };
+    coreName?: string;
+    coreCrateName?: string;
+  }) {
     this._config = config;
     return this.spiralOut('plugin', {
       typescript: new TypescriptSpiraler(this.innerRing)

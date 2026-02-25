@@ -47,3 +47,16 @@ And update `turbo.json` to add these `tasks` if missing:
   }
 }
 ```
+
+
+----
+
+
+```brainfuck
+o20 stands for o(r  niz a  ional  i
+.but that's v2.0  ga      t  a      z
+.we  are in  v19   a niz a    l i     a
+o19                  n   t     za   it
+o     yeah,          i    i  li  tion)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+.      20 letters    za t  ona
+```

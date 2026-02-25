@@ -85,6 +85,7 @@ export function detectWorkspace(cwd: string = process.cwd()): WorkspaceInfo {
 }
 
 import { Layer } from '../../warp/layers.js';
+import { RustCore } from '../../warp/spiral/rust.js';
 
 /**
  * Load WARP.ts module dynamically.
@@ -92,20 +93,59 @@ import { Layer } from '../../warp/layers.js';
  * Also sets the `.name` property on all Layer instances to their export name,
  * ensuring consistent metadata derivation across Rust and TypeScript layers.
  * 
- * Note: If a layer already has a custom .name set in WARP.ts, it is preserved.
+ * For RustCore instances, also sets the crateName and packageName options
+ * based on the export name, ensuring proper crate naming in generated code.
+ * 
+ * Note: If a layer/core already has a custom .name or options set in WARP.ts, 
+ * they are preserved.
  */
 export async function loadWarp(warpPath: string): Promise<Record<string, any>> {
   const { pathToFileURL } = await import('node:url');
   const warpUrl = pathToFileURL(warpPath).href;
   const warp = await import(warpUrl);
   
-  // Set .name on all Layer instances to their export name
-  // BUT only if not already explicitly set (allows WARP.ts to override)
+  // Track which RustCore instances have been configured to avoid overwriting
+  // when multiple spiralers wrap the same core (e.g., foundframe and android)
+  const configuredCores = new Set();
+  
+  // First pass: Configure RustCore instances that are directly exported
+  // (not wrapped in SpiralOut) - these are the primary cores
   for (const [exportName, value] of Object.entries(warp)) {
-    if (value instanceof Layer) {
-      // Only set if .name is undefined (not explicitly set in WARP.ts)
-      if (value.name === undefined) {
-        value.name = exportName;
+    // For RustCore directly exported, set crateName/packageName from export name
+    // Use constructor name check to avoid module duplication issues with instanceof
+    if (value?.constructor?.name === 'RustCore') {
+      const core = value;
+      if (!configuredCores.has(core)) {
+        configuredCores.add(core);
+        // Only set if not already explicitly configured
+        // Use 'o19-' prefix convention for crate names (e.g., 'foundframe' -> 'o19-foundframe')
+        if (!core.options.crateName) {
+          core.options.crateName = exportName.startsWith('o19-') ? exportName : 'o19-' + exportName;
+        }
+        if (!core.options.packageName) {
+          core.options.packageName = exportName;
+        }
+      }
+    }
+  }
+  
+  // Second pass: Configure SpiralOut rings that directly wrap a RustCore
+  // These are the primary spiral exports (e.g., foundframe, not android)
+  // Only configure if the core hasn't been configured yet
+  for (const [exportName, value] of Object.entries(warp)) {
+    // For SpiralOut directly wrapping a RustCore (not via a spiraler)
+    // This is indicated by the lack of a 'spiraler' property
+    if (value?.inner?.constructor?.name === 'RustCore' && !value.spiraler) {
+      const core = value.inner;
+      if (!configuredCores.has(core)) {
+        configuredCores.add(core);
+        // Use 'o19-' prefix convention for crate names (e.g., 'foundframe' -> 'o19-foundframe')
+        if (!core.options.crateName) {
+          core.options.crateName = exportName.startsWith('o19-') ? exportName : 'o19-' + exportName;
+        }
+        if (!core.options.packageName) {
+          core.options.packageName = exportName;
+        }
       }
     }
   }

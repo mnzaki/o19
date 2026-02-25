@@ -10,7 +10,8 @@ use crossbeam_channel::Receiver;
 use tracing::{debug, error, info, warn};
 
 use crate::db::{DbCommand, DbHandle};
-use crate::thestream::{StreamChunk, StreamEntry, TheStreamEvent};
+use crate::pkb::StreamChunk;
+use crate::thestream::{StreamEntry, TheStreamEvent};
 use crate::signal::EventBus;
 
 /// Indexes TheStream events into SQLite via DbActor.
@@ -24,13 +25,12 @@ pub struct EventIndexer {
 
 impl EventIndexer {
     /// Create a new indexer and subscribe to events.
-    pub fn new(db: DbHandle, event_bus: &EventBus) -> (Self, thread::JoinHandle<()>) {
+    /// Returns the thread handle - the indexer runs in background.
+    pub fn spawn(db: DbHandle, event_bus: &EventBus) -> thread::JoinHandle<()> {
         let event_rx = event_bus.subscribe::<TheStreamEvent>();
         
         let indexer = Self { db, event_rx };
-        let handle = thread::spawn(move || indexer.run());
-        
-        (indexer, handle)
+        thread::spawn(move || indexer.run())
     }
 
     /// Run the indexer loop.
@@ -94,9 +94,14 @@ impl EventIndexer {
     ) -> crate::Result<()> {
         // TODO: Match on chunk type and index appropriately
         // For now, just log that we would index
+        let chunk_type = match chunk {
+            StreamChunk::MediaLink { .. } => "media",
+            StreamChunk::TextNote { .. } => "text",
+            StreamChunk::StructuredData { db_type, .. } => db_type.as_str(),
+        };
         debug!(
-            "Would index chunk: type={:?}, dir={}, entry={:?}",
-            chunk.content_type(),
+            "Would index chunk: type={}, dir={}, entry={:?}",
+            chunk_type,
             directory,
             entry.id
         );
@@ -114,9 +119,14 @@ impl EventIndexer {
         chunk: &StreamChunk,
         directory: &crate::pkb::DirectoryId,
     ) -> crate::Result<()> {
+        let chunk_type = match chunk {
+            StreamChunk::MediaLink { .. } => "media",
+            StreamChunk::TextNote { .. } => "text",
+            StreamChunk::StructuredData { db_type, .. } => db_type.as_str(),
+        };
         debug!(
-            "Would update chunk: type={:?}, dir={}, entry={:?}",
-            chunk.content_type(),
+            "Would update chunk: type={}, dir={}, entry={:?}",
+            chunk_type,
             directory,
             entry.id
         );
@@ -143,6 +153,5 @@ pub fn start_indexer(
     db: DbHandle,
     event_bus: &EventBus,
 ) -> thread::JoinHandle<()> {
-    let (_indexer, handle) = EventIndexer::new(db, event_bus);
-    handle
+    EventIndexer::spawn(db, event_bus)
 }

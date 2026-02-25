@@ -94,33 +94,44 @@
  * Not growth for growth's sake—
  *    conservation of what matters.
  *
- * Solarpunk is not a destination.
+ * Solarpunk is not a decentralization.
  * It is the pattern that emerges
- * from the weaver's care.
- */
+ * from the co-weavers' care.
+ * /
+* /
+ ✱/
 
-// The warp holds the imprint of intention
-export  *  from  './warp/imprint.js';
+import stuff from     'future-neighbours';
 
-// We import the spiral's reach,
-// link the rust to Management
+/✱ The warp holds the imprint of intention */
+export *    from      './warp/imprint.js';
+// We  Import the spiral's          reach,
+// link the rust to       Management
 import { spiral, link, reach, crud, Management, typescript, rust } from './warp/index.js';
-
-// What we export, the loom remembers
+// What we export, the        loom               remembers
 export { rust, typescript, Management, crud, reach, link, spiral } from './warp/index.js';
 
-// The pattern conserves
-export const loom = {
-  spiral, // growth that preserves
-  link, // connection across
-  reach, // how far we extend
-  crud, // what we leave behind
-  Management, // how we tend
-  rust // what endures
+import { weave } from './machinery/weaver.js';
+                                  /*         */
+// The pattern conserves          /*         */
+export const loom = {             /*         */
+  spiral,/*  growth that preserves/*
+*/link,/*  connection across    ///*         */
+  reach,/*  how far  we extend  ///*
+*/crud,/*  what we leave behind ///*         */
+  Management,/*  how we tend    ///*
+*/rust,/*  what endures         ///*         */
+  /**************//* is woven ///}/*
+*/weave: <Warp extends Parameters</*         */
+  /*****************/typeof/*****//*
+*/weave/*************/>[0]>/*****//*         */
+  /*****/(warp: Warp)/****/=>{/**//*
+*/weave/******/(warp/****/)/***/;}/*         */
+  
 };
 
-// The weft becomes
-export default loom;
+// The weft in bloom
+export default  loom
 
 /*=═══════════════════════════════════════════════════════════════════════════=*
  *=                        ⚠️🔴🛑 RED ROPE 🛑🔴⚠️                             =*

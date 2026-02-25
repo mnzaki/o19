@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager, Runtime, plugin::PluginApi};
 
 // Import core traits and types needed for method implementations
-use <%= coreCrateName.replace("o19-", "") %>::bookmark::BookmarkStream;
-use <%= coreCrateName.replace("o19-", "") %>::device::NodeId;
+use <%= crateNaming.rustIdentifier %>::bookmark::BookmarkStream;
+use <%= crateNaming.rustIdentifier %>::device::NodeId;
 use core::str::FromStr;
 
 /// Initialize the desktop platform.
@@ -27,7 +27,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
 /// Holds the <%= coreName %> runtime and provides direct access to all operations.
 pub struct DesktopPlatform<R: Runtime> {
   app_handle: AppHandle<R>,
-  foundframe: std::sync::Mutex<Option<<%= coreCrateName.replace("o19-", "") %>::Foundframe>>,
+  foundframe: std::sync::Mutex<Option<<%= crateNaming.rustIdentifier %>::Foundframe>>,
 }
 
 impl<R: Runtime> DesktopPlatform<R> {
@@ -37,10 +37,10 @@ impl<R: Runtime> DesktopPlatform<R> {
       .map_err(|e| Error::Other(format!("Failed to get app data dir: {e}")))?;
     let radicle_home = app_data_dir.join(".<%= coreName %>.radicle");
 
-    let init_options = <%= coreCrateName.replace("o19-", "") %>::InitOptions::new(&radicle_home, "<%= coreName %>")
+    let init_options = <%= crateNaming.rustIdentifier %>::InitOptions::new(&radicle_home, "<%= coreName %>")
       .pkb_base(default_pkb_path());
 
-    let foundframe = <%= coreCrateName.replace("o19-", "") %>::init(init_options, None)
+    let foundframe = <%= crateNaming.rustIdentifier %>::init(init_options, None)
       .map_err(|e| Error::Other(format!("Failed to initialize <%= coreCrateName %>: {e}")))?;
 
     Ok(Self { 
@@ -90,7 +90,7 @@ impl<R: Runtime> <%= platformTraitName %> for DesktopPlatform<R> {
     
 <% if (method.useResult) { -%>
     // Call the implementation and map errors
-    let result: Result<<%- method.innerReturnType %>, <%= coreCrateName.replace("o19-", "") %>::Error> = <%= method.serviceVarName %>.<%= method.implName %>(<% method.params.forEach(function(param, idx) { %>&<%= param.name %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>);
+    let result: Result<<%- method.innerReturnType %>, <%= crateNaming.rustIdentifier %>::Error> = <%= method.serviceVarName %>.<%= method.implName %>(<% method.params.forEach(function(param, idx) { %>&<%= param.name %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>);
     result.map_err(|e| Error::Other(e.to_string()))
 <% } else { -%>
     // Call the implementation (non-Result, errors ignored/panics)

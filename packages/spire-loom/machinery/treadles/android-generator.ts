@@ -21,6 +21,7 @@ import {
   extractManagementFromBindPoint,
   addAidlTypesToMethods
 } from '../treadle-kit/index.js';
+import { buildCrateNaming } from '../stringing.js';
 import { executeAndroidHookup, type AndroidHookupData } from '../shuttle/hookup-manager.js';
 import { defineTreadle, generateFromTreadle } from './index.js';
 import type { GeneratorContext } from '../heddles/index.js';
@@ -84,12 +85,18 @@ export const androidServiceTreadle = defineTreadle({
       android.getGradleNamespace(metadata.packageName)
     );
 
+    // Build crate naming for Rust code generation
+    const crateNaming = buildCrateNaming(metadata.crateName);
+
     return {
       // Package structure
       ...paths,
       coreName: metadata.packageName,
       coreNamePascal: naming.serviceName.replace(/Service$/, ''),
       coreCrateName: metadata.crateName,
+      crateNaming,
+      // Backwards compatibility
+      coreCrateRustId: crateNaming.rustIdentifier,
 
       // Service naming
       nameAffix: naming.nameAffix,

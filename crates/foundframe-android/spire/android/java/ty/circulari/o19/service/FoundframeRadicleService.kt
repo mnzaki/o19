@@ -984,7 +984,7 @@ class FoundframeRadicleService : Service() {
                 "FoundframeRadicleService",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Background service for Foundframe"
+                description = "Background service for foundframe"
                 setShowBadge(false)
             }
             
@@ -1000,7 +1000,7 @@ class FoundframeRadicleService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "[FoundframeRadicleService] Service starting (startId=$startId)")
         
-        val homeDir = getDir(".Foundframe", Context.MODE_PRIVATE).absolutePath
+        val homeDir = getDir(".foundframe", Context.MODE_PRIVATE).absolutePath
         val alias = intent?.getStringExtra("alias") ?: "android"
         
         // Start the native service in a background thread
@@ -1075,7 +1075,7 @@ class FoundframeRadicleService : Service() {
         }
         
         return builder
-            .setContentTitle("Foundframe Service")
+            .setContentTitle("foundframe Service")
             .setContentText("Running in background")
             .setSmallIcon(android.R.drawable.ic_menu_share)
             .setOngoing(true)

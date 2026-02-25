@@ -20,7 +20,7 @@ use jni::JNIEnv;
 use log::info;
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex, OnceLock};
-use <%= coreCrateName.replace(/-/g, '_') %> as core;
+use <%= crateNaming.rustIdentifier %> as core;
 
 // Type alias for the service handle used by JNI
 // The core crate's main type is assumed to be <%= coreName.charAt(0).toUpperCase() + coreName.slice(1) %>

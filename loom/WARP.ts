@@ -20,6 +20,7 @@ import { tauriAdaptorTreadle } from './treadles/tauri-adaptor.js';
 import { tauriAndroidCommandsTreadle } from './treadles/tauri-android-commands.js';
 import { dddServicesTreadle } from './treadles/ddd-services.js';
 import { tauriDesktopPlatformTreadle } from './treadles/tauri-desktop-platform.js';
+import { myTauriAppHookupTreadle } from './treadles/my-tauri-app-hookups.js';
 
 // ============================================================================
 // CORE
@@ -117,6 +118,16 @@ export const desktop = foundframe.desktop.direct();
  *   - Android → uses android ring (AIDL service)
  *   - iOS → uses ios ring (future)
  */
+/**
+ * Tauri Ring - aggregates platform rings into a plugin
+ * Package: foundframe-tauri
+ * Path: o19/crates/foundframe-tauri
+ *
+ * Tauri routes to different platform rings based on target:
+ *   - Desktop → uses desktop ring (direct calls)
+ *   - Android → uses android ring (AIDL service)
+ *   - iOS → uses ios ring (future)
+ */
 export const tauri = loom.spiral.tauri
   .plugin({
     ddd: {
@@ -130,7 +141,10 @@ export const tauri = loom.spiral.tauri
         }
       }
       */
-    }
+    },
+    // Override core name detection (loom.spiral.tauri creates standalone core)
+    coreName: 'foundframe',
+    coreCrateName: 'o19-foundframe'
   })
   .tieup({
     treadles: [
@@ -147,7 +161,10 @@ export const tauri = loom.spiral.tauri
     treadles: [
       {
         treadle: tauriDesktopPlatformTreadle,
-        warpData: {}
+        warpData: {
+          coreName: 'foundframe',
+          coreCrateName: 'o19-foundframe'
+        }
       }
     ]
   });
@@ -223,7 +240,20 @@ front.name = 'foundframe-front';
  * The example application demonstrating the stack.
  * This is an app that wraps the front layer.
  */
-//export const myTauriApp = front.tauri.app({ adaptorOverrides: [drizzle] });
+export const myTauriApp = loom.spiral.tauri.app()
+  .tieup({
+    treadles: [
+      {
+        treadle: myTauriAppHookupTreadle,
+        warpData: {
+          // MyTauriApp-specific configuration
+          appName: 'MyTauriApp',
+          template: 'svelte-kit' // or whatever the app uses
+        }
+      }
+    ]
+  });
+myTauriApp.name = 'MyTauriApp';
 
 // ============================================================================
 // FUTURE RINGS
