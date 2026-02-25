@@ -322,15 +322,35 @@ function extractCrudOperation(tags: string[] | undefined): CrudOperation | undef
 /**
  * Group methods by management name.
  */
-function groupByManagement(
-  methods: MgmtMethod[]
-): Map<string, MgmtMethod[]> {
-  const grouped = new Map<string, MgmtMethod[]>();
+export function groupByManagement(
+  methods: Array<{ managementName: string }>
+): Map<string, Array<{ managementName: string }>> {
+  const grouped = new Map<string, Array<{ managementName: string }>>();
 
   for (const method of methods) {
     const list = grouped.get(method.managementName) ?? [];
     list.push(method);
     grouped.set(method.managementName, list);
+  }
+
+  return grouped;
+}
+
+/**
+ * Group methods by CRUD operation.
+ */
+export function groupByCrud<T extends { crudOperation?: string }>(
+  methods: T[]
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+
+  for (const method of methods) {
+    const op = method.crudOperation;
+    if (op) {
+      const list = grouped.get(op) ?? [];
+      list.push(method);
+      grouped.set(op, list);
+    }
   }
 
   return grouped;

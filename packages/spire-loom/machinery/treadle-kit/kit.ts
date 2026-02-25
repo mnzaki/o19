@@ -22,7 +22,7 @@ import {
 } from '../shuttle/hookup-manager.js';
 import { writeEventCallbackAidl } from '../bobbin/android.js';
 import type { MethodConfig, TreadleKit } from './types.js';
-import { toRawMethod, buildMethodHelpers } from './method-helpers.js';
+import { toRawMethod, buildContextMethods } from './context-methods.js';
 
 /**
  * Create a treadle kit for building generators.
@@ -96,7 +96,7 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       const rawMethods = processedMethods.map((m) => toRawMethod(m));
       
       // Build and attach method helpers to context
-      context.methods = buildMethodHelpers(rawMethods);
+      context.methods = buildContextMethods(rawMethods);
       
       return rawMethods;
     },

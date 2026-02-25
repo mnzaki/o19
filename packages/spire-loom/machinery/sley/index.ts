@@ -36,6 +36,9 @@ export {
   // Filters
   tagFilter,
   crudOperationFilter,
+  // Grouping utilities
+  groupByManagement,
+  groupByCrud,
   // Utilities
   fromSourceMethods
 } from './method-pipeline.js';

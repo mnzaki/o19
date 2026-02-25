@@ -17,15 +17,15 @@ export {
 } from './types.js';
 
 // ============================================================================
-// Method Helpers
+// Context Methods
 // ============================================================================
 
 export {
   toRawMethod,
   buildMethodLink,
   extractManagementFromBindPoint,
-  buildMethodHelpers,
-} from './method-helpers.js';
+  buildContextMethods,
+} from './context-methods.js';
 
 // ============================================================================
 // Kit Implementation

@@ -1,13 +1,18 @@
 /**
- * Treadle Kit - Method Helpers 🛠️
+ * Context Methods 🧵
  *
- * Method transformation and helper building utilities.
+ * Method helpers for GeneratorContext.
+ * Provides convenient access to filtered and grouped management methods.
+ *
+ * These utilities are used by the treadle-kit to build context.methods
+ * after method collection and pipeline transformation.
  */
 
 import type { MgmtMethod } from '../sley/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 import type { ManagementMetadata } from '../reed/index.js';
 import type { MethodHelpers } from '../heddles/index.js';
+import { groupByManagement, groupByCrud } from '../sley/index.js';
 import { camelCase, toSnakeCase } from '../stringing.js';
 
 /**
@@ -102,38 +107,26 @@ export function extractManagementFromBindPoint(
  * Build method helpers for GeneratorContext.
  * Provides convenient access to filtered and grouped methods.
  * 
+ * Uses sley's groupByManagement and groupByCrud utilities for consistent
+ * grouping behavior across the codebase.
+ * 
  * @param methods - Raw methods after pipeline transformation
  * @returns Method helpers with grouping and filtering
  */
-export function buildMethodHelpers(methods: RawMethod[]): MethodHelpers {
+export function buildContextMethods(methods: RawMethod[]): MethodHelpers {
+  // Pre-compute groupings using sley utilities
+  const byMgmtMap = groupByManagement(methods as Array<{ managementName: string }>);
+  const byCrudMap = groupByCrud(methods);
+
   return {
     all: methods,
     
     byManagement(): Map<string, RawMethod[]> {
-      const map = new Map<string, RawMethod[]>();
-      methods.forEach((method) => {
-        // Extract management name from method name or metadata
-        const mgmtName = (method as any).managementName || 
-                         method.name.split('_')[0] || 
-                         'default';
-        const list = map.get(mgmtName) || [];
-        list.push(method);
-        map.set(mgmtName, list);
-      });
-      return map;
+      return byMgmtMap as Map<string, RawMethod[]>;
     },
     
     byCrud(): Map<string, RawMethod[]> {
-      const map = new Map<string, RawMethod[]>();
-      methods.forEach((method) => {
-        const op = (method as any).crudOperation;
-        if (op) {
-          const list = map.get(op) || [];
-          list.push(method);
-          map.set(op, list);
-        }
-      });
-      return map;
+      return byCrudMap as Map<string, RawMethod[]>;
     },
     
     withTag(tag: string): RawMethod[] {
