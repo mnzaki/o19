@@ -1,153 +1,377 @@
 /**
- * Cargo.toml Hookup Handler
+ * Cargo.toml Hookup 📦
  *
- * Applies Cargo.toml hookups declaratively.
+ * Hooks into Cargo.toml files to:
+ * - Add/modify dependencies
+ * - Add dev-dependencies and build-dependencies
+ * - Add features
+ * - Configure [lib] section
+ * - Support workspace.dependencies
+ *
+ * > *"The manifest anchors the crate to the workspace."*
  */
 
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { GeneratorContext } from '../../heddles/index.js';
-import type { CargoTomlHookup, HookupResult } from './types.js';
-import { ensureCargoBlock } from '../cargo-toml-manager.js';
+import type { CargoTomlHookup, HookupResult, CargoDependencyValue, CargoDependency, HookupType } from './types.js';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface ParsedToml {
+  sections: Map<string, Map<string, string>>;
+  rawLines: string[];
+}
+
+// ============================================================================
+// Main Handler
+// ============================================================================
 
 /**
  * Apply Cargo.toml hookup.
+ *
+ * Handles:
+ * 1. Dependencies (regular, dev, build)
+ * 2. Features
+ * 3. [lib] configuration
+ * 4. Workspace dependencies support
  */
-export function applyCargoTomlHookup(
+export async function applyCargoTomlHookup(
   filePath: string,
-  spec: CargoTomlHookup,
+  hookup: CargoTomlHookup,
   context: GeneratorContext
-): HookupResult {
+): Promise<HookupResult> {
   const changes: string[] = [];
   
-  // Handle dependencies
-  if (spec.dependencies) {
-    for (const [name, dep] of Object.entries(spec.dependencies)) {
-      const content = formatDependency(dep);
-      const changed = ensureCargoBlock(filePath, {
-        tag: `dep_${name}`,
-        content: `${name} = ${content}`,
-        section: spec.workspace ? 'workspace.dependencies' : 'dependencies',
-        replace: true,
-      });
-      if (changed) {
-        changes.push(`Added dependency: ${name}`);
-      }
+  // Ensure file exists
+  if (!fs.existsSync(filePath)) {
+    return {
+      path: filePath,
+      type: 'cargo-toml' as HookupType,
+      status: 'error',
+      message: `File not found: ${filePath}`,
+    };
+  }
+  
+  let content = fs.readFileSync(filePath, 'utf-8');
+  const originalContent = content;
+  
+  // 1. Apply dependencies
+  if (hookup.dependencies && Object.keys(hookup.dependencies).length > 0) {
+    const sectionName = hookup.workspace ? 'workspace.dependencies' : 'dependencies';
+    const depChanges = applyDependencies(content, sectionName, hookup.dependencies);
+    if (depChanges.modified) {
+      content = depChanges.content;
+      changes.push(`Added ${Object.keys(hookup.dependencies).length} dependencies to [${sectionName}]`);
     }
   }
   
-  // Handle dev dependencies
-  if (spec.devDependencies) {
-    for (const [name, dep] of Object.entries(spec.devDependencies)) {
-      const content = formatDependency(dep);
-      const changed = ensureCargoBlock(filePath, {
-        tag: `dev_dep_${name}`,
-        content: `${name} = ${content}`,
-        section: 'dev-dependencies',
-        replace: true,
-      });
-      if (changed) {
-        changes.push(`Added dev-dependency: ${name}`);
-      }
+  // 2. Apply dev-dependencies
+  if (hookup.devDependencies && Object.keys(hookup.devDependencies).length > 0) {
+    const depChanges = applyDependencies(content, 'dev-dependencies', hookup.devDependencies);
+    if (depChanges.modified) {
+      content = depChanges.content;
+      changes.push(`Added ${Object.keys(hookup.devDependencies).length} dev-dependencies`);
     }
   }
   
-  // Handle build dependencies
-  if (spec.buildDependencies) {
-    for (const [name, dep] of Object.entries(spec.buildDependencies)) {
-      const content = formatDependency(dep);
-      const changed = ensureCargoBlock(filePath, {
-        tag: `build_dep_${name}`,
-        content: `${name} = ${content}`,
-        section: 'build-dependencies',
-        replace: true,
-      });
-      if (changed) {
-        changes.push(`Added build-dependency: ${name}`);
-      }
+  // 3. Apply build-dependencies
+  if (hookup.buildDependencies && Object.keys(hookup.buildDependencies).length > 0) {
+    const depChanges = applyDependencies(content, 'build-dependencies', hookup.buildDependencies);
+    if (depChanges.modified) {
+      content = depChanges.content;
+      changes.push(`Added ${Object.keys(hookup.buildDependencies).length} build-dependencies`);
     }
   }
   
-  // Handle features
-  if (spec.features) {
-    for (const [featureName, deps] of Object.entries(spec.features)) {
-      const content = `[${deps.map(d => `"${d}"`).join(', ')}]`;
-      const changed = ensureCargoBlock(filePath, {
-        tag: `feature_${featureName}`,
-        content: `"${featureName}" = ${content}`,
-        section: 'features',
-        replace: true,
-      });
-      if (changed) {
-        changes.push(`Added feature: ${featureName}`);
-      }
+  // 4. Apply features
+  if (hookup.features && Object.keys(hookup.features).length > 0) {
+    const featChanges = applyFeatures(content, hookup.features);
+    if (featChanges.modified) {
+      content = featChanges.content;
+      changes.push(`Added ${Object.keys(hookup.features).length} features`);
     }
   }
   
-  // Handle lib config
-  if (spec.lib) {
-    const libContent = formatLibConfig(spec.lib);
-    const changed = ensureCargoBlock(filePath, {
-      tag: 'lib_config',
-      content: libContent,
-      section: 'lib',
-      replace: true,
-    });
-    if (changed) {
-      changes.push('Updated [lib] configuration');
+  // 5. Apply lib configuration
+  if (hookup.lib) {
+    const libChanges = applyLibConfig(content, hookup.lib);
+    if (libChanges.modified) {
+      content = libChanges.content;
+      changes.push(`Updated [lib] configuration`);
     }
+  }
+  
+  // Write if modified
+  const modified = content !== originalContent;
+  if (modified) {
+    fs.writeFileSync(filePath, content, 'utf-8');
   }
   
   return {
     path: filePath,
-    type: 'cargo-toml',
-    status: changes.length > 0 ? 'applied' : 'skipped',
-    message: changes.length > 0 ? changes.join(', ') : 'No changes needed',
+    type: 'cargo-toml' as HookupType,
+    status: modified ? 'applied' : 'skipped',
+    message: modified 
+      ? `Updated ${path.basename(filePath)}: ${changes.join('; ')}`
+      : `No changes needed for ${path.basename(filePath)}`,
   };
 }
 
-/**
- * Format a dependency value for Cargo.toml.
- */
-function formatDependency(dep: string | CargoTomlHookup['dependencies'][string]): string {
-  if (typeof dep === 'string') {
-    return `"${dep}"`;
-  }
-  
-  // Inline table format for complex deps
-  const parts: string[] = [];
-  
-  if (dep.version) parts.push(`version = "${dep.version}"`);
-  if (dep.path) parts.push(`path = "${dep.path}"`);
-  if (dep.git) parts.push(`git = "${dep.git}"`);
-  if (dep.branch) parts.push(`branch = "${dep.branch}"`);
-  if (dep.features) parts.push(`features = [${dep.features.map(f => `"${f}"`).join(', ')}]`);
-  if (dep.optional) parts.push('optional = true');
-  if (dep.defaultFeatures === false) parts.push('default-features = false');
-  
-  return `{ ${parts.join(', ')} }`;
-}
+// ============================================================================
+// Dependency Handling
+// ============================================================================
 
 /**
- * Format lib config for Cargo.toml.
+ * Format a dependency value for TOML.
  */
-function formatLibConfig(lib: CargoTomlHookup['lib']): string {
-  const parts: string[] = [];
-  
-  if (lib.name) parts.push(`name = "${lib.name}"`);
-  if (lib.path) parts.push(`path = "${lib.path}"`);
-  if (lib['crate-type']) {
-    parts.push(`crate-type = [${lib['crate-type'].map(t => `"${t}"`).join(', ')}]`);
+function formatDependencyValue(name: string, value: CargoDependencyValue): string {
+  if (typeof value === 'string') {
+    // Simple version string
+    return `${name} = "${value}"`;
   }
   
-  // Add any other config
-  for (const [key, value] of Object.entries(lib)) {
-    if (key === 'name' || key === 'path' || key === 'crate-type') continue;
-    if (typeof value === 'string') {
-      parts.push(`${key} = "${value}"`);
-    } else if (Array.isArray(value)) {
-      parts.push(`${key} = [${value.map(v => `"${v}"`).join(', ')}]`);
-    }
+  // Complex dependency table
+  const parts: string[] = [];
+  parts.push(`[dependencies.${name}]`);
+  
+  if (value.version) {
+    parts.push(`version = "${value.version}"`);
+  }
+  if (value.path) {
+    parts.push(`path = "${value.path}"`);
+  }
+  if (value.git) {
+    parts.push(`git = "${value.git}"`);
+  }
+  if (value.branch) {
+    parts.push(`branch = "${value.branch}"`);
+  }
+  if (value.features && value.features.length > 0) {
+    parts.push(`features = [${value.features.map(f => `"${f}"`).join(', ')}]`);
+  }
+  if (value.optional !== undefined) {
+    parts.push(`optional = ${value.optional}`);
+  }
+  if (value.defaultFeatures !== undefined) {
+    parts.push(`default-features = ${value.defaultFeatures}`);
   }
   
   return parts.join('\n');
+}
+
+/**
+ * Check if a dependency already exists.
+ */
+function hasDependency(content: string, name: string): boolean {
+  // Match "name = " or "[dependencies.name]" or "[workspace.dependencies.name]"
+  const simpleRegex = new RegExp(`^${name}\\s*=`, 'm');
+  const tableRegex = new RegExp(`\\[(workspace\\.)?dependencies\\.${name}\\]`, 'm');
+  
+  return simpleRegex.test(content) || tableRegex.test(content);
+}
+
+/**
+ * Apply dependencies to a section.
+ */
+function applyDependencies(
+  content: string,
+  sectionName: string,
+  dependencies: Record<string, CargoDependencyValue>
+): { content: string; modified: boolean } {
+  let modified = false;
+  
+  for (const [name, value] of Object.entries(dependencies)) {
+    if (hasDependency(content, name)) {
+      // Dependency already exists, skip
+      continue;
+    }
+    
+    const depLine = formatDependencyValue(name, value);
+    
+    // Find the section
+    const sectionRegex = new RegExp(`^\\[${sectionName}\\]$`, 'm');
+    const sectionMatch = content.match(sectionRegex);
+    
+    if (sectionMatch) {
+      // Section exists, add after it
+      const sectionStart = content.indexOf(sectionMatch[0]);
+      const afterSection = content.slice(sectionStart + sectionMatch[0].length);
+      
+      // Find the next section or end of file
+      const nextSectionMatch = afterSection.match(/^\[/m);
+      
+      if (nextSectionMatch && nextSectionMatch.index !== undefined) {
+        // Insert before next section
+        const insertPos = sectionStart + sectionMatch[0].length + nextSectionMatch.index;
+        content = content.slice(0, insertPos) + depLine + '\n' + content.slice(insertPos);
+      } else {
+        // Insert at end
+        content = content.trimEnd() + '\n' + depLine + '\n';
+      }
+    } else {
+      // Section doesn't exist, create it
+      content = content.trimEnd() + `\n\n[${sectionName}]\n` + depLine + '\n';
+    }
+    
+    modified = true;
+  }
+  
+  return { content, modified };
+}
+
+// ============================================================================
+// Features Handling
+// ============================================================================
+
+/**
+ * Format a feature for TOML.
+ */
+function formatFeature(name: string, enables: string[]): string {
+  const enablesStr = enables.map(e => `"${e}"`).join(', ');
+  return `${name} = [${enablesStr}]`;
+}
+
+/**
+ * Check if a feature already exists.
+ */
+function hasFeature(content: string, name: string): boolean {
+  const regex = new RegExp(`^${name}\\s*=`, 'm');
+  return regex.test(content);
+}
+
+/**
+ * Apply features to [features] section.
+ */
+function applyFeatures(
+  content: string,
+  features: Record<string, string[]>
+): { content: string; modified: boolean } {
+  let modified = false;
+  
+  for (const [name, enables] of Object.entries(features)) {
+    if (hasFeature(content, name)) {
+      // Feature already exists, skip
+      continue;
+    }
+    
+    const featureLine = formatFeature(name, enables);
+    
+    // Find [features] section
+    const sectionRegex = /^\[features\]$/m;
+    const sectionMatch = content.match(sectionRegex);
+    
+    if (sectionMatch) {
+      // Section exists, add after it
+      const sectionStart = content.indexOf(sectionMatch[0]);
+      const afterSection = content.slice(sectionStart + sectionMatch[0].length);
+      
+      // Find the next section or end of file
+      const nextSectionMatch = afterSection.match(/^\[/m);
+      
+      if (nextSectionMatch && nextSectionMatch.index !== undefined) {
+        // Insert before next section
+        const insertPos = sectionStart + sectionMatch[0].length + nextSectionMatch.index;
+        content = content.slice(0, insertPos) + featureLine + '\n' + content.slice(insertPos);
+      } else {
+        // Insert at end
+        content = content.trimEnd() + '\n' + featureLine + '\n';
+      }
+    } else {
+      // Section doesn't exist, create it
+      content = content.trimEnd() + `\n\n[features]\n` + featureLine + '\n';
+    }
+    
+    modified = true;
+  }
+  
+  return { content, modified };
+}
+
+// ============================================================================
+// Lib Configuration
+// ============================================================================
+
+/**
+ * Apply [lib] configuration.
+ */
+function applyLibConfig(
+  content: string,
+  lib: { 'crate-type'?: string[]; name?: string; path?: string; [key: string]: unknown }
+): { content: string; modified: boolean } {
+  let modified = false;
+  
+  // Check if [lib] section exists
+  const sectionRegex = /^\[lib\]$/m;
+  const sectionMatch = content.match(sectionRegex);
+  
+  if (sectionMatch) {
+    // Update existing [lib] section
+    const sectionStart = content.indexOf(sectionMatch[0]);
+    const afterSection = content.slice(sectionStart + sectionMatch[0].length);
+    
+    // Find the next section or end of file
+    const nextSectionMatch = afterSection.match(/^\[/m);
+    const sectionEnd = nextSectionMatch && nextSectionMatch.index !== undefined
+      ? sectionStart + sectionMatch[0].length + nextSectionMatch.index
+      : content.length;
+    
+    let sectionContent = content.slice(sectionStart, sectionEnd);
+    
+    // Update each field
+    if (lib.name && !sectionContent.includes('name')) {
+      sectionContent = sectionContent.trimEnd() + `\nname = "${lib.name}"`;
+      modified = true;
+    }
+    
+    if (lib.path && !sectionContent.includes('path')) {
+      sectionContent = sectionContent.trimEnd() + `\npath = "${lib.path}"`;
+      modified = true;
+    }
+    
+    if (lib['crate-type'] && !sectionContent.includes('crate-type')) {
+      const crateTypes = lib['crate-type'].map(ct => `"${ct}"`).join(', ');
+      sectionContent = sectionContent.trimEnd() + `\ncrate-type = [${crateTypes}]`;
+      modified = true;
+    }
+    
+    // Update other custom fields
+    for (const [key, value] of Object.entries(lib)) {
+      if (key === 'crate-type' || key === 'name' || key === 'path') continue;
+      
+      if (!sectionContent.includes(`${key} =`)) {
+        const valueStr = typeof value === 'string' ? `"${value}"` : JSON.stringify(value);
+        sectionContent = sectionContent.trimEnd() + `\n${key} = ${valueStr}`;
+        modified = true;
+      }
+    }
+    
+    if (modified) {
+      content = content.slice(0, sectionStart) + sectionContent + content.slice(sectionEnd);
+    }
+  } else {
+    // Create [lib] section
+    const lines: string[] = ['\n[lib]'];
+    
+    if (lib.name) lines.push(`name = "${lib.name}"`);
+    if (lib.path) lines.push(`path = "${lib.path}"`);
+    if (lib['crate-type']) {
+      const crateTypes = lib['crate-type'].map(ct => `"${ct}"`).join(', ');
+      lines.push(`crate-type = [${crateTypes}]`);
+    }
+    
+    // Add other custom fields
+    for (const [key, value] of Object.entries(lib)) {
+      if (key === 'crate-type' || key === 'name' || key === 'path') continue;
+      const valueStr = typeof value === 'string' ? `"${value}"` : JSON.stringify(value);
+      lines.push(`${key} = ${valueStr}`);
+    }
+    
+    content = content.trimEnd() + '\n' + lines.join('\n') + '\n';
+    modified = true;
+  }
+  
+  return { content, modified };
 }

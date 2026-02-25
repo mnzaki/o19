@@ -70,7 +70,7 @@ export async function parseDrizzleSchema(schemaPath: string): Promise<ParsedSche
     
     // Look for query definitions (if any)
     for (const [exportName, value] of Object.entries(schemaModule)) {
-      if (exportName.endsWith('Queries') && typeof value === 'object') {
+      if (exportName.endsWith('Queries') && typeof value === 'object' && value !== null) {
         const tableQueries = extractQueries(value);
         queries.push(...tableQueries);
       }

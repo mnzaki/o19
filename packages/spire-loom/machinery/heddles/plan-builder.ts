@@ -160,7 +160,7 @@ export class Heddles {
           match: [targetNode.typeName, sourceNode.typeName],
           current: targetNode,
           previous: sourceNode,
-          exportName: targetNode.exportName,
+          exportName: targetNode.exportName ?? 'unknown',
           generator,  // Bypasses matrix lookup
           config: warpData  // Pass warpData to weaver
         });

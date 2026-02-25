@@ -1,4 +1,8 @@
 /**
+ * ⚠️  KIMI NOTICE: Before editing this treadle, read HOW_TO_LOOM.md
+ *     The loom has patterns. Understanding them prevents cross-cutting.
+ *     Conservation spiral matters. Read before weaving. 🌀
+ *
  * Tauri Adaptor Treadle
  *
  * Generates Tauri-specific adaptor code for the front layer.

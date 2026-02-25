@@ -322,10 +322,10 @@ function extractCrudOperation(tags: string[] | undefined): CrudOperation | undef
 /**
  * Group methods by management name.
  */
-export function groupByManagement(
-  methods: Array<{ managementName: string }>
-): Map<string, Array<{ managementName: string }>> {
-  const grouped = new Map<string, Array<{ managementName: string }>>();
+export function groupByManagement<T extends { managementName: string }>(
+  methods: T[]
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
 
   for (const method of methods) {
     const list = grouped.get(method.managementName) ?? [];

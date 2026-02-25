@@ -33,8 +33,8 @@ export class TypescriptSpiraler extends Spiraler {
    */
   ddd() {
     return this.spiralOut('ddd', {
-      typescript: new DDDTypescriptSpiraler(this),
-      tauri: new DDDTauriAppSpiraler(this)
+      typescript: new DDDTypescriptSpiraler(this.innerRing),
+      tauri: new DDDTauriAppSpiraler(this.innerRing)
     });
   }
 

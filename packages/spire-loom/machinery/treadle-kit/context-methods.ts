@@ -59,7 +59,11 @@ export function toRawMethod(method: MgmtMethod): RawMethod {
           fieldName: heddlesMeta.fieldName as string,
           wrappers: heddlesMeta.wrappers as string[] | undefined
         }
-      : undefined
+      : undefined,
+    // Fields for query API (APP-009)
+    tags: method.tags,
+    crudOperation: method.crudOperation,
+    managementName: method.managementName
   };
 }
 

@@ -10,7 +10,7 @@ import React, { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { Dressing } from '../dressing/service.js';
-import type { SpiralRing } from '../../warp/spiral/pattern.js';
+import type { SpiralRing } from '../../../warp/spiral/pattern.js';
 
 interface SpiralMudModeProps {
   dressing: Dressing;

@@ -6,7 +6,7 @@
 
 import * as path from 'node:path';
 import type { GeneratorContext } from '../../heddles/index.js';
-import type { GradleHookup, HookupResult } from './types.js';
+import type { GradleHookup, HookupResult, GradlePluginEntry } from './types.js';
 import { configureAndroidGradle } from '../android-gradle-integration.js';
 
 /**
@@ -43,7 +43,7 @@ export function applyGradleHookup(
   
   // Handle Android source sets
   if (spec.android?.sourceSets) {
-    const applied = applySourceSets(filePath, spec.android.sourceSets);
+    const applied = applySourceSets(filePath, spec.android);
     if (applied) {
       changes.push('Updated Android source sets');
     }
@@ -80,7 +80,7 @@ export function applyGradleHookup(
  */
 function applyPlugin(
   filePath: string,
-  plugin: string | GradleHookup['plugins'][number]
+  plugin: GradlePluginEntry
 ): boolean {
   // For now, this is a simplified implementation
   // A full implementation would use the gradle block manager
@@ -111,8 +111,9 @@ function applyDependency(
  */
 function applySourceSets(
   filePath: string,
-  sourceSets: GradleHookup['android']['sourceSets']
+  android: GradleHookup['android']
 ): boolean {
+  if (!android?.sourceSets) return false;
   // Delegate to existing android-gradle-integration
   configureAndroidGradle(filePath, {
     spireDir: './spire',

@@ -6,7 +6,7 @@
  * to determine what code to generate.
  */
 
-import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler } from '../../warp/index.js';
+import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler, Layer } from '../../warp/index.js';
 import { CoreRing, RustCore, TsCore } from '../../warp/spiral/index.js';
 import type { ManagementMetadata, MethodMetadata } from '../reed/index.js';
 import type { RawMethod } from '../bobbin/index.js';
@@ -431,7 +431,7 @@ export class Heddles {
           match: [targetNode.typeName, sourceNode.typeName],
           current: targetNode,
           previous: sourceNode,
-          exportName: targetNode.exportName,
+          exportName: targetNode.exportName ?? 'unknown',
           generator,  // Bypasses matrix lookup
           config: warpData  // Pass warpData to weaver
         });

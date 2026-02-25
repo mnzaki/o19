@@ -7,7 +7,7 @@
 
 import * as fs from 'node:fs';
 import type { GeneratorContext } from '../../heddles/index.js';
-import type { KotlinHookup, HookupResult, KotlinClassModifications } from './types.js';
+import type { KotlinHookup, HookupResult, KotlinClassModifications, KotlinMethodModificationEntry } from './types.js';
 
 /**
  * Apply Kotlin file hookup.
@@ -254,9 +254,10 @@ function findMatchingBrace(content: string, openBracePos: number): number {
 function modifyMethod(
   classBody: string,
   methodName: string,
-  methodMod: KotlinClassModifications['methods'][string],
+  methodMod: KotlinMethodModificationEntry | undefined,
   context: GeneratorContext
 ): { content: string; modified: boolean } {
+  if (!methodMod) return { content: classBody, modified: false };
   let modified = false;
   let content = classBody;
   

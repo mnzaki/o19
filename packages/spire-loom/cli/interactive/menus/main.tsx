@@ -248,7 +248,7 @@ function MainMenuView({ dressing, onSelect }: MainMenuViewProps) {
  * 
  * Runs the weaver on the loaded dressing.
  */
-import { weave } from '../../machinery/weaver.js';
+import { weave, type WeaverConfig } from '../../../machinery/weaver.js';
 
 interface WeaveViewProps {
   dressing: Dressing;
@@ -274,11 +274,10 @@ function WeaveView({ dressing, packageFilter, onBack }: WeaveViewProps) {
       try {
         // Use the already-loaded WARP module from dressing
         const weaveResult = await weave(dressing.warpModule, {
-          workspaceRoot: dressing.workspaceRoot,
-          loomDir: dressing.loomPath,
+          workspace: { root: dressing.workspaceRoot },
           verbose: true,
           packageFilter,
-        });
+        } as WeaverConfig);
         
         setResult(weaveResult);
         setStatus('complete');

@@ -6,7 +6,7 @@
 
 import * as path from 'node:path';
 import type { GeneratorContext } from '../../heddles/index.js';
-import type { AndroidManifestHookup, HookupResult } from './types.js';
+import type { AndroidManifestHookup, HookupResult, AndroidPermission, AndroidPermissionDefinition, AndroidService } from './types.js';
 import { ensureXmlBlock, type XmlBlockMap } from '../xml-block-manager.js';
 
 /**
@@ -96,7 +96,7 @@ export function applyAndroidManifestHookup(
 /**
  * Build permission XML element.
  */
-function buildPermissionXml(perm: AndroidManifestHookup['permissions'][number]): string {
+function buildPermissionXml(perm: AndroidPermission): string {
   const attrs = Object.entries(perm)
     .filter(([key]) => key !== 'name')
     .map(([key, value]) => `android:${key}="${value}"`)
@@ -111,7 +111,7 @@ function buildPermissionXml(perm: AndroidManifestHookup['permissions'][number]):
 /**
  * Build permission definition XML (permission + uses-permission).
  */
-function buildPermissionDefXml(def: AndroidManifestHookup['permissionDefinitions'][number]): string {
+function buildPermissionDefXml(def: AndroidPermissionDefinition): string {
   const { name, label, protectionLevel, ...otherAttrs } = def;
   
   let permissionAttrs = `android:name="${name}"`;
@@ -131,7 +131,7 @@ function buildPermissionDefXml(def: AndroidManifestHookup['permissionDefinitions
 /**
  * Build service XML element.
  */
-function buildServiceXml(svc: AndroidManifestHookup['services'][number]): string {
+function buildServiceXml(svc: AndroidService): string {
   const { name, ...attrs } = svc;
   
   let xml = '<service';

@@ -107,10 +107,14 @@ export {
 // ============================================================================
 
 export {
-  type CustomTreadle,
-  type TreadleContext,
-  type TreadleResult,
-  type TreadleUtils
+  type TieupTreadle,
+  type TreadleEntry,
+  type TieupConfig,
+  type StoredTieup,
+  getTieups,
+  addTieup,
+  collectAllTieups,
+  tieup
 } from '../../warp/tieups.js';
 
 // ============================================================================

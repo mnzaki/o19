@@ -84,3 +84,15 @@ export {
   type AidlParam,
   type AidlMethod,
 } from '../stringing.js';
+
+// ============================================================================
+// Query Builder - re-exported for convenience (APP-009)
+// ============================================================================
+
+export {
+  createQueryAPI,
+  type BoundQuery,
+  type QueryAPI,
+  type MethodQueryAPI,
+  type CrudOperation,
+} from '../sley/query.js';

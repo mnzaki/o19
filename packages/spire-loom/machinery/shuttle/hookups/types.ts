@@ -17,6 +17,8 @@ export type HookupType =
   | 'gradle'
   | 'rust-module'
   | 'kotlin'
+  | 'typescript'
+  | 'vite-config'
   | 'npm-package'
   | 'ios-plist'
   | 'file-block';
@@ -41,6 +43,12 @@ export function detectHookupType(filePath: string): HookupType {
   }
   if (lowerPath.endsWith('.kt')) {
     return 'kotlin';
+  }
+  if (lowerPath.endsWith('index.ts') || lowerPath.endsWith('index.js')) {
+    return 'typescript';
+  }
+  if (lowerPath.includes('vite.config')) {
+    return 'vite-config';
   }
   if (lowerPath.endsWith('package.json')) {
     return 'npm-package';
@@ -89,6 +97,14 @@ export interface AndroidService {
   [attr: string]: string | number | boolean | undefined;
 }
 
+/** Permission definition element type */
+export type AndroidPermissionDefinition = {
+  name: string;
+  label?: string;
+  protectionLevel?: string;
+  [attr: string]: string | number | boolean | undefined;
+};
+
 export interface AndroidManifestHookup extends BaseHookup {
   path: `${string}AndroidManifest.xml`;
   
@@ -96,12 +112,7 @@ export interface AndroidManifestHookup extends BaseHookup {
   permissions?: AndroidPermission[];
   
   /** Permission definitions with custom protection levels */
-  permissionDefinitions?: Array<{
-    name: string;
-    label?: string;
-    protectionLevel?: string;
-    [attr: string]: string | number | boolean | undefined;
-  }>;
+  permissionDefinitions?: AndroidPermissionDefinition[];
   
   /** Services to add to <application> */
   services?: AndroidService[];
@@ -127,17 +138,20 @@ export interface CargoDependency {
   defaultFeatures?: boolean;
 }
 
+/** Dependency value type */
+export type CargoDependencyValue = string | CargoDependency;
+
 export interface CargoTomlHookup extends BaseHookup {
   path: `${string}Cargo.toml`;
   
   /** Dependencies to add to [dependencies] or [workspace.dependencies] */
-  dependencies?: Record<string, string | CargoDependency>;
+  dependencies?: Record<string, CargoDependencyValue>;
   
   /** Dev dependencies */
-  devDependencies?: Record<string, string | CargoDependency>;
+  devDependencies?: Record<string, CargoDependencyValue>;
   
   /** Build dependencies */
-  buildDependencies?: Record<string, string | CargoDependency>;
+  buildDependencies?: Record<string, CargoDependencyValue>;
   
   /** Features to add to [features] */
   features?: Record<string, string[]>;
@@ -167,6 +181,9 @@ export interface GradlePlugin {
   apply?: boolean;
 }
 
+/** Plugin entry type */
+export type GradlePluginEntry = string | GradlePlugin;
+
 export interface SpireGradleTask {
   /** Task name (e.g., 'buildRustCore') */
   name: string;
@@ -182,7 +199,7 @@ export interface GradleHookup extends BaseHookup {
   path: `${string}build.gradle${string}`;
   
   /** Plugins to apply */
-  plugins?: Array<string | GradlePlugin>;
+  plugins?: GradlePluginEntry[];
   
   /** Dependencies by configuration (implementation, api, etc.) */
   dependencies?: Record<string, string[]>;
@@ -220,6 +237,9 @@ export interface RustModuleDeclaration {
   pub?: boolean;
 }
 
+/** Module declaration entry type */
+export type RustModuleEntry = string | RustModuleDeclaration;
+
 export interface RustPluginInit {
   /** Function name for plugin init */
   fnName: string;
@@ -233,7 +253,7 @@ export interface RustModuleHookup extends BaseHookup {
   path: `${string}src/lib.rs` | `${string}src/main.rs`;
   
   /** Module declarations to add (e.g., 'pub mod spire;') */
-  moduleDeclarations?: Array<string | RustModuleDeclaration>;
+  moduleDeclarations?: RustModuleEntry[];
   
   /** use statements to add */
   useStatements?: string[];
@@ -246,6 +266,99 @@ export interface RustModuleHookup extends BaseHookup {
   
   /** Commands to inject into tauri::generate_handler![] */
   tauriCommands?: string[];
+}
+
+// ============================================================================
+// TypeScript Index Hookup (index.ts / index.js)
+// ============================================================================
+
+export interface TypeScriptExport {
+  /** Source module path (e.g., '../spire/src/index.js') */
+  source: string;
+  /** Export all with star (export * from '...') */
+  star?: boolean;
+  /** Named exports (export { X, Y } from '...') */
+  names?: string[];
+}
+
+/** Export entry type - can be raw line or structured */
+export type TypeScriptExportEntry = string | TypeScriptExport;
+
+export interface TypeScriptIndexHookup extends BaseHookup {
+  path: `${string}index.ts` | `${string}index.js`;
+  
+  /** Export statements to add */
+  exports?: TypeScriptExportEntry[];
+  
+  /** Import statements to add (for side effects or types) */
+  imports?: TypeScriptImportEntry[];
+}
+
+export interface TypeScriptImport {
+  /** Source module path */
+  source: string;
+  /** Import all as namespace (import * as X from '...') */
+  namespace?: string;
+  /** Default import name (import X from '...') */
+  default?: string;
+  /** Named imports (import { X, Y } from '...') */
+  names?: string[];
+  /** Type-only import (import type { ... } from '...') */
+  typeOnly?: boolean;
+}
+
+/** Import entry type - can be raw line or structured */
+export type TypeScriptImportEntry = string | TypeScriptImport;
+
+// ============================================================================
+// Vite Config Hookup (vite.config.ts / vite.config.js)
+// ============================================================================
+
+export interface ViteConfigHookup extends BaseHookup {
+  path: `${string}vite.config.ts` | `${string}vite.config.js` | `${string}vite.config.mts`;
+  
+  /** 
+   * Build configuration to add/modify.
+   * Supports rollupOptions.input for multi-entry builds.
+   */
+  build?: {
+    rollupOptions?: {
+      /** Entry points - can be single string or multiple */
+      input?: string | Record<string, string>;
+    };
+  };
+  
+  /** 
+   * Environment variable defines to add.
+   * Maps to define: { 'import.meta.env.X': JSON.stringify(value) }
+   */
+  define?: Record<string, string>;
+  
+  /**
+   * Plugins to add to the plugins array.
+   * Each plugin is a string that will be injected as code.
+   */
+  plugins?: string[];
+  
+  /**
+   * Server configuration.
+   */
+  server?: {
+    port?: number;
+    host?: string | boolean;
+  };
+  
+  /**
+   * CSS configuration.
+   */
+  css?: {
+    devSourcemap?: boolean;
+  };
+  
+  /**
+   * Raw config lines to append (escape hatch).
+   */
+  configLines?: string[];
 }
 
 // ============================================================================
@@ -351,6 +464,9 @@ export interface KotlinMethodModifications {
   append?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
 }
 
+/** Method modification entry type */
+export type KotlinMethodModificationEntry = KotlinMethodModifications;
+
 export interface KotlinHookup extends BaseHookup {
   path: `${string}.kt`;
   
@@ -408,6 +524,7 @@ export type HookupSpec =
   | GradleHookup
   | RustModuleHookup
   | KotlinHookup
+  | ViteConfigHookup
   | NpmPackageHookup
   | IosPlistHookup
   | FileBlockHookup;

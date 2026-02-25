@@ -1,4 +1,8 @@
 /**
+ * ⚠️  KIMI NOTICE: Before editing this treadle, read HOW_TO_LOOM.md
+ *     The loom has patterns. Understanding them prevents cross-cutting.
+ *     Conservation spiral matters. Read before weaving. 🌀
+ *
  * DbBindingTreadle - Declarative treadle for generating DbActor bindings
  *
  * Generates SQLite entity traits and DbCommand variants for foundframe entities.

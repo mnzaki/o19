@@ -19,6 +19,7 @@ import { kyselyAdaptorTreadle } from './treadles/kysely-adaptor.js';
 import { tauriAdaptorTreadle } from './treadles/tauri-adaptor.js';
 import { tauriAndroidCommandsTreadle } from './treadles/tauri-android-commands.js';
 import { dddServicesTreadle } from './treadles/ddd-services.js';
+import { tauriDesktopPlatformTreadle } from './treadles/tauri-desktop-platform.js';
 
 // ============================================================================
 // CORE
@@ -139,6 +140,14 @@ export const tauri = loom.spiral.tauri
           servicePackage: 'ty.circulari.o19',
           serviceClient: 'FoundframeRadicleClient'
         }
+      }
+    ]
+  })
+  .tieup({
+    treadles: [
+      {
+        treadle: tauriDesktopPlatformTreadle,
+        warpData: {}
       }
     ]
   });

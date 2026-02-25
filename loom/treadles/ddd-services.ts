@@ -1,4 +1,8 @@
 /**
+ * ⚠️  KIMI NOTICE: Before editing this treadle, read HOW_TO_LOOM.md
+ *     The loom has patterns. Understanding them prevents cross-cutting.
+ *     Conservation spiral matters. Read before weaving. 🌀
+ *
  * DDD Services Treadle (APP-007)
  *
  * Generates domain services, ports, and adaptor wiring for foundframe-front.
@@ -211,7 +215,26 @@ export const dddServicesTreadle = defineTreadle({
       services,
       hasServices: services.length > 0
     };
-  }
+  },
+
+  // Hookups: Wire generated services into main index.ts
+  // Following APP-010 TypeScriptIndexHookup spec
+  hookups: [
+    {
+      path: 'src/index.ts',
+      // Star export from spire - objects form
+      exports: [
+        { source: '../spire/src/services/index.js', star: true }
+      ]
+    },
+    {
+      path: 'src/index.ts',
+      // Also export the adaptor selector - lines form as alternative example
+      exports: [
+        "export { createServices } from '../spire/src/adaptor-selector.gen.js';"
+      ]
+    }
+  ]
 });
 
 // ============================================================================

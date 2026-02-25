@@ -17,26 +17,22 @@
  */
 
 export {
-  addKyselyAdaptor,
-  addTauriAdaptor
-} from './add.adaptor.gen.js';
+  BookmarkKyselyAdaptor,
+  BookmarkTauriAdaptor
+} from './bookmark.adaptor.gen.js';
 export {
-  getKyselyAdaptor,
-  getTauriAdaptor
-} from './get.adaptor.gen.js';
+  ConversationKyselyAdaptor,
+  ConversationTauriAdaptor
+} from './conversation.adaptor.gen.js';
 export {
-  listKyselyAdaptor,
-  listTauriAdaptor
-} from './list.adaptor.gen.js';
+  MediaKyselyAdaptor,
+  MediaTauriAdaptor
+} from './media.adaptor.gen.js';
 export {
-  deleteKyselyAdaptor,
-  deleteTauriAdaptor
-} from './delete.adaptor.gen.js';
+  PersonKyselyAdaptor,
+  PersonTauriAdaptor
+} from './person.adaptor.gen.js';
 export {
-  updateKyselyAdaptor,
-  updateTauriAdaptor
-} from './update.adaptor.gen.js';
-export {
-  removeKyselyAdaptor,
-  removeTauriAdaptor
-} from './remove.adaptor.gen.js';
+  PostKyselyAdaptor,
+  PostTauriAdaptor
+} from './post.adaptor.gen.js';

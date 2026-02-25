@@ -23,6 +23,14 @@ export {
   ensurePlanComplete,
 } from './types.js';
 
+// Re-export query types from sley for GeneratorContext.query
+export {
+  type BoundQuery,
+  type QueryAPI,
+  type MethodQueryAPI,
+  type CrudOperation,
+} from '../sley/query.js';
+
 // ============================================================================
 // Matrix
 // ============================================================================

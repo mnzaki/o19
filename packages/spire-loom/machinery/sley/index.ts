@@ -81,3 +81,12 @@ export {
   translateMethods,
   translateAndGroupMethods
 } from './method-translator.js';
+
+// Query Builder - Chainable queries over methods (APP-009)
+export {
+  createQueryAPI,
+  type BoundQuery,
+  type QueryAPI,
+  type MethodQueryAPI,
+  type CrudOperation
+} from './query.js';

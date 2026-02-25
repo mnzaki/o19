@@ -64,6 +64,21 @@ export interface RawMethod {
    * When true, generated code wraps return types in Result and uses ? for error propagation.
    */
   useResult?: boolean;
+  /**
+   * Tags for filtering (e.g., 'crud:create', 'auth:required').
+   * Added during method collection in treadle-kit.
+   */
+  tags?: string[];
+  /**
+   * CRUD operation type (create, read, update, delete, list).
+   * Added during method collection in treadle-kit.
+   */
+  crudOperation?: string;
+  /**
+   * Management name this method belongs to.
+   * Added during method collection in treadle-kit.
+   */
+  managementName?: string;
 }
 
 /**

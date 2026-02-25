@@ -7,6 +7,7 @@
 import type { SpiralRing } from '../../warp/index.js';
 import type { ManagementMetadata, MethodMetadata } from '../reed/index.js';
 import type { RawMethod } from '../bobbin/index.js';
+import type { MethodQueryAPI } from '../sley/query.js';
 
 /**
  * Enriched method metadata with computed values from heddles.
@@ -174,8 +175,15 @@ export interface GeneratorContext {
   packagePath: string;
   /** Full package directory path */
   packageDir: string;
-  /** Method collection helpers (populated by treadle-kit) */
+  /** Method collection helpers (populated by treadle-kit) - CLASSIC API */
   methods?: MethodHelpers;
+  
+  /** 
+   * Query builder API (populated by treadle-kit) - NEW API.
+   * Chainable queries: context.query?.methods.crud('create').tag('auth').all
+   */
+  query?: MethodQueryAPI<RawMethod>;
+  
   /** 
    * Configuration data from tieup (warpData).
    * Available when treadle is invoked via .tieup()

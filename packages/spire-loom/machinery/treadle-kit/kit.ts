@@ -23,6 +23,7 @@ import {
 import { writeEventCallbackAidl } from '../bobbin/android.js';
 import type { MethodConfig, TreadleKit } from './types.js';
 import { toRawMethod, buildContextMethods } from './context-methods.js';
+import { createQueryAPI } from '../sley/query.js';
 
 /**
  * Create a treadle kit for building generators.
@@ -95,8 +96,11 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       // Convert to RawMethod
       const rawMethods = processedMethods.map((m) => toRawMethod(m));
       
-      // Build and attach method helpers to context
+      // Build and attach method helpers to context (classic API)
       context.methods = buildContextMethods(rawMethods);
+      
+      // Build and attach query API (new chainable API)
+      context.query = createQueryAPI(rawMethods);
       
       return rawMethods;
     },

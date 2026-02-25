@@ -44,7 +44,7 @@ export class DDDTypescriptSpiraler extends Spiraler {
     // The adaptor implementation ring
     // This generates Drizzle ORM implementations of the Ports
     return this.spiralOut('drizzle_adaptors', {
-      drizzle: new DrizzleAdaptorSpiraler(this, filter)
+      drizzle: new DrizzleAdaptorSpiraler(this.innerRing, filter)
     });
   }
 }

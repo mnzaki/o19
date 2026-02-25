@@ -49,10 +49,8 @@ export { Layer, Layering, ExternalLayer } from './layers.js';
 // Custom treadle attachment for code generation
 export {
   tieup,
-  type CustomTreadle,
-  type TreadleContext,
-  type TreadleUtils,
-  type TreadleResult,
+  type TieupTreadle,
+  type TreadleEntry,
   type TieupConfig,
   type StoredTieup,
   getTieups,

@@ -14,8 +14,10 @@ import { detectHookupType, validateHookup } from './types.js';
 import { applyAndroidManifestHookup } from './android-manifest.js';
 import { applyCargoTomlHookup } from './cargo-toml.js';
 import { applyRustModuleHookup } from './rust-module.js';
+import { applyTypeScriptHookup } from './typescript.js';
 import { applyGradleHookup } from './gradle.js';
 import { applyKotlinHookup } from './kotlin.js';
+import { applyViteConfigHookup } from './vite-config.js';
 
 // Re-export types
 export * from './types.js';
@@ -25,6 +27,8 @@ export {
   applyAndroidManifestHookup,
   applyCargoTomlHookup,
   applyRustModuleHookup,
+  applyTypeScriptHookup,
+  applyViteConfigHookup,
   applyGradleHookup,
   applyKotlinHookup,
 };
@@ -109,6 +113,12 @@ async function routeHookup(
     
     case 'kotlin':
       return applyKotlinHookup(filePath, spec as import('./types.js').KotlinHookup, context);
+    
+    case 'typescript':
+      return applyTypeScriptHookup(filePath, spec as import('./types.js').TypeScriptIndexHookup, context);
+    
+    case 'vite-config':
+      return applyViteConfigHookup(filePath, spec as import('./types.js').ViteConfigHookup, context);
     
     case 'npm-package':
       // TODO: Implement npm-package handler

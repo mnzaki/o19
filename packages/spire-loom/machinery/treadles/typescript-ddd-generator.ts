@@ -38,8 +38,8 @@ export const typescriptDDDTreadle = defineTreadle({
 
   // Template data
   data: (_context, current, previous) => {
-    const ts = current.ring as TypescriptSpiraler;
-    const core = previous.ring as TsCore;
+    const ts = current.ring as unknown as TypescriptSpiraler;
+    const core = previous.ring as unknown as TsCore;
     const metadata = core.getMetadata();
 
     return {

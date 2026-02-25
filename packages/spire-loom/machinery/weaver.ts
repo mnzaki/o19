@@ -21,6 +21,7 @@ import {
   type WeavingPlan,
   type GenerationTask,
   type GeneratedFile,
+  type GeneratorFunction,
   GeneratorMatrix
 } from './heddles/index.js';
 import { createMatrix } from './treadles/index.js';

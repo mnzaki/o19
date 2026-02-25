@@ -1,4 +1,8 @@
 /**
+ * ⚠️  KIMI NOTICE: Before editing this treadle, read HOW_TO_LOOM.md
+ *     The loom has patterns. Understanding them prevents cross-cutting.
+ *     Conservation spiral matters. Read before weaving. 🌀
+ *
  * KyselyAdaptorTreadle - Declarative treadle for generating Kysely adaptor implementations
  *
  * Generates TypeScript Kysely adaptor implementations for foundframe-front ports.
