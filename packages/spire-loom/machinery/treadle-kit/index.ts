@@ -1,43 +1,80 @@
 /**
- * Treadle Kit - Index
+ * Treadle Kit 🧰
  *
- * Public API for defining and using treadles declaratively.
+ * Low-level utilities for building treadles.
+ * This is the foundation that both declarative and imperative treadles build upon.
+ *
+ * > *"The weaver's kit holds all the tools of the craft."*
  */
 
-// Core - export everything
-export * from './core.js';
+// ============================================================================
+// Core Types
+// ============================================================================
 
-// Platform wrapper exports
-export { buildTauriPluginNaming } from './platform-wrapper.js';
-export type { WrapperNaming } from './platform-wrapper.js';
-
-// Declarative API
-export { defineTreadle, generateFromTreadle } from './declarative.js';
-export type {
-  MatchPattern,
-  MethodConfig,
-  OutputSpec,
-  OutputSpecOrFn,
-  PatchSpec,
-  PatchSpecOrFn,
-  HookupConfig,
-  TreadleDefinition,
-} from './declarative.js';
-
-// Spec Resolver (for advanced use)
 export {
-  resolveSpec,
-  resolveSpecs,
-  resolveSpecsWithCondition,
-  resolveSpecsWithFilter,
-} from './spec-resolver.js';
-export type { SpecOrFn, ConditionalSpec } from './spec-resolver.js';
+  type MethodConfig,
+  type TreadleKit,
+} from './types.js';
 
-// Shuttle re-exports (for hookups)
+// ============================================================================
+// Method Helpers
+// ============================================================================
+
 export {
+  toRawMethod,
+  buildMethodLink,
+  extractManagementFromBindPoint,
+  buildMethodHelpers,
+} from './method-helpers.js';
+
+// ============================================================================
+// Kit Implementation
+// ============================================================================
+
+export {
+  createTreadleKit,
+  // Hookup utilities (re-exported for convenience)
   configureAndroidManifest,
   findCoreNameForTask,
   configureGradleBuild,
   executeAndroidHookup,
   type AndroidHookupData,
-} from '../shuttle/hookup-manager.js';
+} from './kit.js';
+
+// ============================================================================
+// Declarative API
+// ============================================================================
+
+export {
+  defineTreadle,
+  generateFromTreadle,
+  type MatchPattern,
+  type OutputSpec,
+  type PatchSpec,
+  type HookupConfig,
+  type TreadleConfig,
+  type TreadleDefinition,
+  type OutputSpecOrFn,
+  type PatchSpecOrFn,
+} from './declarative.js';
+
+// ============================================================================
+// Stringing (pattern mapping utilities) - re-exported for convenience
+// ============================================================================
+
+export {
+  // Case conversions
+  pascalCase,
+  camelCase,
+  toSnakeCase,
+  toSnakeCaseFull,
+  // Naming
+  type ServiceNaming,
+  type AndroidPackageData,
+  buildServiceNaming,
+  buildAndroidPackageData,
+  // AIDL type mapping
+  mapToAidlType,
+  addAidlTypesToParams,
+  type AidlParam,
+} from '../stringing.js';

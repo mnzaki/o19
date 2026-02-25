@@ -28,6 +28,7 @@
  */
 
 import type { CrudOperation } from '../../warp/imprint.js';
+import { toSnakeCaseFull as toSnakeCase } from '../stringing.js';
 
 // ============================================================================
 // Core Types
@@ -304,19 +305,7 @@ export function crudOperationFilter(
 // Helpers
 // ============================================================================
 
-/**
- * Convert camelCase/PascalCase to snake_case.
- */
-export function toSnakeCase(name: string): string {
-  return (
-    name
-      // Handle consecutive capitals: "HTTPRequest" -> "HTTP_Request"
-      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
-      // Handle camelCase: "addBookmark" -> "add_Bookmark"
-      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-      .toLowerCase()
-  );
-}
+// toSnakeCase is imported from '../stringing.js'
 
 /**
  * Extract CRUD operation from tags.
