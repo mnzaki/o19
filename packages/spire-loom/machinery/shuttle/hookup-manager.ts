@@ -175,7 +175,12 @@ export async function executeAndroidHookup(
   data: AndroidHookupData
 ): Promise<void> {
   const workspaceRoot = context.workspaceRoot ?? process.cwd();
-  const resolvedPackageDir = path.join(workspaceRoot, '..', data.packageDir);
+  
+  // Fix: If packageDir is already absolute, use it directly
+  // Don't try to join it with workspaceRoot
+  const resolvedPackageDir = path.isAbsolute(data.packageDir)
+    ? data.packageDir
+    : path.join(workspaceRoot, '..', data.packageDir);
 
   // 1. AndroidManifest.xml
   configureAndroidManifest(resolvedPackageDir, {

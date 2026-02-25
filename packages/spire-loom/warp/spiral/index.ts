@@ -18,6 +18,7 @@ import { ExternalLayer } from '../imprint.js';
 import { RustExternalLayer, RUST_STRUCT_MARK } from '../rust.js';
 import { TsExternalLayer, TS_CLASS_MARK } from '../typescript.js';
 import { RustCore, rustCore } from './rust.js';
+import { SurfaceRing, surfaceRing } from './surface.js';
 import { TsCore, tsCore } from './typescript.js';
 
 // Re-export Rust and TypeScript spiral implementations
@@ -26,6 +27,7 @@ export * from './operation-mux.js';
 export * from './spiralers/index.js';
 export { RustCore, rustCore } from './rust.js';
 export { TsCore, tsCore } from './typescript.js';
+export { SurfaceRing, surfaceRing } from './surface.js';
 
 // ============================================================================
 // Spiral Functions
@@ -210,6 +212,20 @@ export namespace spiral {
     () => rustCore(new RustExternalLayer()),
     spiralers.TauriSpiraler
   );
+  
+  /**
+   * Create a surface app (end-user application).
+   * Surface apps live in the apps/ directory.
+   * 
+   * Usage:
+   *   const myApp = loom.spiral.surface({ name: 'MyApp' });
+   *   // Creates: apps/MyApp/
+   */
+  export function surface(options?: { name?: string; language?: 'typescript' | 'rust'; template?: string }) {
+    const ring = surfaceRing(options);
+    // Return as SpiralOut so it can be used like other spiral outputs
+    return new p.SpiralOut(ring, 'surface', { app: ring });
+  }
 }
 
 export default spiral;

@@ -9,11 +9,61 @@ export type { CrudMetadata } from './crud.js';
 export type { CrudOperation } from './crud.js';
 
 /**
- * Storage for decorator metadata using WeakMaps.
- * This works with Stage 3 decorators.
+ * ═════════════════════════════════════════════════════════════════════════════
+ * GLOBAL METADATA REGISTRY
+ * ═════════════════════════════════════════════════════════════════════════════
+ * 
+ * PROBLEM:
+ *   When spire-loom is symlinked (e.g., in monorepos with workspace:* deps),
+ *   Node.js may load the package through multiple paths:
+ *   - /project/node_modules/@o19/spire-loom  (symlink)
+ *   - /project/o19/packages/spire-loom       (real path)
+ *   
+ *   This causes MODULE DUPLICATION: the same module is loaded twice, creating
+ *   separate WeakMap instances. Metadata stored by @loom.reach() in one instance
+ *   is invisible to getReach() in the other.
+ * 
+ * SOLUTION:
+ *   Use a global registry on globalThis. All module instances share the same
+ *   WeakMaps, ensuring metadata is accessible regardless of import path.
+ * 
+ * ALTERNATIVES CONSIDERED:
+ *   - Symbol.for(): Works for primitives, not WeakMaps
+ *   - Proper module resolution: Difficult with tsx + symlinks
+ *   - Build step: Would lose TypeScript source benefits
+ * 
+ * This pattern is safe because:
+ *   - WeakMaps don't leak memory (keys are garbage collected)
+ *   - globalThis is per-process, isolated between projects
+ *   - The registry is lazily initialized
  */
-const reachMetadata = new WeakMap<Function, 'Private' | 'Local' | 'Global'>();
-const crudMetadata = new WeakMap<Function, Map<string, CrudMetadata>>();
+const GLOBAL_KEY = '__SPIRE_LOOM_IMPRINT_METADATA__';
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __SPIRE_LOOM_IMPRINT_METADATA__: {
+    /** Maps Management classes to their @reach level */
+    reach: WeakMap<Function, 'Private' | 'Local' | 'Global'>;
+    /** Maps Management classes to their @crud method metadata */
+    crud: WeakMap<Function, Map<string, CrudMetadata>>;
+    /** Maps Management classes to their method tags */
+    tags: WeakMap<Function, Map<string, string[]>>;
+  };
+}
+
+// Initialize global registry if this is the first module instance
+if (!globalThis[GLOBAL_KEY]) {
+  globalThis[GLOBAL_KEY] = {
+    reach: new WeakMap<Function, 'Private' | 'Local' | 'Global'>(),
+    crud: new WeakMap<Function, Map<string, CrudMetadata>>(),
+    tags: new WeakMap<Function, Map<string, string[]>>(),
+  };
+}
+
+// Export the shared WeakMaps - all module instances use these
+const reachMetadata = globalThis[GLOBAL_KEY].reach;
+const crudMetadata = globalThis[GLOBAL_KEY].crud;
+const methodTags = globalThis[GLOBAL_KEY].tags;
 
 /**
  * Decorator for Management reach (Stage 3 format).
@@ -60,10 +110,7 @@ export interface TagMetadata {
   options?: Record<string, unknown>;
 }
 
-/**
- * Storage for all method tags using WeakMap.
- */
-const methodTags = new WeakMap<Function, Map<string, string[]>>();
+
 
 /**
  * Get reach level for a Management class.

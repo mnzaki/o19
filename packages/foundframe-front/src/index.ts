@@ -47,6 +47,8 @@ export type {
   DateRange,
   QueryResult,
 } from './domain/values/common.js';
+export * from '../spire/src/services/index.js';
+export { createServices } from '../spire/src/adaptor-selector.gen.js';
 
 // ============================================
 // Domain Entities

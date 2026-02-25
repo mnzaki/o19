@@ -38,7 +38,7 @@ export function detectHookupType(filePath: string): HookupType {
   if (lowerPath.includes('build.gradle') || lowerPath.endsWith('.gradle.kts')) {
     return 'gradle';
   }
-  if (lowerPath.endsWith('src/lib.rs') || lowerPath.endsWith('src/main.rs')) {
+  if (lowerPath.endsWith('src/lib.rs') || lowerPath.endsWith('src/main.rs') || lowerPath.endsWith('build.rs')) {
     return 'rust-module';
   }
   if (lowerPath.endsWith('.kt')) {
@@ -249,10 +249,44 @@ export interface RustPluginInit {
   setup: string;
 }
 
+/**
+ * Variable declaration for build.rs hookup.
+ * Supports deep matching with conflict detection.
+ */
+export interface RustVariableDeclaration {
+  /** Variable name (e.g., 'aidl_dir') */
+  name: string;
+  /** 
+   * Variable type (e.g., 'PathBuf', 'String', 'bool')
+   * Used for type checking during hookup.
+   */
+  type: string;
+  /** 
+   * Initial value as Rust code (e.g., 'PathBuf::from("spire/android/aidl")')
+   * This is the EXACT code that will be inserted after the = sign.
+   */
+  value: string;
+  /** 
+   * Whether the variable is mutable (mut keyword).
+   * Default: false
+   */
+  mutable?: boolean;
+  /**
+   * Whether this variable is managed by spire.
+   * Spire-managed variables have SPIRE-LOOM markers around them.
+   * Default: true
+   */
+  spireManaged?: boolean;
+  /**
+   * Description for error messages if conflict detected.
+   */
+  description?: string;
+}
+
 export interface RustModuleHookup extends BaseHookup {
-  path: `${string}src/lib.rs` | `${string}src/main.rs`;
+  path: `${string}src/lib.rs` | `${string}src/main.rs` | `${string}build.rs`;
   
-  /** Module declarations to add (e.g., 'pub mod spire;') */
+  /** Module declarations to add (e.g., 'pub mod spire;') - lib.rs/main.rs only */
   moduleDeclarations?: RustModuleEntry[];
   
   /** use statements to add */
@@ -266,6 +300,29 @@ export interface RustModuleHookup extends BaseHookup {
   
   /** Commands to inject into tauri::generate_handler![] */
   tauriCommands?: string[];
+  
+  /**
+   * Variable declarations for build.rs hookup.
+   * Supports deep matching and smart replacement.
+   * 
+   * Each entry defines a variable that should exist in build.rs.
+   * The hookup system will:
+   * 1. Check if the variable exists
+   * 2. If it has a non-spire value → ERROR (manual conflict)
+   * 3. If it has a spire-generated value → REPLACE
+   * 4. If it doesn't exist → ADD
+   * 
+   * Example:
+   * ```typescript
+   * variables: [{
+   *   name: 'aidl_dir',
+   *   type: 'PathBuf',
+   *   value: 'PathBuf::from("spire/android/aidl")',
+   *   mutable: true
+   * }]
+   * ```
+   */
+  variables?: RustVariableDeclaration[];
 }
 
 // ============================================================================
@@ -583,8 +640,8 @@ export function validateHookup(spec: HookupSpec): ValidationResult {
     }
     case 'rust-module': {
       const rust = spec as RustModuleHookup;
-      if (!rust.moduleDeclarations && !rust.useStatements && !rust.pluginInit && !rust.tauriCommands) {
-        errors.push('Rust module hookup should have moduleDeclarations, useStatements, pluginInit, or tauriCommands');
+      if (!rust.moduleDeclarations && !rust.useStatements && !rust.pluginInit && !rust.tauriCommands && !rust.variables) {
+        errors.push('Rust module hookup should have moduleDeclarations, useStatements, pluginInit, tauriCommands, or variables');
       }
       break;
     }

@@ -10,10 +10,10 @@
  */
 
 import loom from '@o19/spire-loom';
-import { foundframe } from './WARP.js';
+import { foundframe } from './core.js';
 
 @loom.reach('Global')
-@loom.link(foundframe.inner.core.thestream)
+  @loom.link(foundframe.inner.core.thestream)
 class ConversationMgmt extends loom.Management {
   // ========================================================================
   // CONSTANTS (available in all rings)

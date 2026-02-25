@@ -6,6 +6,7 @@
 
 import { SpiralRing, SpiralOut, SpiralMux } from '../../warp/index.js';
 import { CoreRing, RustCore, TsCore } from '../../warp/spiral/index.js';
+import { SurfaceRing } from '../../warp/spiral/surface.js';
 
 /**
  * Ensure metadata is set on a ring, computing it from export name if needed.
@@ -37,7 +38,10 @@ export function ensureMetadata(ring: SpiralRing, exportName: string): void {
   let language: 'rust' | 'typescript' | undefined = anyRing.metadata?.language;
 
   if (!language) {
-    if (ring instanceof RustCore) {
+    if (ring instanceof SurfaceRing) {
+      // Surface apps go in apps/ directory
+      language = ring.options.language || 'typescript';
+    } else if (ring instanceof RustCore) {
       language = 'rust';
     } else if (ring instanceof TsCore) {
       language = 'typescript';
@@ -74,8 +78,16 @@ export function ensureMetadata(ring: SpiralRing, exportName: string): void {
   // Use ring.name if explicitly set (allows WARP.ts override), otherwise use exportName
   const packageName = ring.name || exportName;
 
-  // Compute package path based on language
-  const packagePath = language === 'rust' ? `crates/${packageName}` : `packages/${packageName}`;
+  // Compute package path based on ring type and language
+  let packagePath: string;
+  if (ring instanceof SurfaceRing) {
+    // Surface apps live in apps/
+    packagePath = `apps/${packageName}`;
+  } else if (language === 'rust') {
+    packagePath = `crates/${packageName}`;
+  } else {
+    packagePath = `packages/${packageName}`;
+  }
 
   // Set/merge metadata (preserve existing language if present)
   anyRing.metadata = {

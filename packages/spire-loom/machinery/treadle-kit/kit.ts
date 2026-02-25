@@ -87,9 +87,9 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
         }
       }
 
-      // Apply pipeline transformations
+      // Apply pipeline transformations (defaults to identity)
       let processedMethods = mgmtMethods;
-      for (const transform of config.pipeline) {
+      for (const transform of (config.pipeline || [])) {
         processedMethods = transform(processedMethods);
       }
 

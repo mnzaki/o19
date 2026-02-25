@@ -245,6 +245,82 @@ export function buildTauriPluginNaming(coreName: string, affix?: string): Wrappe
 }
 
 // ============================================================================
+// Crate Naming (Rust/Cargo)
+// ============================================================================
+
+/**
+ * Rust crate naming data.
+ * Handles conversion between Cargo crate names (with hyphens) and 
+ * Rust identifiers (with underscores).
+ */
+export interface CrateNaming {
+  /** Original Cargo crate name (e.g., 'o19-foundframe') */
+  crateName: string;
+  /** Rust identifier with underscores (e.g., 'o19_foundframe') */
+  rustIdentifier: string;
+  /** Just the base name without prefix (e.g., 'foundframe') */
+  baseName: string;
+  /** PascalCase base name (e.g., 'Foundframe') */
+  pascalBase: string;
+}
+
+/**
+ * Convert a Cargo crate name to a valid Rust identifier.
+ * Replaces hyphens with underscores.
+ * 
+ * @example
+ * toRustIdentifier('o19-foundframe') // 'o19_foundframe'
+ * toRustIdentifier('my-crate-name')  // 'my_crate_name'
+ */
+export function toRustIdentifier(crateName: string): string {
+  return crateName.replace(/-/g, '_');
+}
+
+/**
+ * Extract the base name from a prefixed crate name.
+ * Removes common prefixes like 'o19-'.
+ * 
+ * @example
+ * extractBaseName('o19-foundframe') // 'foundframe'
+ * extractBaseName('my-crate')       // 'my-crate' (no recognized prefix)
+ */
+export function extractBaseName(crateName: string): string {
+  // Remove common prefixes
+  const prefixes = ['o19-', 'spire-'];
+  for (const prefix of prefixes) {
+    if (crateName.startsWith(prefix)) {
+      return crateName.slice(prefix.length);
+    }
+  }
+  return crateName;
+}
+
+/**
+ * Build complete crate naming data from a Cargo crate name.
+ * 
+ * @param crateName - The Cargo crate name (e.g., 'o19-foundframe')
+ * @returns Complete crate naming data
+ * 
+ * @example
+ * buildCrateNaming('o19-foundframe')
+ * // {
+ * //   crateName: 'o19-foundframe',
+ * //   rustIdentifier: 'o19_foundframe',
+ * //   baseName: 'foundframe',
+ * //   pascalBase: 'Foundframe'
+ * // }
+ */
+export function buildCrateNaming(crateName: string): CrateNaming {
+  const baseName = extractBaseName(crateName);
+  return {
+    crateName,
+    rustIdentifier: toRustIdentifier(crateName),
+    baseName,
+    pascalBase: pascalCase(baseName)
+  };
+}
+
+// ============================================================================
 // Type Mapping (AIDL)
 // ============================================================================
 

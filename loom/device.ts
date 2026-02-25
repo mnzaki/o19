@@ -11,10 +11,10 @@
  */
 
 import loom from '@o19/spire-loom';
-import { foundframe } from './WARP.js';
+import { foundframe } from './core.js';
 
 @loom.reach('Local')
-@loom.link(foundframe.inner.core.device_manager)
+  @loom.link(foundframe.inner.core.device_manager)
 class DeviceMgmt extends loom.Management {
   // ========================================================================
   // CONSTANTS

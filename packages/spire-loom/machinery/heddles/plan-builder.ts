@@ -6,6 +6,7 @@
 
 import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler } from '../../warp/index.js';
 import { CoreRing } from '../../warp/spiral/index.js';
+import { SurfaceRing } from '../../warp/spiral/surface.js';
 import type { ManagementMetadata } from '../reed/index.js';
 import { collectAllTieups, type TieupTreadle } from '../../warp/tieups.js';
 import { generateFromTreadle, type TreadleDefinition } from '../treadle-kit/declarative.js';
@@ -121,11 +122,20 @@ export class Heddles {
 
     // Collect tieup tasks from all layers
     // Tieup treadles are added directly to tasks, bypassing matrix matching
+    console.log('[HEDDLES] Warp exports:', Object.keys(warp).join(', '));
+    for (const [name, ring] of Object.entries(warp)) {
+      console.log(`[HEDDLES]   ${name}: ${ring?.constructor?.name || typeof ring}`);
+    }
     const allLayers = collectAllLayers(warp);
     const tieups = collectAllTieups(allLayers);
 
-    if (process.env.DEBUG_MATRIX) {
-      console.log(`[HEDDLES] Collected ${tieups.length} tieup(s) from ${allLayers.size} layer(s)`);
+    // DEBUG: Always log tieup collection
+    console.log(`[HEDDLES] Collected ${tieups.length} tieup(s) from ${allLayers.size} layer(s)`);
+    for (const layer of allLayers) {
+      console.log(`[HEDDLES]   Layer: ${(layer as any).name || layer.constructor.name} (${layer.constructor.name})`);
+    }
+    for (const tieup of tieups) {
+      console.log(`[HEDDLES]   Tieup: target=${(tieup.target as any).name || 'unnamed'}, treadles=${tieup.config.treadles.length}`);
     }
 
     for (const tieup of tieups) {
@@ -255,6 +265,12 @@ export class Heddles {
         if (key !== 'innerRings' && value instanceof SpiralRing) {
           this.traverse(value, node, depth + 1, exportName, visitor);
         }
+      }
+    } else if (ring instanceof SurfaceRing) {
+      // SurfaceRing wraps an inner ring (typically SpiralOut for apps)
+      // Traverse into it so we can generate code for the inner spiral
+      if (ring.inner) {
+        this.traverse(ring.inner, node, depth + 1, exportName, visitor);
       }
     }
   }

@@ -13,57 +13,15 @@
  * This file defines the foundframe architecture using the loom DSL.
  */
 
-import loom, { typescript, rust } from '@o19/spire-loom';
-import { dbBindingTreadle } from './treadles/dbbindings.js';
+import loom, { typescript } from '@o19/spire-loom';
 import { kyselyAdaptorTreadle } from './treadles/kysely-adaptor.js';
 import { tauriAdaptorTreadle } from './treadles/tauri-adaptor.js';
 import { tauriAndroidCommandsTreadle } from './treadles/tauri-android-commands.js';
 import { dddServicesTreadle } from './treadles/ddd-services.js';
 import { tauriDesktopPlatformTreadle } from './treadles/tauri-desktop-platform.js';
-
-// ============================================================================
-// CORE
-// ============================================================================
-
-@rust.Struct
-class TheStream {}
-
-@rust.Struct
-class DeviceManager {}
-
-@rust.Struct({ useResult: true })
-export class Foundframe {
-  @rust.Mutex
-  @rust.Option
-  thestream = TheStream;
-
-  @rust.Mutex
-  @rust.Option
-  device_manager = DeviceManager;
-}
-
-/**
- * The Core - foundframe (Rust)
- * Package: foundframe
- * Path: o19/crates/foundframe
- *
- * The center that holds. Pure domain logic.
- *
- * With DbActor bindings via custom treadle.
- */
-// TODO: Migrate dbBindingTreadle to new TreadleDefinition format
-// export const foundframe = loom.spiral(Foundframe).tieup({
-//   treadles: [
-//     {
-//       treadle: dbBindingTreadle,
-//       warpData: {
-//         entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
-//         operations: ['create', 'read', 'update', 'delete', 'list']
-//       }
-//     }
-//   ]
-// });
-export const foundframe = loom.spiral(Foundframe);
+import { appHookupTreadle } from './treadles/app-hookups.js';
+import { foundframe } from './core.js';
+export { foundframe };
 
 // ============================================================================
 // PLATFORM RINGS (spiral out from Core)
@@ -117,6 +75,16 @@ export const desktop = foundframe.desktop.direct();
  *   - Android → uses android ring (AIDL service)
  *   - iOS → uses ios ring (future)
  */
+/**
+ * Tauri Ring - aggregates platform rings into a plugin
+ * Package: foundframe-tauri
+ * Path: o19/crates/foundframe-tauri
+ *
+ * Tauri routes to different platform rings based on target:
+ *   - Desktop → uses desktop ring (direct calls)
+ *   - Android → uses android ring (AIDL service)
+ *   - iOS → uses ios ring (future)
+ */
 export const tauri = loom.spiral.tauri
   .plugin({
     ddd: {
@@ -130,7 +98,10 @@ export const tauri = loom.spiral.tauri
         }
       }
       */
-    }
+    },
+    // Override core name detection (loom.spiral.tauri creates standalone core)
+    coreName: 'foundframe',
+    coreCrateName: 'o19-foundframe'
   })
   .tieup({
     treadles: [
@@ -147,7 +118,10 @@ export const tauri = loom.spiral.tauri
     treadles: [
       {
         treadle: tauriDesktopPlatformTreadle,
-        warpData: {}
+        warpData: {
+          coreName: 'foundframe',
+          coreCrateName: 'o19-foundframe'
+        }
       }
     ]
   });
@@ -223,7 +197,18 @@ front.name = 'foundframe-front';
  * The example application demonstrating the stack.
  * This is an app that wraps the front layer.
  */
-//export const myTauriApp = front.tauri.app({ adaptorOverrides: [drizzle] });
+export const myTauriApp = loom.spiral.tauri.app().tieup({
+  treadles: [
+    {
+      treadle: appHookupTreadle,
+      warpData: {
+        appName: 'MyTauriApp',
+        template: 'vanilla'
+      }
+    }
+  ]
+});
+myTauriApp.name = 'MyTauriApp';
 
 // ============================================================================
 // FUTURE RINGS
@@ -273,3 +258,5 @@ const streamEntryTranslator = (entry: StreamEntry) => {
   }
 };
 */
+
+export default loom;

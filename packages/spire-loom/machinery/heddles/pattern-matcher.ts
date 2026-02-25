@@ -8,6 +8,7 @@
 
 import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler, Layer } from '../../warp/index.js';
 import { CoreRing, RustCore, TsCore } from '../../warp/spiral/index.js';
+import { SurfaceRing } from '../../warp/spiral/surface.js';
 import type { ManagementMetadata, MethodMetadata } from '../reed/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 import { RUST_STRUCT_CONFIG, RUST_WRAPPERS, type RustStructOptions } from '../../warp/rust.js';
@@ -514,6 +515,12 @@ export class Heddles {
         const innerExportName = this.ringExportNames.get(ring.innerRing) ?? exportName;
         this.traverse(ring.innerRing, node, depth + 1, innerExportName, visitor);
       }
+    } else if (ring instanceof SurfaceRing) {
+      // SurfaceRing wraps an inner ring (typically SpiralOut for apps)
+      // Traverse into it so we can generate code for the inner spiral
+      if (ring.inner) {
+        this.traverse(ring.inner, node, depth + 1, exportName, visitor);
+      }
     } else if (ring instanceof MuxSpiraler) {
       // MuxSpiraler (like TauriSpiraler) aggregates multiple platform rings
       // Create edges from the mux spiraler to each inner ring for platform-specific generation
@@ -557,6 +564,15 @@ export class Heddles {
       } else {
         return ring.inner.name;
       }
+    }
+
+    // If it's a SurfaceRing, delegate to the inner ring's effective type
+    // This allows matrix matching on the actual generator (e.g., 'TauriSpiraler.app')
+    if (ring instanceof SurfaceRing) {
+      if (ring.inner) {
+        return this.getEffectiveTypeName(ring.inner);
+      }
+      return 'SurfaceRing';
     }
 
     // If it's a SpiralMux, use the mux's type or check for spiralers
@@ -625,6 +641,9 @@ export class Heddles {
             `Cannot determine language for SpiralOut "${exportName}": inner ring is not RustCore or TsCore`
           );
         }
+      } else if (ring instanceof SurfaceRing) {
+        // Surface apps go in apps/ directory
+        language = ring.options.language || 'typescript';
       } else {
         throw new Error(
           `Cannot determine language for ring "${exportName}": unknown ring type ${ring.constructor.name}`
@@ -640,8 +659,16 @@ export class Heddles {
     // Use ring.name if explicitly set (allows WARP.ts override), otherwise use exportName
     const packageName = ring.name || exportName;
 
-    // Compute package path based on language
-    const packagePath = language === 'rust' ? `crates/${packageName}` : `packages/${packageName}`;
+    // Compute package path based on ring type and language
+    let packagePath: string;
+    if (ring instanceof SurfaceRing) {
+      // Surface apps live in apps/
+      packagePath = `apps/${packageName}`;
+    } else if (language === 'rust') {
+      packagePath = `crates/${packageName}`;
+    } else {
+      packagePath = `packages/${packageName}`;
+    }
 
     // Set/merge metadata (preserve existing language if present)
     anyRing.metadata = {

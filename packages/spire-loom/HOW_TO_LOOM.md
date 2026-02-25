@@ -320,6 +320,17 @@ export class <%= entity.pascal %>Service {
   }
   <% }) -%>
 }
+
+// Access method link metadata (from @loom.link() decorator)
+<% methods.forEach(m => { -%>
+  // m.link.fieldName tells you which struct field this method targets
+  // e.g., 'thestream' or 'device_manager' for foundframe-specific routing
+  <% if (m.link && m.link.fieldName === 'thestream') { -%>
+    // Route to TheStream trait implementation
+  <% } else if (m.link && m.link.fieldName === 'device_manager') { -%>
+    // Route to DeviceManager
+  <% } -%>
+<% }) -%>
 ```
 
 ---

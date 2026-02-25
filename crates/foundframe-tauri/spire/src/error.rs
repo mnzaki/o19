@@ -12,10 +12,10 @@
 
 use serde::{Serialize, ser::Serializer};
 
-/// Result type alias for RustExternalLayer operations.
+/// Result type alias for foundframe operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Errors that can occur in RustExternalLayer operations.
+/// Errors that can occur in foundframe operations.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   #[error(transparent)]

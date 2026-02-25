@@ -9,6 +9,9 @@
 
 import { tieup as tieupFn, type TieupConfig } from './tieups.js';
 
+/** @internal WeakMap storage for Layer names to avoid private property conflicts in subclasses */
+const layerNameStorage = new WeakMap<Layer, string | undefined>();
+
 /**
  * Layering - The compositional mechanism for weaveable elements.
  *
@@ -32,7 +35,15 @@ export abstract class Layering {
  * Layers have their own tieup mechanism separate from Layering.
  */
 export abstract class Layer {
-  name!: string;
+  /** Get the layer name */
+  get name(): string | undefined {
+    return layerNameStorage.get(this);
+  }
+  
+  /** Set the layer name */
+  set name(value: string | undefined) {
+    layerNameStorage.set(this, value);
+  }
 
   /**
    * Attach tieups to generate code in this layer's package.

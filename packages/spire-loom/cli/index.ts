@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
  * spire-loom CLI
- * 
+ *
  * "The loom that weaves spires from surfaces."
- * 
+ *
  * Minimal command-line interface for code generation.
  * For the interactive UI, use spire-loom-warp or spire-loom-mud-warp.
- * 
+ *
  * Usage:
  *   spire-loom                    # Generate all
  *   spire-loom -p foundframe      # Generate specific package
@@ -16,12 +16,12 @@
 // Polyfill for decorator metadata
 import 'reflect-metadata';
 
-import { weave, type WeaverConfig } from '../machinery/weaver.js';
-import { 
-  detectWorkspace, 
-  loadWarp, 
-  getSuggestedPackageFilter 
-} from '../machinery/reed/index.js';
+import { type WeaverConfig, type WeavingResult } from '@o19/spire-loom/machinery/weaver';
+import {
+  detectWorkspace,
+  loadWarp,
+  getSuggestedPackageFilter
+} from '@o19/spire-loom/machinery/reed';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,7 +37,7 @@ interface CliOptions {
 
 function parseArgs(args: string[]): CliOptions {
   const options: CliOptions = {};
-  
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     switch (arg) {
@@ -71,14 +71,14 @@ function parseArgs(args: string[]): CliOptions {
         break;
     }
   }
-  
+
   return options;
 }
 
 function showVersion() {
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const packageJsonPath = join(__dirname, '..', 'package.json');
-  
+
   try {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
     console.log(packageJson.version || 'unknown');
@@ -129,24 +129,27 @@ Package Detection:
 function printDependencyGraph(warp: Record<string, any>, workspaceRoot: string): void {
   console.log('📊 Dependency Graph Visualization\n');
   console.log('═'.repeat(60));
-  
+
   // Track visited nodes to avoid duplicates
   const visited = new Set<any>();
-  const nodes = new Map<string, {
-    id: string;
-    exportName: string;
-    classType: string;
-    metadata: Record<string, any>;
-    depth: number;
-  }>();
+  const nodes = new Map<
+    string,
+    {
+      id: string;
+      exportName: string;
+      classType: string;
+      metadata: Record<string, any>;
+      depth: number;
+    }
+  >();
   const edges: Array<{
     from: string;
     to: string;
     label: string;
   }> = [];
-  
+
   let nodeIdCounter = 0;
-  
+
   function getNodeId(obj: any, exportName: string): string {
     if (!obj) return 'null';
     for (const [id, node] of nodes) {
@@ -157,19 +160,19 @@ function printDependencyGraph(warp: Record<string, any>, workspaceRoot: string):
     const id = `n${nodeIdCounter++}`;
     return id;
   }
-  
+
   function extractMetadata(obj: any): Record<string, any> {
     const metadata: Record<string, any> = {};
     if (!obj) return metadata;
-    
+
     if (obj.prototype?._reach) {
       metadata.reach = obj.prototype._reach;
     }
-    
+
     if (obj.serviceOptions) {
       metadata.serviceOptions = obj.serviceOptions;
     }
-    
+
     if (obj.getMetadata) {
       try {
         metadata.core = obj.getMetadata();
@@ -177,11 +180,17 @@ function printDependencyGraph(warp: Record<string, any>, workspaceRoot: string):
         // ignore
       }
     }
-    
+
     return metadata;
   }
-  
-  function traverse(obj: any, exportName: string, parentId: string | null, viaProperty: string, depth: number = 0): string | null {
+
+  function traverse(
+    obj: any,
+    exportName: string,
+    parentId: string | null,
+    viaProperty: string,
+    depth: number = 0
+  ): string | null {
     if (!obj || typeof obj !== 'object') return null;
     if (visited.has(obj)) {
       for (const [id, node] of nodes) {
@@ -191,56 +200,57 @@ function printDependencyGraph(warp: Record<string, any>, workspaceRoot: string):
       }
       return null;
     }
-    
+
     visited.add(obj);
-    
+
     const classType = obj.constructor?.name || 'Unknown';
     const id = getNodeId(obj, exportName);
     const metadata = extractMetadata(obj);
-    
+
     nodes.set(id, {
       id,
       exportName,
       classType,
       metadata,
-      depth,
+      depth
     });
-    
+
     if (parentId) {
       edges.push({
         from: parentId,
         to: id,
-        label: viaProperty,
+        label: viaProperty
       });
     }
-    
+
     for (const [key, value] of Object.entries(obj)) {
       if (key === 'constructor') continue;
-      
+
       if (value && typeof value === 'object') {
         const valueClass = value.constructor?.name;
-        if (valueClass && (
-          valueClass.includes('Spiral') ||
-          valueClass.includes('Spiraler') ||
-          valueClass.includes('Core') ||
-          valueClass.includes('Ring')
-        )) {
+        if (
+          valueClass &&
+          (valueClass.includes('Spiral') ||
+            valueClass.includes('Spiraler') ||
+            valueClass.includes('Core') ||
+            valueClass.includes('Ring'))
+        ) {
           traverse(value, exportName, id, key, depth + 1);
         }
       }
     }
-    
+
     return id;
   }
-  
+
   for (const [exportName, value] of Object.entries(warp)) {
     if (value && typeof value === 'object') {
       traverse(value, exportName, null, 'export', 0);
     }
   }
-  
+
   console.log('\n📦 NODES (by export):\n');
-  
+
   const nodesByExport = new Map<string, typeof nodes extends Map<any, infer V> ? V[] : never>();
   for (const node of nodes.values()) {
     if (!nodesByExport.has(node.exportName)) {
@@ -248,26 +258,29 @@ function printDependencyGraph(warp: Record<string, any>, workspaceRoot: string):
     }
     nodesByExport.get(node.exportName)!.push(node);
   }
-  
+
   for (const [exportName, exportNodes] of nodesByExport) {
     console.log(`\n┌─ ${exportName}`);
     console.log(`│`);
-    
+
     for (const node of exportNodes.sort((a, b) => a.depth - b.depth)) {
       const indent = '│  '.repeat(node.depth);
       const icon = node.depth === 0 ? '📍' : '└─';
-      const metadataStr = Object.keys(node.metadata).length > 0
-        ? ' {' + Object.entries(node.metadata)
-            .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
-            .join(', ') + '}'
-        : '';
-      
+      const metadataStr =
+        Object.keys(node.metadata).length > 0
+          ? ' {' +
+            Object.entries(node.metadata)
+              .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+              .join(', ') +
+            '}'
+          : '';
+
       console.log(`${indent}${icon} [${node.classType}]${metadataStr}`);
     }
   }
-  
+
   console.log('\n\n🔗 EDGES (connections):\n');
-  
+
   if (edges.length === 0) {
     console.log('   (no edges found)');
   } else {
@@ -279,30 +292,17 @@ function printDependencyGraph(warp: Record<string, any>, workspaceRoot: string):
       }
     }
   }
-  
+
   console.log('\n\n📈 Summary:');
   console.log(`   Total nodes: ${nodes.size}`);
   console.log(`   Total edges: ${edges.length}`);
 }
 
-async function main() {
+export async function findWorkspaceConfig() {
   const args = process.argv.slice(2);
   const options = parseArgs(args);
-  
-  if (options.help) {
-    showHelp();
-    process.exit(0);
-  }
-  
-  if (options.version) {
-    showVersion();
-    process.exit(0);
-  }
-  
-  console.log('🧵 Spire-Loom - Weaving spires from surfaces\n');
-  
   const workspace = detectWorkspace();
-  
+
   if (workspace.type === 'unknown') {
     console.error('❌ Not in a workspace or package directory');
     console.error('   Run this from a directory with:');
@@ -311,18 +311,18 @@ async function main() {
     console.error('   - loom/WARP.ts (loom project)');
     process.exit(1);
   }
-  
+
   if (!workspace.warpPath) {
     console.error('❌ No loom/WARP.ts found');
     console.error('   Create a WARP.ts file to define your architecture');
     process.exit(1);
   }
-  
+
   let packageFilter = options.package;
-  
+
   if (!packageFilter && workspace.type === 'package' && workspace.currentPackage) {
     const suggested = getSuggestedPackageFilter(workspace);
-    
+
     console.log(`📍 Package detected: ${workspace.currentPackage}`);
     if (suggested) {
       console.log(`   Suggested filter: "${suggested}" (derived from package name)`);
@@ -334,40 +334,60 @@ async function main() {
       console.log(`   Generating all packages (use --package <name> to filter)\n`);
     }
   }
-  
+
   console.log(`📄 Loading: ${workspace.warpPath}\n`);
-  
+  const warpForShow = await loadWarp(workspace.warpPath);
+
+  // Graph visualization mode
+  if (options.graph) {
+    printDependencyGraph(warpForShow, workspace.root);
+    return;
+  }
+
+  if (options.verbose) {
+    console.log('Exports found:', Object.keys(warpForShow).join(', '));
+    console.log();
+  }
+
+  const config: WeaverConfig = {
+    workspace,
+    verbose: options.verbose,
+    packageFilter
+  };
+
+  if (packageFilter) {
+    console.log(`📦 Package filter: "${packageFilter}"\n`);
+  }
+
+  // we don't return the warp, it will be loaded later by the entry point itself
+  // when it calls loom.weave
+  return config;
+}
+
+export async function main(weave: () => Promise<WeavingResult>) {
+  const args = process.argv.slice(2);
+  const options = parseArgs(args);
+
+  if (options.help) {
+    showHelp();
+    process.exit(0);
+  }
+
+  if (options.version) {
+    showVersion();
+    process.exit(0);
+  }
+
+  console.log('🧵 Spire-Loom - Weaving spires from surfaces\n');
+
   try {
-    const warp = await loadWarp(workspace.warpPath);
-    
-    // Graph visualization mode
-    if (options.graph) {
-      printDependencyGraph(warp, workspace.root);
-      return;
-    }
-    
-    if (options.verbose) {
-      console.log('Exports found:', Object.keys(warp).join(', '));
-      console.log();
-    }
-    
-    const config: WeaverConfig = {
-      workspace,
-      verbose: options.verbose,
-      packageFilter,
-    };
-    
-    if (packageFilter) {
-      console.log(`📦 Package filter: "${packageFilter}"\n`);
-    }
-    
-    const result = await weave(warp, config);
-    
+    const result = await weave();
+
     console.log('\n✅ Weaving complete!');
     console.log(`   Files generated: ${result.filesGenerated}`);
     console.log(`   Files modified: ${result.filesModified}`);
     console.log(`   Files unchanged: ${result.filesUnchanged}`);
-    
+
     if (result.errors.length > 0) {
       console.log(`\n⚠️  Errors: ${result.errors.length}`);
       for (const error of result.errors) {
@@ -375,16 +395,13 @@ async function main() {
       }
       process.exit(1);
     }
-    
+
     if (options.watch) {
       console.log('\n👀 Watch mode enabled - waiting for changes...');
       // TODO: Implement watch mode
     }
-    
   } catch (error) {
     console.error('\n❌ Error:', error);
     process.exit(1);
   }
 }
-
-main();

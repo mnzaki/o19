@@ -12,7 +12,7 @@
 //!
 //! iOS is not currently implemented. All operations return errors.
 
-use crate::spire::platform::SpireRustExternalLayerPlatformTrait;
+use crate::spire::platform::SpireFoundframePlatformTrait;
 use crate::spire::error::{Error, Result};
 use crate::spire::models::*;
 use serde::de::DeserializeOwned;
@@ -43,7 +43,7 @@ impl<R: Runtime> IosPlatform<R> {
   }
 }
 
-impl<R: Runtime> SpireRustExternalLayerPlatformTrait for IosPlatform<R> {
+impl<R: Runtime> SpireFoundframePlatformTrait for IosPlatform<R> {
   fn exit(&self, code: i32) {
     self.app_handle.exit(code);
   }

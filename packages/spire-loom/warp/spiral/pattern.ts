@@ -63,6 +63,9 @@ export abstract class CoreRing<
   L extends SpiralRing = SpiralRing,
   CoreData = unknown
 > extends SpiralRing {
+  /** Internal storage for the name property */
+  private _name?: string;
+
   constructor(
     /** The external layer (struct definition) backing this core */
     public layer: L,
@@ -72,6 +75,21 @@ export abstract class CoreRing<
     public metadata?: RingPackageMetadata
   ) {
     super();
+  }
+
+  /**
+   * Get the name of this core.
+   * Returns the explicitly set name, or falls back to the layer's name.
+   */
+  get name(): string | undefined {
+    return this._name ?? (this.layer as any)?.name;
+  }
+
+  /**
+   * Set the name of this core.
+   */
+  set name(value: string | undefined) {
+    this._name = value;
   }
 
   /**

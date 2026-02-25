@@ -19,7 +19,7 @@
  * - Each JNI call locks the service, executes, then unlocks
  * - The handle pattern ensures thread-safe access to the core
  * 
- * Generated for core: Foundframe
+ * Generated for core: foundframe
  */
 
 use jni::objects::{JClass, JString};
@@ -30,7 +30,7 @@ use jni::JNIEnv;
 use log::info;
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex, OnceLock};
-use Foundframe as core;
+use o19_foundframe as core;
 
 // Type alias for the service handle used by JNI
 // The core crate's main type is assumed to be Foundframe

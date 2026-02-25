@@ -9,8 +9,31 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { getReach, getCrudMethods, getMethodTags, getLinkTarget, type CrudMetadata } from '../../warp/imprint.js';
-import type { LinkMetadata } from '../../warp/imprint.js';
+
+/**
+ * IMPORT STRATEGY NOTE:
+ * 
+ * We import from '@o19/spire-loom/warp/imprint' (package path) instead of
+ * '../../warp/imprint.js' (relative path) to ensure the SAME module instance
+ * is used as Management classes that call @loom.reach().
+ * 
+ * WHY THIS MATTERS:
+ *   - Management classes in other packages import '@o19/spire-loom' 
+ *   - The collector was using a relative import, causing different module instances
+ *   - WeakMap metadata stored by @reach() was invisible to getReach()
+ * 
+ * GLOBAL REGISTRY SAFETY NET:
+ *   Even with different import paths, the global registry in imprint.ts ensures
+ *   metadata is shared. But using consistent imports reduces confusion.
+ */
+import { 
+  getReach, 
+  getCrudMethods, 
+  getMethodTags, 
+  getLinkTarget, 
+  type CrudMetadata,
+  type LinkMetadata 
+} from '@o19/spire-loom/warp/imprint';
 
 // TypeScript method signature parser
 interface ParsedMethod {
@@ -125,18 +148,67 @@ export interface ManagementMetadata {
 
 /**
  * Collect all Management Imprints from loom/ directory.
+ * 
+ * This function uses a TWO-PHASE scanning approach:
+ * 
+ * PHASE 1: Scan WARP.ts exports
+ *   - Catches managements re-exported from other packages
+ *   - Example: `export * from '@o19/foundframe'` brings in BookmarkMgmt
+ *   - This is essential for monorepos where managements live in shared packages
+ * 
+ * PHASE 2: Scan individual .ts files in loom/
+ *   - Catches managements defined directly in the workspace
+ *   - Example: loom/my-custom-mgmt.ts with local management classes
+ * 
+ * DEDUPLICATION:
+ *   The seenClasses Set prevents duplicates when the same class is exported
+ *   from both WARP.ts (via re-export) and a local file.
+ * 
+ * @param loomDir - Path to the loom/ directory (e.g., /project/code/loom)
+ * @returns Array of ManagementMetadata for all discovered managements
  */
 export async function collectManagements(loomDir: string): Promise<ManagementMetadata[]> {
   const managements: ManagementMetadata[] = [];
+  // Track seen classes to prevent duplicates between phase 1 and phase 2
+  const seenClasses = new Set<new (...args: any[]) => any>();
   
-  // Find all .ts files in loom/
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 1: Scan exports from WARP.ts
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WARP.ts is the central registry that re-exports managements from other
+  // packages. We scan it first to pick up shared managements.
+  const warpPath = path.join(loomDir, 'WARP.ts');
+  if (fs.existsSync(warpPath)) {
+    try {
+      const moduleUrl = pathToFileURL(warpPath).href;
+      const warpModule = await import(moduleUrl);
+      
+      for (const [exportName, exported] of Object.entries(warpModule)) {
+        // Check if this export is a class with @reach decorator
+        if (typeof exported === 'function' && getReach(exported)) {
+          if (!seenClasses.has(exported as new (...args: any[]) => any)) {
+            seenClasses.add(exported as new (...args: any[]) => any);
+            const mgmt = extractMetadata(exported as new (...args: any[]) => any, warpPath);
+            managements.push(mgmt);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not scan WARP.ts exports:`, error);
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PHASE 2: Scan individual .ts files in loom/
+  // ═══════════════════════════════════════════════════════════════════════════
+  // This picks up any managements defined locally, not via re-export.
   const files = fs.readdirSync(loomDir)
     .filter(f => f.endsWith('.ts') && f !== 'WARP.ts')
     .map(f => path.join(loomDir, f));
   
   for (const file of files) {
     try {
-      const mgmt = await loadManagement(file);
+      const mgmt = await loadManagement(file, seenClasses);
       if (mgmt) {
         managements.push(mgmt);
       }
@@ -150,8 +222,13 @@ export async function collectManagements(loomDir: string): Promise<ManagementMet
 
 /**
  * Load a single Management from a file.
+ * 
+ * @param seenClasses - Optional Set of already-seen classes to avoid duplicates
  */
-async function loadManagement(filePath: string): Promise<ManagementMetadata | null> {
+async function loadManagement(
+  filePath: string,
+  seenClasses?: Set<new (...args: any[]) => any>
+): Promise<ManagementMetadata | null> {
   // Import the module
   const moduleUrl = pathToFileURL(filePath).href;
   const module = await import(moduleUrl);
@@ -159,8 +236,16 @@ async function loadManagement(filePath: string): Promise<ManagementMetadata | nu
   // Find classes with @reach decorator (indicated by reachMetadata)
   for (const [exportName, exported] of Object.entries(module)) {
     if (typeof exported === 'function' && getReach(exported)) {
+      const mgmtClass = exported as new (...args: any[]) => any;
+      
+      // Skip if already seen (prevents duplicates from WARP.ts scanning)
+      if (seenClasses?.has(mgmtClass)) {
+        continue;
+      }
+      seenClasses?.add(mgmtClass);
+      
       // This is a Management class
-      return extractMetadata(exported as new (...args: any[]) => any, filePath);
+      return extractMetadata(mgmtClass, filePath);
     }
   }
   

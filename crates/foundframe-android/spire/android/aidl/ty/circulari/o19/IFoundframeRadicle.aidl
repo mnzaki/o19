@@ -9,7 +9,7 @@
 // 
 // To modify the generated output, edit the template file above.
 // IFoundframeRadicle.aidl
-// Generated AIDL interface for Foundframe service
+// Generated AIDL interface for foundframe service
 //
 // This interface defines the contract between the Android service (running in
 // :foundframe process) and client applications (running in their own processes).
@@ -24,7 +24,7 @@ package ty.circulari.o19;
 import ty.circulari.o19.IEventCallback;
 
 /**
- * IFoundframeRadicle defines cross-process API for Foundframe.
+ * IFoundframeRadicle defines cross-process API for foundframe.
  *
  * Methods are called via Binder IPC. All parameters are 'in' (client→service).
  * Return values are marshalled back via Binder.

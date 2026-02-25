@@ -13,7 +13,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { GeneratorContext } from '../../heddles/index.js';
-import type { RustModuleHookup, HookupResult, RustModuleEntry, RustModuleDeclaration, HookupType } from './types.js';
+import type { RustModuleHookup, HookupResult, RustModuleEntry, RustModuleDeclaration, RustVariableDeclaration, HookupType } from './types.js';
 
 // ============================================================================
 // Types
@@ -93,6 +93,23 @@ export async function applyRustModuleHookup(
     if (initChanges.modified) {
       content = initChanges.content;
       changes.push(`Added plugin init: ${hookup.pluginInit.fnName}`);
+    }
+  }
+  
+  // 5. Apply variable declarations (build.rs only)
+  if (hookup.variables && hookup.variables.length > 0) {
+    const varChanges = applyVariableDeclarations(filePath, content, hookup.variables);
+    if (varChanges.modified) {
+      content = varChanges.content;
+      changes.push(`Updated variables: ${hookup.variables.map(v => v.name).join(', ')}`);
+    }
+    if (varChanges.errors.length > 0) {
+      return {
+        path: filePath,
+        type: 'rust-module' as HookupType,
+        status: 'error',
+        message: `Variable conflicts: ${varChanges.errors.join('; ')}`,
+      };
     }
   }
   
@@ -316,4 +333,136 @@ function applyPluginInit(
   });
   
   return { content: newContent, modified: true };
+}
+
+// ============================================================================
+// Variable Declarations (build.rs)
+// ============================================================================
+
+interface VariableDeclResult {
+  content: string;
+  modified: boolean;
+  errors: string[];
+}
+
+/**
+ * Apply variable declarations to build.rs with deep matching.
+ * 
+ * STRATEGY:
+ * 1. Parse existing variable declarations in the file
+ * 2. For each requested variable:
+ *    - If exists with spire marker → replace value
+ *    - If exists without marker → ERROR (manual conflict)
+ *    - If doesn't exist → add with marker
+ * 
+ * MARKER FORMAT:
+ * // SPIRE-LOOM:VARIABLE:name
+ * let name: Type = value;
+ * // /SPIRE-LOOM:VARIABLE:name
+ */
+function applyVariableDeclarations(
+  filePath: string,
+  content: string,
+  variables: RustVariableDeclaration[]
+): VariableDeclResult {
+  let modified = false;
+  const errors: string[] = [];
+  
+  for (const variable of variables) {
+    const result = applySingleVariable(content, variable);
+    
+    if (result.error) {
+      errors.push(result.error);
+    } else if (result.modified) {
+      content = result.content;
+      modified = true;
+    }
+  }
+  
+  return { content, modified, errors };
+}
+
+interface SingleVarResult {
+  content: string;
+  modified: boolean;
+  error?: string;
+}
+
+/**
+ * Apply a single variable declaration.
+ */
+function applySingleVariable(
+  content: string,
+  variable: RustVariableDeclaration
+): SingleVarResult {
+  const { name, type, value, mutable = false, spireManaged = true, description } = variable;
+  
+  // Build the declaration code
+  const mutKeyword = mutable ? 'mut ' : '';
+  const newDecl = `let ${mutKeyword}${name}: ${type} = ${value};`;
+  
+  // Check for spire-managed marker
+  const spireMarkerStart = `// SPIRE-LOOM:VARIABLE:${name}`;
+  const spireMarkerEnd = `// /SPIRE-LOOM:VARIABLE:${name}`;
+  const spirePattern = new RegExp(
+    `${escapeRegex(spireMarkerStart)}\\s*\\n?([^\\n]*)\\n?\\s*${escapeRegex(spireMarkerEnd)}`,
+    'g'
+  );
+  
+  const spireMatch = content.match(spirePattern);
+  
+  if (spireMatch) {
+    // Spire-managed variable exists - replace it
+    const newBlock = `${spireMarkerStart}\n${newDecl}\n${spireMarkerEnd}`;
+    const newContent = content.replace(spirePattern, newBlock);
+    return { content: newContent, modified: true };
+  }
+  
+  // Check for non-spire variable with same name
+  // Pattern: let name: Type = ...; or let mut name: Type = ...;
+  const varPattern = new RegExp(
+    `let\\s+(mut\\s+)?${escapeRegex(name)}\\s*:\\s*${escapeRegex(type)}\\s*=\\s*([^;]+);`,
+    'g'
+  );
+  
+  const existingMatch = content.match(varPattern);
+  
+  if (existingMatch) {
+    // Variable exists but is not spire-managed
+    const desc = description || `${name}: ${type}`;
+    return {
+      content,
+      modified: false,
+      error: `Variable '${desc}' exists with non-spire value. ` +
+             `Manual code conflicts with spire hookup. ` +
+             `Either remove the manual declaration or mark it as spire-managed.`,
+    };
+  }
+  
+  // Variable doesn't exist - add it with markers
+  if (spireManaged) {
+    const block = `\n${spireMarkerStart}\n${newDecl}\n${spireMarkerEnd}\n`;
+    
+    // Try to find fn main() to insert before
+    const mainMatch = content.match(/fn\s+main\s*\(\s*\)/);
+    if (mainMatch) {
+      const insertPos = content.indexOf(mainMatch[0]);
+      const newContent = content.slice(0, insertPos) + block + content.slice(insertPos);
+      return { content: newContent, modified: true };
+    }
+    
+    // No main found, add at end
+    return { content: content + block, modified: true };
+  } else {
+    // Non-spire managed - just add the declaration
+    const line = `${newDecl}\n`;
+    return { content: content + '\n' + line, modified: true };
+  }
+}
+
+/**
+ * Escape special regex characters.
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

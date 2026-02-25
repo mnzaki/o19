@@ -12,6 +12,7 @@ import {
   MuxSpiraler,
 } from '../../warp/index.js';
 import { CoreRing } from '../../warp/spiral/index.js';
+import { SurfaceRing } from '../../warp/spiral/surface.js';
 import type { SpiralNode } from './types.js';
 import type { Layer } from '../../warp/layers.js';
 
@@ -63,6 +64,15 @@ export function getEffectiveTypeName(ring: SpiralRing): string {
     }
   }
 
+  // If it's a SurfaceRing, delegate to the inner ring's effective type
+  // This allows matrix matching on the actual generator (e.g., 'TauriSpiraler.app')
+  if (ring instanceof SurfaceRing) {
+    if (ring.inner) {
+      return getEffectiveTypeName(ring.inner);
+    }
+    return 'SurfaceRing';
+  }
+
   // we have to always have a type name
   console.error('Do not understand', ring);
   throw new Error('Internal Error');
@@ -89,9 +99,15 @@ export function findNodeForRing(
  * Recursively collect layers from a ring and its inner rings.
  */
 export function collectLayersFromRing(ring: SpiralRing, layers: Set<Layer>): void {
-  if ((ring as any).tieup) {
+  const ringName = (ring as any).name || ring.constructor.name;
+  const hasTieup = !!(ring as any).tieup;
+  const isSurfaceRing = ring.constructor.name === 'SurfaceRing';
+  console.log(`[TRAVERSAL] collectLayersFromRing: ${ringName}, type: ${ring.constructor.name}, has tieup: ${hasTieup}, is SurfaceRing: ${isSurfaceRing}`);
+  console.log(`[TRAVERSAL]   ring.tieup =`, (ring as any).tieup);
+  if (hasTieup) {
     // This is a Layer with potential tieups
     layers.add(ring as unknown as Layer);
+    console.log(`[TRAVERSAL]   Added to layers: ${ringName}`);
   }
 
   // Recurse into inner rings
@@ -107,6 +123,8 @@ export function collectLayersFromRing(ring: SpiralRing, layers: Set<Layer>): voi
     for (const inner of ring.innerRings) {
       collectLayersFromRing(inner, layers);
     }
+  } else if (ring instanceof SurfaceRing && ring.inner) {
+    collectLayersFromRing(ring.inner, layers);
   }
 
   // Also check properties for SpiralOut/SpiralMux
@@ -125,8 +143,11 @@ export function collectLayersFromRing(ring: SpiralRing, layers: Set<Layer>): voi
 export function collectAllLayers(warp: Record<string, SpiralRing>): Set<Layer> {
   const layers = new Set<Layer>();
 
-  for (const ring of Object.values(warp)) {
+  console.log(`[TRAVERSAL] collectAllLayers: ${Object.keys(warp).length} exports`);
+  for (const [name, ring] of Object.entries(warp)) {
+    console.log(`[TRAVERSAL]   Checking ${name}: instanceof SpiralRing = ${ring instanceof SpiralRing}`);
     if (ring instanceof SpiralRing) {
+      console.log(`[TRAVERSAL]   -> Calling collectLayersFromRing for ${name}`);
       collectLayersFromRing(ring, layers);
     }
   }

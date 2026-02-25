@@ -8,6 +8,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createRustMarkers, ensureFileBlock, removeFileBlock, type FileBlockResult } from './markers.js';
+import { toRustIdentifier } from '../stringing.js';
 
 export interface TauriHookupOptions {
   /** Path to the lib.rs file */
@@ -199,7 +200,7 @@ function injectSetupCall(
 
   const coreNamePascal = coreName.charAt(0).toUpperCase() + coreName.slice(1);
   const setupFn = `setupSpire${coreNamePascal}`;
-  const cratePrefix = coreCrateName.replace(/-/g, '_');
+  const cratePrefix = toRustIdentifier(coreCrateName);
 
   // Check if already injected
   if (content.includes(setupFn)) {

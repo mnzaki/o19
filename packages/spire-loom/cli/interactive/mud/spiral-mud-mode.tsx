@@ -1,16 +1,15 @@
 /**
  * Spiral Navigator MUD Sub-Mode
- * 
+ *
  * "Explore the spiral architecture like a dungeon."
- * 
+ *
  * A text adventure interface for navigating the spiral graph.
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { Dressing } from '../dressing/service.js';
-import type { SpiralRing } from '../../../warp/spiral/pattern.js';
 
 interface SpiralMudModeProps {
   dressing: Dressing;
@@ -22,7 +21,23 @@ interface HistoryEntry {
   content: string;
 }
 
-type Direction = 'north' | 'south' | 'east' | 'west' | 'up' | 'down' | 'in' | 'out' | 'n' | 's' | 'e' | 'w' | 'u' | 'd' | 'i' | 'o';
+type Direction =
+  | 'north'
+  | 'south'
+  | 'east'
+  | 'west'
+  | 'up'
+  | 'down'
+  | 'in'
+  | 'out'
+  | 'n'
+  | 's'
+  | 'e'
+  | 'w'
+  | 'u'
+  | 'd'
+  | 'i'
+  | 'o';
 
 const DIRECTIONS: Record<Direction, { name: string; description: string }> = {
   north: { name: 'North', description: 'spiral outward' },
@@ -40,7 +55,7 @@ const DIRECTIONS: Record<Direction, { name: string; description: string }> = {
   in: { name: 'In', description: 'enter multiplex' },
   i: { name: 'In', description: 'enter multiplex' },
   out: { name: 'Out', description: 'exit multiplex' },
-  o: { name: 'Out', description: 'exit multiplex' },
+  o: { name: 'Out', description: 'exit multiplex' }
 };
 
 export function SpiralMudMode({ dressing, onExit }: SpiralMudModeProps) {
@@ -49,80 +64,89 @@ export function SpiralMudMode({ dressing, onExit }: SpiralMudModeProps) {
     { type: 'system', content: '🌀 SPIRAL EXPLORER MUD' },
     { type: 'system', content: 'Navigate the architecture like a dungeon.' },
     { type: 'system', content: 'Type "help" for commands or "exit" to leave.' },
-    { type: 'description', content: generateOpeningScene(dressing) },
+    { type: 'description', content: generateOpeningScene(dressing) }
   ]);
   const [location, setLocation] = useState({
-    spirals: dressing.spirals.map(s => s.exportName),
+    spirals: dressing.spirals.map((s) => s.exportName),
     currentIndex: 0,
-    depth: 0,
+    depth: 0
   });
 
   const addToHistory = useCallback((type: HistoryEntry['type'], content: string) => {
-    setHistory(prev => [...prev, { type, content }]);
+    setHistory((prev) => [...prev, { type, content }]);
   }, []);
 
-  const handleNavigation = useCallback((direction: Direction) => {
-    const dir = DIRECTIONS[direction];
-    
-    // Generate movement description
-    const movementDesc = generateMovementDescription(direction, location);
-    addToHistory('movement', movementDesc);
-    
-    // Try to navigate
-    const newLocation = attemptNavigation(direction, location, dressing);
-    
-    if (newLocation) {
-      setLocation(newLocation);
-      const description = generateLocationDescription(newLocation, dressing);
-      addToHistory('description', description);
-    } else {
-      addToHistory('error', `You can't go ${dir.name.toLowerCase()} from here.`);
-    }
-  }, [location, dressing, addToHistory]);
+  const handleNavigation = useCallback(
+    (direction: Direction) => {
+      const dir = DIRECTIONS[direction];
 
-  const handleCommand = useCallback((cmd: string) => {
-    const parts = cmd.toLowerCase().trim().split(/\s+/);
-    const verb = parts[0];
-    const arg = parts[1];
+      // Generate movement description
+      const movementDesc = generateMovementDescription(direction, location);
+      addToHistory('movement', movementDesc);
 
-    if (['go', 'move', 'walk'].includes(verb) && arg && arg in DIRECTIONS) {
-      handleNavigation(arg as Direction);
-      return;
-    }
+      // Try to navigate
+      const newLocation = attemptNavigation(direction, location, dressing);
 
-    if (verb in DIRECTIONS) {
-      handleNavigation(verb as Direction);
-      return;
-    }
+      if (newLocation) {
+        setLocation(newLocation);
+        const description = generateLocationDescription(newLocation, dressing);
+        addToHistory('description', description);
+      } else {
+        addToHistory('error', `You can't go ${dir.name.toLowerCase()} from here.`);
+      }
+    },
+    [location, dressing, addToHistory]
+  );
 
-    switch (verb) {
-      case 'look':
-      case 'l':
-        addToHistory('description', generateLocationDescription(location, dressing));
-        break;
-      case 'map':
-      case 'm':
-        addToHistory('system', generateMap(location, dressing));
-        break;
-      case 'where':
-      case 'location':
-        addToHistory('system', `Current: ${location.spirals[location.currentIndex]} (depth: ${location.depth})`);
-        break;
-      case 'help':
-      case 'h':
-      case '?':
-        addToHistory('system', generateHelp());
-        break;
-      case 'exit':
-      case 'quit':
-      case 'q':
-      case 'back':
-        onExit();
-        break;
-      default:
-        addToHistory('error', `I don't understand "${cmd}". Type "help" for available commands.`);
-    }
-  }, [location, dressing, handleNavigation, addToHistory, onExit]);
+  const handleCommand = useCallback(
+    (cmd: string) => {
+      const parts = cmd.toLowerCase().trim().split(/\s+/);
+      const verb = parts[0];
+      const arg = parts[1];
+
+      if (['go', 'move', 'walk'].includes(verb) && arg && arg in DIRECTIONS) {
+        handleNavigation(arg as Direction);
+        return;
+      }
+
+      if (verb in DIRECTIONS) {
+        handleNavigation(verb as Direction);
+        return;
+      }
+
+      switch (verb) {
+        case 'look':
+        case 'l':
+          addToHistory('description', generateLocationDescription(location, dressing));
+          break;
+        case 'map':
+        case 'm':
+          addToHistory('system', generateMap(location, dressing));
+          break;
+        case 'where':
+        case 'location':
+          addToHistory(
+            'system',
+            `Current: ${location.spirals[location.currentIndex]} (depth: ${location.depth})`
+          );
+          break;
+        case 'help':
+        case 'h':
+        case '?':
+          addToHistory('system', generateHelp());
+          break;
+        case 'exit':
+        case 'quit':
+        case 'q':
+        case 'back':
+          onExit();
+          break;
+        default:
+          addToHistory('error', `I don't understand "${cmd}". Type "help" for available commands.`);
+      }
+    },
+    [location, dressing, handleNavigation, addToHistory, onExit]
+  );
 
   useInput((value, key) => {
     if (key.return && input.trim()) {
@@ -162,7 +186,7 @@ function HistoryLine({ entry }: { entry: HistoryEntry }) {
     description: 'white',
     error: 'red',
     system: 'dim',
-    movement: 'green',
+    movement: 'green'
   };
 
   return (
@@ -178,7 +202,7 @@ function HistoryLine({ entry }: { entry: HistoryEntry }) {
 
 function generateOpeningScene(dressing: Dressing): string {
   const spiralCount = dressing.spirals.length;
-  
+
   return `
 You stand at the entrance to a vast architectural spiral.
 Around you, ${spiralCount} spiral${spiralCount !== 1 ? 's' : ''} twist${spiralCount === 1 ? 's' : ''} upward into the mist,
@@ -190,7 +214,10 @@ Exits: up, in
 `;
 }
 
-function generateMovementDescription(direction: Direction, location: ReturnType<typeof useState>[0]): string {
+function generateMovementDescription(
+  direction: Direction,
+  location: ReturnType<typeof useState>[0]
+): string {
   const verbs: Record<string, string[]> = {
     north: ['ascend', 'climb upward', 'rise through the spiral'],
     up: ['ascend', 'climb upward', 'rise through the spiral'],
@@ -199,7 +226,7 @@ function generateMovementDescription(direction: Direction, location: ReturnType<
     east: ['walk east', 'move rightward', 'shift across'],
     west: ['walk west', 'move leftward', 'shift across'],
     in: ['step inside', 'enter', 'pass into'],
-    out: ['step outside', 'exit', 'emerge from'],
+    out: ['step outside', 'exit', 'emerge from']
   };
 
   const dir = DIRECTIONS[direction].name.toLowerCase();
@@ -210,7 +237,7 @@ function generateMovementDescription(direction: Direction, location: ReturnType<
     `You ${verb}...`,
     `Carefully, you ${verb}...`,
     `With determination, you ${verb}...`,
-    `The weave shifts as you ${verb}...`,
+    `The weave shifts as you ${verb}...`
   ];
 
   return transitions[Math.floor(Math.random() * transitions.length)];
@@ -222,42 +249,42 @@ function attemptNavigation(
   dressing: Dressing
 ): { spirals: string[]; currentIndex: number; depth: number } | null {
   const dir = DIRECTIONS[direction];
-  
+
   switch (dir.description) {
     case 'spiral outward':
       if (location.depth < 3) {
         return { ...location, depth: location.depth + 1 };
       }
       return null;
-      
+
     case 'spiral inward':
       if (location.depth > 0) {
         return { ...location, depth: location.depth - 1 };
       }
       return null;
-      
+
     case 'next spiraler':
       if (location.currentIndex < location.spirals.length - 1) {
         return { ...location, currentIndex: location.currentIndex + 1 };
       }
       return null;
-      
+
     case 'previous spiraler':
       if (location.currentIndex > 0) {
         return { ...location, currentIndex: location.currentIndex - 1 };
       }
       return null;
-      
+
     case 'enter multiplex':
       // Would need actual mux detection
       return { ...location, depth: location.depth + 1 };
-      
+
     case 'exit multiplex':
       if (location.depth > 0) {
         return { ...location, depth: location.depth - 1 };
       }
       return null;
-      
+
     default:
       return null;
   }
@@ -268,7 +295,7 @@ function generateLocationDescription(
   dressing: Dressing
 ): string {
   const spiralName = location.spirals[location.currentIndex] || 'Unknown';
-  
+
   if (location.depth === 0) {
     return `
 You stand at the **${spiralName} Core**.
@@ -278,7 +305,7 @@ Raw ${spiralName.toLowerCase()} energy flows through crystalline structures.
 Exits: up, east${location.currentIndex > 0 ? ', west' : ''}
 `;
   }
-  
+
   if (location.depth === 1) {
     return `
 You ascend to a **wrapping ring** of ${spiralName}.
@@ -290,7 +317,7 @@ Spiralers shimmer around you: android, desktop, tauri...
 Exits: up, down, east${location.currentIndex > 0 ? ', west' : ''}
 `;
   }
-  
+
   if (location.depth >= 2) {
     return `
 You reach the **outer rings** of ${spiralName}.
@@ -302,20 +329,23 @@ The air crackles with compilation energy.
 Exits: down, east${location.currentIndex > 0 ? ', west' : ''}
 `;
   }
-  
+
   return 'You float in the void between spirals...';
 }
 
-function generateMap(location: { spirals: string[]; currentIndex: number; depth: number }, dressing: Dressing): string {
+function generateMap(
+  location: { spirals: string[]; currentIndex: number; depth: number },
+  dressing: Dressing
+): string {
   let map = '🗺️  SPIRAL MAP\n\n';
-  
+
   dressing.spirals.forEach((spiral, i) => {
     const isCurrent = i === location.currentIndex;
     const marker = isCurrent ? '[X]' : '[ ]';
     const depthIndicator = isCurrent ? '←'.repeat(location.depth + 1) : '';
     map += `${marker} ${spiral.exportName} ${depthIndicator}\n`;
   });
-  
+
   map += `\nCurrent depth: ${location.depth}`;
   return map;
 }
