@@ -68,10 +68,6 @@ export const typescriptDDDTreadle = defineTreadle({
     },
   ],
 
-  // Package integration (placeholder)
-  hookup: {
-    type: 'none',
-  },
 });
 
 // ============================================================================

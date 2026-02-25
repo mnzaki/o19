@@ -114,23 +114,24 @@ export const androidServiceTreadle = defineTreadle({
   },
 
   // Output files
-  // Note: paths are relative to the package directory (packageDir is prepended by weaver)
+  // Note: paths are relative to the package directory. The weaver automatically
+  // prepends 'spire/' to isolate generated code from package source.
   outputs: [
     {
       template: 'android/service.kt.ejs',
-      path: 'spire/android/java/{packagePath}/service/{serviceName}.kt',
+      path: 'android/java/{packagePath}/service/{serviceName}.kt',
       language: 'kotlin'
     },
     // AIDL disabled - using binder_ndk directly instead
     // See discussion: binder_ndk requires Android 12+, AIDL not needed
     // {
     //   template: 'android/aidl_interface.aidl.ejs',
-    //   path: 'spire/android/aidl/{packagePath}/{interfaceName}.aidl',
+    //   path: 'android/aidl/{packagePath}/{interfaceName}.aidl',
     //   language: 'aidl',
     // },
     {
       template: 'android/jni_bridge.jni.rs.ejs',
-      path: 'spire/src/lib.rs',
+      path: 'src/lib.rs',
       language: 'rust_jni'
     }
   ],

@@ -78,7 +78,7 @@ export {
   buildMethodLink,
   extractManagementFromBindPoint,
   buildServiceNaming,
-  buildAndroidPackageData,
+  buildAndroidPackageData
 } from './core.js';
 
 // ============================================================================
@@ -95,7 +95,10 @@ export {
   type MatchPattern,
   type MethodConfig as DeclarativeMethodConfig,
   type OutputSpec,
-  type HookupConfig,
+  type OutputSpecOrFn,
+  type PatchSpec,
+  type PatchSpecOrFn,
+  type HookupConfig
 } from './declarative.js';
 
 // ============================================================================
@@ -106,12 +109,15 @@ export {
   // Discovery
   discoverTreadles,
   collectSpiralerContributions,
+  buildMatrixFromTreadles,
   // Matrix creation
+  createMatrix,
+  // Legacy (deprecated)
   createDefaultMatrix,
   createMatrixWithDiscovery,
   // Types
   type DiscoveredTreadle,
-  type SpiralerContribution,
+  type SpiralerContribution
 } from './discovery.js';
 
 // ============================================================================
@@ -119,8 +125,6 @@ export {
 // ============================================================================
 
 export {
-  // Factory
-  definePlatformWrapperTreadle,
   // Helpers
   buildAndroidServiceNaming,
   buildTauriPluginNaming,
@@ -130,7 +134,7 @@ export {
   type PlatformConfig,
   type WrapperNaming,
   type PlatformOutput,
-  type PlatformHookup,
+  type PlatformHookup
 } from './platform-wrapper.js';
 
 // ============================================================================
@@ -142,7 +146,7 @@ export {
   findCoreNameForTask,
   configureGradleBuild,
   executeAndroidHookup,
-  type AndroidHookupData,
+  type AndroidHookupData
 } from '../shuttle/hookup-manager.js';
 
 // ============================================================================
@@ -152,5 +156,5 @@ export {
 export {
   generateEventCallbackAidl,
   writeEventCallbackAidl,
-  type EventCallbackConfig,
+  type EventCallbackConfig
 } from '../bobbin/android.js';

@@ -13,7 +13,7 @@
  *   TheStream = Orchestrates sync
  */
 
-import { SpiralRing, SpiralOut, spiralOut } from './pattern.js';
+import { SpiralRing, SpiralOut } from './pattern.js';
 import type { Spiralers } from './pattern.js';
 import type { CrudOperation } from '../crud.js';
 

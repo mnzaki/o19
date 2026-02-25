@@ -23,7 +23,7 @@ import {
   type GenerationTask,
   GeneratorMatrix
 } from './heddles/index.js';
-import { createDefaultMatrix } from './treadles/index.js';
+import { createMatrix } from './treadles/index.js';
 import { collectManagements, type ManagementMetadata } from './reed/index.js';
 import { ensureFile } from './shuttle/file-system-operations.js';
 import { startGeneration, cleanupAllBlocks } from './shuttle/block-registry.js';
@@ -74,7 +74,8 @@ export interface WeavingResult {
  *   const result = await weaver.weave();
  */
 export class Weaver {
-  private heddles: Heddles;
+  private heddles: Heddles | undefined;
+  private matrix: GeneratorMatrix | undefined;
   private managements: ManagementMetadata[] = [];
   private queries: CollectedQuery[] = [];
 
@@ -82,7 +83,25 @@ export class Weaver {
     private warp: Record<string, SpiralRing>,
     matrix?: GeneratorMatrix
   ) {
-    this.heddles = new Heddles(matrix ?? createDefaultMatrix());
+    this.matrix = matrix;
+  }
+
+  /**
+   * Initialize the heddles with a matrix.
+   * If no matrix provided, discovers all treadles (built-in + user).
+   */
+  private async initHeddles(workspaceRoot?: string): Promise<Heddles> {
+    if (this.heddles) {
+      return this.heddles;
+    }
+
+    if (!this.matrix) {
+      // Auto-discover all treadles
+      this.matrix = await createMatrix(workspaceRoot);
+    }
+
+    this.heddles = new Heddles(this.matrix);
+    return this.heddles;
   }
 
   /**
@@ -118,8 +137,9 @@ export class Weaver {
    * - Management Imprints for code generation
    * - Generation tasks derived from matrix matching
    */
-  buildPlan(): WeavingPlan {
-    return this.heddles.buildPlan(this.warp, this.managements);
+  async buildPlan(workspaceRoot?: string): Promise<WeavingPlan> {
+    const heddles = await this.initHeddles(workspaceRoot);
+    return heddles.buildPlan(this.warp, this.managements);
   }
 
   /**
@@ -179,7 +199,7 @@ export class Weaver {
     }
 
     // Phase 1: Build the weaving plan (Heddles)
-    const plan = this.buildPlan();
+    const plan = await this.buildPlan(config?.workspace?.root);
 
     if (config?.verbose) {
       console.log(`\nPlan built:`);
@@ -319,8 +339,11 @@ Package filter: "${config.packageFilter}"`);
     plan: WeavingPlan,
     config?: WeaverConfig
   ): Promise<{ generated: number; modified: number; unchanged: number }> {
+    // Ensure heddles are initialized
+    const heddles = await this.initHeddles(config?.workspace?.root);
+    
     // Get the generator from the matrix via the heddles
-    const matrix = (this.heddles as any).matrix as GeneratorMatrix;
+    const matrix = (heddles as any).matrix as GeneratorMatrix;
     const generator = matrix.getPair(task.match[0], task.match[1]);
 
     if (!generator) {
@@ -355,12 +378,14 @@ Package filter: "${config.packageFilter}"`);
     let written = 0;
     for (const file of files) {
       // Treadle paths are relative to the package directory
-      // Prepend packageDir to get the full path
+      // All generated files go into spire/ subdirectory to keep packages clean
       let fullPath: string;
       if (path.isAbsolute(file.path)) {
         fullPath = file.path;
       } else {
-        fullPath = path.join(context.packageDir, file.path);
+        // Automatically prefix with spire/ to isolate generated code
+        const spirePath = path.join('spire', file.path);
+        fullPath = path.join(context.packageDir, spirePath);
       }
 
       try {
@@ -651,7 +676,10 @@ export async function weave(
  * Convenience function to build a weaving plan without executing.
  * Useful for debugging and inspection.
  */
-export function buildPlan(warp: Record<string, SpiralRing>): WeavingPlan {
+export async function buildPlan(
+  warp: Record<string, SpiralRing>,
+  workspaceRoot?: string
+): Promise<WeavingPlan> {
   const weaver = new Weaver(warp);
-  return weaver.buildPlan();
+  return weaver.buildPlan(workspaceRoot);
 }

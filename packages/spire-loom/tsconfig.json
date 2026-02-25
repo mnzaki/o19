@@ -2,7 +2,7 @@
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
     "rootDir": ".",
-    "outDir": "./dist"
+    "noEmit": true
     // Stage 3 decorators - no experimental flags needed
   },
   "include": [

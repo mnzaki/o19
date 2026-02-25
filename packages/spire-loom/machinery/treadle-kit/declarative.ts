@@ -39,6 +39,9 @@ import type {
 import type { RawMethod } from '../bobbin/index.js';
 import type { MgmtMethod } from '../sley/index.js';
 import { createTreadleKit } from './core.js';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { createMarkers, ensureFileBlock, type MarkerPair } from '../shuttle/markers.js';
 
 // ============================================================================
 // Types
@@ -61,6 +64,38 @@ export interface OutputSpec {
   condition?: (context: GeneratorContext) => boolean;
 }
 
+/**
+ * A patch operation to modify an existing file.
+ * Used for idempotent file modifications with marker-based block management.
+ * 
+ * The marker scope is automatically set to the treadle name.
+ */
+export interface PatchSpec {
+  /** Type of patch operation */
+  type: 'ensureBlock';
+  /** Target file path (relative to packageDir, or absolute) */
+  targetFile: string;
+  /** Marker identifier for the block (e.g., 'spire-deps', 'module-decl') */
+  marker: string;
+  /** Template to render for the block content */
+  template: string;
+  /** Language for marker formatting */
+  language: 'rust' | 'gradle' | 'xml' | 'toml';
+  /** Where to insert the block if it doesn't exist */
+  position?: {
+    /** Insert after this pattern */
+    after?: string;
+    /** Insert before this pattern */
+    before?: string;
+  };
+}
+
+/** Patch spec or a function that returns one based on context */
+export type PatchSpecOrFn = PatchSpec | ((context: GeneratorContext) => PatchSpec | undefined);
+
+/** Output spec or a function that returns one based on context */
+export type OutputSpecOrFn = OutputSpec | ((context: GeneratorContext) => OutputSpec | undefined);
+
 export interface HookupConfig {
   type: 'rust-crate' | 'tauri-plugin' | 'npm-package' | 'android-gradle' | 'custom';
   config?: Record<string, unknown>;
@@ -72,9 +107,18 @@ export interface HookupConfig {
 }
 
 export interface TreadleDefinition {
+  /** Treadle name (auto-populated during loading) */
+  name?: string;
   matches: MatchPattern[];
   methods: MethodConfig;
-  outputs: OutputSpec[];
+  /** Output files to generate (into spire/). Accepts specs or functions. */
+  outputs: OutputSpecOrFn[];
+  /** 
+   * Patches to apply to existing files (idempotent block insertion).
+   * Patches run AFTER file generation and can target any file.
+   * Accepts specs or functions.
+   */
+  patches?: PatchSpecOrFn[];
   hookup?: HookupConfig;
   data?:
     | Record<string, unknown>
@@ -121,6 +165,11 @@ export function defineTreadle(definition: TreadleDefinition): TreadleDefinition 
  * This bridges the declarative and imperative worlds. The definition describes
  * what to generate, and this function creates the actual generator that the
  * matrix can call.
+ * 
+ * ## Phase Order
+ * 1. **File Generation** - Outputs are generated into spire/ directory
+ * 2. **Patching** - Patches are applied to any file (including spire/ files)
+ * 3. **Hookup** - Custom hookup runs last
  */
 export function generateFromTreadle(definition: TreadleDefinition): GeneratorFunction {
   return async (current: SpiralNode, previous: SpiralNode, context?: GeneratorContext): Promise<GeneratedFile[]> => {
@@ -173,9 +222,14 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
       data = { ...data, ...userData };
     }
 
-    // Generate files using the kit
+    // Resolve output specs (handle functions)
+    const resolvedOutputs = definition.outputs
+      .map((o) => (typeof o === 'function' ? o(context) : o))
+      .filter((o): o is OutputSpec => o !== undefined);
+
+    // Phase 1: Generate files using the kit (into spire/)
     const files = await kit.generateFiles(
-      definition.outputs.map((o) => ({
+      resolvedOutputs.map((o) => ({
         template: o.template,
         path: o.path,
         language: o.language,
@@ -185,7 +239,12 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
       finalMethods
     );
 
-    // Hookup
+    // Phase 2: Apply patches to files (can target any file, including spire/)
+    if (definition.patches && definition.patches.length > 0) {
+      await applyPatches(definition, definition.patches, data, context, finalMethods);
+    }
+
+    // Phase 3: Hookup (runs last)
     if (definition.hookup) {
       if (definition.hookup.type === 'custom' && definition.hookup.customHookup) {
         await definition.hookup.customHookup(context, files, data);
@@ -196,4 +255,54 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
 
     return files;
   };
+}
+
+/**
+ * Apply patches to files.
+ * 
+ * Patches are applied after file generation and can target any file,
+ * including files in the spire/ directory or existing package files.
+ */
+async function applyPatches(
+  definition: TreadleDefinition,
+  patches: PatchSpecOrFn[],
+  data: Record<string, unknown>,
+  context: GeneratorContext,
+  methods: RawMethod[]
+): Promise<void> {
+  // Get the treadle name for marker scope
+  const treadleName = definition.name || 'treadle';
+  
+  for (const patchOrFn of patches) {
+    // Resolve patch spec (handle functions)
+    const patch = typeof patchOrFn === 'function' ? patchOrFn(context) : patchOrFn;
+    if (!patch) continue;
+
+    // Resolve target file path
+    const targetPath = path.isAbsolute(patch.targetFile)
+      ? patch.targetFile
+      : path.join(context.packageDir, patch.targetFile);
+
+    // Generate block content from template
+    const { generateCode } = await import('../bobbin/index.js');
+    const blockContent = await generateCode({
+      template: patch.template,
+      outputPath: targetPath,
+      data,
+      methods,
+    });
+
+    // Create markers using treadle name as scope
+    const markers = createMarkers(patch.language, treadleName, patch.marker);
+
+    // Apply the patch
+    ensureFileBlock(targetPath, markers, blockContent.content, {
+      insertAfter: patch.position?.after,
+      insertBefore: patch.position?.before,
+    });
+
+    if (process.env.DEBUG_MATRIX) {
+      console.log(`[PATCH] Applied ${patch.marker} to ${patch.targetFile}`);
+    }
+  }
 }

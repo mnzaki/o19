@@ -52,7 +52,7 @@ export {
   buildMethodLink,
   extractManagementFromBindPoint,
   buildServiceNaming,
-  buildAndroidPackageData,
+  buildAndroidPackageData
 } from '../treadle-kit/index.js';
 
 // Declarative API
@@ -62,22 +62,24 @@ export {
   type TreadleDefinition,
   type MatchPattern,
   type OutputSpec,
-  type HookupConfig,
+  type HookupConfig
 } from '../treadle-kit/declarative.js';
 
 // Discovery
 export {
   discoverTreadles,
+  buildMatrixFromTreadles,
+  createMatrix,
+  // Legacy (deprecated)
   createDefaultMatrix,
   createMatrixWithDiscovery,
   collectSpiralerContributions,
   type DiscoveredTreadle,
-  type SpiralerContribution,
+  type SpiralerContribution
 } from '../treadle-kit/discovery.js';
 
 // Platform Wrapper Abstraction
 export {
-  definePlatformWrapperTreadle,
   buildAndroidServiceNaming,
   buildTauriPluginNaming,
   type PlatformWrapperConfig,
@@ -85,7 +87,7 @@ export {
   type PlatformConfig,
   type WrapperNaming,
   type PlatformOutput,
-  type PlatformHookup,
+  type PlatformHookup
 } from '../treadle-kit/platform-wrapper.js';
 
 // Shuttle utilities (re-exported for convenience)
@@ -94,14 +96,14 @@ export {
   findCoreNameForTask,
   configureGradleBuild,
   executeAndroidHookup,
-  type AndroidHookupData,
+  type AndroidHookupData
 } from '../shuttle/hookup-manager.js';
 
 // Bobbin Android utilities
 export {
   generateEventCallbackAidl,
   writeEventCallbackAidl,
-  type EventCallbackConfig,
+  type EventCallbackConfig
 } from '../bobbin/android.js';
 
 // ============================================================================
@@ -112,7 +114,7 @@ export {
   type CustomTreadle,
   type TreadleContext,
   type TreadleResult,
-  type TreadleUtils,
+  type TreadleUtils
 } from '../../warp/tieups.js';
 
 // ============================================================================
@@ -121,10 +123,3 @@ export {
 
 export { generateAndroidService, type AndroidGenerationOptions } from './android-generator.js';
 export { generateTauriPlugin, type TauriGenerationOptions } from './tauri-generator.js';
-export {
-  generateCompositeAdaptor,
-  compositeAdaptorTreadle,
-  type CompositeAdaptorOptions,
-  type CompositeGenerationOptions,
-  type CompositeMethod,
-} from './composite-adaptor-generator.js';
