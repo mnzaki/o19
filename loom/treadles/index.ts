@@ -16,3 +16,10 @@ export {
   tauriAndroidCommandsTreadle,
   type TauriAndroidGenerationOptions
 } from './tauri-android-commands.js';
+
+// DddServicesTreadle - Generates domain services, ports, and adaptors
+export {
+  dddServicesTreadle,
+  type ManagementService,
+  type ServiceMethod
+} from './ddd-services.js';

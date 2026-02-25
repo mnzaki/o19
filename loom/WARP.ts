@@ -18,6 +18,7 @@ import { dbBindingTreadle } from './treadles/dbbindings.js';
 import { kyselyAdaptorTreadle } from './treadles/kysely-adaptor.js';
 import { tauriAdaptorTreadle } from './treadles/tauri-adaptor.js';
 import { tauriAndroidCommandsTreadle } from './treadles/tauri-android-commands.js';
+import { dddServicesTreadle } from './treadles/ddd-services.js';
 
 // ============================================================================
 // CORE
@@ -119,7 +120,7 @@ export const tauri = loom.spiral.tauri
   .plugin({
     ddd: {
       adaptors: {
-        filterOut: ['crud:read', 'crud:list']
+        // filterOut: ['crud:read', 'crud:list']  // TEMP: Generate all methods for testing
       }
       /*
       translators: {
@@ -186,7 +187,7 @@ export const front = loom.spiral.typescript
   .tieup({
     treadles: [
       {
-        treadle: dddServicesTreadle, // TODO @ KIMI <--- this oneneeds to be created
+        treadle: dddServicesTreadle,
         warpData: {}
       }
     ]
