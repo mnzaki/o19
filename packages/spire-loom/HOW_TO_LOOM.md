@@ -106,6 +106,154 @@ Access path: `foundframe.inner.core.thestream`
 
 ---
 
+## Tools Reference
+
+The loom machinery provides powerful tools for building treadles. These are organized by metaphor:
+
+### The Bobbin 🧵 - Type Mapping & Code Generation
+
+**`@o19/spire-loom/machinery/bobbin`**
+
+Central registry for type conversions and code generation primitives.
+
+```typescript
+import {
+  // Type mappings: TS → Target platforms
+  mapToKotlinType,
+  mapToJniType,
+  mapToRustType,
+  mapToTauriType,
+  getTypeMapping,
+  
+  // JNI conversion code generation
+  generateJniToRustConversion,
+  generateRustToJniConversion,
+  getJniErrorValue,
+  
+  // Type checking
+  isPrimitiveType,
+  getSerializationStrategy,
+  registerTypeMapping
+} from '@o19/spire-loom/machinery/bobbin';
+```
+
+| Function | Purpose |
+|----------|---------|
+| `mapToKotlinType('string', true)` | `'List<String>'` |
+| `mapToRustType('number')` | `'i32'` |
+| `generateJniToRustConversion('name', 'string')` | Generates Rust JNI conversion code |
+
+---
+
+### The Sley 🪡 - Method Pipeline (Threading)
+
+**`@o19/spire-loom/machinery/sley`**
+
+The threading layer - resolves bindings between rings. Methods flow through pipelines with transformations and filters.
+
+```typescript
+import {
+  // Method pipeline
+  MethodPipeline,
+  addPrefix,
+  addManagementPrefix,
+  crudInterfaceMapping,
+  mapTypes,
+  
+  // Filters
+  tagFilter,
+  crudOperationFilter,
+  
+  // Utilities
+  toSnakeCase,
+  fromSourceMethods,
+  
+  // CRUD mapping (legacy - prefer method-pipeline)
+  mapManagementCrud,
+  filterMethodsByTags,
+  
+  // Operation routing
+  routeOperation,
+  routeOperations,
+  isHybridRouting
+} from '@o19/spire-loom/machinery/sley';
+```
+
+**Pipeline Pattern:**
+```typescript
+const pipeline = new MethodPipeline()
+  .translate(addManagementPrefix())     // bookmark_addBookmark
+  .translate(crudInterfaceMapping())    // Standardize CRUD interface names
+  .translate(mapTypes({ 'Url': 'string' }));
+
+const methods = pipeline.process(rawMethods);
+const filtered = pipeline.filter(methods, tagFilter(['crud:read']));
+```
+
+**Important:** Sley is the *threading* layer (method processing), not redundant with heddles (method collection) or weaver (file generation orchestration).
+
+---
+
+### The Treadle Kit 🧰 - Treadle Building Utilities
+
+**`@o19/spire-loom/machinery/treadle-kit`**
+
+Foundation for building treadles - both declarative and imperative styles.
+
+```typescript
+import {
+  // Declarative API
+  defineTreadle,
+  generateFromTreadle,
+  
+  // Core utilities
+  pascalCase,
+  camelCase,
+  toSnakeCase,
+  toRawMethod,
+  buildServiceNaming,
+  buildAndroidPackageData,
+  buildMethodLink,
+  
+  // Imperative API
+  createTreadleKit
+} from '@o19/spire-loom/machinery/treadle-kit';
+```
+
+**String Utilities:**
+| Function | Input | Output |
+|----------|-------|--------|
+| `pascalCase('bookmark-mgmt')` | `BookmarkMgmt` |
+| `camelCase('bookmark_mgmt')` | `bookmarkMgmt` |
+| `toSnakeCase('BookmarkMgmt')` | `bookmark_mgmt` |
+
+**Service Naming Builder:**
+```typescript
+const naming = buildServiceNaming('foundframe', 'radicle');
+// naming.serviceName = 'FoundframeRadicleService'
+// naming.interfaceName = 'IFoundframeRadicle'
+// naming.logTag = 'FOUNDFRAME_RADICLE_SERVICE'
+```
+
+---
+
+### The Shuttle 🚀 - Hookup Management
+
+**`@o19/spire-loom/machinery/shuttle`**
+
+Android-specific integration and hookup management.
+
+```typescript
+import {
+  configureAndroidManifest,
+  configureGradleBuild,
+  executeAndroidHookup,
+  findCoreNameForTask
+} from '@o19/spire-loom/machinery/shuttle';
+```
+
+---
+
 ## Defining Treadles
 
 Treadles are the code generators that transform your WARP.ts patterns into actual code. Define them declaratively using `defineTreadle()`.
@@ -692,6 +840,10 @@ export default generateFromTreadle(tauriCommandsTreadle);
 9. **User treadles in `o19/loom/treadles/`** - Shared treadles live here and are auto-discovered.
 
 10. **Per-output context for entity files** - Use `context` field in OutputSpec to pass entity-specific data to templates.
+
+11. **Sley for method processing** - Use MethodPipeline and sley utilities for transforming and filtering methods before generation.
+
+12. **Bobbin for type mapping** - Convert types between platforms using bobbin utilities.
 
 ---
 

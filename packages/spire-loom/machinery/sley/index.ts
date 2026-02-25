@@ -17,7 +17,7 @@ export {
   getWriteAdaptor,
   generateCompositeImports,
   generateCompositeMethod,
-  type RoutingInfo,
+  type RoutingInfo
 } from './operation-router.js';
 
 // Method Pipeline - composable translations for Management methods
@@ -38,7 +38,7 @@ export {
   crudOperationFilter,
   // Utilities
   toSnakeCase,
-  fromSourceMethods,
+  fromSourceMethods
 } from './method-pipeline.js';
 
 // CRUD Mapping - legacy CRUD resolution (use method-pipeline for new code)
@@ -54,7 +54,7 @@ export {
   shouldFilterMethod,
   filterMethodsByTags,
   isCrudAdaptorEnabled,
-  mapManagementCrud,
+  mapManagementCrud
 } from './crud-mapping.js';
 
 // Method Translator - legacy translation (use method-pipeline for new code)
@@ -65,5 +65,5 @@ export {
   type TranslationConfig,
   type GroupedMethods,
   translateMethods,
-  translateAndGroupMethods,
+  translateAndGroupMethods
 } from './method-translator.js';

@@ -34,14 +34,17 @@ export type TagFilter = Tag[];
  * @param filterOut - Tags to filter out
  * @returns true if method should be excluded
  */
-export function shouldFilterMethod(methodTags: string[] | undefined, filterOut: TagFilter): boolean {
+export function shouldFilterMethod(
+  methodTags: string[] | undefined,
+  filterOut: TagFilter
+): boolean {
   if (!methodTags || methodTags.length === 0) {
     // Methods without tags are never filtered out
     return false;
   }
-  
+
   // Check if any of the method's tags match the filter
-  return methodTags.some(tag => filterOut.includes(tag));
+  return methodTags.some((tag) => filterOut.includes(tag));
 }
 
 /**
@@ -56,7 +59,7 @@ export function filterMethodsByTags<T extends { tags?: string[] }>(
   methods: T[],
   filterOut: TagFilter
 ): T[] {
-  return methods.filter(method => !shouldFilterMethod(method.tags, filterOut));
+  return methods.filter((method) => !shouldFilterMethod(method.tags, filterOut));
 }
 
 // ============================================================================
@@ -74,7 +77,9 @@ export interface CrudAdaptorConfig {
 /**
  * Check if CRUD adaptor generation should be enabled.
  */
-export function isCrudAdaptorEnabled(config: unknown): config is { ddd: { adaptors: CrudAdaptorConfig } } {
+export function isCrudAdaptorEnabled(
+  config: unknown
+): config is { ddd: { adaptors: CrudAdaptorConfig } } {
   return (
     typeof config === 'object' &&
     config !== null &&
@@ -176,8 +181,8 @@ export interface SourceMethod {
  */
 function getCrudOperationFromTags(tags: string[] | undefined): CrudOperation | undefined {
   if (!tags) return undefined;
-  
-  const crudTag = tags.find(tag => tag.startsWith('crud:'));
+
+  const crudTag = tags.find((tag) => tag.startsWith('crud:'));
   if (crudTag) {
     return crudTag.replace('crud:', '') as CrudOperation;
   }
@@ -217,31 +222,26 @@ export function mapManagementCrud(
 
     // Step 2: Check if this is a CRUD-tagged method
     const operation = getCrudOperationFromTags(method.tags);
-    
+
     if (operation) {
       // Create CRUD mapping
       const interfaceMethod = operation; // create, update, delete, read, list
-      const mapping = createCrudMapping(
-        operation,
-        interfaceMethod,
-        method,
-        entityName
-      );
+      const mapping = createCrudMapping(operation, interfaceMethod, method, entityName);
       mappings.push(mapping);
     } else {
       // Non-CRUD method - pass through
       passthroughMethods.push({
         name: method.name,
         jsName: method.jsName || method.name,
-        params: method.params.map(p => ({
+        params: method.params.map((p) => ({
           name: p.name,
           tsType: mapToTypeScriptType(p.type),
-          optional: p.optional,
+          optional: p.optional
         })),
         returnType: mapToTypeScriptType(method.returnType),
         isCollection: method.isCollection,
         description: method.description,
-        tags: method.tags,
+        tags: method.tags
       });
     }
   }
@@ -255,7 +255,7 @@ export function mapManagementCrud(
     managementName,
     entityName,
     mappings,
-    passthroughMethods,
+    passthroughMethods
   };
 }
 
@@ -278,7 +278,7 @@ function createCrudMapping(
         interfaceName: 'data',
         implementationName: '', // Will be destructured
         tsType: `Create${entityName}`,
-        transform: buildDestructuringTransform(source.params),
+        transform: buildDestructuringTransform(source.params)
       });
       break;
 
@@ -287,14 +287,14 @@ function createCrudMapping(
       paramMapping.push({
         interfaceName: 'id',
         implementationName: source.params[0]?.name ?? 'id',
-        tsType: 'number',
+        tsType: 'number'
       });
       if (source.params.length > 1) {
         paramMapping.push({
           interfaceName: 'data',
           implementationName: '',
           tsType: `Update${entityName}`,
-          transform: buildDestructuringTransform(source.params.slice(1)),
+          transform: buildDestructuringTransform(source.params.slice(1))
         });
       }
       break;
@@ -304,7 +304,7 @@ function createCrudMapping(
       paramMapping.push({
         interfaceName: 'id',
         implementationName: source.params[0]?.name ?? 'id',
-        tsType: 'number',
+        tsType: 'number'
       });
       break;
 
@@ -317,7 +317,7 @@ function createCrudMapping(
           interfaceName: param.name,
           implementationName: param.name,
           tsType: mapToTypeScriptType(param.type),
-          optional: param.optional,
+          optional: param.optional
         });
       }
   }
@@ -328,7 +328,7 @@ function createCrudMapping(
     implementationMethod: source.name,
     paramMapping,
     returnType: mapToTypeScriptType(source.returnType),
-    isCollection: source.isCollection,
+    isCollection: source.isCollection
   };
 }
 
@@ -338,9 +338,7 @@ function createCrudMapping(
 function buildDestructuringTransform(
   params: Array<{ name: string; type: string; optional?: boolean }>
 ): string {
-  const destructured = params
-    .map(p => `${p.name}: data.${p.name}`)
-    .join(', ');
+  const destructured = params.map((p) => `${p.name}: data.${p.name}`).join(', ');
   return `{ ${destructured} }`;
 }
 
