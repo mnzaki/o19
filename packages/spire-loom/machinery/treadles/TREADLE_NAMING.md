@@ -59,15 +59,15 @@ loom/treadles/
 In the generator matrix, the naming makes matches clear:
 
 ```typescript
-matrix.setPair('AndroidSpiraler', 'RustCore', genAndroidService);
-matrix.setPair('TauriSpiraler', 'AndroidSpiraler', genTauriMobile);
+matrix.setPair('RustAndroidSpiraler', 'RustCore', genAndroidService);
+matrix.setPair('TauriSpiraler', 'RustAndroidSpiraler', genTauriMobile);
 ```
 
 ### 3. Spiraler Method Mapping
 Spiraler methods can map directly to treadle names:
 
 ```typescript
-// AndroidSpiraler
+// RustAndroidSpiraler
 foregroundService() → matches gen-android-service
 aidlInterface()     → matches gen-android-aidl (hypothetical)
 broadcastReceiver() → matches gen-android-receiver (hypothetical)
@@ -85,7 +85,7 @@ commandsOnly()      → matches gen-tauri-commands
 WARP.ts                      Matrix                    Treadle
    │                           │                          │
    ▼                           ▼                          ▼
-android.foregroundService() → (AndroidSpiraler,    → gen-android-service
+android.foregroundService() → (RustAndroidSpiraler,    → gen-android-service
                                RustCore)
                                
    │                           │                          │
@@ -105,19 +105,19 @@ android.foregroundService() → (AndroidSpiraler,    → gen-android-service
 
 2. **Spiraler stores options:**
    ```typescript
-   // AndroidSpiraler
+   // RustAndroidSpiraler
    serviceOptions = { nameAffix: 'radicle', ... }
    ```
 
 3. **Matrix matches:**
    ```typescript
-   (AndroidSpiraler, RustCore) → genAndroidService
+   (RustAndroidSpiraler, RustCore) → genAndroidService
    ```
 
 4. **Treadle reads options:**
    ```typescript
    data: (context, current, previous) => {
-     const android = current.ring as AndroidSpiraler;
+     const android = current.ring as RustAndroidSpiraler;
      const nameAffix = android.getNameAffix(); // 'radicle'
      ...
    }
@@ -128,7 +128,7 @@ android.foregroundService() → (AndroidSpiraler,    → gen-android-service
 A single spiraler can trigger multiple treadles:
 
 ```typescript
-// AndroidSpiraler could have multiple methods
+// RustAndroidSpiraler could have multiple methods
 foregroundService() → matches gen-android-service
 jniBridge()        → matches gen-android-jni  
 aidlInterface()    → matches gen-android-aidl

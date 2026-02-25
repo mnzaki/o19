@@ -46,9 +46,9 @@
       "types": "./warp/index.ts",
       "import": "./warp/index.ts"
     },
-    "./machinery": {
-      "types": "./machinery/shuttle/index.ts",
-      "import": "./machinery/shuttle/index.ts"
+    "./machinery/treadles": {
+      "types": "./machinery/treadles/index.ts",
+      "import": "./machinery/treadles/index.ts"
     },
     "./machinery/shuttle": {
       "types": "./machinery/shuttle/index.ts",

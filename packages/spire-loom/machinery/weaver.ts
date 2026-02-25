@@ -14,24 +14,32 @@
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SpiralOut, SpiralMux, SpiralRing, CoreRing } from '../warp/index.js';
+import type { SpiralMux, SpiralRing, CoreRing } from '../warp/index.js';
 import type { Layer } from '../warp/layers.js';
-import { SpiralRing as SpiralRingClass } from '../warp/spiral/pattern.js';
-import { Heddles, type WeavingPlan, type GenerationTask, GeneratorMatrix } from './heddles/index.js';
+import { SpiralRing as SpiralRingClass, SpiralOut } from '../warp/spiral/pattern.js';
+import {
+  Heddles,
+  type WeavingPlan,
+  type GenerationTask,
+  GeneratorMatrix
+} from './heddles/index.js';
 import { createDefaultMatrix } from './treadles/index.js';
 import { collectManagements, type ManagementMetadata } from './reed/index.js';
 import { ensureFile } from './shuttle/file-system-operations.js';
 import { startGeneration, cleanupAllBlocks } from './shuttle/block-registry.js';
 import { getRefinements } from '../warp/refine/decorator.js';
 import type { RefinementResult } from '../warp/refine/types.js';
-import { collectQueriesFromDirectory, type CollectedQuery, type QueryCollectionResult } from './reed/index.js';
+import {
+  collectQueriesFromDirectory,
+  type CollectedQuery,
+  type QueryCollectionResult
+} from './reed/index.js';
+import type { WorkspaceInfo } from './reed/workspace-discovery.js';
 
 // Placeholder for future implementation
 export interface WeaverConfig {
-  /** Root of the workspace */
-  workspaceRoot: string;
-  /** Path to loom directory (default: workspaceRoot/loom) */
-  loomDir?: string;
+  /** The workspace to weave */
+  workspace: WorkspaceInfo;
   /** Output directory for generated code */
   outputDir?: string;
   /** Which rings to generate (default: all) */
@@ -82,7 +90,7 @@ export class Weaver {
    */
   async collectManagements(loomDir: string): Promise<void> {
     this.managements = await collectManagements(loomDir);
-    
+
     if (this.managements.length === 0) {
       console.warn('⚠️  No Management Imprints found in loom/');
     }
@@ -90,7 +98,7 @@ export class Weaver {
 
   /**
    * Collect @loom.crud.query decorators from loom/ directory.
-   * 
+   *
    * This is called by the reed during the dressing phase.
    * Queries are later passed to refinements during weaving.
    */
@@ -100,10 +108,10 @@ export class Weaver {
 
   /**
    * Build the weaving plan (intermediate representation).
-   * 
+   *
    * This is the first phase of weaving - analyzing the WARP.ts
    * structure and matching it against the generator matrix.
-   * 
+   *
    * The plan contains:
    * - All edges in the spiral graph
    * - All nodes grouped by type
@@ -119,7 +127,7 @@ export class Weaver {
    *
    * This is the main entry point that orchestrates the entire
    * code generation process.
-   * 
+   *
    * The process:
    * 1. Build the weaving plan (Heddles)
    * 2. Execute each generation task (Shuttle)
@@ -128,7 +136,7 @@ export class Weaver {
   async weave(config?: WeaverConfig): Promise<WeavingResult> {
     // Start a new generation for block tracking
     startGeneration();
-    
+
     const errors: Error[] = [];
     let filesGenerated = 0;
     let filesModified = 0;
@@ -140,15 +148,16 @@ export class Weaver {
     }
 
     // Phase 0: Collect from loom/ directory (Reed)
-    if (config?.loomDir) {
+    const loomDir = config?.workspace?.root ? path.join(config.workspace.root, 'loom') : undefined;
+    if (loomDir) {
       if (this.managements.length === 0) {
-        await this.collectManagements(config.loomDir);
+        await this.collectManagements(loomDir);
       }
       // Also collect @loom.crud.query decorators
       if (this.queries.length === 0) {
-        const queryResult = await this.collectQueries(config.loomDir);
+        const queryResult = await this.collectQueries(loomDir);
         this.queries = queryResult.queries;
-        
+
         if (config?.verbose && this.queries.length > 0) {
           console.log(`\nCollected ${this.queries.length} @loom.crud.query decorator(s):`);
           for (const query of this.queries) {
@@ -162,7 +171,9 @@ export class Weaver {
       console.log(`Managements found: ${this.managements.length}`);
       for (const mgmt of this.managements) {
         console.log(`  - ${mgmt.name} (@reach ${mgmt.reach})`);
-        console.log(`    Methods: ${mgmt.methods.map(m => `${m.name} (${m.operation})`).join(', ')}`);
+        console.log(
+          `    Methods: ${mgmt.methods.map((m) => `${m.name} (${m.operation})`).join(', ')}`
+        );
       }
       console.log();
     }
@@ -192,35 +203,41 @@ export class Weaver {
     const refinementResults = await this.processRefinements(plan, config);
     if (refinementResults.length > 0) {
       filesGenerated += refinementResults.reduce((sum, r) => sum + r.generatedFiles.length, 0);
-      
+
       for (const result of refinementResults) {
         if (result.errors.length > 0) {
-          errors.push(...result.errors.map(e => new Error(e)));
+          errors.push(...result.errors.map((e) => new Error(e)));
         }
       }
-      
+
       if (config?.verbose) {
         console.log(`\nRefinements processed: ${refinementResults.length}`);
-        console.log(`  Files generated by refinements: ${refinementResults.reduce((sum, r) => sum + r.generatedFiles.length, 0)}`);
+        console.log(
+          `  Files generated by refinements: ${refinementResults.reduce((sum, r) => sum + r.generatedFiles.length, 0)}`
+        );
       }
     }
 
-    // Process intra-tieups (custom treadles attached via .tieup.intra())
-    const tieupResults = await this.processIntraTieups(plan, config);
+    // Process tieups (custom treadles attached via .tieup())
+    const tieupResults = await this.processTieups(plan, config);
     if (tieupResults.length > 0) {
       filesGenerated += tieupResults.reduce((sum, r) => sum + r.generated.length, 0);
       filesModified += tieupResults.reduce((sum, r) => sum + r.modified.length, 0);
-      
+
       for (const result of tieupResults) {
         if (result.errors.length > 0) {
-          errors.push(...result.errors.map(e => new Error(e)));
+          errors.push(...result.errors.map((e) => new Error(e)));
         }
       }
-      
+
       if (config?.verbose) {
-        console.log(`\nIntra-tieups processed: ${tieupResults.length}`);
-        console.log(`  Files generated by tieups: ${tieupResults.reduce((sum, r) => sum + r.generated.length, 0)}`);
-        console.log(`  Files modified by tieups: ${tieupResults.reduce((sum, r) => sum + r.modified.length, 0)}`);
+        console.log(`\nTieups processed: ${tieupResults.length}`);
+        console.log(
+          `  Files generated by tieups: ${tieupResults.reduce((sum, r) => sum + r.generated.length, 0)}`
+        );
+        console.log(
+          `  Files modified by tieups: ${tieupResults.reduce((sum, r) => sum + r.modified.length, 0)}`
+        );
       }
     }
 
@@ -228,18 +245,20 @@ export class Weaver {
     let tasksToExecute = plan.tasks;
     if (config?.packageFilter) {
       const filter = config.packageFilter.toLowerCase();
-      tasksToExecute = plan.tasks.filter(task => {
+      tasksToExecute = plan.tasks.filter((task) => {
         // Match against the current node's export name or the match pattern
         const exportName = task.exportName.toLowerCase();
         const currentType = task.match[0].toLowerCase();
         const previousType = task.match[1]?.toLowerCase() ?? '';
-        
+
         // Check if any part of the task matches the filter
-        return exportName.includes(filter) || 
-               currentType.includes(filter) || 
-               previousType.includes(filter);
+        return (
+          exportName.includes(filter) ||
+          currentType.includes(filter) ||
+          previousType.includes(filter)
+        );
       });
-      
+
       if (config.verbose) {
         console.log(`
 Package filter: "${config.packageFilter}"`);
@@ -247,11 +266,14 @@ Package filter: "${config.packageFilter}"`);
         console.log(`  Tasks after filter: ${tasksToExecute.length}`);
         if (tasksToExecute.length === 0) {
           console.log('  ⚠️  No tasks match this filter');
-          console.log('  Available packages:', [...new Set(plan.tasks.map(t => t.exportName))].join(', '));
+          console.log(
+            '  Available packages:',
+            [...new Set(plan.tasks.map((t) => t.exportName))].join(', ')
+          );
         }
       }
     }
-    
+
     for (const task of tasksToExecute) {
       try {
         const result = await this.executeTask(task, plan, config);
@@ -272,7 +294,9 @@ Package filter: "${config.packageFilter}"`);
     // Phase 4: Cleanup orphaned blocks
     const cleanup = cleanupAllBlocks();
     if (config?.verbose && cleanup.blocksRemoved > 0) {
-      console.log(`\nCleanup: removed ${cleanup.blocksRemoved} orphaned blocks from ${cleanup.filesProcessed} files`);
+      console.log(
+        `\nCleanup: removed ${cleanup.blocksRemoved} orphaned blocks from ${cleanup.filesProcessed} files`
+      );
       for (const detail of cleanup.details) {
         console.log(`  - ${detail.filePath}: removed ${detail.removed.join(', ')}`);
       }
@@ -283,7 +307,7 @@ Package filter: "${config.packageFilter}"`);
       filesModified,
       filesUnchanged,
       errors,
-      plan: config?.verbose ? plan : undefined,
+      plan: config?.verbose ? plan : undefined
     };
   }
 
@@ -298,7 +322,7 @@ Package filter: "${config.packageFilter}"`);
     // Get the generator from the matrix via the heddles
     const matrix = (this.heddles as any).matrix as GeneratorMatrix;
     const generator = matrix.getPair(task.match[0], task.match[1]);
-    
+
     if (!generator) {
       if (config?.verbose) {
         console.log(`No generator for ${task.match.join('→')}, skipping...`);
@@ -310,34 +334,40 @@ Package filter: "${config.packageFilter}"`);
       console.log(`\nGenerating: ${task.match.join(' → ')} (${task.exportName})`);
     }
 
+    // Get package info from ring metadata
+    const currentRing = task.current.ring as any;
+    const packagePath = currentRing.metadata?.packagePath ?? '';
+    const packageDir = packagePath
+      ? path.join(config?.workspace?.root ?? '.', packagePath)
+      : (config?.workspace?.root ?? '.');
+
     // Call the generator with context
     const context = {
       plan,
-      workspaceRoot: config?.workspaceRoot ?? process.cwd(),
+      workspaceRoot: config?.workspace?.root ?? process.cwd(),
       outputDir: config?.outputDir,
+      packagePath,
+      packageDir
     };
     const files = await generator(task.current, task.previous, context);
 
     // Write files using shuttle
     let written = 0;
     for (const file of files) {
-      // If path starts with 'o19/' or 'packages/', it's relative to project root
-      // Otherwise join with workspace root
+      // Treadle paths are relative to the package directory
+      // Prepend packageDir to get the full path
       let fullPath: string;
       if (path.isAbsolute(file.path)) {
         fullPath = file.path;
-      } else if (file.path.startsWith('o19/') || file.path.startsWith('packages/') || file.path.startsWith('apps/')) {
-        // Path is relative to project root (parent of workspace root)
-        fullPath = path.join(config?.workspaceRoot ?? '.', '..', file.path);
       } else {
-        fullPath = path.join(config?.workspaceRoot ?? '.', file.path);
+        fullPath = path.join(context.packageDir, file.path);
       }
-      
+
       try {
         ensureFile(fullPath, file.content);
         written++;
         if (config?.verbose) {
-          console.log(`    ✓ ${file.path}`);
+          console.log(`    ✓ ${file.path} → ${fullPath}`);
         }
       } catch (error) {
         console.error(`    ✗ Failed to write ${file.path}:`, error);
@@ -349,10 +379,10 @@ Package filter: "${config.packageFilter}"`);
 
   /**
    * Process refinements attached to rings in the weaving plan.
-   * 
+   *
    * Refinements are modifiers like @loom.refine.withPrisma() that
    * trigger compaction during weaving.
-   * 
+   *
    * This method also collects @loom.crud.query decorators from loom files
    * and passes them to the refinement for SQL capture.
    */
@@ -370,7 +400,7 @@ Package filter: "${config.packageFilter}"`);
 
     for (const ring of rings) {
       const refinements = getRefinements(ring);
-      
+
       if (refinements.length === 0) continue;
 
       if (config?.verbose) {
@@ -383,8 +413,8 @@ Package filter: "${config.packageFilter}"`);
           await provider.initialize();
 
           // Filter queries for this provider (if specified)
-          const queriesForProvider = collectedQueries.filter(q => 
-            !q.providerName || q.providerName === provider.name
+          const queriesForProvider = collectedQueries.filter(
+            (q) => !q.providerName || q.providerName === provider.name
           );
 
           if (config?.verbose && queriesForProvider.length > 0) {
@@ -393,22 +423,18 @@ Package filter: "${config.packageFilter}"`);
 
           // Build weaving context
           const context = {
-            workspaceRoot: config?.workspaceRoot ?? process.cwd(),
+            workspaceRoot: config?.workspace?.root ?? process.cwd(),
             midstagePath: path.join(
-              config?.workspaceRoot ?? '.',
+              config?.workspace?.root ?? '.',
               '.midstage',
               `refinement-${provider.name}`
             ),
-            outputPath: path.join(
-              config?.workspaceRoot ?? '.',
-              'generated',
-              provider.name
-            ),
+            outputPath: path.join(config?.workspace?.root ?? '.', 'generated', provider.name),
             schema: {}, // TODO: Pass actual parsed schema
             queries: queriesForProvider, // Pass collected queries!
             log: (msg: string) => {
               if (config?.verbose) console.log(`  [${provider.name}] ${msg}`);
-            },
+            }
           };
 
           // Run the refinement
@@ -427,9 +453,9 @@ Package filter: "${config.packageFilter}"`);
           results.push({
             generatedFiles: [],
             errors: [`${provider.name}: ${(error as Error).message}`],
-            warnings: [],
+            warnings: []
           });
-          
+
           if (config?.verbose) {
             console.error(`  ✗ ${provider.name} failed:`, error);
           }
@@ -446,33 +472,37 @@ Package filter: "${config.packageFilter}"`);
    */
   private collectAllLayersFromPlan(plan: WeavingPlan): Set<Layer> {
     const collected = new Set<Layer>();
-    
-    // Start with task-level rings (task.current/task.previous are SpiralNodes)
-    for (const task of plan.tasks) {
-      this.collectLayerHierarchy(task.current.ring, collected);
-      if (task.previous) {
-        this.collectLayerHierarchy(task.previous.ring, collected);
+
+    // Start with ALL nodes in the plan (not just tasks)
+    // This ensures we process tieups on layers even if they have no matrix generators
+    for (const nodes of plan.nodesByType.values()) {
+      for (const node of nodes) {
+        this.collectLayerHierarchy(node.ring, collected);
       }
     }
-    
+
     return collected;
   }
-  
+
   /**
    * Recursively collect a ring and its inner rings.
    */
   private collectLayerHierarchy(layer: Layer, collected: Set<Layer>): void {
     if (collected.has(layer)) return;
     collected.add(layer);
-    
+
     // Walk inner layers based on type
     const anyLayer = layer as any;
-    
-    // SpiralOut: check .inner
-    if (anyLayer.inner instanceof SpiralRingClass) {
+
+    // SpiralOut: use getInnerRing() to handle Spiraler-wrapped Cores
+    if (anyLayer instanceof SpiralOut) {
+      this.collectLayerHierarchy(anyLayer.getInnerRing(), collected);
+    }
+    // Legacy fallback: direct .inner access for non-SpiralOut types
+    else if (anyLayer.inner instanceof SpiralRingClass) {
       this.collectLayerHierarchy(anyLayer.inner, collected);
     }
-    
+
     // SpiralMux: check .innerRings array
     if (Array.isArray(anyLayer.innerRings)) {
       for (const inner of anyLayer.innerRings) {
@@ -481,7 +511,7 @@ Package filter: "${config.packageFilter}"`);
         }
       }
     }
-    
+
     // CoreRing: check .layer and .core
     if (anyLayer.layer instanceof SpiralRingClass) {
       this.collectLayerHierarchy(anyLayer.layer, collected);
@@ -492,11 +522,11 @@ Package filter: "${config.packageFilter}"`);
   }
 
   /**
-   * Process intra-tieups (custom treadles attached via .tieup.intra()).
-   * 
-   * Executes custom generation logic inside each ring's package.
+   * Process tieups (custom treadles attached via .tieup()).
+   *
+   * Executes custom generation logic inside each layer's package.
    */
-  private async processIntraTieups(
+  private async processTieups(
     plan: WeavingPlan,
     config?: WeaverConfig
   ): Promise<Array<{ generated: string[]; modified: string[]; errors: string[] }>> {
@@ -507,41 +537,67 @@ Package filter: "${config.packageFilter}"`);
 
     // Collect all unique layers from the plan (including inner layers)
     const layers = this.collectAllLayersFromPlan(plan);
-    
+
+    if (config?.verbose) {
+      console.log(`\nChecking ${layers.size} layer(s) for tieups...`);
+    }
+
     for (const layer of layers) {
       const tieups = getTieups(layer);
-      
+      const layerName =
+        (layer as any).metadata?.packageName || (layer as any).constructor?.name || 'UnknownLayer';
+
+      if (config?.verbose) {
+        console.log(`  ${layerName}: ${tieups.length} tieup(s)`);
+      }
+
       if (tieups.length === 0) continue;
 
       if (config?.verbose) {
-        console.log(`\nProcessing ${tieups.length} tieup(s) for layer...`);
+        console.log(`\nProcessing ${tieups.length} tieup(s) for ${layerName}:`);
+        for (const t of tieups) {
+          const sourceName = (t.source as any).metadata?.packageName || t.source.constructor.name;
+          console.log(`  - source: ${sourceName}, target: ${layerName}`);
+          // @ts-ignore
+          console.log({ targetMeta: t.target });
+        }
       }
 
       // Determine package path from layer metadata
       const anyLayer = layer as any;
-      const metadata = anyLayer.metadata as { packagePath?: string; packageName?: string; language?: string } | undefined;
-      const packagePath = metadata?.packagePath 
-        ? path.join(config?.workspaceRoot ?? process.cwd(), metadata.packagePath)
-        : (config?.workspaceRoot ?? process.cwd());
-      
+      const metadata = anyLayer.metadata as
+        | { packagePath?: string; packageName?: string; language?: string }
+        | undefined;
+      const packagePath = metadata?.packagePath
+        ? path.join(config?.workspace?.root ?? process.cwd(), metadata.packagePath)
+        : (config?.workspace?.root ?? process.cwd());
+
       if (config?.verbose) {
         console.log(`  Using package path: ${packagePath}`);
         if (metadata) {
-          console.log(`    (from layer metadata: ${metadata.packageName} @ ${metadata.packagePath})`);
+          console.log(
+            `    (from layer metadata: ${metadata.packageName} @ ${metadata.packagePath})`
+          );
         }
       }
 
       // Create utils for file operations
+      // All generated files go into spire/ subdirectory to keep packages clean
+      const SPIRE_DIR = 'spire';
       const utils = {
         writeFile: async (relativePath: string, content: string) => {
-          const fullPath = path.join(packagePath, relativePath);
+          // Always write to spire/{path} - never directly to package
+          const spirePath = path.join(SPIRE_DIR, relativePath);
+          const fullPath = path.join(packagePath, spirePath);
           const dir = path.dirname(fullPath);
           await fsp.mkdir(dir, { recursive: true });
           await fsp.writeFile(fullPath, content, 'utf-8');
         },
         readFile: async (relativePath: string): Promise<string | null> => {
           try {
-            const fullPath = path.join(packagePath, relativePath);
+            // Read from spire/{path}
+            const spirePath = path.join(SPIRE_DIR, relativePath);
+            const fullPath = path.join(packagePath, spirePath);
             return await fsp.readFile(fullPath, 'utf-8');
           } catch {
             return null;
@@ -556,13 +612,15 @@ Package filter: "${config.packageFilter}"`);
         },
         fileExists: async (relativePath: string) => {
           try {
-            const fullPath = path.join(packagePath, relativePath);
+            // Check in spire/{path}
+            const spirePath = path.join(SPIRE_DIR, relativePath);
+            const fullPath = path.join(packagePath, spirePath);
             await fsp.access(fullPath);
             return true;
           } catch {
             return false;
           }
-        },
+        }
       };
 
       const result = await executeTieups(layer, packagePath, utils);

@@ -53,6 +53,10 @@ function parseArgs(args: string[]): CliOptions {
       case '-G':
         options.graph = true;
         break;
+      case '--interactive':
+      case '-i':
+        // Handled by bin/spire-loom.js, skip here
+        break;
       case '--help':
       case '-h':
         options.help = true;
@@ -71,19 +75,193 @@ Usage:
   spire-loom [options]
 
 Options:
+  -w, --watch           Watch mode - regenerate on WARP.ts changes
   -p, --package <name>  Generate specific package only
   -v, --verbose         Verbose output
   -G, --graph           Show dependency graph visualization
+  -i, --interactive     Launch interactive menu (Ink-based UI)
   -h, --help            Show this help
 
 Examples:
-  spire-loom                    # Generate all packages
+  spire-loom                    # Generate all packages in workspace
+  spire-loom -w                 # Watch mode for development
   spire-loom -p foundframe      # Generate only foundframe package
+  spire-loom -i                 # Launch interactive menu
 
-Interactive Modes:
-  spire-loom-warp               # Interactive menu UI
-  spire-loom-mud-warp           # Interactive MUD mode (text adventure)
+Interactive Mode:
+  Use --interactive for the new Ink-based UI with:
+    • Visual dressing inspector
+    • Treadle forge for creating generators
+    • MUD mode for text commands
+    • Watch mode with live reload
+
+Package Detection:
+  When run from a package directory (e.g., o19/crates/foundframe-tauri),
+  spire-loom automatically detects the package and only generates for it.
+  Use -p <name> to override, or run from workspace root for all packages.
 `);
+}
+
+/**
+ * Print a visual dependency graph of the WARP module.
+ */
+function printDependencyGraph(warp: Record<string, any>, workspaceRoot: string): void {
+  console.log('📊 Dependency Graph Visualization\n');
+  console.log('═'.repeat(60));
+  
+  // Track visited nodes to avoid duplicates
+  const visited = new Set<any>();
+  const nodes = new Map<string, {
+    id: string;
+    exportName: string;
+    classType: string;
+    metadata: Record<string, any>;
+    depth: number;
+  }>();
+  const edges: Array<{
+    from: string;
+    to: string;
+    label: string;
+  }> = [];
+  
+  let nodeIdCounter = 0;
+  
+  function getNodeId(obj: any, exportName: string): string {
+    if (!obj) return 'null';
+    for (const [id, node] of nodes) {
+      if (node.exportName === exportName && obj.constructor?.name === node.classType) {
+        return id;
+      }
+    }
+    const id = `n${nodeIdCounter++}`;
+    return id;
+  }
+  
+  function extractMetadata(obj: any): Record<string, any> {
+    const metadata: Record<string, any> = {};
+    if (!obj) return metadata;
+    
+    if (obj.prototype?._reach) {
+      metadata.reach = obj.prototype._reach;
+    }
+    
+    if (obj.serviceOptions) {
+      metadata.serviceOptions = obj.serviceOptions;
+    }
+    
+    if (obj.getMetadata) {
+      try {
+        metadata.core = obj.getMetadata();
+      } catch {
+        // ignore
+      }
+    }
+    
+    return metadata;
+  }
+  
+  function traverse(obj: any, exportName: string, parentId: string | null, viaProperty: string, depth: number = 0): string | null {
+    if (!obj || typeof obj !== 'object') return null;
+    if (visited.has(obj)) {
+      for (const [id, node] of nodes) {
+        if (node.exportName === exportName && obj.constructor?.name === node.classType) {
+          return id;
+        }
+      }
+      return null;
+    }
+    
+    visited.add(obj);
+    
+    const classType = obj.constructor?.name || 'Unknown';
+    const id = getNodeId(obj, exportName);
+    const metadata = extractMetadata(obj);
+    
+    nodes.set(id, {
+      id,
+      exportName,
+      classType,
+      metadata,
+      depth,
+    });
+    
+    if (parentId) {
+      edges.push({
+        from: parentId,
+        to: id,
+        label: viaProperty,
+      });
+    }
+    
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === 'constructor') continue;
+      
+      if (value && typeof value === 'object') {
+        const valueClass = value.constructor?.name;
+        if (valueClass && (
+          valueClass.includes('Spiral') ||
+          valueClass.includes('Spiraler') ||
+          valueClass.includes('Core') ||
+          valueClass.includes('Ring')
+        )) {
+          traverse(value, exportName, id, key, depth + 1);
+        }
+      }
+    }
+    
+    return id;
+  }
+  
+  for (const [exportName, value] of Object.entries(warp)) {
+    if (value && typeof value === 'object') {
+      traverse(value, exportName, null, 'export', 0);
+    }
+  }
+  
+  console.log('\n📦 NODES (by export):\n');
+  
+  const nodesByExport = new Map<string, typeof nodes extends Map<any, infer V> ? V[] : never>();
+  for (const node of nodes.values()) {
+    if (!nodesByExport.has(node.exportName)) {
+      nodesByExport.set(node.exportName, []);
+    }
+    nodesByExport.get(node.exportName)!.push(node);
+  }
+  
+  for (const [exportName, exportNodes] of nodesByExport) {
+    console.log(`\n┌─ ${exportName}`);
+    console.log(`│`);
+    
+    for (const node of exportNodes.sort((a, b) => a.depth - b.depth)) {
+      const indent = '│  '.repeat(node.depth);
+      const icon = node.depth === 0 ? '📍' : '└─';
+      const metadataStr = Object.keys(node.metadata).length > 0
+        ? ' {' + Object.entries(node.metadata)
+            .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+            .join(', ') + '}'
+        : '';
+      
+      console.log(`${indent}${icon} [${node.classType}]${metadataStr}`);
+    }
+  }
+  
+  console.log('\n\n🔗 EDGES (connections):\n');
+  
+  if (edges.length === 0) {
+    console.log('   (no edges found)');
+  } else {
+    for (const edge of edges) {
+      const fromNode = nodes.get(edge.from);
+      const toNode = nodes.get(edge.to);
+      if (fromNode && toNode) {
+        console.log(`   ${fromNode.classType} ──${edge.label}──> ${toNode.classType}`);
+      }
+    }
+  }
+  
+  console.log('\n\n📈 Summary:');
+  console.log(`   Total nodes: ${nodes.size}`);
+  console.log(`   Total edges: ${edges.length}`);
 }
 
 async function main() {
@@ -136,15 +314,19 @@ async function main() {
   try {
     const warp = await loadWarp(workspace.warpPath);
     
+    // Graph visualization mode
+    if (options.graph) {
+      printDependencyGraph(warp, workspace.root);
+      return;
+    }
+    
     if (options.verbose) {
       console.log('Exports found:', Object.keys(warp).join(', '));
       console.log();
     }
     
-    const loomDir = new URL('../loom/', import.meta.url).pathname;
     const config: WeaverConfig = {
-      workspaceRoot: workspace.root,
-      loomDir,
+      workspace,
       verbose: options.verbose,
       packageFilter,
     };

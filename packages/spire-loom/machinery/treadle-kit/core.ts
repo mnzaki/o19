@@ -45,12 +45,7 @@
  */
 
 import * as path from 'node:path';
-import type {
-  SpiralNode,
-  GeneratedFile,
-  GeneratorContext,
-  WeavingPlan,
-} from '../heddles/index.js';
+import type { SpiralNode, GeneratedFile, GeneratorContext, WeavingPlan } from '../heddles/index.js';
 import { ensurePlanComplete } from '../heddles/index.js';
 import type { ManagementMetadata } from '../reed/index.js';
 import { filterByReach } from '../reed/index.js';
@@ -62,7 +57,7 @@ import {
   findCoreNameForTask,
   configureGradleBuild,
   executeAndroidHookup,
-  type AndroidHookupData,
+  type AndroidHookupData
 } from '../shuttle/hookup-manager.js';
 import { writeEventCallbackAidl } from '../bobbin/android.js';
 
@@ -130,7 +125,7 @@ export function toSnakeCase(str: string): string {
  * After addManagementPrefix(), method.name looks like "bookmark_addBookmark".
  * This converts the entire thing to snake_case for the bind-point.
  * The implName is the method part without the management prefix.
- * 
+ *
  * Includes enriched metadata from heddles (useResult, wrappers, fieldName).
  */
 export function toRawMethod(method: MgmtMethod): RawMethod {
@@ -155,15 +150,17 @@ export function toRawMethod(method: MgmtMethod): RawMethod {
     params: method.params.map((p) => ({
       name: p.name,
       type: p.tsType,
-      optional: p.optional,
+      optional: p.optional
     })),
     description: method.description || `${method.managementName}.${method.name}`,
     // Enriched fields from heddles (computed from ownership chain)
     useResult: heddlesMeta.useResult as boolean | undefined,
-    link: heddlesMeta.fieldName ? {
-      fieldName: heddlesMeta.fieldName as string,
-      wrappers: heddlesMeta.wrappers as string[] | undefined,
-    } : undefined,
+    link: heddlesMeta.fieldName
+      ? {
+          fieldName: heddlesMeta.fieldName as string,
+          wrappers: heddlesMeta.wrappers as string[] | undefined
+        }
+      : undefined
   };
 }
 
@@ -177,7 +174,7 @@ export function buildMethodLink(
 
   return {
     fieldName: mgmt.link.fieldName,
-    wrappers: ['Option', 'Mutex'],
+    wrappers: ['Option', 'Mutex']
   };
 }
 
@@ -217,10 +214,7 @@ export interface ServiceNaming {
 /**
  * Build service naming from core metadata and spiraler affix.
  */
-export function buildServiceNaming(
-  packageName: string,
-  nameAffix?: string
-): ServiceNaming {
+export function buildServiceNaming(packageName: string, nameAffix?: string): ServiceNaming {
   const pascalAffix = nameAffix ? pascalCase(nameAffix) : '';
   const coreNamePascal = pascalCase(packageName);
 
@@ -228,9 +222,7 @@ export function buildServiceNaming(
     ? `${coreNamePascal}${pascalAffix}Service`
     : `${coreNamePascal}Service`;
 
-  const interfaceName = pascalAffix
-    ? `I${coreNamePascal}${pascalAffix}`
-    : `I${coreNamePascal}`;
+  const interfaceName = pascalAffix ? `I${coreNamePascal}${pascalAffix}` : `I${coreNamePascal}`;
 
   return {
     nameAffix: nameAffix || '',
@@ -239,12 +231,14 @@ export function buildServiceNaming(
     interfaceName,
     logTag: serviceName.toUpperCase().replace(/\s/g, '_'),
     channelId: serviceName.toLowerCase().replace(/\s/g, '_'),
-    channelName: serviceName,
+    channelName: serviceName
   };
 }
 
 export interface AndroidPackageData {
+  /*
   packageDir: string;
+  */
   packageName: string;
   packagePath: string;
   jniPackagePath: string;
@@ -258,10 +252,12 @@ export function buildAndroidPackageData(
   gradleNamespace: string
 ): AndroidPackageData {
   return {
+    /*
     packageDir: `o19/crates/${basePackageName}-android`,
+    */
     packageName: gradleNamespace,
     packagePath: gradleNamespace.replace(/\./g, '/'),
-    jniPackagePath: gradleNamespace.replace(/\./g, '_'),
+    jniPackagePath: gradleNamespace.replace(/\./g, '_')
   };
 }
 
@@ -296,7 +292,11 @@ export interface TreadleKit {
    * Build template data from a function or static object.
    */
   buildData(
-    dataFn: (context: GeneratorContext, current: SpiralNode, previous: SpiralNode) => Record<string, unknown>,
+    dataFn: (
+      context: GeneratorContext,
+      current: SpiralNode,
+      previous: SpiralNode
+    ) => Record<string, unknown>,
     current: SpiralNode,
     previous: SpiralNode
   ): Record<string, unknown>;
@@ -350,7 +350,9 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
 
       if (currentType !== expected.current || previousType !== expected.previous) {
         if (process.env.DEBUG_MATRIX) {
-          console.log(`[KIT] Skipping: ${currentType} → ${previousType} not ${expected.current} → ${expected.previous}`);
+          console.log(
+            `[KIT] Skipping: ${currentType} → ${previousType} not ${expected.current} → ${expected.previous}`
+          );
         }
         return false;
       }
@@ -376,12 +378,12 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
             params: method.params.map((p) => ({
               name: p.name,
               tsType: p.type,
-              optional: p.optional ?? false,
+              optional: p.optional ?? false
             })),
             returnType: method.returnType,
             isCollection: method.operation === 'list' || method.name.startsWith('list'),
             tags: [`crud:${method.operation}`],
-            crudOperation: method.operation,
+            crudOperation: method.operation
           });
         }
       }
@@ -422,7 +424,7 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
           template: output.template,
           outputPath,
           data,
-          methods,
+          methods
         });
 
         files.push(file);
@@ -445,8 +447,8 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
 
       tauriPlugin(_options: { libRsPath: string; commands: string[] }): void {
         console.log('[KIT] Tauri plugin hookup not yet implemented. Use custom hookup.');
-      },
-    },
+      }
+    }
   };
 }
 
@@ -459,5 +461,5 @@ export {
   findCoreNameForTask,
   configureGradleBuild,
   executeAndroidHookup,
-  type AndroidHookupData,
+  type AndroidHookupData
 } from '../shuttle/hookup-manager.js';

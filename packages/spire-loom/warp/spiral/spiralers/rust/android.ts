@@ -1,4 +1,4 @@
-import { Spiraler, SpiralRing, spiralOut } from '../pattern.js';
+import { Spiraler, SpiralRing } from '../../pattern.js';
 
 export interface AndroidServiceOptions {
   /** Name affix for the service (e.g., 'radicle' → IFoundframeRadicle) */
@@ -11,7 +11,7 @@ export interface AndroidServiceOptions {
   serviceClassName?: string;
 }
 
-export class AndroidSpiraler extends Spiraler {
+export class RustAndroidSpiraler extends Spiraler {
   /** Service configuration options */
   serviceOptions: AndroidServiceOptions = {};
 
@@ -21,12 +21,12 @@ export class AndroidSpiraler extends Spiraler {
 
   /**
    * Configure Android foreground service.
-   * 
+   *
    * @param options - Service configuration
    * @returns SpiralOut configured for Android service
-   * 
+   *
    * @example
-   * const android = foundframe.android.foregroundService({ 
+   * const android = foundframe.android.foregroundService({
    *   nameAffix: 'radicle',
    *   gradleNamespace: 'ty.circulari.o19'
    * });
@@ -34,8 +34,8 @@ export class AndroidSpiraler extends Spiraler {
    */
   foregroundService(options: AndroidServiceOptions = {}) {
     this.serviceOptions = options;
-    // The AndroidSpiraler itself is the outter - options are stored for generator use
-    return spiralOut(this, {});
+    // The RustAndroidSpiraler itself is the outter - options are stored for generator use
+    return this.spiralOut('foregroundService', {});
   }
 
   /**
@@ -47,9 +47,8 @@ export class AndroidSpiraler extends Spiraler {
 
   /**
    * Get the Gradle namespace for the Android module.
-   * Defaults to 'ty.circulari.{packageName}' if not set.
    */
   getGradleNamespace(packageName: string): string {
-    return this.serviceOptions.gradleNamespace ?? `ty.circulari.${packageName}`;
+    return this.serviceOptions.gradleNamespace ?? packageName;
   }
 }

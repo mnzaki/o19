@@ -55,7 +55,7 @@ export const myTauriApp = front.tauri.app({ adaptorOverrides: [drizzle] });
 - Provides `getSpiralers()` → returns `{ android, desktop }`
 - Provides `getMetadata()` → crate name, package name, etc.
 
-**`AndroidSpiraler`** extends `Spiraler`:
+**`RustAndroidSpiraler`** extends `Spiraler`:
 - `foregroundService()` → generates Kotlin service + AIDL
 
 **`DesktopSpiraler`** extends `Spiraler`:
@@ -108,8 +108,8 @@ const plan = heddles.buildPlan(warp, managements);
 **Generator Matrix**:
 ```typescript
 const matrix = new GeneratorMatrix();
-matrix.setPair('AndroidSpiraler', 'RustCore', generateAndroidService);
-matrix.setPair('TauriSpiraler', 'AndroidSpiraler', generateTauriAndroid);
+matrix.setPair('RustAndroidSpiraler', 'RustCore', generateAndroidService);
+matrix.setPair('TauriSpiraler', 'RustAndroidSpiraler', generateTauriAndroid);
 // ... etc
 ```
 
@@ -171,7 +171,7 @@ o19/crates/foundframe-android/
 **Android Generator** ✅ (in progress):
 ```typescript
 export async function generateAndroidService(
-  current: SpiralNode,      // AndroidSpiraler
+  current: SpiralNode,      // RustAndroidSpiraler
   previous: SpiralNode,     // RustCore
 ): Promise<GeneratedFile[]> {
   // 1. Generate Kotlin service

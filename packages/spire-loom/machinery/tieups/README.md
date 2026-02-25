@@ -37,10 +37,10 @@ WARP.ts                        Treadle                     Spiraler
 ```typescript
 // loom/treadles/gen-android-foreground-service.ts
 export const contributes = defineSpiralerContribution({
-  spiraler: 'AndroidSpiraler',
+  spiraler: 'RustAndroidSpiraler',
   method: 'foregroundService',
   optionsType: 'ForegroundServiceOptions',
-  returnType: 'AndroidSpiraler'
+  returnType: 'RustAndroidSpiraler'
 });
 ```
 
@@ -50,7 +50,7 @@ export const contributes = defineSpiralerContribution({
 // During loom initialization
 const discovered = await discoverTreadles('./loom/treadles');
 const contributions = collectSpiralerContributions(discovered);
-// Map: 'AndroidSpiraler' → [{ method: 'foregroundService', ... }]
+// Map: 'RustAndroidSpiraler' → [{ method: 'foregroundService', ... }]
 ```
 
 ### 3. TypeScript Knows
@@ -59,8 +59,8 @@ const contributions = collectSpiralerContributions(discovered);
 // Type augmentation in treadle file
 declare module '@o19/spire-loom/machinery/tieups/spiral' {
   interface SpiralerExtensionRegistry {
-    AndroidSpiraler: {
-      foregroundService(options?: ForegroundServiceOptions): AndroidSpiraler;
+    RustAndroidSpiraler: {
+      foregroundService(options?: ForegroundServiceOptions): RustAndroidSpiraler;
     };
   }
 }
@@ -85,7 +85,7 @@ import { defineSpiralerContribution } from '@o19/spire-loom/machinery/tieups/spi
 
 export const contributes = defineSpiralerContribution({
   // The spiraler class name being extended
-  spiraler: 'AndroidSpiraler',
+  spiraler: 'RustAndroidSpiraler',
   
   // The method name being contributed
   method: 'foregroundService',
@@ -94,7 +94,7 @@ export const contributes = defineSpiralerContribution({
   optionsType: 'ForegroundServiceOptions',
   
   // Return type (usually the spiraler itself for chaining)
-  returnType: 'AndroidSpiraler',
+  returnType: 'RustAndroidSpiraler',
   
   // Description of what this method does
   description: 'Wrap the core with an Android foreground service'
@@ -137,7 +137,7 @@ import { applySpiralerExtensions } from '@o19/spire-loom/machinery/tieups/spiral
 
 applySpiralerExtensions(
   spiralerInstance,
-  'AndroidSpiraler',
+  'RustAndroidSpiraler',
   contributions,
   methodImplementations
 );

@@ -32,6 +32,8 @@ export abstract class Layering {
  * Layers have their own tieup mechanism separate from Layering.
  */
 export abstract class Layer {
+  name!: string;
+
   /**
    * Attach tieups to generate code in this layer's package.
    *

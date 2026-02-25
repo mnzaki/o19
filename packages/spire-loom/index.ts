@@ -104,10 +104,10 @@ export  *  from  './warp/imprint.js';
 
 // We import the spiral's reach,
 // link the rust to Management
-import { spiral, link, reach, crud, Management, rust } from './warp/index.js';
+import { spiral, link, reach, crud, Management, typescript, rust } from './warp/index.js';
 
 // What we export, the loom remembers
-export { rust, Management, crud, reach, link, spiral } from './warp/index.js';
+export { rust, typescript, Management, crud, reach, link, spiral } from './warp/index.js';
 
 // The pattern conserves
 export const loom = {

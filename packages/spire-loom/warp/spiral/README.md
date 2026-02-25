@@ -48,7 +48,7 @@ The basic spiral operation: wrap one ring with another.
 const android = foundframe.android.foregroundService();
 
 // Creates:
-AndroidSpiraler {
+RustAndroidSpiraler {
   inner: RustCore { ... }  // Conserved!
   // + Android-specific capabilities
 }
@@ -65,7 +65,7 @@ const tauri = foundframe.tauri.plugin();
 // Creates:
 TauriSpiraler {
   innerRings: [
-    AndroidSpiraler { ... },
+    RustAndroidSpiraler { ... },
     DesktopSpiraler { ... }
   ]
   // Routes to appropriate platform at runtime
@@ -86,7 +86,7 @@ Spiralers are the **concrete implementations**—the actual rings users create:
 
 | Spialer | Purpose | Wraps |
 |---------|---------|-------|
-| [AndroidSpiraler](spiralers/android.ts) | Android native service | RustCore |
+| [RustAndroidSpiraler](spiralers/android.ts) | Android native service | RustCore |
 | [DesktopSpiraler](spiralers/desktop.ts) | Desktop native | RustCore |
 | [TypeScriptSpiraler](spiralers/typescript.ts) | TypeScript domain | RustCore |
 
@@ -94,7 +94,7 @@ Spiralers are the **concrete implementations**—the actual rings users create:
 
 | Spialer | Purpose | Contains |
 |---------|---------|----------|
-| [TauriSpiraler](spiralers/tauri.ts) | Cross-platform plugin | AndroidSpiraler + DesktopSpiraler |
+| [TauriSpiraler](spiralers/tauri.ts) | Cross-platform plugin | RustAndroidSpiraler + DesktopSpiraler |
 | [TauriAppSpiraler](spiralers/tauri_app.ts) | Tauri application | Multiple plugins |
 | [DDDTypeScriptSpiraler](spiralers/ddd_typescript.ts) | DDD TypeScript layer | Domain adaptors |
 
@@ -107,14 +107,14 @@ User DSL                     Spiral Graph                    Generated Output
 foundframe                   RustCore
     │                            │
     ▼                            ▼
-.foregroundService()      AndroidSpiraler ──────────────────► Kotlin service
+.foregroundService()      RustAndroidSpiraler ──────────────────► Kotlin service
     │                            │                               AIDL interface
     ▼                            │                               JNI bridge
 .tauri.plugin()           TauriSpiraler ───────────────────► Tauri commands
                                │        
                         ┌──────┴──────┐
                         ▼             ▼
-                AndroidSpiraler   DesktopSpiraler
+                RustAndroidSpiraler   DesktopSpiraler
                      │                 │
                      └───────┬─────────┘
                              ▼

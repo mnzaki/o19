@@ -11,11 +11,11 @@
  * ```typescript
  * // Generate code in foundframe using foundframe itself as source
  * const foundframe = loom.spiral(Foundframe)
- *   .tieup({ treadles: [dbBindingTreadle] });
+ *   .tieup({ treadles: [{ treadle: dbBindingTreadle, warpData: { entities: ['User'] } }] });
  *
  * // Generate code in front layer using foundframe as source
  * const front = tauri.typescript.ddd()
- *   .tieup(foundframe, { treadles: [typeGenTreadle] });
+ *   .tieup(foundframe, { treadles: [{ treadle: typeGenTreadle, warpData: { entities: ['User'] } }] });
  * ```
  */
 
@@ -30,6 +30,16 @@ import type { Layer } from './layers.js';
  * Generates files inside a layer's package.
  */
 export type CustomTreadle = (context: TreadleContext) => Promise<TreadleResult>;
+
+/**
+ * A treadle entry with its own warpData.
+ */
+export interface TreadleEntry {
+  /** The treadle to execute */
+  treadle: CustomTreadle;
+  /** Data passed to this specific treadle */
+  warpData: { [key: string]: unknown };
+}
 
 /**
  * Context passed to custom treadles.
@@ -79,10 +89,8 @@ export interface TreadleResult {
 export interface TieupConfig {
   /** The source layer (if different from target) */
   source?: Layer;
-  /** Custom treadles to execute */
-  treadles: CustomTreadle[];
-  /** Additional configuration passed to treadles */
-  warpData?: { [key: string]: unknown };
+  /** Custom treadles to execute, each with its own warpData */
+  treadles: TreadleEntry[];
 }
 
 /**
@@ -138,11 +146,11 @@ export function addTieup(target: Layer, source: Layer, config: Omit<TieupConfig,
  * ```typescript
  * // Use this layer as both source and target
  * const foundframe = loom.spiral(Foundframe)
- *   .tieup({ treadles: [dbBindingTreadle] });
+ *   .tieup({ treadles: [{ treadle: dbBindingTreadle, warpData: {} }] });
  *
  * // Use another layer as source
  * const front = tauri.typescript.ddd()
- *   .tieup(foundframe, { treadles: [typeGenTreadle] });
+ *   .tieup(foundframe, { treadles: [{ treadle: typeGenTreadle, warpData: {} }] });
  * ```
  */
 export function tieup<L extends Layer>(
@@ -195,17 +203,17 @@ export async function executeTieups(
   for (const { source, config } of tieups) {
     const treadles = config.treadles || [];
 
-    for (const treadle of treadles) {
+    for (const entry of treadles) {
       try {
         const context: TreadleContext = {
           source,
           target: layer,
-          config,
+          config: entry.warpData,
           packagePath,
           utils
         };
 
-        const result = await treadle(context);
+        const result = await entry.treadle(context);
 
         generated.push(...result.generatedFiles);
         if (result.modifiedFiles) {

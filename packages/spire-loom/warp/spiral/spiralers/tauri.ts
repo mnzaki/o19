@@ -1,18 +1,16 @@
-import { MuxSpiraler, SpiralRing, spiralOut } from '../pattern.js';
-import { TypescriptSpiraler } from './typescript.js';
+import { Spiraler, SpiralRing } from '../pattern.js';
+import { TypescriptSpiraler } from './typescript/index.js';
 
 /**
  * TauriSpiraler extends MuxSpiraler because Tauri aggregates
  * multiple platform rings (Android, iOS, Desktop) into a plugin.
  */
-export class TauriSpiraler extends MuxSpiraler {
+export class TauriSpiraler extends Spiraler {
   /** Configuration for CRUD adaptor generation */
   _config?: { ddd?: { adaptors?: { filterOut?: string[] } } };
 
-  constructor(
-    public innerRings: SpiralRing[] // TODO: type for Android, Desktop, iOS rings
-  ) {
-    super(innerRings);
+  constructor(public innerRing: SpiralRing) {
+    super(innerRing);
   }
 
   /**
@@ -21,8 +19,8 @@ export class TauriSpiraler extends MuxSpiraler {
    */
   plugin(config?: { ddd?: { adaptors?: { filterOut?: string[] } } }) {
     this._config = config;
-    return spiralOut(this, {
-      typescript: new TypescriptSpiraler(this)
+    return this.spiralOut('plugin', {
+      typescript: new TypescriptSpiraler(this.innerRing)
     });
   }
 

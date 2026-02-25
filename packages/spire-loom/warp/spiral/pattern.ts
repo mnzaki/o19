@@ -16,7 +16,7 @@ export class SpiralRing extends Layer {}
 
 /**
  * Spiraling - Graph connectors that weave layers together.
- * 
+ *
  * Spiralers are part of the weave graph structure. They connect layers
  * but don't themselves contain code packages. Future: tieups on spiralers
  * could affect how they connect/transformation between layers.
@@ -99,6 +99,23 @@ export abstract class Spiraler extends Spiraling {
   constructor(public innerRing: SpiralRing) {
     super();
   }
+
+  /**
+   * Spiral out from this spiraler to create the next ring.
+   *
+   * @param treadleTag - The tag that identifies which treadle to trigger
+   * @param spiralers - Additional spiralers to attach to the new ring
+   * @returns SpiralOut configured with the treadle tag
+   *
+   * @example
+   * return this.spiralOut('foregroundService', { tauri: new TauriSpiraler(this) });
+   */
+  spiralOut<O extends Partial<Spiralers> = Spiralers>(
+    treadleTag: string,
+    spiralers: O
+  ): SpiralOutType<O> {
+    return new SpiralOut(this, treadleTag, spiralers) as unknown as SpiralOutType<O>;
+  }
 }
 
 /**
@@ -125,21 +142,60 @@ export abstract class MuxSpiraler extends Spiraling {
 export type Spiralers = Record<string, any>;
 
 /**
- * A SpiralOut wraps a single inner ring with spiralers.
+ * A SpiralOut wraps either:
+ * - A Spiraler (for spiraling out from a parent spiraler), OR
+ * - A SpiralRing directly (for spiraling out from a core or ring)
+ *
  * Represents one step in a linear spiral.
  */
 export class SpiralOut<
   O extends Partial<Spiralers> = Spiralers,
   Inner extends SpiralRing = SpiralRing
 > extends SpiralRing {
-  constructor(
-    public inner: Inner,
-    spiralers: O,
-    /** Package metadata inherited from inner ring */
-    public metadata?: RingPackageMetadata
-  ) {
+  /** The actual inner ring, providing metadata */
+  inner: Inner;
+
+  /** Package metadata inherited from inner ring */
+  metadata?: RingPackageMetadata;
+
+  /**
+   * The spiraler that created this SpiralOut (if any).
+   * Undefined when spiraling directly from a core.
+   */
+  spiraler?: Spiraler;
+
+  /**
+   * The tag to add to our name so that treadles know what to do when they see
+   * us in the graph.
+   */
+  treadleTag: string;
+
+  constructor(from: Spiraler | SpiralRing, treadleTag: string, spiralers: O) {
     super();
+
+    if (from instanceof Spiraler) {
+      // Spiraling from a parent spiraler
+      this.spiraler = from;
+      this.inner = from.innerRing as Inner;
+    } else {
+      // Spiraling directly from a ring (e.g., a CoreRing)
+      this.inner = from as Inner;
+    }
+
+    this.treadleTag = treadleTag;
+    this.metadata = (this.inner as any).metadata;
+
+    // Assign spiralers to this instance
     Object.assign(this, spiralers);
+  }
+
+  /**
+   * Get the actual inner ring.
+   *
+   * @returns The actual SpiralRing (CoreRing) with metadata
+   */
+  getInnerRing(): SpiralRing {
+    return this.inner;
   }
 }
 
@@ -167,19 +223,6 @@ export class SpiralMux<O extends Partial<Spiralers> = Spiralers> extends SpiralR
 }
 
 export type SpiralMuxType<O extends Partial<Spiralers> = Spiralers> = SpiralMux<O> & O;
-
-/**
- * Spiral out from a single ring (linear spiral).
- * Creates the next ring wrapping a single inner ring.
- */
-export function spiralOut<O extends Partial<Spiralers> = Spiralers>(
-  inner: SpiralRing,
-  spiralers: O
-): SpiralOutType<O> {
-  // Inherit metadata from inner ring if available
-  const metadata = (inner as any).metadata;
-  return new SpiralOut(inner, spiralers, metadata) as unknown as SpiralOutType<O>;
-}
 
 /**
  * Spiral out from multiple rings (multiplexed spiral).

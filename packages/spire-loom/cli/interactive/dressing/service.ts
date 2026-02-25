@@ -394,7 +394,7 @@ export class DressingService {
     if (obj.inner?.layer !== undefined) return true;
     if (obj.inner?.core !== undefined) return true;
     
-    // Check for integration objects (AndroidSpiraler, DesktopSpiraler, etc.)
+    // Check for integration objects (RustAndroidSpiraler, DesktopSpiraler, etc.)
     if (obj.android?.innerRing !== undefined) return true;
     if (obj.desktop?.innerRing !== undefined) return true;
     if (obj.tauri?.innerRing !== undefined) return true;

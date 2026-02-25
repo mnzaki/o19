@@ -101,8 +101,11 @@ export function createTestRunner(config: TestRunnerConfig): TestRunner {
       try {
         // Run the weaver
         const weaverConfig: WeaverConfig = {
-          workspaceRoot: '/virtual/workspace',
-          loomDir: '/virtual/loom',
+          workspace: {
+            type: 'workspace',
+            root: '/virtual/workspace',
+            warpPath: '/virtual/loom/WARP.ts',
+          },
           verbose: config.verbose ?? false,
           ...config.weaverConfig,
         };

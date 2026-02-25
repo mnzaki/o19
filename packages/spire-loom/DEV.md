@@ -292,6 +292,201 @@ If we ever find ourselves needing complex parsing for the extension API, we shou
 
 ---
 
+## Adding a New Core Type
+
+To add support for a new language or core type (e.g., TypeScript, Go, Python), follow this fractal pattern:
+
+### 1. Create the External Layer
+
+**File**: `warp/{language}.ts`
+
+```typescript
+// Metadata symbols
+export const TS_CLASS_MARK = Symbol('typescript:class');
+
+// Configuration options
+export interface TsClassOptions {
+  packageName?: string;
+  packagePath?: string;
+}
+
+// Base external layer
+export class TsExternalLayer<T = any> extends ExternalLayer {
+  static isTsClass(target: unknown): boolean {
+    return typeof target === 'function' && (target as any)[TS_CLASS_MARK] === true;
+  }
+}
+
+// Decorators
+export function Class<T>(optionsOrTarget: TsClassOptions | T, context?: ClassDecoratorContext<T>): T {
+  // Implementation...
+}
+```
+
+### 2. Create the Core Ring
+
+**File**: `warp/spiral/{language}.ts`
+
+```typescript
+export class TsCore<Layer extends TsExternalLayer, StructClass = Layer> 
+  extends CoreRing<{ typescript: TypescriptSpiraler }, Layer, Layer & StructClass> {
+  
+  constructor(layer: Layer, options: { packageName?: string; packagePath?: string } = {}) {
+    // Derive metadata
+    const packageName = options.packageName || derivedName;
+    const metadata: RingPackageMetadata = {
+      packagePath: options.packagePath || `packages/${packageName}`,
+      packageName,
+      language: 'typescript'
+    };
+    
+    super(layer, layer as any, metadata);
+  }
+  
+  getSpiralers() {
+    return { typescript: new TypescriptSpiraler(this) };
+  }
+}
+
+export function tsCore(layer: TsExternalLayer, options?: { ... }): TsCore {
+  return new TsCore(layer, options);
+}
+```
+
+### 3. Wire Up the Spiral Function
+
+**File**: `warp/spiral/index.ts`
+
+Add overloads to the `spiral()` function:
+
+```typescript
+// For @typescript.Class decorated classes
+export function spiral<T>(structClass: T & { [TS_CLASS_MARK]?: true }): SpiralOutType<...>;
+
+// Implementation
+if (TsExternalLayer.isTsClass(ring)) {
+  const core = tsCore(ring as TsExternalLayer);
+  return spiralCore(core);
+}
+```
+
+### 4. Export from warp/index.ts
+
+**File**: `warp/index.ts`
+
+```typescript
+export * as typescript from './typescript.js';
+```
+
+### 5. Create Generator Functions
+
+**File**: `machinery/treadles/{language}-{concern}-generator.ts`
+
+The matrix pairs need generator functions. Create them using the declarative treadle API:
+
+```typescript
+import { TypescriptSpiraler } from '../../warp/spiral/spiralers/typescript.js';
+import { TsCore } from '../../warp/spiral/index.js';
+import { defineTreadle, generateFromTreadle } from '../treadle-kit/declarative.js';
+
+export const typescriptDDDTreadle = defineTreadle({
+  // Match (outerType, innerType) from the spiral graph
+  matches: [{ current: 'TypescriptSpiraler', previous: 'TsCore' }],
+
+  // Validation
+  validate: (current, previous) => {
+    if (!(current.ring instanceof TypescriptSpiraler)) return false;
+    if (!(previous.ring instanceof TsCore)) return false;
+    return true;
+  },
+
+  // Template data preparation
+  data: (_context, current, previous) => {
+    const core = previous.ring as TsCore;
+    const metadata = core.getMetadata();
+
+    return {
+      packageName: metadata.packageName,
+      packagePath: core.metadata?.packagePath,
+    };
+  },
+
+  // Output files
+  outputs: [
+    {
+      template: 'typescript/ports.ts.ejs',
+      path: '{packagePath}/src/ports.gen.ts',
+      language: 'typescript',
+    },
+  ],
+
+  hookup: { type: 'none' },
+});
+
+// Export the generator function
+export const generateTypescriptDDD = generateFromTreadle(typescriptDDDTreadle);
+```
+
+### 6. Register Generator Matrix Entries (CRITICAL!)
+
+**File**: `machinery/treadle-kit/discovery.ts`
+
+Import and register your generators:
+
+```typescript
+import { generateTypescriptDDD } from '../treadles/typescript-ddd-generator.js';
+
+export function createDefaultMatrix(): GeneratorMatrix {
+  const matrix = new GeneratorMatrix();
+
+  // Existing entries
+  matrix.setPair('RustAndroidSpiraler', 'RustCore', generateAndroidService);
+  matrix.setPair('TauriSpiraler', 'RustAndroidSpiraler', generateTauriPlugin);
+
+  // NEW: TypeScript core entry
+  matrix.setPair('TypescriptSpiraler', 'TsCore', generateTypescriptDDD);
+  
+  return matrix;
+}
+```
+
+**Without matrix entries**, your core will be created but NO CODE WILL BE GENERATED. The matrix is what drives the generation pipeline - it maps `(outerType, innerType)` pairs to generator functions.
+
+### Usage in WARP.ts
+
+```typescript
+import loom, { typescript } from '@o19/spire-loom';
+
+@typescript.Class
+export class DB {}
+
+export const prisma = loom.spiral(DB);
+```
+
+### The Fractal Pattern
+
+Notice how each language follows the same structure:
+
+```
+warp/
+  ├── rust.ts           # RustExternalLayer, RUST_STRUCT_MARK, decorators
+  ├── typescript.ts     # TsExternalLayer, TS_CLASS_MARK, decorators
+  └── spiral/
+        ├── rust.ts     # RustCore, rustCore()
+        ├── typescript.ts # TsCore, tsCore()
+        └── index.ts    # spiral() function with overloads
+```
+
+The complete pattern:
+1. **External Layer** - Base class + metadata symbols + decorators
+2. **Core Ring** - Extends CoreRing, provides spiralers, handles metadata  
+3. **Spiral Function** - Type overloads + runtime checks
+4. **Exports** - Namespaced export from warp/index.ts
+5. **Generator Functions** - Create treadle definitions with `defineTreadle()`
+6. **Matrix Registration** - Register `(outerType, innerType) → generator` pairs
+
+---
+
 ## Related Documents
 
 ### Architecture & Naming

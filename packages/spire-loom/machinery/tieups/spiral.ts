@@ -17,7 +17,7 @@
  * ```
  * warp/spiral/           ← Pure spiraling (rings, patterns, spiralers)
  *     └── spiralers/
- *         └── android.ts ← AndroidSpiraler (innocent of treadles)
+ *         └── android.ts ← RustAndroidSpiraler (innocent of treadles)
  *
  * machinery/
  *     ├── treadles/      ← The treadles (gen-android-service, etc.)
@@ -47,7 +47,7 @@ import type { SpiralRing } from '../../warp/spiral/pattern.js';
  * A method contributed by a treadle to a spiraler.
  */
 export interface SpiralerContribution<TOptions = unknown, TReturn = SpiralRing> {
-  /** The spiraler class name being extended (e.g., 'AndroidSpiraler') */
+  /** The spiraler class name being extended (e.g., 'RustAndroidSpiraler') */
   spiraler: string;
 
   /** The method name being contributed (e.g., 'foregroundService') */
@@ -76,10 +76,10 @@ export interface SpiralerContribution<TOptions = unknown, TReturn = SpiralRing> 
  * export const treadle = defineTreadle({...});
  *
  * export const contributes = defineSpiralerContribution({
- *   spiraler: 'AndroidSpiraler',
+ *   spiraler: 'RustAndroidSpiraler',
  *   method: 'foregroundService',
  *   optionsType: 'ForegroundServiceOptions',
- *   returnType: 'AndroidSpiraler',
+ *   returnType: 'RustAndroidSpiraler',
  *   description: 'Wrap the core with an Android foreground service'
  * });
  * ```
@@ -105,8 +105,8 @@ export function defineSpiralerContribution<TOptions = unknown, TReturn = SpiralR
  * // In loom/treadles/gen-android-foreground-service.ts
  * declare module '@o19/spire-loom/machinery/tieups/spiral' {
  *   interface SpiralerExtensionRegistry {
- *     AndroidSpiraler: {
- *       foregroundService(options?: ForegroundServiceOptions): AndroidSpiraler;
+ *     RustAndroidSpiraler: {
+ *       foregroundService(options?: ForegroundServiceOptions): RustAndroidSpiraler;
  *     };
  *   }
  * }
@@ -122,7 +122,7 @@ export interface SpiralerExtensionRegistry {
  * Usage in spiraler classes:
  * ```typescript
  * // warp/spiral/spiralers/android.ts
- * interface AndroidSpiraler extends SpiralerExtensions<'AndroidSpiraler'> {}
+ * interface RustAndroidSpiraler extends SpiralerExtensions<'RustAndroidSpiraler'> {}
  * ```
  */
 export type SpiralerExtensions<TSpiraler extends keyof SpiralerExtensionRegistry> =

@@ -12,7 +12,7 @@
  *     });
  */
 
-import type { TreadleContext, TreadleResult } from '@o19/spire-loom/machinery/treadles';
+import type { TreadleContext, TreadleResult } from '@o19/spire-loom';
 
 /**
  * Configuration for DbBindingTreadle

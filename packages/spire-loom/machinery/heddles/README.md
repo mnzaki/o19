@@ -31,7 +31,7 @@ The spiral creates a tree/graph structure:
 WARP.ts exports
     │
     ├──► foundframe (SpiralOut wrapping RustCore)
-    │       └──► android (AndroidSpiraler)
+    │       └──► android (RustAndroidSpiraler)
     │       │       └──► RustCore
     │       └──► desktop (DesktopSpiraler)
     │               └──► RustCore
@@ -54,12 +54,12 @@ const tauri = loom.spiral(android, desktop).tauri.plugin();
 ```
 
 **Edges created:**
-1. `TauriSpiraler → AndroidSpiraler` (for Android platform files)
+1. `TauriSpiraler → RustAndroidSpiraler` (for Android platform files)
 2. `TauriSpiraler → DesktopSpiraler` (for Desktop platform files)
 3. `SpiralOut → TauriSpiraler` (via getEffectiveTypeName)
 
 **Matrix matches:**
-- `(TauriSpiraler, AndroidSpiraler) → generateTauriPlugin`
+- `(TauriSpiraler, RustAndroidSpiraler) → generateTauriPlugin`
 - `(TauriSpiraler, DesktopSpiraler) → generateTauriPlugin`
 
 Each edge triggers generation of platform-specific adapter code.
@@ -97,15 +97,15 @@ The `getEffectiveTypeName()` function determines what type name to use for matri
 | `Spiraler` | - | Constructor name |
 | `MuxSpiraler` | - | Constructor name |
 
-This allows matching against `AndroidSpiraler` instead of generic `SpiralOut`.
+This allows matching against `RustAndroidSpiraler` instead of generic `SpiralOut`.
 
 ## Generator Matrix
 
 The matrix maps type pairs to generator functions:
 
 ```typescript
-matrix.setPair('AndroidSpiraler', 'RustCore', generateAndroidService);
-matrix.setPair('TauriSpiraler', 'AndroidSpiraler', generateTauriPlugin);
+matrix.setPair('RustAndroidSpiraler', 'RustCore', generateAndroidService);
+matrix.setPair('TauriSpiraler', 'RustAndroidSpiraler', generateTauriPlugin);
 matrix.setPair('TauriSpiraler', 'DesktopSpiraler', generateTauriPlugin);
 ```
 
@@ -115,11 +115,11 @@ The plan has `_isComplete: boolean` to prevent premature access:
 
 ```typescript
 // ❌ DON'T do this during heddles phase
-plan.nodesByType.get('AndroidSpiraler'); // May be incomplete!
+plan.nodesByType.get('RustAndroidSpiraler'); // May be incomplete!
 
 // ✅ SAFE during weaving phase
 ensurePlanComplete(plan, 'access nodesByType');
-plan.nodesByType.get('AndroidSpiraler'); // Guaranteed complete
+plan.nodesByType.get('RustAndroidSpiraler'); // Guaranteed complete
 ```
 
 ## Directory Structure

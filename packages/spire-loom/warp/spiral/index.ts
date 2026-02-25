@@ -16,110 +16,16 @@ import * as p from './pattern.js';
 import type * as i from './pattern.js';
 import { ExternalLayer } from '../imprint.js';
 import { RustExternalLayer, RUST_STRUCT_MARK } from '../rust.js';
+import { TsExternalLayer, TS_CLASS_MARK } from '../typescript.js';
+import { RustCore, rustCore } from './rust.js';
+import { TsCore, tsCore } from './typescript.js';
 
+// Re-export Rust and TypeScript spiral implementations
 export * from './pattern.js';
 export * from './operation-mux.js';
 export * from './spiralers/index.js';
-
-// import type { MgmtTranslator } from '../imprint.js';
-
-/**
- * Core Ring Implementations
- *
- * Concrete implementations of SpiralRing for different core types.
- */
-
-export interface RustCoreMetadata {
-  language: 'rust';
-  packageName: string;
-  crateName: string;
-}
-
-/**
- * Rust Core implementation.
- * The standard core for o19-foundframe.
- *
- * Usage:
- *   new RustCore(Foundframe)  // layer first, then options
- *   new RustCore(Foundframe, { packageName: 'foundframe' })
- */
-export class RustCore<
-  Layer extends RustExternalLayer = RustExternalLayer,
-  StructClass = Layer
-> extends p.CoreRing<
-  {
-    android: spiralers.AndroidSpiraler;
-    desktop: spiralers.DesktopSpiraler;
-  },
-  Layer,
-  Layer & StructClass
-> {
-  declare core: Layer & StructClass;
-
-  constructor(
-    layer: Layer,
-    public options: {
-      packageName?: string;
-      crateName?: string;
-      packagePath?: string;  // Path to the crate directory
-    } = {}
-  ) {
-    // Derive metadata
-    const layerName = (layer as any)?.name || (layer?.constructor as any)?.name || 'unknown';
-    const derivedName = layerName.charAt(0).toLowerCase() + layerName.slice(1);
-    const packageName = options.packageName || derivedName;
-    const crateName = options.crateName || `o19-${derivedName}`;
-    
-    // Build RingPackageMetadata
-    // Default path is relative to workspace root: crates/{crateName}
-    // (without the o19- prefix since that's the workspace member name)
-    const defaultCratePath = `crates/${packageName}`;
-    const metadata: p.RingPackageMetadata = {
-      packagePath: options.packagePath || defaultCratePath,
-      packageName,
-      language: 'rust'
-    };
-    
-    super(layer, layer as any, metadata); // layer is both the layer and the core data
-  }
-
-  getSpiralers() {
-    return {
-      android: new spiralers.AndroidSpiraler(this),
-      desktop: new spiralers.DesktopSpiraler(this)
-      // Note: tauri is NOT here - it's added via multiplexed spiral
-    };
-  }
-
-  getMetadata(): RustCoreMetadata {
-    // Derive from layer class name if not provided in options
-    const layerName =
-      (this.layer as any)?.name || (this.layer?.constructor as any)?.name || 'unknown';
-
-    // Convert class name to package name (e.g., Foundframe -> foundframe)
-    const derivedName = layerName.charAt(0).toLowerCase() + layerName.slice(1);
-
-    const packageName = this.options.packageName || derivedName;
-    const crateName = this.options.crateName || `o19-${derivedName}`;
-
-    return {
-      language: 'rust',
-      packageName,
-      crateName
-    };
-  }
-}
-
-/**
- * Factory function for creating a Rust core.
- * Usage: loom.spiral(loom.rustCore(Foundframe))
- */
-export function rustCore(
-  layer: RustExternalLayer,
-  options?: { packageName?: string; crateName?: string }
-): RustCore {
-  return new RustCore(layer, options);
-}
+export { RustCore, rustCore } from './rust.js';
+export { TsCore, tsCore } from './typescript.js';
 
 // ============================================================================
 // Spiral Functions
@@ -127,7 +33,7 @@ export function rustCore(
 
 /**
  * Create a core spiral (the first ring in any spiral architecture).
- * The core provides spiralers that know how to wrap it.
+ * The core provides its spiralers via getSpiralers().
  *
  * Usage:
  *   const foundframe = loom.spiral(loom.rustCore());
@@ -137,7 +43,10 @@ export function rustCore(
 export function spiralCore<S extends Partial<i.Spiralers>>(
   core: i.CoreRing<S>
 ): i.SpiralOutType<S> {
-  return p.spiralOut(core, core.getSpiralers()) as i.SpiralOutType<S>;
+  // Get spiralers from the core and create SpiralOut directly
+  // (no parent spiraler when starting from a core)
+  const spiralers = core.getSpiralers();
+  return new p.SpiralOut(core, 'core', spiralers) as i.SpiralOutType<S>;
 }
 
 /**
@@ -154,7 +63,7 @@ export function spiralCore<S extends Partial<i.Spiralers>>(
 export function spiral<T extends new (...args: any[]) => any>(
   structClass: T & { [RUST_STRUCT_MARK]?: true }
 ): i.SpiralOutType<
-  { android: spiralers.AndroidSpiraler; desktop: spiralers.DesktopSpiraler },
+  { android: spiralers.RustAndroidSpiraler; desktop: spiralers.DesktopSpiraler },
   RustCore<InstanceType<T>, T>
 >;
 
@@ -165,7 +74,7 @@ export function spiral<T extends new (...args: any[]) => any>(
 export function spiral<T extends new (...args: any[]) => any>(
   core: T
 ): p.SpiralOutType<
-  { android: spiralers.AndroidSpiraler; desktop: spiralers.DesktopSpiraler },
+  { android: spiralers.RustAndroidSpiraler; desktop: spiralers.DesktopSpiraler },
   RustCore<InstanceType<T>, T>
 >;
 
@@ -176,6 +85,27 @@ export function spiral<T extends new (...args: any[]) => any>(
  *   const foundframe = spiral(myCustomCore());
  */
 export function spiral(core: ExternalLayer): i.SpiralOutType;
+
+/**
+ * Create a spiral from a @typescript.Class decorated class.
+ * For TypeScript cores like Prisma database interfaces.
+ *
+ * Usage:
+ *   @typescript.Class
+ *   class DB { ... }
+ *   const prisma = spiral(DB);
+ *   // prisma.typescript.ddd()
+ */
+export function spiral<T extends new (...args: any[]) => any>(
+  structClass: T & { [TS_CLASS_MARK]?: true }
+): i.SpiralOutType<{ typescript: spiralers.TypescriptSpiraler }, TsCore<InstanceType<T>, T>>;
+
+/**
+ * Create a spiral from a TsExternalLayer (e.g., a @typescript.Class class).
+ */
+export function spiral<T extends new (...args: any[]) => any>(
+  core: T
+): p.SpiralOutType<{ typescript: spiralers.TypescriptSpiraler }, TsCore<InstanceType<T>, T>>;
 
 /**
  * Create a multiplexed spiral wrapping multiple rings.
@@ -200,12 +130,22 @@ export function spiral(...innerRings: unknown[]) {
       // ring is a class constructor decorated with @rust.Struct
       const core = rustCore(ring as unknown as RustExternalLayer);
       return spiralCore(core);
+    } else if (RustExternalLayer.isRustStruct(ring)) {
+      const core = rustCore(ring as unknown as RustExternalLayer);
+      return spiralCore(core);
+    } else if (TsExternalLayer.isTsClass(ring)) {
+      // ring is a class constructor decorated with @typescript.Class
+      const core = tsCore(ring as unknown as TsExternalLayer);
+      return spiralCore(core);
     } else if (ring instanceof RustExternalLayer) {
       const core = rustCore(ring);
       return spiralCore(core);
+    } else if (ring instanceof TsExternalLayer) {
+      const core = tsCore(ring);
+      return spiralCore(core);
     } else {
       throw new Error(
-        `Cannot spiral from ${typeof ring}: ${ring?.constructor?.name || ring}. Expected CoreRing, SpiralRing, or @rust.Struct class.`
+        `Cannot spiral from ${typeof ring}: ${ring?.constructor?.name || ring}. Expected CoreRing, SpiralRing, or @rust.Struct/@typescript.Class class.`
       );
     }
   }
@@ -218,8 +158,60 @@ export function spiral(...innerRings: unknown[]) {
   return mux;
 }
 
-spiral.rust = {
-  core: rustCore
-};
+/**
+ * Create a base spiraler factory.
+ *
+ * This creates a factory object where each method:
+ * 1. Creates a default core
+ * 2. Creates the spiraler with that core
+ * 3. Calls the spiraler's method and returns the result
+ *
+ * @param createCore - Function to create the default core
+ * @param SpiralerClass - The Spiraler class to instantiate
+ * @returns Factory object with wrapped methods
+ */
+function createBaseSpiralerFactory<S extends spiralers.Spiraler>(
+  createCore: () => i.SpiralRing,
+  SpiralerClass: new (innerRing: i.SpiralRing) => S
+): { [K in keyof S]: S[K] extends (...args: any[]) => any ? S[K] : never } & {
+  core: () => i.SpiralRing;
+} {
+  const factory: any = {
+    core: createCore
+  };
+
+  // Get method names from Spiraler class prototype
+  const methodNames = Object.getOwnPropertyNames(SpiralerClass.prototype).filter(
+    (name) => name !== 'constructor' && typeof SpiralerClass.prototype[name] === 'function'
+  );
+
+  // Wrap each method
+  for (const methodName of methodNames) {
+    factory[methodName] = function (...args: any[]) {
+      const core = createCore();
+      const spiraler = new SpiralerClass(core);
+      return (spiraler as any)[methodName](...args);
+    };
+  }
+
+  return factory;
+}
+
+// Create factories for Rust and TypeScript
+// Base spiraler factories attached to spiral function
+export namespace spiral {
+  export const rust = createBaseSpiralerFactory(
+    () => rustCore(new RustExternalLayer()),
+    spiralers.RustSpiraler
+  );
+  export const typescript = createBaseSpiralerFactory(
+    () => tsCore(new TsExternalLayer()),
+    spiralers.TypescriptSpiraler
+  );
+  export const tauri = createBaseSpiralerFactory(
+    () => rustCore(new RustExternalLayer()),
+    spiralers.TauriSpiraler
+  );
+}
 
 export default spiral;

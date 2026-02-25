@@ -44,7 +44,7 @@ export interface DiscoveredTreadle {
  * When a treadle is discovered, it can extend a spiraler with new methods.
  */
 export interface SpiralerContribution {
-  /** The spiraler to extend (e.g., 'AndroidSpiraler') */
+  /** The spiraler to extend (e.g., 'RustAndroidSpiraler') */
   spiraler: string;
   /** The method name being contributed (e.g., 'foregroundService') */
   method: string;
@@ -146,6 +146,7 @@ function isTreadleDefinition(value: unknown): value is TreadleDefinition {
 
 import { generateAndroidService } from '../treadles/android-generator.js';
 import { generateTauriPlugin } from '../treadles/tauri-generator.js';
+import { generateTypescriptDDD } from '../treadles/typescript-ddd-generator.js';
 
 /**
  * Create the default generator matrix with built-in treadles.
@@ -153,9 +154,12 @@ import { generateTauriPlugin } from '../treadles/tauri-generator.js';
 export function createDefaultMatrix(): GeneratorMatrix {
   const matrix = new GeneratorMatrix();
 
-  matrix.setPair('AndroidSpiraler', 'RustCore', generateAndroidService);
-  matrix.setPair('TauriSpiraler', 'AndroidSpiraler', generateTauriPlugin);
-  matrix.setPair('TauriSpiraler', 'DesktopSpiraler', generateTauriPlugin);
+  matrix.setPair('RustAndroidSpiraler.foregroundService', 'RustCore', generateAndroidService);
+  matrix.setPair('TauriSpiraler.plugin', 'RustAndroidSpiraler.foregroundService', generateTauriPlugin);
+  matrix.setPair('TauriSpiraler.plugin', 'DesktopSpiraler.direct', generateTauriPlugin);
+  
+  // TypeScript generators
+  matrix.setPair('TypescriptSpiraler.ddd', 'TsCore', generateTypescriptDDD);
 
   return matrix;
 }

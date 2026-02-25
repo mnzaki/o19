@@ -1,5 +1,5 @@
-import { Spiraler, SpiralRing, spiralOut } from '../pattern.js';
-import type { CrudFilter } from '../../crud.js';
+import { Spiraler, SpiralRing } from '../../../pattern.js';
+import type { CrudFilter } from '../../../../crud.js';
 
 /**
  * DDDTypescriptSpiraler - Domain-Driven Design TypeScript layer.
@@ -43,7 +43,7 @@ export class DDDTypescriptSpiraler extends Spiraler {
 
     // The adaptor implementation ring
     // This generates Drizzle ORM implementations of the Ports
-    return spiralOut(this, {
+    return this.spiralOut('drizzle_adaptors', {
       drizzle: new DrizzleAdaptorSpiraler(this, filter)
     });
   }
@@ -67,6 +67,6 @@ export class DrizzleAdaptorSpiraler extends Spiraler {
    * Generate the Drizzle schema from domain entities.
    */
   schema() {
-    return spiralOut(this, {});
+    return this.spiralOut('schema', {});
   }
 }

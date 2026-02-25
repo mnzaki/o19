@@ -84,13 +84,33 @@ export function detectWorkspace(cwd: string = process.cwd()): WorkspaceInfo {
   return { type: 'unknown', root: cwd };
 }
 
+import { Layer } from '../../warp/layers.js';
+
 /**
  * Load WARP.ts module dynamically.
+ * 
+ * Also sets the `.name` property on all Layer instances to their export name,
+ * ensuring consistent metadata derivation across Rust and TypeScript layers.
+ * 
+ * Note: If a layer already has a custom .name set in WARP.ts, it is preserved.
  */
 export async function loadWarp(warpPath: string): Promise<Record<string, any>> {
   const { pathToFileURL } = await import('node:url');
   const warpUrl = pathToFileURL(warpPath).href;
-  return await import(warpUrl);
+  const warp = await import(warpUrl);
+  
+  // Set .name on all Layer instances to their export name
+  // BUT only if not already explicitly set (allows WARP.ts to override)
+  for (const [exportName, value] of Object.entries(warp)) {
+    if (value instanceof Layer) {
+      // Only set if .name is undefined (not explicitly set in WARP.ts)
+      if (value.name === undefined) {
+        value.name = exportName;
+      }
+    }
+  }
+  
+  return warp;
 }
 
 /**

@@ -4,12 +4,16 @@
  * Generates TypeScript Kysely adaptor implementations for foundframe-front ports.
  * Uses Prisma-generated types from foundframe-front/src/db/types.ts
  *
- * Usage in WARP.ts (future):
- *   const front = tauri.typescript.ddd()
- *     .tieup.intra(kyselyAdaptorTreadle, {
- *       entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
- *       operations: ['create', 'read', 'update', 'delete', 'list'],
- *     });
+ * Usage in WARP.ts:
+ *   const front = loom.spiral.typescript.ddd().tieup({
+ *     treadles: [{
+ *       treadle: kyselyAdaptorTreadle,
+ *       warpData: {
+ *         entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+ *         operations: ['create', 'read', 'update', 'delete', 'list'],
+ *       }
+ *     }]
+ *   });
  */
 
 import type { TreadleContext, TreadleResult } from '@o19/spire-loom/machinery/treadles';
@@ -22,71 +26,69 @@ export interface KyselyAdaptorConfig {
   entities: string[];
   /** CRUD operations to support */
   operations: ('create' | 'read' | 'update' | 'delete' | 'list')[];
-  /** Path to foundframe-front package (relative to workspace root) */
-  frontPackagePath?: string;
 }
 
 /**
  * Custom treadle definition for Kysely adaptor generation
  */
 export const kyselyAdaptorTreadle = async (context: TreadleContext): Promise<TreadleResult> => {
-  const { config, utils } = context;
+  const { config, utils, packagePath } = context;
   const kyselyConfig = config as KyselyAdaptorConfig;
-  
+
   const generatedFiles: string[] = [];
   const modifiedFiles: string[] = [];
   const errors: string[] = [];
-  
-  const frontPath = kyselyConfig.frontPackagePath || 'packages/foundframe-front';
-  const adaptorsPath = `${frontPath}/src/adaptors/gen`;
-  
+
+  // Use the packagePath from context (provided by weaver based on layer metadata)
+  // This ensures files are written to the correct target layer's package
+  const adaptorsPath = `src/adaptors/gen`;
+
   // Ensure adaptors directory exists
   await utils.writeFile(`${adaptorsPath}/.gitkeep`, '');
-  
+
   // Generate for each entity
   for (const entity of kyselyConfig.entities) {
     try {
       const entityLower = entity.toLowerCase();
       const entityPascal = entity.charAt(0).toUpperCase() + entity.slice(1);
-      
+
       // Generate Kysely adaptor: src/adaptors/gen/{entity}.adaptor.gen.ts
       const adaptorCode = generateKyselyAdaptor(entityPascal, entityLower, kyselyConfig.operations);
       const adaptorPath = `${adaptorsPath}/${entityLower}.adaptor.gen.ts`;
-      
+
       await utils.writeFile(adaptorPath, adaptorCode);
       generatedFiles.push(adaptorPath);
-      
     } catch (e) {
       errors.push(`Failed to generate ${entity} adaptor: ${e}`);
     }
   }
-  
+
   // Generate index file that exports all adaptors
   try {
     const indexCode = generateAdaptorIndex(kyselyConfig.entities);
     const indexPath = `${adaptorsPath}/index.gen.ts`;
-    
+
     await utils.writeFile(indexPath, indexCode);
     generatedFiles.push(indexPath);
   } catch (e) {
     errors.push(`Failed to generate index: ${e}`);
   }
-  
+
   // Generate factory function for creating all adaptors
   try {
     const factoryCode = generateAdaptorFactory(kyselyConfig.entities);
     const factoryPath = `${adaptorsPath}/factory.gen.ts`;
-    
+
     await utils.writeFile(factoryPath, factoryCode);
     generatedFiles.push(factoryPath);
   } catch (e) {
     errors.push(`Failed to generate factory: ${e}`);
   }
-  
+
   return {
     generatedFiles,
     modifiedFiles,
-    errors: errors.length > 0 ? errors : undefined,
+    errors: errors.length > 0 ? errors : undefined
   };
 };
 
@@ -100,7 +102,7 @@ function generateKyselyAdaptor(
 ): string {
   const imports = generateAdaptorImports(entityPascal, entityLower);
   const classDeclaration = generateAdaptorClass(entityPascal, entityLower, operations);
-  
+
   return `${imports}
 
 ${classDeclaration}
@@ -137,34 +139,34 @@ function generateAdaptorClass(
   operations: string[]
 ): string {
   const methods: string[] = [];
-  
+
   if (operations.includes('create')) {
     methods.push(generateCreateMethod(entityPascal, entityLower));
   }
-  
+
   if (operations.includes('read')) {
     methods.push(generateGetByIdMethod(entityPascal, entityLower));
     methods.push(generateGetByUrlMethod(entityPascal, entityLower));
   }
-  
+
   if (operations.includes('list')) {
     methods.push(generateListMethod(entityPascal, entityLower));
   }
-  
+
   if (operations.includes('update')) {
     methods.push(generateUpdateMethod(entityPascal, entityLower));
   }
-  
+
   if (operations.includes('delete')) {
     methods.push(generateDeleteMethod(entityPascal, entityLower));
   }
-  
+
   // Add utility methods
   methods.push(generateToDomainMethod(entityPascal, entityLower));
   methods.push(generateToDbMethod(entityPascal, entityLower));
-  
+
   const methodCode = methods.join('\n\n');
-  
+
   return `/**
  * Kysely implementation of ${entityPascal}Port
  * 
@@ -338,12 +340,14 @@ function generateToDbMethod(entityPascal: string, entityLower: string): string {
  * Generate index file exporting all adaptors
  */
 function generateAdaptorIndex(entities: string[]): string {
-  const exports = entities.map(e => {
-    const lower = e.toLowerCase();
-    const pascal = e.charAt(0).toUpperCase() + e.slice(1);
-    return `export { Kysely${pascal}Adaptor } from './${lower}.adaptor.gen.js';`;
-  }).join('\n');
-  
+  const exports = entities
+    .map((e) => {
+      const lower = e.toLowerCase();
+      const pascal = e.charAt(0).toUpperCase() + e.slice(1);
+      return `export { Kysely${pascal}Adaptor } from './${lower}.adaptor.gen.js';`;
+    })
+    .join('\n');
+
   return `// GENERATED BY KyselyAdaptorTreadle - Do not edit
 // Export all Kysely adaptor implementations
 
@@ -355,23 +359,29 @@ ${exports}
  * Generate factory function for creating all adaptors
  */
 function generateAdaptorFactory(entities: string[]): string {
-  const imports = entities.map(e => {
-    const lower = e.toLowerCase();
-    const pascal = e.charAt(0).toUpperCase() + e.slice(1);
-    return `import { Kysely${pascal}Adaptor } from './${lower}.adaptor.gen.js';`;
-  }).join('\n');
-  
-  const portTypes = entities.map(e => {
-    const pascal = e.charAt(0).toUpperCase() + e.slice(1);
-    return `  ${pascal.toLowerCase()}: ${pascal}Port;`;
-  }).join('\n');
-  
-  const adaptorCreates = entities.map(e => {
-    const lower = e.toLowerCase();
-    const pascal = e.charAt(0).toUpperCase() + e.slice(1);
-    return `    ${lower}: new Kysely${pascal}Adaptor(db),`;
-  }).join('\n');
-  
+  const imports = entities
+    .map((e) => {
+      const lower = e.toLowerCase();
+      const pascal = e.charAt(0).toUpperCase() + e.slice(1);
+      return `import { Kysely${pascal}Adaptor } from './${lower}.adaptor.gen.js';`;
+    })
+    .join('\n');
+
+  const portTypes = entities
+    .map((e) => {
+      const pascal = e.charAt(0).toUpperCase() + e.slice(1);
+      return `  ${pascal.toLowerCase()}: ${pascal}Port;`;
+    })
+    .join('\n');
+
+  const adaptorCreates = entities
+    .map((e) => {
+      const lower = e.toLowerCase();
+      const pascal = e.charAt(0).toUpperCase() + e.slice(1);
+      return `    ${lower}: new Kysely${pascal}Adaptor(db),`;
+    })
+    .join('\n');
+
   return `// GENERATED BY KyselyAdaptorTreadle - Do not edit
 // Factory function for creating all Kysely adaptors
 
@@ -381,7 +391,7 @@ ${imports}
 
 // Import port types
 import type {
-${entities.map(e => `  ${e.charAt(0).toUpperCase() + e.slice(1)}Port,`).join('\n')}
+${entities.map((e) => `  ${e.charAt(0).toUpperCase() + e.slice(1)}Port,`).join('\n')}
 } from '../ports/index.js';
 
 /**
@@ -419,7 +429,7 @@ ${adaptorCreates}
  * Convenience export for single adaptor creation
  */
 export {
-${entities.map(e => `  Kysely${e.charAt(0).toUpperCase() + e.slice(1)}Adaptor,`).join('\n')}
+${entities.map((e) => `  Kysely${e.charAt(0).toUpperCase() + e.slice(1)}Adaptor,`).join('\n')}
 };
 `;
 }
@@ -429,7 +439,10 @@ ${entities.map(e => `  Kysely${e.charAt(0).toUpperCase() + e.slice(1)}Adaptor,`)
  */
 function indent(code: string, spaces: number): string {
   const indentStr = ' '.repeat(spaces);
-  return code.split('\n').map(line => line ? indentStr + line : line).join('\n');
+  return code
+    .split('\n')
+    .map((line) => (line ? indentStr + line : line))
+    .join('\n');
 }
 
 // Type export for use in WARP.ts

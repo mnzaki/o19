@@ -82,10 +82,10 @@ import { defineTreadle, generateFromTreadle } from '@o19/spire-loom/machinery/tr
 
 export const myTreadle = defineTreadle({
   // When does this run?
-  matches: [{ current: 'AndroidSpiraler', previous: 'RustCore' }],
+  matches: [{ current: 'RustAndroidSpiraler', previous: 'RustCore' }],
   
   // Extra validation
-  validate: (current, previous) => current.ring instanceof AndroidSpiraler,
+  validate: (current, previous) => current.ring instanceof RustAndroidSpiraler,
   
   // Method collection
   methods: {
@@ -98,7 +98,7 @@ export const myTreadle = defineTreadle({
   
   // Template data
   data: (context, current, previous) => ({
-    packageName: (current.ring as AndroidSpiraler).getGradleNamespace('foundframe')
+    packageName: (current.ring as RustAndroidSpiraler).getGradleNamespace('foundframe')
   }),
   
   // Output files
@@ -126,7 +126,7 @@ For platform wrappers that follow the common pattern (wrap RustCore, expose Mana
 import { definePlatformWrapperTreadle } from '@o19/spire-loom/machinery/treadle-kit';
 
 export const genAndroidForegroundService = definePlatformWrapperTreadle({
-  platform: { name: 'Android', spiraler: 'AndroidSpiraler' },
+  platform: { name: 'Android', spiraler: 'RustAndroidSpiraler' },
   wrapperType: 'foreground-service',
   
   methods: {
@@ -272,8 +272,8 @@ The [heddles](machinery/heddles/) match spiral patterns to generators:
 
 ```typescript
 // Generator Matrix maps (current, previous) → generator
-matrix.setPair('AndroidSpiraler', 'RustCore', generateAndroidService);
-matrix.setPair('TauriSpiraler', 'AndroidSpiraler', generateTauriPlugin);
+matrix.setPair('RustAndroidSpiraler', 'RustCore', generateAndroidService);
+matrix.setPair('TauriSpiraler', 'RustAndroidSpiraler', generateTauriPlugin);
 matrix.setPair('TauriSpiraler', 'DesktopSpiraler', generateTauriPlugin);
 ```
 
@@ -310,10 +310,10 @@ Treadles can contribute methods to spiralers via the **tie-up** layer:
 export const treadle = defineTreadle({...});
 
 export const contributes = defineSpiralerContribution({
-  spiraler: 'AndroidSpiraler',
+  spiraler: 'RustAndroidSpiraler',
   method: 'foregroundService',
   optionsType: 'ForegroundServiceOptions',
-  returnType: 'AndroidSpiraler'
+  returnType: 'RustAndroidSpiraler'
 });
 ```
 

@@ -13,9 +13,10 @@
  * This file defines the foundframe architecture using the loom DSL.
  */
 
-import loom, { rust } from '@o19/spire-loom';
+import loom, { typescript, rust } from '@o19/spire-loom';
 import { dbBindingTreadle } from './treadles/dbbindings.js';
 import { kyselyAdaptorTreadle } from './treadles/kysely-adaptor.js';
+import { tauriAdaptorTreadle } from './treadles/tauri-adaptor.js';
 
 // ============================================================================
 // CORE
@@ -48,11 +49,15 @@ export class Foundframe {
  * With DbActor bindings via custom treadle.
  */
 export const foundframe = loom.spiral(Foundframe).tieup({
-  treadles: [dbBindingTreadle],
-  warpData: {
-    entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
-    operations: ['create', 'read', 'update', 'delete', 'list']
-  }
+  treadles: [
+    {
+      treadle: dbBindingTreadle,
+      warpData: {
+        entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+        operations: ['create', 'read', 'update', 'delete', 'list']
+      }
+    }
+  ]
 });
 
 // ============================================================================
@@ -75,6 +80,7 @@ export const android = foundframe.android.foregroundService({
   nameAffix: 'radicle',
   gradleNamespace: 'ty.circulari.o19'
 });
+android.name = 'foundframe-android';
 
 /**
  * Desktop Ring - direct calls to Core
@@ -109,7 +115,7 @@ export const desktop = foundframe.desktop.direct();
 export const tauri = loom.spiral(android, desktop).tauri.plugin({
   ddd: {
     adaptors: {
-      filterOut: ['crud:read']
+      filterOut: ['crud:read', 'crud:list']
     }
     /*
     translators: {
@@ -120,10 +126,13 @@ export const tauri = loom.spiral(android, desktop).tauri.plugin({
     */
   }
 });
+tauri.name = 'foundframe-tauri';
 
 // ============================================================================
 // FRONT RINGS (spiral out from Tauri)
 // ============================================================================
+
+//export const prisma = loom.spiral.typescript.prisma();
 
 /**
  * Front Ring - TypeScript domain layer
@@ -132,16 +141,33 @@ export const tauri = loom.spiral(android, desktop).tauri.plugin({
  *
  * Generates TypeScript domain types and Port interfaces
  * from Management Imprints.
- * 
+ *
  * With Kysely adaptor implementations via custom treadle.
  */
-export const front = tauri.typescript.ddd().tieup({
-  treadles: [kyselyAdaptorTreadle],
-  warpData: {
-    entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
-    operations: ['create', 'read', 'update', 'delete', 'list']
-  }
+export const front = loom.spiral.typescript.ddd().tieup({
+  treadles: [
+    {
+      treadle: kyselyAdaptorTreadle,
+      warpData: {
+        entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+        operations: ['read', 'list']
+      }
+    }
+  ]
 });
+front.name = 'foundframe-front';
+
+//.tieup(tauri, {
+//  treadles: [
+//    {
+//      treadle: tauriAdaptorTreadle,
+//      warpData: {
+//        entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+//        operations: ['create', 'update', 'delete']
+//      }
+//    }
+//  ]
+//});
 
 /**
  * Drizzle Adaptor Ring - ORM implementation of Ports
@@ -153,7 +179,7 @@ export const front = tauri.typescript.ddd().tieup({
  * for this adaptor (can be combined with other adaptors
  * for full CRUD).
  */
-export const drizzle = front.typescript.drizzle_adaptors({ filter: ['read'] });
+//export const drizzle = front.typescript.drizzle_adaptors({ filter: ['read'] });
 
 /**
  * MyTauriApp - Example application
@@ -163,7 +189,7 @@ export const drizzle = front.typescript.drizzle_adaptors({ filter: ['read'] });
  * The example application demonstrating the stack.
  * This is an app that wraps the front layer.
  */
-export const myTauriApp = front.tauri.app({ adaptorOverrides: [drizzle] });
+//export const myTauriApp = front.tauri.app({ adaptorOverrides: [drizzle] });
 
 // ============================================================================
 // FUTURE RINGS

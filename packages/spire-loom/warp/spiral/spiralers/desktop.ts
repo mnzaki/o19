@@ -1,4 +1,4 @@
-import { Spiraler, SpiralRing, spiralOut } from '../pattern.js';
+import { Spiraler, SpiralRing } from '../pattern.js';
 
 /**
  * DesktopSpiraler - Direct calls to Core (no IPC).
@@ -14,6 +14,6 @@ export class DesktopSpiraler extends Spiraler {
    * Desktop apps call foundframe directly.
    */
   direct() {
-    return spiralOut(this, {});
+    return this.spiralOut('direct', {});
   }
 }

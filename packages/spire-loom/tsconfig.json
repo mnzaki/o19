@@ -2,16 +2,12 @@
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
     "rootDir": ".",
-    "outDir": "./dist",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "outDir": "./dist"
+    // Stage 3 decorators - no experimental flags needed
   },
   "include": [
     "warp/**/*",
     "machinery/**/*",
-    "cli.ts"
-  ],
-  "exclude": [
     "cli/**/*"
   ]
 }

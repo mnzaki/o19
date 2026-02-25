@@ -59,7 +59,7 @@ Define your treadle as configuration:
 
 ```typescript
 export const androidServiceTreadle = defineTreadle({
-  matches: [{ current: 'AndroidSpiraler', previous: 'RustCore' }],
+  matches: [{ current: 'RustAndroidSpiraler', previous: 'RustCore' }],
   methods: {
     filter: 'platform',
     pipeline: [addManagementPrefix]
@@ -202,15 +202,15 @@ The **tie-up** layer (`machinery/tieups/spiral.ts`) connects treadles to spirale
 ```
 Treadle (gen-android-foreground-service)
     │
-    ├── defines: matches (AndroidSpiraler, RustCore)
+    ├── defines: matches (RustAndroidSpiraler, RustCore)
     ├── defines: outputs (service.kt, aidl, jni)
-    └── contributes: foregroundService() method → AndroidSpiraler
+    └── contributes: foregroundService() method → RustAndroidSpiraler
                              │
                              ▼
                     Tie-Up Layer (machinery/tieups/spiral.ts)
                              │
                              ▼
-                    AndroidSpiraler gains foregroundService() method
+                    RustAndroidSpiraler gains foregroundService() method
                              │
                              ▼
                     TypeScript knows the method exists!
@@ -228,10 +228,10 @@ import { defineSpiralerContribution } from '@o19/spire-loom/machinery/tieups/spi
 const treadle = defineTreadle({...});
 
 export const contributes = defineSpiralerContribution({
-  spiraler: 'AndroidSpiraler',
+  spiraler: 'RustAndroidSpiraler',
   method: 'foregroundService',
   optionsType: 'ForegroundServiceOptions',
-  returnType: 'AndroidSpiraler',
+  returnType: 'RustAndroidSpiraler',
   description: 'Wrap the core with an Android foreground service'
 });
 
@@ -248,8 +248,8 @@ import '@o19/spire-loom/machinery/tieups/spiral';
 
 declare module '@o19/spire-loom/machinery/tieups/spiral' {
   interface SpiralerExtensionRegistry {
-    AndroidSpiraler: {
-      foregroundService(options?: ForegroundServiceOptions): AndroidSpiraler;
+    RustAndroidSpiraler: {
+      foregroundService(options?: ForegroundServiceOptions): RustAndroidSpiraler;
     };
   }
 }
@@ -316,7 +316,7 @@ export const myTreadle = defineTreadle({
   // -------------------------------------------------------------------------
   // When does this treadle run? The matrix uses these to route.
   matches: [
-    { current: 'AndroidSpiraler', previous: 'RustCore' }
+    { current: 'RustAndroidSpiraler', previous: 'RustCore' }
   ],
 
   // -------------------------------------------------------------------------
@@ -324,7 +324,7 @@ export const myTreadle = defineTreadle({
   // -------------------------------------------------------------------------
   // Extra checks beyond the match pattern. Return false to skip silently.
   validate: (current, previous) => {
-    if (!(current.ring instanceof AndroidSpiraler)) return false;
+    if (!(current.ring instanceof RustAndroidSpiraler)) return false;
     return true;
   },
 
@@ -352,7 +352,7 @@ export const myTreadle = defineTreadle({
   // -------------------------------------------------------------------------
   // Template data beyond methods. Can be static or computed.
   data: (context, current, previous) => {
-    const android = current.ring as AndroidSpiraler;
+    const android = current.ring as RustAndroidSpiraler;
     return {
       packageName: android.getGradleNamespace('foundframe'),
       serviceName: 'FoundframeService'

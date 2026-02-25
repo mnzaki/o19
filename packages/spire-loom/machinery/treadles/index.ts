@@ -105,6 +105,17 @@ export {
 } from '../bobbin/android.js';
 
 // ============================================================================
+// Tieup Types (re-exported for custom treadles)
+// ============================================================================
+
+export {
+  type CustomTreadle,
+  type TreadleContext,
+  type TreadleResult,
+  type TreadleUtils,
+} from '../../warp/tieups.js';
+
+// ============================================================================
 // Built-in Generator Implementations
 // ============================================================================
 

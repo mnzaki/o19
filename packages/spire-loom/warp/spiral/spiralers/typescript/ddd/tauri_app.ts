@@ -1,11 +1,11 @@
-import { Spiraler, SpiralRing, spiralOut } from '../pattern.js';
+import { Spiraler, SpiralRing } from '../../../pattern.js';
 
 /**
  * DDDTauriAppSpiraler - Creates a Tauri app with DDD-aware binding.
  *
  * This spiraler knows how to bind a Tauri app to DDD Port implementations.
  * It supports adaptor overrides - alternative implementations that take
-   * precedence for specific operations (e.g., read replicas, caching layers).
+ * precedence for specific operations (e.g., read replicas, caching layers).
  */
 export class DDDTauriAppSpiraler extends Spiraler {
   /** Binding configuration set when app() is called */
@@ -39,6 +39,6 @@ export class DDDTauriAppSpiraler extends Spiraler {
     };
 
     // Return the app ring
-    return spiralOut(this, {});
+    return this.spiralOut('app', {});
   }
 }

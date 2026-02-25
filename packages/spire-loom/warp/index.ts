@@ -13,6 +13,9 @@ export * from './imprint.js';
 // CRUD decorators (@loom.crud.create, @loom.crud.query, etc.)
 export * as crud from './crud.js';
 
+// Typescript generative helpers
+export * as typescript from './typescript.js';
+
 // Rust generation helpers
 export * as rust from './rust.js';
 
@@ -24,13 +27,13 @@ export {
   type RefinementMetadata,
   type RefinementResult,
   type WeavingContext,
-  REFINEMENT_KEY,
+  REFINEMENT_KEY
 } from './refine/types.js';
 export {
   withRefinement,
   getRefinements,
   hasRefinements,
-  getRefinement,
+  getRefinement
 } from './refine/decorator.js';
 
 // === OPERATION ROUTING ===
@@ -54,18 +57,19 @@ export {
   type StoredTieup,
   getTieups,
   addTieup,
-  executeTieups,
+  executeTieups
 } from './tieups.js';
 
 // The loom namespace - main API
 import { refine } from './refine/index.js';
-import { operationMux, hybridAdaptor } from './spiral/operation-mux.js';
+import { operationMux, hybridAdaptor, spiral } from './spiral/index.js';
 
 // Convenience: export loom namespace
 export const loom = {
   refine,
   operationMux,
   hybridAdaptor,
+  spiral
   // crud is exported separately above
   // tieup is now on Layer class
 } as const;

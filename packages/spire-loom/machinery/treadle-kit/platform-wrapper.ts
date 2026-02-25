@@ -19,7 +19,7 @@
  * export const genAndroidForegroundService = definePlatformWrapperTreadle({
  *   platform: {
  *     name: 'Android',
- *     spiraler: 'AndroidSpiraler',
+ *     spiraler: 'RustAndroidSpiraler',
  *   },
  *   wrapperType: 'foreground-service',
  *   methods: {
@@ -67,7 +67,7 @@ import {
 export interface PlatformConfig {
   /** The platform name (e.g., 'Android', 'Tauri', 'iOS') */
   name: string;
-  /** The spiraler class name (e.g., 'AndroidSpiraler') */
+  /** The spiraler class name (e.g., 'RustAndroidSpiraler') */
   spiraler: string;
   /** Optional: The base package/crate naming convention */
   packageNaming?: (coreName: string) => string;

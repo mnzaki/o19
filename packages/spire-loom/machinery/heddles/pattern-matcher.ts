@@ -7,7 +7,7 @@
  */
 
 import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler } from '../../warp/index.js';
-import { CoreRing } from '../../warp/spiral/index.js';
+import { CoreRing, RustCore, TsCore } from '../../warp/spiral/index.js';
 import type { ManagementMetadata, MethodMetadata } from '../reed/index.js';
 import { RUST_STRUCT_CONFIG, RUST_WRAPPERS, type RustStructOptions } from '../../warp/rust.js';
 
@@ -16,17 +16,17 @@ import { RUST_STRUCT_CONFIG, RUST_WRAPPERS, type RustStructOptions } from '../..
  * This extends the base MethodMetadata with values computed from ownership chain.
  */
 export interface EnrichedMethodMetadata extends MethodMetadata {
-  /** 
+  /**
    * Whether methods return Result<T, E> for error handling.
    * Computed from the linked struct's @rust.Struct({ useResult: true }) config.
    */
   useResult?: boolean;
-  /** 
+  /**
    * Wrapper types for the linked field (e.g., ['Mutex', 'Option']).
    * Computed from the linked struct field's decorators.
    */
   wrappers?: string[];
-  /** 
+  /**
    * The field name in the linked struct (e.g., 'thestream', 'device_manager').
    * Computed from the link target.
    */
@@ -35,17 +35,15 @@ export interface EnrichedMethodMetadata extends MethodMetadata {
 
 /**
  * Enrich management methods with computed metadata.
- * 
+ *
  * The heddles look up the ownership chain to compute values:
  * - Management → Link → Struct Field → Wrappers
  * - Management → Link → Struct → useResult config
- * 
+ *
  * This is the proper place for such computation (not in reed or treadles).
  */
-export function enrichManagementMethods(
-  managements: ManagementMetadata[]
-): ManagementMetadata[] {
-  return managements.map(mgmt => {
+export function enrichManagementMethods(managements: ManagementMetadata[]): ManagementMetadata[] {
+  return managements.map((mgmt) => {
     // If no link, return as-is
     if (!mgmt.link) {
       return mgmt;
@@ -54,29 +52,31 @@ export function enrichManagementMethods(
     // Resolve the link to get struct metadata
     const link = mgmt.link;
     const structClass = link.structClass as any;
-    
+
     // Get struct config for useResult
     const structConfig: RustStructOptions | undefined = structClass?.[RUST_STRUCT_CONFIG];
     const useResult = structConfig?.useResult ?? false;
-    
+
     // Get field wrappers from struct metadata
     // The structClass.__rustFields is a Map<string, { [RUST_WRAPPERS]: string[] }>
-    const rustFields = structClass?.__rustFields as Map<string, { [RUST_WRAPPERS]?: string[] }> | undefined;
+    const rustFields = structClass?.__rustFields as
+      | Map<string, { [RUST_WRAPPERS]?: string[] }>
+      | undefined;
     const fieldMeta = rustFields?.get(link.fieldName);
     // Access wrappers using the Symbol key (not string 'wrappers')
     const wrappers = fieldMeta?.[RUST_WRAPPERS] ?? [];
 
     // Enrich each method with computed metadata
-    const enrichedMethods: EnrichedMethodMetadata[] = mgmt.methods.map(method => ({
+    const enrichedMethods: EnrichedMethodMetadata[] = mgmt.methods.map((method) => ({
       ...method,
       useResult,
       wrappers,
-      fieldName: link.fieldName,
+      fieldName: link.fieldName
     }));
 
     return {
       ...mgmt,
-      methods: enrichedMethods,
+      methods: enrichedMethods
     };
   });
 }
@@ -177,6 +177,10 @@ export interface GeneratorContext {
   workspaceRoot: string;
   /** Output directory for generated code */
   outputDir?: string;
+  /** Package path relative to workspace (e.g., 'crates/foundframe-android') */
+  packagePath: string;
+  /** Full package directory path */
+  packageDir: string;
 }
 
 /**
@@ -208,7 +212,7 @@ export class GeneratorMatrix extends Map<string, GeneratorFunction> {
   /**
    * Set a generator for a type pair.
    *
-   * @param currentType - The outer ring type (e.g., 'AndroidSpiraler')
+   * @param currentType - The outer ring type (e.g., 'RustAndroidSpiraler')
    * @param previousType - The inner ring type (e.g., 'RustCore')
    * @param generator - The generator function
    */
@@ -234,8 +238,8 @@ export class GeneratorMatrix extends Map<string, GeneratorFunction> {
 export const DEFAULT_MATRIX = new GeneratorMatrix();
 
 // Example entries (to be implemented):
-// DEFAULT_MATRIX.setPair('AndroidSpiraler', 'RustCore', generateAndroidBridge);
-// DEFAULT_MATRIX.setPair('TauriSpiraler', 'AndroidSpiraler', generateTauriAndroid);
+// DEFAULT_MATRIX.setPair('RustAndroidSpiraler', 'RustCore', generateAndroidBridge);
+// DEFAULT_MATRIX.setPair('TauriSpiraler', 'RustAndroidSpiraler', generateTauriAndroid);
 // DEFAULT_MATRIX.setPair('TauriSpiraler', 'RustCore', generateTauriDesktop);
 // DEFAULT_MATRIX.setPair('DDDTypescriptSpiraler', 'TauriSpiraler', generateDDDLayers);
 
@@ -272,6 +276,13 @@ export class Heddles {
 
     // Traverse each exported ring
     for (const [exportName, ring] of Object.entries(warp)) {
+      if (!(ring instanceof SpiralRing)) {
+        continue;
+      }
+
+      // Ensure metadata is computed from export name
+      this.ensureMetadata(ring, exportName);
+
       this.traverse(ring, null, 0, exportName, (node) => {
         // Record node by type
         const typeName = node.typeName;
@@ -316,7 +327,7 @@ export class Heddles {
             innerSet.add(node.ring);
             tasks.push({
               match: [currentType, previousType],
-              current: node.parent, // outer ring (e.g., AndroidSpiraler)
+              current: node.parent, // outer ring (e.g., RustAndroidSpiraler)
               previous: node, // inner ring (e.g., RustCore)
               exportName
             });
@@ -422,18 +433,23 @@ export class Heddles {
    * Get the effective type name for a ring.
    * For SpiralOut that wraps a Spiraler directly (inner is Spiraler),
    * returns the spiraler's type name.
-   * This allows matrix matching against 'AndroidSpiraler' instead of 'SpiralOut'.
+   * This allows matrix matching against 'RustAndroidSpiraler' instead of 'SpiralOut'.
    *
    * NOTE: We only check ring.inner, not properties. SpiralOuts that have
    * spiraler properties but don't wrap them directly (like foundframe which
    * has .android but wraps RustCore) should return 'SpiralOut'.
    */
   private getEffectiveTypeName(ring: SpiralRing): string {
+    if (ring instanceof CoreRing) {
+      return ring.constructor.name;
+    }
+
     // If it's a SpiralOut, check if it wraps a Spiraler directly
     if (ring instanceof SpiralOut) {
-      // Only if inner IS a Spiraler - not if it just HAS a spiraler property
-      if (ring.inner instanceof Spiraler) {
-        return ring.inner.constructor.name;
+      if (ring.spiraler) {
+        return `${ring.spiraler.constructor.name}.${ring.treadleTag}`;
+      } else {
+        return ring.inner.name;
       }
     }
 
@@ -446,8 +462,88 @@ export class Heddles {
       }
     }
 
-    // Default to the constructor name
-    return ring.constructor.name;
+    // we have to always have a type name
+    console.error('Do not understand', ring);
+    throw new Error('Internal Error');
+  }
+
+  /**
+   * Ensure metadata is set on a ring, computing it from export name if needed.
+   *
+   * This is called after loadWarp has set .name on all Layer instances.
+   * For rings without metadata (like those created by factory methods),
+   * we compute packageName, packagePath, and language from the export name.
+   *
+   * Also recursively ensures metadata on inner rings (e.g., CoreRing inside SpiralOut).
+   * SpiralMux (multiplexers) don't have their own metadata - they just aggregate.
+   *
+   * Priority for package name:
+   *   1. ring.name (if explicitly set in WARP.ts after creation)
+   *   2. exportName (from WARP.ts export)
+   */
+  private ensureMetadata(ring: SpiralRing, exportName: string): void {
+    const anyRing = ring as any;
+
+    // SpiralMux is a multiplexer - it doesn't have its own package
+    // Just ensure metadata on its inner rings
+    if (ring instanceof SpiralMux) {
+      for (const inner of ring.innerRings) {
+        this.ensureMetadata(inner, exportName);
+      }
+      return;
+    }
+
+    // Determine language from ring type or existing metadata
+    let language: 'rust' | 'typescript' | undefined = anyRing.metadata?.language;
+
+    if (!language) {
+      if (ring instanceof RustCore) {
+        language = 'rust';
+      } else if (ring instanceof TsCore) {
+        language = 'typescript';
+      } else if (ring instanceof SpiralOut) {
+        // Infer from inner ring and also ensure inner ring has metadata
+        if (ring.inner instanceof RustCore) {
+          language = 'rust';
+          this.ensureMetadata(ring.inner, exportName);
+        } else if (ring.inner instanceof TsCore) {
+          language = 'typescript';
+          this.ensureMetadata(ring.inner, exportName);
+        } else if (ring.inner instanceof SpiralMux) {
+          // SpiralOut wrapping a mux - ensure metadata on the mux's inner rings
+          this.ensureMetadata(ring.inner, exportName);
+          // Default to rust for now (could be smarter here)
+          language = 'rust';
+        } else {
+          throw new Error(
+            `Cannot determine language for SpiralOut "${exportName}": inner ring is not RustCore or TsCore`
+          );
+        }
+      } else {
+        throw new Error(
+          `Cannot determine language for ring "${exportName}": unknown ring type ${ring.constructor.name}`
+        );
+      }
+    }
+
+    // If metadata already has packageName, don't overwrite
+    if (anyRing.metadata?.packageName) {
+      return;
+    }
+
+    // Use ring.name if explicitly set (allows WARP.ts override), otherwise use exportName
+    const packageName = ring.name || exportName;
+
+    // Compute package path based on language
+    const packagePath = language === 'rust' ? `crates/${packageName}` : `packages/${packageName}`;
+
+    // Set/merge metadata (preserve existing language if present)
+    anyRing.metadata = {
+      ...anyRing.metadata, // preserve existing (e.g., language)
+      packageName,
+      packagePath,
+      language
+    };
   }
 
   /**

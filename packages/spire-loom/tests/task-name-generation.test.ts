@@ -20,7 +20,7 @@ async function mockGenerator() {
 describe('task name generation', () => {
   it('provides SpiralOut info for task name computation', () => {
     const matrix = new GeneratorMatrix();
-    matrix.setPair('AndroidSpiraler', 'RustCore', mockGenerator);
+    matrix.setPair('RustAndroidSpiraler', 'RustCore', mockGenerator);
     
     const heddles = new Heddles(matrix);
     
@@ -50,7 +50,7 @@ describe('task name generation', () => {
     
     // Find the Android -> RustCore task
     const androidTask = plan.tasks.find(t => 
-      t.match[0] === 'AndroidSpiraler' && t.match[1] === 'RustCore'
+      t.match[0] === 'RustAndroidSpiraler' && t.match[1] === 'RustCore'
     );
     
     assert.ok(androidTask, 'Should have Android -> RustCore task');
@@ -63,7 +63,7 @@ describe('task name generation', () => {
 
   it('handles multiple exports preserving Core identity', () => {
     const matrix = new GeneratorMatrix();
-    matrix.setPair('AndroidSpiraler', 'RustCore', mockGenerator);
+    matrix.setPair('RustAndroidSpiraler', 'RustCore', mockGenerator);
     
     const heddles = new Heddles(matrix);
     
@@ -83,7 +83,7 @@ describe('task name generation', () => {
     
     // Should have exactly ONE task (deduplication should work)
     const androidTasks = plan.tasks.filter(t => 
-      t.match[0] === 'AndroidSpiraler' && t.match[1] === 'RustCore'
+      t.match[0] === 'RustAndroidSpiraler' && t.match[1] === 'RustCore'
     );
     assert.strictEqual(androidTasks.length, 1, 'Should have exactly one Android task');
     
