@@ -20,6 +20,7 @@ import {
   Heddles,
   type WeavingPlan,
   type GenerationTask,
+  type GeneratedFile,
   GeneratorMatrix
 } from './heddles/index.js';
 import { createMatrix } from './treadles/index.js';
@@ -278,8 +279,15 @@ Package filter: "${config.packageFilter}"`);
         filesUnchanged += result.unchanged;
       } catch (error) {
         errors.push(error as Error);
-        if (config?.verbose) {
+        if (config?.verbose || process.env.DEBUG) {
           console.error(`Error executing task ${task.match.join('→')}:`, error);
+        }
+        // Always log full error in DEBUG mode for easier debugging
+        if (process.env.DEBUG) {
+          console.error('Full error details:', error);
+          if (error instanceof Error && error.stack) {
+            console.error('Stack trace:', error.stack);
+          }
         }
       }
     }
@@ -357,7 +365,24 @@ Package filter: "${config.packageFilter}"`);
       packageDir,
       config: task.config  // Pass tieup warpData as context.config
     };
-    const files = await generator(task.current, task.previous, context);
+    
+    if (process.env.DEBUG) {
+      console.log(`[DEBUG] Calling generator ${treadleName} for ${task.match.join('→')}`);
+      console.log(`[DEBUG] Package: ${packagePath}, Dir: ${packageDir}`);
+    }
+    
+    let files: GeneratedFile[];
+    try {
+      files = await generator(task.current, task.previous, context);
+    } catch (error) {
+      if (process.env.DEBUG) {
+        console.error(`[DEBUG] Generator ${treadleName} threw error:`, error);
+        if (error instanceof Error && error.stack) {
+          console.error('[DEBUG] Stack:', error.stack);
+        }
+      }
+      throw error; // Re-throw to be caught by outer handler
+    }
 
     // Write files using shuttle
     let written = 0;
@@ -385,6 +410,12 @@ Package filter: "${config.packageFilter}"`);
         }
       } catch (error) {
         console.error(`    ✗ Failed to write ${file.path}:`, error);
+        if (process.env.DEBUG) {
+          console.error('Full error details:', error);
+          if (error instanceof Error && error.stack) {
+            console.error('Stack trace:', error.stack);
+          }
+        }
       }
     }
 
