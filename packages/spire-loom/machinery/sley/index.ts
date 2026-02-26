@@ -101,6 +101,7 @@ export {
   // Translations
   addPrefix as addEntityPrefix,
   setTableNamePattern,
+  computeFieldHelpers,
   // Filters
   tagFilter as entityTagFilter,
   readOnlyFilter,

@@ -63,8 +63,11 @@ impl <%= platformStructName %> {
     info!("Setting up <%= platformStructName %>...");
 
     // Initialize platform implementation (muxing happens here)
+    // NOTE: PluginHandle is not directly available from PluginApi in Tauri 2.0.
+    // Camera operations on Android will need to be initialized differently.
+    // For now, we pass None and camera operations will return an error.
     #[cfg(mobile)]
-    let platform = Arc::new(mobile::init(app, api)?) as Arc<dyn <%= platformTraitName %>>;
+    let platform = Arc::new(mobile::init(app, api, None)?) as Arc<dyn <%= platformTraitName %>>;
     #[cfg(desktop)]
     let platform = Arc::new(desktop::init(app, api)?) as Arc<dyn <%= platformTraitName %>>;
 

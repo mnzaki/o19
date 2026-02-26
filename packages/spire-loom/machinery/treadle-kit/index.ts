@@ -96,3 +96,32 @@ export {
   type MethodQueryAPI,
   type CrudOperation,
 } from '../sley/query.js';
+
+// ============================================================================
+// Entity Helpers - Computed SQL metadata for code generation (APP-013)
+// ============================================================================
+
+export {
+  buildComputedHelpers,
+  computeFieldFlags,
+  buildNumberedPlaceholders,
+  buildPostgresPlaceholders,
+  buildUpdateSetClause,
+  buildInsertColumns,
+  buildInsertValues,
+  buildInsertStatement,
+  buildSelectStatement,
+  buildUpdateStatement,
+  buildColumnDefinition,
+  buildCreateTableStatement,
+  type EntityFieldMetadata,
+  type ComputedEntityHelpers,
+} from './computed-entity-helpers.js';
+
+// ============================================================================
+// Context Entities - Entity helpers for generator context (APP-013)
+// ============================================================================
+
+export {
+  buildContextEntities,
+} from './context-entities.js';

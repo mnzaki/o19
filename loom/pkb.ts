@@ -13,7 +13,7 @@
 import { reach, Management, crud } from '@o19/spire-loom';
 
 @reach('Private')
-class PkbMgmt extends Management {
+export class PkbMgmt extends Management {
   // ========================================================================
   // CONSTANTS
   // ========================================================================
@@ -58,13 +58,12 @@ class PkbMgmt extends Management {
 /**
  * Repository information
  */
-interface Repository {
-  name: string;
-  createdAt: number;
+@PkbMgmt.Entity()
+export class Repository {
+  name!: string;
+  createdAt!: number;
   lastCommitAt?: number;
-  commitCount: number;
-  isDefault: boolean;
-  rid: string; // Radicle ID
+  commitCount!: number;
+  isDefault!: boolean;
+  rid!: string; // Radicle ID
 }
-
-export { PkbMgmt };

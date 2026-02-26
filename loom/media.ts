@@ -2,95 +2,90 @@
  * Media Management - Surface Imprint
  *
  * Media (images, videos, audio) saved to TheStream™.
- * Represents the "encounter with the visual/auditory"—capturing what we see and hear.
+ *
+ * Database Schema (prisma):
+ *   Media {
+ *     id          Int     @id @default(autoincrement())
+ *     contentHash String?
+ *     mimeType    String
+ *     uri         String
+ *     width       Int?
+ *     height      Int?
+ *     durationMs  Int?
+ *     metadata    String? // JSON
+ *     createdAt   Int
+ *   }
  *
  * Reach: Global (extends from Core to Front)
- *
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
 import loom from '@o19/spire-loom';
 import { foundframe } from './core.js';
 
-@loom.reach('Global')
-  @loom.link(foundframe.inner.core.thestream)
-class MediaMgmt extends loom.Management {
-  // ========================================================================
-  // CONSTANTS (available in all rings)
-  // ========================================================================
+// ============================================================================
+// MANAGEMENT (defined first to avoid TDZ)
+// ============================================================================
 
-  VALID_MEDIA_URL_REGEX = /^https?:\/\/.+/;
+@loom.reach('Global')
+@loom.link(foundframe.inner.core.thestream)
+export class MediaMgmt extends loom.Management {
+  VALID_MEDIA_URL_REGEX = /^https?:\/.+/;
   MAX_TITLE_LENGTH = 500;
   DEFAULT_DIRECTORY = 'media';
   GIT_BRANCH = 'main';
 
-  // ========================================================================
-  // CRUD METHODS
-  // ========================================================================
-
-  /**
-   * Add a media link to the stream
-   */
   @loom.crud.create
-  addMediaLink(
-    url: string,
-    title?: string,
-    mimeType?: string,
-    directory?: string
-  ): void {
+  addMediaLink(url: string, mimeType: string, title?: string, directory?: string): void {
     throw new Error('Imprint only');
   }
 
-  /**
-   * Add a media file to the stream
-   */
   @loom.crud.create({ variant: 'file' })
-  addMediaFile(
-    filePath: string,
-    title?: string
-  ): void {
+  addMediaFile(filePath: string, title?: string): void {
     throw new Error('Imprint only');
   }
 
-  /**
-   * Get a media entry by its URL
-   */
   @loom.crud.read
-  getMediaByUrl(url: string): MediaEntry {
+  getMedia(id: number): Media {
     throw new Error('Imprint only');
   }
 
-  /**
-   * List all media in a directory
-   */
+  @loom.crud.read({ by: 'contentHash' })
+  getMediaByHash(contentHash: string): Media {
+    throw new Error('Imprint only');
+  }
+
   @loom.crud.list({ collection: true })
-  listMedia(directory?: string): string[] {
+  listMedia(limit?: number, offset?: number): Media[] {
     throw new Error('Imprint only');
   }
 
-  /**
-   * Delete a media entry (soft delete)
-   */
   @loom.crud.delete_({ soft: true })
-  deleteMedia(pkbUrl: string): boolean {
+  deleteMedia(id: number): boolean {
     throw new Error('Imprint only');
   }
 }
 
-/**
- * Media entry data structure
- */
-interface MediaEntry {
-  url: string;
-  title?: string;
-  mimeType?: string;
-  fileSize?: number;
-  seenAt: number;
-  pkbUrl: string;
-  commitHash: string;
-}
+// ============================================================================
+// ENTITY
+// ============================================================================
 
-/**
- * Export the Management class for collector
- */
-export { MediaMgmt };
+@MediaMgmt.Entity()
+export class Media {
+  id!: number;
+
+  contentHash?: string;
+
+  mimeType!: string;
+
+  uri!: string;
+
+  width?: number;
+
+  height?: number;
+
+  durationMs?: number;
+
+  metadata?: Record<string, unknown>;
+
+  createdAt!: number;
+}

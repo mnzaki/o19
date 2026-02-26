@@ -378,3 +378,48 @@ export function collectQueriesFromModule(
 
   return queries;
 }
+
+// ============================================================================
+// Entity Field Factory
+// ============================================================================
+
+/**
+ * Field factory for entity definitions.
+ *
+ * These factory functions create field metadata objects that are collected
+ * by the @Entity() decorator. This enables zero-decorator entity definitions.
+ *
+ * Usage:
+ * ```typescript
+ * @BookmarkMgmt.Entity()
+ * class Bookmark {
+ *   id = crud.field.id();
+ *   url = crud.field.string();
+ *   createdAt = crud.field.createdAt();
+ * }
+ * ```
+ *
+ * Available factories:
+ * - `id()` - Primary key (i64, INTEGER, auto-increment)
+ * - `string()` - String/TEXT field
+ * - `text()` - TEXT field (alias)
+ * - `int()` - Integer field
+ * - `bool()` - Boolean field (INTEGER in SQLite)
+ * - `timestamp()` - Generic timestamp
+ * - `createdAt()` - Auto-managed created timestamp
+ * - `updatedAt()` - Auto-managed updated timestamp
+ * - `json()` - JSON field
+ * - `custom()` - Custom type mappings
+ */
+export { field } from './field.js';
+export type {
+  Field,
+  PrimaryKeyField,
+  TimestampField,
+  FieldOptions,
+  StringOptions,
+  NumberOptions,
+  IdOptions,
+  TimestampOptions,
+  BaseOptions
+} from './field.js';

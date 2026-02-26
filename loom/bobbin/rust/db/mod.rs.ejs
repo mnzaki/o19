@@ -1,9 +1,13 @@
 // spire-loom:db-modules
 <% entities.forEach(function(entity) { -%>
-pub mod <%= entity.lower %>;
+#[path = "../../spire/src/db/entities/<%= entity.lower %>_data.gen.rs"]
+pub mod <%= entity.lower %>_data;
+#[path = "../../spire/src/db/entities/<%= entity.lower %>_trait.gen.rs"]
+pub mod <%= entity.lower %>_trait;
 <% }); -%>
 
 <% entities.forEach(function(entity) { -%>
-pub use <%= entity.lower %>::<%= entity.name %>Db;
+pub use <%= entity.lower %>_data::<%= entity.name %>Data;
+pub use <%= entity.lower %>_trait::<%= entity.name %>Db;
 <% }); -%>
 // /spire-loom:db-modules

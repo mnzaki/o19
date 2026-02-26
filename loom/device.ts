@@ -14,8 +14,8 @@ import loom from '@o19/spire-loom';
 import { foundframe } from './core.js';
 
 @loom.reach('Local')
-  @loom.link(foundframe.inner.core.device_manager)
-class DeviceMgmt extends loom.Management {
+@loom.link(foundframe.inner.core.device_manager)
+export class DeviceMgmt extends loom.Management {
   // ========================================================================
   // CONSTANTS
   // ========================================================================
@@ -92,21 +92,21 @@ class DeviceMgmt extends loom.Management {
 /**
  * Paired device information
  */
-interface PairedDevice {
-  deviceId: string;
-  pairedAt: number;
+@DeviceMgmt.Entity()
+export class PairedDevice {
+  deviceId!: string;
+  pairedAt!: number;
   lastSeenAt?: number;
   alias?: string;
-  isOnline: boolean;
+  isOnline!: boolean;
 }
 
 /**
  * Follow relationship
  */
-interface Follow {
-  deviceId: string;
-  followedAt: number;
-  trustScore: number;
+@DeviceMgmt.Entity()
+export class Follow {
+  deviceId!: string;
+  followedAt!: number;
+  trustScore!: number;
 }
-
-export { DeviceMgmt };

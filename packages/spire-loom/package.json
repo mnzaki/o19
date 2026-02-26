@@ -90,6 +90,11 @@
       "import": "./machinery/sley/index.ts",
       "default": "./machinery/sley/index.ts"
     },
+    "./warp/field": {
+      "types": "./warp/field.ts",
+      "import": "./warp/field.ts",
+      "default": "./warp/field.ts"
+    },
     "./warp/imprint": {
       "types": "./warp/imprint.ts",
       "import": "./warp/imprint.ts",

@@ -1,0 +1,185 @@
+//! OPTIMAL TEMPLATE for DbBindingTreadle
+//! 
+//! This shows what we COULD generate with full metadata.
+//! Compare with current placeholder templates.
+//!
+//! REQUIRED METADATA (documented in MISSING_METADATA.md):
+//! - entity.name: "Bookmark"
+//! - entity.tableName: "bookmark" (from @loom.entity({ table: "bookmark" }))
+//! - entity.fields: Array of field metadata
+//!
+//! FIELD METADATA needed:
+//! - name: "url"
+//! - rustType: "String" (mapped from TS "string")
+//! - columnName: "url" (snake_case for SQL)
+//! - nullable: false
+//! - isPrimary: true/false
+//! - isCreatedAt: true/false
+//! - isUpdatedAt: true/false
+//! - forInsert: true (include in INSERT)
+//! - forUpdate: true (include in UPDATE)
+
+// ============================================================================
+// 1. DATA STRUCT (entity_data.rs.ejs)
+// ============================================================================
+
+/// <%= entity.name %> data structure.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct <%= entity.name %>Data {
+<% entity.fields.forEach(function(field) { -%>
+  /// <%= field.name %>
+  pub <%= field.name %>: <%= field.rustType %>,
+<% }); -%>
+}
+
+impl <%= entity.name %>Data {
+  /// Create new with defaults
+  pub fn new() -> Self {
+    Self {
+<% entity.fields.forEach(function(field) { -%>
+<% if (field.nullable) { -%>
+      <%= field.name %>: None,
+<% } else if (field.isPrimary) { -%>
+      <%= field.name %>: 0,
+<% } else if (field.tsType === 'number') { -%>
+      <%= field.name %>: 0,
+<% } else if (field.tsType === 'string') { -%>
+      <%= field.name %>: String::new(),
+<% } else if (field.tsType === 'boolean') { -%>
+      <%= field.name %>: false,
+<% } else { -%>
+      <%= field.name %>: Default::default(),
+<% } -%>
+<% }); -%>
+    }
+  }
+}
+
+impl Default for <%= entity.name %>Data {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+// ============================================================================
+// 2. DB COMMANDS (commands.rs.ejs) - Integrates with existing DbCommand enum
+// ============================================================================
+
+// In DbCommand enum, we'd add:
+// <%= entity.name %>Insert { params: <%= entity.name %>Data, respond: ... }
+// <%= entity.name %>GetById { id: i64, respond: ... }
+// etc.
+
+// Or separate enum that gets composed:
+#[derive(Debug)]
+pub enum <%= entity.name %>Command {
+<% if (entity.operations.includes('create')) { -%>
+  Insert {
+    data: <%= entity.name %>Data,
+    respond: tokio::sync::oneshot::Sender<Result<i64>>,
+  },
+<% } -%>
+<% if (entity.operations.includes('read')) { -%>
+  GetById {
+    id: i64,
+    respond: tokio::sync::oneshot::Sender<Result<Option<<%= entity.name %>Data>>>,
+  },
+<% } -%>
+<% if (entity.operations.includes('list')) { -%>
+  List {
+    limit: Option<usize>,
+    offset: Option<usize>,
+    respond: tokio::sync::oneshot::Sender<Result<Vec<<%= entity.name %>Data>>>,
+  },
+<% } -%>
+<% if (entity.operations.includes('update')) { -%>
+  Update {
+    id: i64,
+    data: <%= entity.name %>Data,
+    respond: tokio::sync::oneshot::Sender<Result<bool>>,
+  },
+<% } -%>
+<% if (entity.operations.includes('delete')) { -%>
+  Delete {
+    id: i64,
+    respond: tokio::sync::oneshot::Sender<Result<bool>>,
+  },
+<% } -%>
+}
+
+impl <%= entity.name %>Command {
+  pub fn handle(&self, conn: &mut rusqlite::Connection) -> Result<()> {
+    match self {
+<% if (entity.operations.includes('create')) { -%>
+      <%= entity.name %>Command::Insert { data, respond } => {
+        let result = Self::do_insert(conn, data);
+        let _ = respond.send(result);
+      }
+<% } -%>
+      // ... other variants
+    }
+    Ok(())
+  }
+  
+<% if (entity.operations.includes('create')) { -%>
+  fn do_insert(conn: &rusqlite::Connection, data: &<%= entity.name %>Data) -> Result<i64> {
+    let mut stmt = conn.prepare(
+      "INSERT INTO <%= entity.tableName %> (<%= entity.insertColumns.join(', ') %>) 
+       VALUES (<%= entity.insertPlaceholders.join(', ') %>)"
+    )?;
+    // Bind parameters...
+<% entity.insertFields.forEach(function(field, idx) { -%>
+    stmt.bind((<%= idx + 1 %>, &data.<%= field.name %>))?;
+<% }); -%>
+    stmt.next()?;
+    Ok(conn.last_insert_rowid())
+  }
+<% } -%>
+}
+
+// ============================================================================
+// 3. DB TRAIT (entity_trait.rs.ejs) - Async interface
+// ============================================================================
+
+#[async_trait::async_trait]
+pub trait <%= entity.name %>Db {
+<% if (entity.operations.includes('create')) { -%>
+  async fn insert_<%= entity.lower %>(&self, data: <%= entity.name %>Data) -> Result<i64>;
+<% } -%>
+<% if (entity.operations.includes('read')) { -%>
+  async fn get_<%= entity.lower %>_by_id(&self, id: i64) -> Result<Option<<%= entity.name %>Data>>;
+<% } -%>
+<% if (entity.operations.includes('list')) { -%>
+  async fn list_<%= entity.lower %>s(&self, limit: Option<usize>, offset: Option<usize>) -> Result<Vec<<%= entity.name %>Data>>;
+<% } -%>
+<% if (entity.operations.includes('update')) { -%>
+  async fn update_<%= entity.lower %>(&self, id: i64, data: <%= entity.name %>Data) -> Result<bool>;
+<% } -%>
+<% if (entity.operations.includes('delete')) { -%>
+  async fn delete_<%= entity.lower %>(&self, id: i64) -> Result<bool>;
+<% } -%>
+}
+
+#[async_trait::async_trait]
+impl <%= entity.name %>Db for DbHandle {
+<% if (entity.operations.includes('create')) { -%>
+  async fn insert_<%= entity.lower %>(&self, data: <%= entity.name %>Data) -> Result<i64> {
+    self.send_command(|respond| {
+      DbCommand::<%= entity.name %>Insert { data, respond }
+    }).await
+  }
+<% } -%>
+  // ... other methods
+}
+
+// ============================================================================
+// 4. SQL MIGRATION (would be generated too)
+// ============================================================================
+
+/*
+CREATE TABLE IF NOT EXISTS <%= entity.tableName %> (
+<% entity.fields.forEach(function(field) { -%>
+  <%= field.columnName %> <%= field.sqlType %><%= field.nullable ? '' : ' NOT NULL' %><%= field.isPrimary ? ' PRIMARY KEY AUTOINCREMENT' : '' %>,
+<% }); -%>
+)
+*/

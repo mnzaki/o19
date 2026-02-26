@@ -1,44 +1,19 @@
 /**
- * ⚠️  KIMI NOTICE: Before editing this treadle, read HOW_TO_LOOM.md
- *     The loom has patterns. Understanding them prevents cross-cutting.
- *     Conservation spiral matters. Read before weaving. 🌀
+ * DbBindingTreadle - Generates Rust data structs and DB traits from entity metadata
  *
- * DbBindingTreadle - Declarative treadle for generating DbActor bindings
- *
- * Generates SQLite entity traits and DbCommand variants for foundframe entities.
- * Used with .tieup() to generate inside the foundframe crate.
- *
- * Usage in WARP.ts (tieup style):
- *   const foundframe = loom.spiral(Foundframe).tieup({
- *     treadles: [{
- *       treadle: dbBindingTreadle,
- *       warpData: {
- *         entities: ['Bookmark', 'Media', 'Post', 'Person'],
- *         operations: ['create', 'read', 'update', 'delete', 'list']
- *       }
- *     }]
- *   });
+ * Uses context.entities to discover entities.
+ * 
+ * CURRENT LIMITATION: Field metadata is not available from decorators.
+ * The generated structs are placeholders with just an id field.
+ * See MISSING_METADATA.md for what's needed for full functionality.
  */
 
 import {
   defineTreadle,
   generateFromTreadle,
-  type OutputSpec
+  type OutputSpec,
+  type PatchSpec
 } from '@o19/spire-loom/machinery/treadle-kit';
-
-/**
- * Configuration for DbBindingTreadle
- */
-export interface DbBindingConfig {
-  /** Entity names to generate bindings for */
-  entities: string[];
-  /** CRUD operations to support */
-  operations: ('create' | 'read' | 'update' | 'delete' | 'list')[];
-}
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
 
 function toSnake(str: string): string {
   return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`).replace(/^_/, '');
@@ -48,88 +23,92 @@ function toLower(str: string): string {
   return str.toLowerCase();
 }
 
-// ============================================================================
-// Treadle Definition (Tieup Style - No Matches)
-// ============================================================================
-
 export const dbBindingTreadle = defineTreadle({
   name: 'db-binding',
 
-  // Method configuration (required but minimal for tieup treadles)
   methods: {
     filter: 'core',
     pipeline: []
   },
 
-  // Dynamic outputs - entity traits and commands for each entity
   outputs: [(ctx) => {
-    const config = ctx.config as DbBindingConfig | undefined;
-    if (!config?.entities) {
+    const entities = ctx.entities?.all || [];
+    
+    if (entities.length === 0) {
       return [];
     }
 
     const outputs: OutputSpec[] = [];
-    const entities = config.entities;
 
-    // Generate entity trait and commands files for each entity
     for (const entity of entities) {
-      const entityLower = toLower(entity);
+      const entityName = entity.name;
+      const entityLower = toLower(entityName);
       
-      // Entity trait file
+      // Minimal entity data - just what we have available
+      const entityData = {
+        name: entityName,
+        lower: entityLower,
+        snake: toSnake(entityName),
+        managementName: entity.managementName,
+        // NOTE: Fields are not available - see MISSING_METADATA.md
+        hasFields: false
+      };
+      
+      // Entity data struct file (placeholder)
       outputs.push({
-        template: 'rust/db/entity_trait.rs.ejs',
-        path: `src/db/entities/${entityLower}.gen.rs`,
-        language: 'rust'
+        template: 'rust/db/entity_data.rs.ejs',
+        path: `src/db/entities/${entityLower}_data.gen.rs`,
+        language: 'rust',
+        context: { entity: entityData }
       });
       
-      // Commands file
+      // Entity trait file (placeholder)
+      outputs.push({
+        template: 'rust/db/entity_trait.rs.ejs',
+        path: `src/db/entities/${entityLower}_trait.gen.rs`,
+        language: 'rust',
+        context: { entity: entityData }
+      });
+      
+      // Commands file (placeholder)
       outputs.push({
         template: 'rust/db/commands.rs.ejs',
         path: `src/db/commands/${entityLower}.gen.rs`,
-        language: 'rust'
+        language: 'rust',
+        context: { entity: entityData }
       });
     }
 
     return outputs;
   }],
 
-  // Template data - provides entity configuration to templates
   data: (ctx) => {
-    const config = ctx.config as DbBindingConfig | undefined;
-    if (!config) {
-      return { entities: [], operations: [] };
-    }
-
+    const entities = ctx.entities?.all || [];
+    
     return {
-      entities: config.entities.map(e => ({
-        name: e,
-        lower: toLower(e),
-        snake: toSnake(e)
-      })),
-      operations: config.operations || []
+      entities: entities.map((e: any) => ({
+        name: e.name,
+        lower: toLower(e.name),
+        snake: toSnake(e.name)
+      }))
     };
   },
 
-  // Patch db/mod.rs to include generated modules
   patches: [(ctx) => {
-    const config = ctx.config as DbBindingConfig | undefined;
-    if (!config?.entities) {
+    const entities = ctx.entities?.all || [];
+    
+    if (entities.length === 0) {
       return [];
     }
 
-    return {
+    return [{
       type: 'ensureBlock',
       targetFile: 'src/db/mod.rs',
       marker: 'db-modules',
       template: 'rust/db/mod.rs.ejs',
       language: 'rust'
-    };
+    }];
   }]
 });
 
-// ============================================================================
-// Exports
-// ============================================================================
-
-export type { DbBindingConfig };
 export const generateDbBindings = generateFromTreadle(dbBindingTreadle);

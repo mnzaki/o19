@@ -36,6 +36,7 @@ import {
   type LinkMetadata,
   type EntityMetadata
 } from '@o19/spire-loom/warp/imprint';
+import { getEntityFields } from './entity-field-collector.js';
 
 // TypeScript method signature parser
 interface ParsedMethod {
@@ -344,6 +345,16 @@ function extractMetadata(
   
   // Get entities from decorator metadata
   const entities = getEntities(mgmtClass) ?? [];
+  
+  // Collect field metadata for each entity
+  for (const entity of entities) {
+    try {
+      entity.fields = getEntityFields(entity.entityClass);
+    } catch (error) {
+      console.warn(`Warning: Could not collect fields for entity ${entity.name}:`, error);
+      entity.fields = [];
+    }
+  }
   
   return {
     name: mgmtClass.name,

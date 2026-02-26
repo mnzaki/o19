@@ -22,6 +22,8 @@ export interface TypeMapping {
   rust: string;
   /** Tauri/TypeScript binding type */
   tauri: string;
+  /** SQL type name */
+  sql: string;
 }
 
 /**
@@ -31,11 +33,11 @@ export interface TypeMapping {
  * typically serialize to String/JSON for cross-language boundaries.
  */
 const CORE_MAPPINGS: TypeMapping[] = [
-  { tsType: 'string',  kotlin: 'String',  jni: 'JString',   rust: 'String', tauri: 'string' },
-  { tsType: 'number',  kotlin: 'Int',     jni: 'jint',      rust: 'i32',    tauri: 'number' },
-  { tsType: 'boolean', kotlin: 'Boolean', jni: 'jboolean',  rust: 'bool',   tauri: 'boolean' },
-  { tsType: 'bool',    kotlin: 'Boolean', jni: 'jboolean',  rust: 'bool',   tauri: 'boolean' },
-  { tsType: 'void',    kotlin: 'Unit',    jni: '()',        rust: '()',     tauri: 'void' },
+  { tsType: 'string',  kotlin: 'String',  jni: 'JString',   rust: 'String', tauri: 'string', sql: 'TEXT' },
+  { tsType: 'number',  kotlin: 'Int',     jni: 'jint',      rust: 'i32',    tauri: 'number', sql: 'INTEGER' },
+  { tsType: 'boolean', kotlin: 'Boolean', jni: 'jboolean',  rust: 'bool',   tauri: 'boolean', sql: 'INTEGER' },
+  { tsType: 'bool',    kotlin: 'Boolean', jni: 'jboolean',  rust: 'bool',   tauri: 'boolean', sql: 'INTEGER' },
+  { tsType: 'void',    kotlin: 'Unit',    jni: '()',        rust: '()',     tauri: 'void', sql: 'NULL' },
 ];
 
 /**
@@ -110,6 +112,25 @@ export function mapToRustType(tsType: string): string {
  */
 export function mapToTauriType(tsType: string): string {
   return getTypeMapping(tsType)?.tauri ?? 'string';
+}
+
+// ============================================================================
+// SQL Type Mappings
+// ============================================================================
+
+/**
+ * Map TypeScript type to SQL type.
+ * 
+ * @param tsType - TypeScript type name
+ * @returns SQL type name
+ * 
+ * @example
+ * mapToSqlType('string') // 'TEXT'
+ * mapToSqlType('number') // 'INTEGER'
+ * mapToSqlType('boolean') // 'INTEGER' (SQLite has no native bool)
+ */
+export function mapToSqlType(tsType: string): string {
+  return getTypeMapping(tsType)?.sql ?? 'TEXT';
 }
 
 // ============================================================================

@@ -1,8 +1,8 @@
 /**
  * Foundframe Core - The source of truth for core structures
  *
- * This module has NO dependencies on other files in warp-mgmt/.
- * It only imports from @o19/spire-loom.
+ * This module imports all entity definitions so their decorators run
+ * and register with the loom's entity system.
  */
 
 import loom, { rust } from '@o19/spire-loom';
@@ -45,7 +45,7 @@ export const foundframe = loom.spiral(Foundframe).tieup({
     {
       treadle: dbBindingTreadle,
       warpData: {
-        entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
+        // Entities are now auto-discovered via context.entities
         operations: ['create', 'read', 'update', 'delete', 'list']
       }
     }

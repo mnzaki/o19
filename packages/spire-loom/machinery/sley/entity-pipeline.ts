@@ -23,7 +23,8 @@
  * Mirrors the Method Pipeline pattern exactly.
  */
 
-import type { EntityMetadata } from '@o19/spire-loom/warp/imprint';
+import type { EntityMetadata, EntityFieldMetadata } from '@o19/spire-loom/warp/imprint';
+import { buildComputedHelpers } from '../treadle-kit/computed-entity-helpers';
 
 // ============================================================================
 // Core Types
@@ -226,6 +227,32 @@ export function groupByReadOnly<T extends { readOnly: boolean }>(
 // ============================================================================
 
 /**
+ * Compute SQL helpers from entity fields.
+ *
+ * This translation adds insertFields, updateFields, insertColumns,
+ * and other computed properties needed for code generation.
+ *
+ * @returns Translation function for EntityPipeline
+ */
+export function computeFieldHelpers(): EntityTranslation {
+  return (entities) => {
+    return entities.map((entity) => {
+      // If entity already has fields metadata, compute helpers
+      const sourceEntity = entity as unknown as { fields?: EntityFieldMetadata[] };
+      if (sourceEntity.fields && sourceEntity.fields.length > 0) {
+        const helpers = buildComputedHelpers(sourceEntity.fields);
+        return {
+          ...entity,
+          fields: sourceEntity.fields,
+          ...helpers
+        };
+      }
+      return entity;
+    });
+  };
+}
+
+/**
  * Convert raw EntityMetadata to Entity pipeline format.
  *
  * This is the ENTRY POINT to the pipeline - call this first to get
@@ -235,12 +262,26 @@ export function fromSourceEntities(
   managementName: string,
   entities: EntityMetadata[]
 ): Entity[] {
-  return entities.map((entity) => ({
-    id: `${managementName}.${entity.name}`,
-    managementName,
-    name: entity.name,
-    tableName: entity.options?.tableName ?? entity.name.toLowerCase(),
-    readOnly: entity.options?.readOnly ?? false,
-    tags: entity.options?.tags ?? [],
-  }));
+  return entities.map((entity) => {
+    const base = {
+      id: `${managementName}.${entity.name}`,
+      managementName,
+      name: entity.name,
+      tableName: entity.options?.tableName ?? entity.name.toLowerCase(),
+      readOnly: entity.options?.readOnly ?? false,
+      tags: entity.options?.tags ?? [],
+    };
+
+    // If entity has fields, compute helpers
+    if (entity.fields && entity.fields.length > 0) {
+      const helpers = buildComputedHelpers(entity.fields);
+      return {
+        ...base,
+        fields: entity.fields,
+        ...helpers
+      } as Entity & typeof helpers;
+    }
+
+    return base;
+  });
 }

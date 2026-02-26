@@ -4,6 +4,23 @@
  * Conversations (multi-party communication) saved to TheStream™.
  * Represents the "encounter with the collective"—capturing shared moments.
  *
+ * Database Schema (prisma):
+ *   Conversation {
+ *     id             Int     @id @default(autoincrement())
+ *     title          String?
+ *     content        String  // JSON: [{ author, text, timestamp, ... }]
+ *     captureTime    Int     // When conversation was captured
+ *     firstEntryTime Int?    // Timestamp of first message
+ *     lastEntryTime  Int?    // Timestamp of last message
+ *     sourceUrl      String? // Where this came from (if imported)
+ *     createdAt      Int     // timestamp_ms
+ *     updatedAt      Int     // timestamp_ms
+ *   }
+ *
+ * Junction Tables:
+ *   ConversationParticipant { conversationId, personId, role? }
+ *   ConversationMedia { conversationId, mediaId, context? }
+ *
  * Reach: Global (extends from Core to Front)
  *
  * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
@@ -12,9 +29,27 @@
 import loom from '@o19/spire-loom';
 import { foundframe } from './core.js';
 
+// ============================================================================
+// TYPES (for JSON fields)
+// ============================================================================
+
+/**
+ * A single entry in a conversation
+ */
+interface ConversationEntry {
+  author: string;
+  text: string;
+  timestamp: number;
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// MANAGEMENT (defined first to avoid TDZ)
+// ============================================================================
+
 @loom.reach('Global')
-  @loom.link(foundframe.inner.core.thestream)
-class ConversationMgmt extends loom.Management {
+@loom.link(foundframe.inner.core.thestream)
+export class ConversationMgmt extends loom.Management {
   // ========================================================================
   // CONSTANTS (available in all rings)
   // ========================================================================
@@ -31,27 +66,23 @@ class ConversationMgmt extends loom.Management {
    * Add a conversation to the stream
    */
   @loom.crud.create
-  addConversation(
-    conversationId: string,
-    title?: string,
-    participants?: string[]
-  ): void {
+  addConversation(content: ConversationEntry[], title?: string, sourceUrl?: string): void {
     throw new Error('Imprint only');
   }
 
   /**
-   * Get a conversation by its ID
+   * Get a conversation by ID
    */
   @loom.crud.read
-  getConversation(conversationId: string): Conversation {
+  getConversation(id: number): Conversation {
     throw new Error('Imprint only');
   }
 
   /**
-   * List all conversations
+   * List all conversations with pagination
    */
   @loom.crud.list({ collection: true })
-  listConversations(): string[] {
+  listConversations(limit?: number, offset?: number): Conversation[] {
     throw new Error('Imprint only');
   }
 
@@ -59,11 +90,7 @@ class ConversationMgmt extends loom.Management {
    * Update a conversation
    */
   @loom.crud.update
-  updateConversation(
-    conversationId: string,
-    title?: string,
-    participants?: string[]
-  ): boolean {
+  updateConversation(id: number, title?: string, content?: ConversationEntry[]): boolean {
     throw new Error('Imprint only');
   }
 
@@ -71,7 +98,7 @@ class ConversationMgmt extends loom.Management {
    * Delete a conversation (soft delete)
    */
   @loom.crud.delete_({ soft: true })
-  deleteConversation(conversationId: string): boolean {
+  deleteConversation(id: number): boolean {
     throw new Error('Imprint only');
   }
 
@@ -82,28 +109,21 @@ class ConversationMgmt extends loom.Management {
   /**
    * Add a participant to a conversation
    */
-  addParticipant(
-    conversationId: string,
-    personHandle: string,
-    role?: string
-  ): boolean {
+  addParticipant(conversationId: number, personId: number, role?: string): boolean {
     throw new Error('Imprint only');
   }
 
   /**
    * Remove a participant from a conversation
    */
-  removeParticipant(
-    conversationId: string,
-    personHandle: string
-  ): boolean {
+  removeParticipant(conversationId: number, personId: number): boolean {
     throw new Error('Imprint only');
   }
 
   /**
    * List participants in a conversation
    */
-  listParticipants(conversationId: string): string[] {
+  listParticipants(conversationId: number): number[] {
     throw new Error('Imprint only');
   }
 
@@ -115,8 +135,8 @@ class ConversationMgmt extends loom.Management {
    * Add media reference to a conversation
    */
   addConversationMedia(
-    conversationId: string,
-    mediaUrl: string,
+    conversationId: number,
+    mediaId: number,
     context?: Record<string, unknown>
   ): boolean {
     throw new Error('Imprint only');
@@ -125,36 +145,75 @@ class ConversationMgmt extends loom.Management {
   /**
    * Remove media reference from a conversation
    */
-  removeConversationMedia(
-    conversationId: string,
-    mediaUrl: string
-  ): boolean {
+  removeConversationMedia(conversationId: number, mediaId: number): boolean {
     throw new Error('Imprint only');
   }
 
   /**
    * List media in a conversation
    */
-  listConversationMedia(conversationId: string): string[] {
+  listConversationMedia(conversationId: number): number[] {
     throw new Error('Imprint only');
   }
 }
 
+// ============================================================================
+// ENTITY
+// ============================================================================
+
 /**
- * Conversation data structure
+ * Conversation entity - Multi-party communication capture
  */
-interface Conversation {
-  conversationId: string;
+@ConversationMgmt.Entity()
+export class Conversation {
+  /** Primary key */
+  id!: number;
+
+  /** Optional title */
   title?: string;
-  participants?: string[];
-  media?: string[];
-  seenAt: number;
-  updatedAt?: number;
-  pkbUrl: string;
-  commitHash: string;
+
+  /** Content entries (ConversationEntry[]) */
+  content!: ConversationEntry[];
+
+  /** When this conversation was captured */
+  captureTime!: number;
+
+  /** Timestamp of first message */
+  firstEntryTime?: number;
+
+  /** Timestamp of last message */
+  lastEntryTime?: number;
+
+  /** Source URL if imported (e.g., chat export) */
+  sourceUrl?: string;
+
+  /** When this conversation was added */
+  createdAt!: number;
+
+  /** When this conversation was last updated */
+  updatedAt!: number;
 }
 
 /**
- * Export the Management class for collector
+ * ConversationParticipant junction entity
  */
-export { ConversationMgmt };
+@ConversationMgmt.Entity()
+export class ConversationParticipant {
+  conversationId!: number;
+
+  personId!: number;
+
+  role?: string;
+}
+
+/**
+ * ConversationMedia junction entity
+ */
+@ConversationMgmt.Entity()
+export class ConversationMedia {
+  conversationId!: number;
+
+  mediaId!: number;
+
+  context?: Record<string, unknown>;
+}

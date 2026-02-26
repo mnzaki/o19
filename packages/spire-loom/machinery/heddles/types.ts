@@ -5,9 +5,10 @@
  */
 
 import type { SpiralRing } from '../../warp/index.js';
-import type { ManagementMetadata, MethodMetadata, EntityMetadata } from '../reed/index.js';
+import type { ManagementMetadata, MethodMetadata, EntityMetadata, EntityFieldMetadata } from '../reed/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 import type { MethodQueryAPI } from '../sley/query.js';
+import type { ComputedEntityHelpers } from '../treadle-kit/computed-entity-helpers.js';
 
 /**
  * Enriched method metadata with computed values from heddles.
@@ -162,6 +163,11 @@ export interface MethodHelpers {
 }
 
 /**
+ * Entity with computed field helpers for template usage.
+ */
+export interface EntityWithFields extends EntityMetadata, ComputedEntityHelpers {}
+
+/**
  * Entity helpers available in generator context.
  * Provides convenient access to filtered and grouped entities.
  */
@@ -177,6 +183,9 @@ export interface EntityHelpers {
   get readOnly(): EntityMetadata[];
   /** Get read-write entities */
   get readWrite(): EntityMetadata[];
+  
+  /** Get entities with field metadata and computed helpers */
+  withFields(): EntityWithFields[];
   
   /** Iterate all entities */
   forEach(cb: (entity: EntityMetadata) => void): void;

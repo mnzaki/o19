@@ -92,6 +92,34 @@ export interface EntityOptions {
 }
 
 /**
+ * Field metadata for entity code generation.
+ */
+export interface EntityFieldMetadata {
+  /** Property name (camelCase) */
+  name: string;
+  /** TypeScript type */
+  tsType: string;
+  /** Rust type (mapped from TS) */
+  rustType: string;
+  /** SQL type (mapped from TS) */
+  sqlType: string;
+  /** SQL column name (snake_case) */
+  columnName: string;
+  /** Whether field is nullable */
+  nullable: boolean;
+  /** Whether this is the primary key */
+  isPrimary: boolean;
+  /** Whether this is an auto-managed created timestamp */
+  isCreatedAt: boolean;
+  /** Whether this is an auto-managed updated timestamp */
+  isUpdatedAt: boolean;
+  /** Whether to include in INSERT statements */
+  forInsert: boolean;
+  /** Whether to include in UPDATE statements */
+  forUpdate: boolean;
+}
+
+/**
  * Metadata for an Entity associated with a Management.
  */
 export interface EntityMetadata {
@@ -103,6 +131,8 @@ export interface EntityMetadata {
   managementName: string;
   /** Optional metadata attached by decorator */
   options?: EntityOptions;
+  /** Field metadata for code generation */
+  fields?: EntityFieldMetadata[];
 }
 
 /**

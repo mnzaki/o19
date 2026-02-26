@@ -40,3 +40,24 @@ export {
   getSuggestedPackageFilter,
   type WorkspaceInfo,
 } from './workspace-discovery.js';
+
+// Re-export EntityFieldMetadata from warp for machinery use
+export type { EntityFieldMetadata } from '@o19/spire-loom/warp/imprint';
+
+// Shared class metadata collector pattern (for entity field collection and future use)
+export {
+  createCollector,
+  createDeepCollector,
+  isInstanceOf,
+  withName,
+  type ClassMetadataCollector,
+  type CollectorConfig,
+  type PredicateFn,
+  type ExtractorFn,
+} from './class-metadata-collector.js';
+
+// Entity field collection (uses shared collector pattern)
+export {
+  collectEntityFields,
+  getEntityFields,
+} from './entity-field-collector.js';

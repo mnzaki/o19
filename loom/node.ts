@@ -10,9 +10,10 @@
  */
 
 import { reach, Management, crud } from '@o19/spire-loom';
+import { DeviceMgmt } from './device.js';
 
 @reach('Private')
-class NodeMgmt extends Management {
+export class NodeMgmt extends Management {
   // ========================================================================
   // CONSTANTS
   // ========================================================================
@@ -64,13 +65,12 @@ class NodeMgmt extends Management {
 /**
  * Node status information
  */
-interface NodeStatus {
-  nodeId: string;
-  alias: string;
-  isRunning: boolean;
+@NodeMgmt.Entity()
+export class NodeStatus {
+  nodeId!: string;
+  alias!: string;
+  isRunning!: boolean;
   startedAt?: number;
-  peersConnected: number;
-  repositoriesHosted: number;
+  peersConnected!: number;
+  repositoriesHosted!: number;
 }
-
-export { NodeMgmt };
