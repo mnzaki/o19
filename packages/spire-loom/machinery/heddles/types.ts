@@ -5,7 +5,7 @@
  */
 
 import type { SpiralRing } from '../../warp/index.js';
-import type { ManagementMetadata, MethodMetadata } from '../reed/index.js';
+import type { ManagementMetadata, MethodMetadata, EntityMetadata } from '../reed/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 import type { MethodQueryAPI } from '../sley/query.js';
 
@@ -162,6 +162,29 @@ export interface MethodHelpers {
 }
 
 /**
+ * Entity helpers available in generator context.
+ * Provides convenient access to filtered and grouped entities.
+ */
+export interface EntityHelpers {
+  /** All collected entities */
+  all: EntityMetadata[];
+  
+  /** Group entities by management name */
+  byManagement(): Map<string, EntityMetadata[]>;
+  /** Get entities with specific tag */
+  withTag(tag: string): EntityMetadata[];
+  /** Get read-only entities */
+  get readOnly(): EntityMetadata[];
+  /** Get read-write entities */
+  get readWrite(): EntityMetadata[];
+  
+  /** Iterate all entities */
+  forEach(cb: (entity: EntityMetadata) => void): void;
+  /** Iterate filtered entities */
+  filteredForEach(filter: (entity: EntityMetadata) => boolean, cb: (entity: EntityMetadata) => void): void;
+}
+
+/**
  * Generator context passed to generators.
  */
 export interface GeneratorContext {
@@ -177,6 +200,12 @@ export interface GeneratorContext {
   packageDir: string;
   /** Method collection helpers (populated by treadle-kit) - CLASSIC API */
   methods?: MethodHelpers;
+  
+  /** 
+   * Entity collection helpers (populated by treadle-kit).
+   * Provides access to entities associated with managements.
+   */
+  entities?: EntityHelpers;
   
   /** 
    * Query builder API (populated by treadle-kit) - NEW API.

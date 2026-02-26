@@ -42,6 +42,12 @@ class BookmarkMgmt extends loom.Management {
   @loom.crud('list')
   listBookmarks(): string[] { throw new Error('Imprint only'); }
 }
+
+// Associate entities with the management
+@BookmarkMgmt.Entity()  // or @BookmarkMgmt.EntityOptions({ tableName: 'bookmarks' })
+export class Bookmark {
+  id: number; url: string; title: string;
+}
 ```
 
 ### 3. Run the Loom
@@ -103,7 +109,7 @@ export const myTreadle = defineTreadle({
     pipeline: [addManagementPrefix()]
   },
   
-  // Generate files
+  // Generate files (each output can have its own context: { entity, method, ... })
   outputs: [
     { template: 'my/lib.rs.ejs', path: 'src/lib.rs', language: 'rust' }
   ],
@@ -192,9 +198,14 @@ defineTreadle({
   methods: { filter: 'front', pipeline: [] },
   data: (ctx) => {
     const config = ctx.config as { entities: string[] };
-    return { entities: config.entities };
+    return { entities: config.entities };  // Shared with all outputs/patches
   },
-  outputs: [...]
+  // Per-item context: each output gets its own `context.entity`
+  outputs: (ctx) => ctx.entities?.all.map(e => ({
+    template: 'entity.rs.ejs',
+    path: `entities/${e.name}.rs`,
+    context: { entity: e }  // Template receives THIS entity
+  })) || []
 });
 ```
 
@@ -290,7 +301,11 @@ import {
 ctx.query?.methods
   .crud('create', 'update')
   .tag('auth:required')
-  .byManagement()  // Map<string, RawMethod[]>
+  .byManagement();  // Map<string, RawMethod[]>
+
+// Access entities via ctx.entities
+ctx.entities?.byManagement().get('BookmarkMgmt');  // EntityMetadata[]
+ctx.entities?.readOnly;  // Entities with readOnly: true
 ```
 
 ---
@@ -351,13 +366,14 @@ patches: [
     position: { after: 'use std::' }
   },
   
-  // Dynamic: one patch per method
+  // Dynamic: patches share global context (use data() for variables)
   (ctx) => ctx.methods?.creates.map(m => ({
     type: 'ensureBlock' as const,
     targetFile: 'src/commands.rs',
     marker: `cmd-${m.name}`,
     template: 'command.rs.ejs',
     language: 'rust'
+    // No per-item context here - template uses data() result
   })) || []
 ]
 ```
@@ -369,17 +385,20 @@ Creates marked blocks:
 /* /SPIRE-LOOM:TREADLE-NAME:MARKER */
 ```
 
+**Note:** Patches share global `data()` context. For per-item context, use `outputs` with `context: { item }`.
+
 ---
 
 ## Key Principles
 
 1. **WARP.ts is executable** - It builds the spiral graph at runtime
 2. **Managements are imprints** - Define interfaces, not implementations
-3. **The loom generates to `spire/`** - Isolated from hand-written code
-4. **Methods flow through the spiral** - Collected, filtered, transformed
-5. **Tieup treadles for extensions** - Attach via `.tieup()` with `warpData`
-6. **Workspace templates override builtins** - Place in `loom/bobbin/`
-7. **Query API for complex filtering** - Chainable: `.crud().tag().management()`
+3. **Entities decorate Managements** - `@Mgmt.Entity` links data to operations
+4. **The loom generates to `spire/`** - Isolated from hand-written code
+5. **Methods flow through the spiral** - Collected, filtered, transformed
+6. **Tieup treadles for extensions** - Attach via `.tieup()` with `warpData`
+7. **Workspace templates override builtins** - Place in `loom/bobbin/`
+8. **Query API for complex filtering** - Chainable: `.crud().tag().management()`
 
 ---
 

@@ -7,7 +7,7 @@
 import * as path from 'node:path';
 import type { SpiralNode, GeneratorContext, WeavingPlan, MethodHelpers } from '../heddles/index.js';
 import { ensurePlanComplete } from '../heddles/index.js';
-import type { ManagementMetadata } from '../reed/index.js';
+import type { ManagementMetadata, EntityMetadata } from '../reed/index.js';
 import { filterByReach } from '../reed/index.js';
 import type { MgmtMethod } from '../sley/index.js';
 import type { RawMethod } from '../bobbin/index.js';
@@ -23,6 +23,7 @@ import {
 import { writeEventCallbackAidl } from '../bobbin/android.js';
 import type { MethodConfig, TreadleKit } from './types.js';
 import { toRawMethod, buildContextMethods } from './context-methods.js';
+import { buildContextEntities } from './context-entities.js';
 import { createQueryAPI } from '../sley/query.js';
 
 /**
@@ -101,6 +102,17 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       
       // Build and attach query API (new chainable API)
       context.query = createQueryAPI(rawMethods);
+      
+      // Collect entities from all managements
+      const allEntities: EntityMetadata[] = [];
+      for (const mgmt of context.plan.managements) {
+        if (mgmt.entities) {
+          allEntities.push(...mgmt.entities);
+        }
+      }
+      
+      // Build and attach entity helpers to context
+      context.entities = buildContextEntities(allEntities);
       
       return rawMethods;
     },

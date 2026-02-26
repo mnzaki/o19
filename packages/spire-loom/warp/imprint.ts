@@ -5,6 +5,12 @@
 import type { CrudMetadata } from './crud.js';
 import { flushPendingCrudMethods } from './crud.js';
 
+/** Stage 3 class decorator type */
+type ClassDecorator = <T extends new (...args: any[]) => any>(
+  target: T,
+  context: ClassDecoratorContext<T>
+) => T;
+
 export type { CrudMetadata } from './crud.js';
 export type { CrudOperation } from './crud.js';
 
@@ -48,6 +54,8 @@ declare global {
     crud: WeakMap<Function, Map<string, CrudMetadata>>;
     /** Maps Management classes to their method tags */
     tags: WeakMap<Function, Map<string, string[]>>;
+    /** Maps Management classes to their Entity classes */
+    entities: WeakMap<Function, EntityMetadata[]>;
   };
 }
 
@@ -57,6 +65,7 @@ if (!globalThis[GLOBAL_KEY]) {
     reach: new WeakMap<Function, 'Private' | 'Local' | 'Global'>(),
     crud: new WeakMap<Function, Map<string, CrudMetadata>>(),
     tags: new WeakMap<Function, Map<string, string[]>>(),
+    entities: new WeakMap<Function, EntityMetadata[]>(),
   };
 }
 
@@ -64,6 +73,37 @@ if (!globalThis[GLOBAL_KEY]) {
 const reachMetadata = globalThis[GLOBAL_KEY].reach;
 const crudMetadata = globalThis[GLOBAL_KEY].crud;
 const methodTags = globalThis[GLOBAL_KEY].tags;
+const entityMetadata = globalThis[GLOBAL_KEY].entities;
+
+// ============================================================================
+// Entity Management System
+// ============================================================================
+
+/**
+ * Options for the @Management.Entity decorator.
+ */
+export interface EntityOptions {
+  /** Custom table/collection name (defaults to entity class name) */
+  tableName?: string;
+  /** Whether this entity is read-only (no create/update/delete) */
+  readOnly?: boolean;
+  /** Tags for categorization */
+  tags?: string[];
+}
+
+/**
+ * Metadata for an Entity associated with a Management.
+ */
+export interface EntityMetadata {
+  /** The entity class constructor */
+  entityClass: new (...args: any[]) => any;
+  /** The entity class name */
+  name: string;
+  /** Management class this entity belongs to */
+  managementName: string;
+  /** Optional metadata attached by decorator */
+  options?: EntityOptions;
+}
 
 /**
  * Decorator for Management reach (Stage 3 format).
@@ -135,11 +175,118 @@ export function getMethodTags(target: Function): Map<string, string[]> | undefin
 }
 
 /**
+ * Get all Entity classes associated with a Management class.
+ */
+export function getEntities(target: typeof Management): EntityMetadata[] | undefined {
+  return entityMetadata.get(target);
+}
+
+// ============================================================================
+// Entity Registration Helper
+// ============================================================================
+
+// Symbol for storing pending entity registrations
+const PENDING_ENTITIES = Symbol('loom:pendingEntities');
+
+/**
+ * Register an entity class with a Management class.
+ * This is called by the Management.Entity decorator.
+ * 
+ * Uses delayed binding: stores on a global list and resolves when getEntities is called.
+ */
+function registerEntity(
+  mgmtClass: typeof Management | undefined,
+  entityClass: new (...args: any[]) => any,
+  context: ClassDecoratorContext,
+  options: EntityOptions
+): typeof entityClass {
+  const entityName = context.name ?? entityClass.name;
+  
+  if (!mgmtClass) {
+    throw new Error(
+      `@Entity decorator called without Management context. ` +
+      `Make sure the Management class is imported before the Entity. ` +
+      `Entity: ${entityName}`
+    );
+  }
+  
+  const metadata: EntityMetadata = {
+    entityClass,
+    name: entityName,
+    managementName: mgmtClass.name,
+    options
+  };
+
+  // Associate with this Management class
+  const existing = entityMetadata.get(mgmtClass) ?? [];
+  existing.push(metadata);
+  entityMetadata.set(mgmtClass, existing);
+
+  return entityClass;
+}
+
+/**
  * Base class for Management Imprints.
  * Not meant to be instantiated - purely for generation metadata.
+ *
+ * Provides static Entity decorator for associating entity classes.
+ *
+ * Usage:
+ *   @BookmarkMgmt.Entity
+ *   export class Bookmark { ... }
+ *
+ *   @BookmarkMgmt.Entity({ tableName: 'bookmarks', readOnly: false })
+ *   export class Bookmark { ... }
  */
 export abstract class Management {
-  // Marker class - used for typechecking only
+  /**
+   * Entity decorator - associates an entity class with this Management.
+   *
+   * Bare usage:
+   *   @BookmarkMgmt.Entity
+   *   export class Bookmark { ... }
+   *
+   * With options (use the options method):
+   *   @BookmarkMgmt.Entity.options({ tableName: 'custom_bookmarks' })
+   *   export class Bookmark { ... }
+   */
+  static Entity(this: typeof Management): ClassDecorator {
+    const mgmtClass = this;
+    if (!mgmtClass) {
+      throw new Error(
+        `@Entity decorator 'this' is undefined. ` +
+        `Make sure to call as @MgmtClass.Entity() not @Entity. `
+      );
+    }
+    return function<T extends new (...args: any[]) => any>(
+      target: T,
+      context: ClassDecoratorContext<T>
+    ): T {
+      return registerEntity(mgmtClass, target, context, {});
+    };
+  }
+
+  /**
+   * Create an Entity decorator with options.
+   * Usage:
+   *   @BookmarkMgmt.Entity.options({ tableName: 'bookmarks', readOnly: true })
+   *   export class Bookmark { ... }
+   */
+  static EntityOptions(this: typeof Management, options: EntityOptions): ClassDecorator {
+    const mgmtClass = this;
+    if (!mgmtClass) {
+      throw new Error(
+        `@EntityOptions decorator 'this' is undefined. ` +
+        `Make sure to call as @MgmtClass.EntityOptions({...}) not @EntityOptions. `
+      );
+    }
+    return function<T extends new (...args: any[]) => any>(
+      target: T,
+      context: ClassDecoratorContext<T>
+    ): T {
+      return registerEntity(mgmtClass, target, context, options);
+    };
+  }
 }
 
 // Import and re-export Layer/Layering from layers.ts for backward compatibility

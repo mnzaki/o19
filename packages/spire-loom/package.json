@@ -6,8 +6,10 @@
   "type": "module",
   "bin": {
     "spire-loom": "./bin/spire-loom.js",
+    "spire-loomi": "./bin/spire-loom-warp.js",
     "spire-loom-warp": "./bin/spire-loom-warp.js",
-    "spire-loom-mud-warp": "./bin/spire-loom-mud-warp.js"
+    "spire-loom-mud-warp": "./bin/spire-loom-mud-warp.js",
+    "spire-loom-warp-mud": "./bin/spire-loom-mud-warp.js"
   },
   "scripts": {
     "dev": "tsc --watch",

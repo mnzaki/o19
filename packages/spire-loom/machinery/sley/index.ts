@@ -90,3 +90,23 @@ export {
   type MethodQueryAPI,
   type CrudOperation
 } from './query.js';
+
+// Entity Pipeline - composable translations for Entity classes
+export {
+  // Core types
+  type Entity,
+  type EntityTranslation,
+  type EntityFilter,
+  EntityPipeline,
+  // Translations
+  addPrefix as addEntityPrefix,
+  setTableNamePattern,
+  // Filters
+  tagFilter as entityTagFilter,
+  readOnlyFilter,
+  // Grouping utilities
+  groupByManagement as groupEntitiesByManagement,
+  groupByReadOnly,
+  // Utilities
+  fromSourceEntities
+} from './entity-pipeline.js';

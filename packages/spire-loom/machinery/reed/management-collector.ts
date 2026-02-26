@@ -31,8 +31,10 @@ import {
   getCrudMethods, 
   getMethodTags, 
   getLinkTarget, 
+  getEntities,
   type CrudMetadata,
-  type LinkMetadata 
+  type LinkMetadata,
+  type EntityMetadata
 } from '@o19/spire-loom/warp/imprint';
 
 // TypeScript method signature parser
@@ -140,6 +142,8 @@ export interface ManagementMetadata {
   sourceFile: string;
   /** Methods with their CRUD metadata */
   methods: MethodMetadata[];
+  /** Entity classes associated with this management */
+  entities: EntityMetadata[];
   /** Constants defined in the management */
   constants: Record<string, unknown>;
   /** Link target for routing (raw, unresolved) */
@@ -338,11 +342,15 @@ function extractMetadata(
     }
   }
   
+  // Get entities from decorator metadata
+  const entities = getEntities(mgmtClass) ?? [];
+  
   return {
     name: mgmtClass.name,
     reach,
     sourceFile,
     methods,
+    entities,
     constants,
     link,
   };

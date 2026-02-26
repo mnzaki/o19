@@ -58,9 +58,10 @@ const args = [
    import(warpPath)
     .then(mod => {
       mod = mod.default?.weave ? mod : mod.default ;
-      return main(() => mod.default.weave(mod, config))
+      return main(() => mod.default.weave(mod, config), mod)
     })`,
-  ...process.argv.slice(2) // Pass through user arguments
+  '--',
+  ...process.argv.slice(1) // Pass through user arguments
 ];
 
 const child = spawn(process.execPath, args, {

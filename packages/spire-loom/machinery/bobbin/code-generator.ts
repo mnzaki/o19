@@ -666,19 +666,15 @@ function generateHeaderComment(
   const builtinDir = getBuiltinTemplateDir();
   const isBuiltin = resolvedTemplatePath.startsWith(builtinDir);
   
-  // Get relative path for display
-  let templateDisplayPath: string;
-  let overrideInstructions: string;
+  // Use absolute path for display
+  const templateDisplayPath = resolvedTemplatePath;
   
+  let overrideInstructions: string;
   if (isBuiltin) {
-    // Builtin template - show path in node_modules
     const relativeToBuiltin = path.relative(builtinDir, resolvedTemplatePath);
-    templateDisplayPath = `node_modules/@o19/spire-loom/machinery/bobbin/${relativeToBuiltin}`;
     overrideInstructions = `// To override: Copy this template to loom/bobbin/${relativeToBuiltin}`;
   } else {
-    // Custom template (would be in workspace)
-    templateDisplayPath = originalTemplatePath;
-    overrideInstructions = `// This is a custom template in your workspace`;
+    overrideInstructions = `// This is a workspace custom template (from loom/bobbin/)`;
   }
   
   const templateFile = path.basename(resolvedTemplatePath);
