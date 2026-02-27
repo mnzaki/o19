@@ -10,7 +10,7 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { defineTreadle, generateFromTreadle } from '../machinery/treadle-kit/declarative.js';
+import { declareTreadle, generateFromTreadle } from '../machinery/treadle-kit/declarative.js';
 import type { PatchSpec, GeneratorContext } from '../machinery/treadle-kit/index.js';
 import { hasBlock, createMarkers } from '../machinery/shuttle/markers.js';
 
@@ -72,9 +72,9 @@ describe('Patches System', () => {
     });
   });
 
-  describe('defineTreadle with patches', () => {
+  describe('declareTreadle with patches', () => {
     it('should define a treadle with static patches', () => {
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         matches: [{ current: 'TestSpiraler', previous: 'RustCore' }],
         methods: { filter: 'core', pipeline: [] },
         outputs: [{ template: 'test.ejs', path: 'test.rs', language: 'rust' }],
@@ -99,7 +99,7 @@ describe('Patches System', () => {
     });
 
     it('should define a treadle with function-based patches', () => {
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         matches: [{ current: 'TestSpiraler', previous: 'RustCore' }],
         methods: { filter: 'core', pipeline: [] },
         outputs: [{ template: 'test.ejs', path: 'test.rs', language: 'rust' }],
@@ -123,7 +123,7 @@ describe('Patches System', () => {
     });
 
     it('should allow multiple patches', () => {
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         matches: [{ current: 'TestSpiraler', previous: 'RustCore' }],
         methods: { filter: 'core', pipeline: [] },
         outputs: [{ template: 'test.ejs', path: 'test.rs', language: 'rust' }],
@@ -155,7 +155,7 @@ describe('Patches System', () => {
       const cargoPath = path.join(packageDir, 'Cargo.toml');
       fs.writeFileSync(cargoPath, '[package]\nname = "test"\n\n[dependencies]\n');
 
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         name: 'testTreadle',
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
@@ -194,7 +194,7 @@ describe('Patches System', () => {
     });
 
     it('should use treadle name as marker scope', () => {
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         name: 'androidService',
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
@@ -223,7 +223,7 @@ describe('Patches System', () => {
     it('should resolve function patches at runtime', async () => {
       let called = false;
 
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         name: 'testTreadle',
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
@@ -268,7 +268,7 @@ describe('Patches System', () => {
     });
 
     it('should skip undefined patches from functions', () => {
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
         outputs: [{ template: 'dummy.ejs', path: 'dummy.rs', language: 'rust' }],
@@ -297,7 +297,7 @@ describe('Patches System', () => {
 
       const phases: string[] = [];
 
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
         outputs: [
@@ -333,7 +333,7 @@ describe('Patches System', () => {
 
   describe('output and patch functions', () => {
     it('should support function-based outputs', () => {
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
         outputs: [
@@ -358,7 +358,7 @@ describe('Patches System', () => {
     });
 
     it('should filter out undefined outputs from functions', () => {
-      const treadle = defineTreadle({
+      const treadle = declareTreadle({
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
         outputs: [

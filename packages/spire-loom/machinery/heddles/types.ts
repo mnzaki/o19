@@ -4,8 +4,8 @@
  * Core type definitions for the pattern matching and weaving plan.
  */
 
-import type { SpiralRing } from '../../warp/index.js';
-import type { ManagementMetadata, MethodMetadata, EntityMetadata, EntityFieldMetadata } from '../reed/index.js';
+import type { EntityMetadata, SpiralRing } from '../../warp/index.js';
+import type { ManagementMetadata, MethodMetadata } from '../reed/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 import type { MethodQueryAPI } from '../sley/query.js';
 import type { ComputedEntityHelpers } from '../treadle-kit/computed-entity-helpers.js';
@@ -74,7 +74,7 @@ export interface GenerationTask {
   previous: SpiralNode;
   /** Export name from WARP.ts (the spiraler's export) */
   exportName: string;
-  /** 
+  /**
    * Optional generator function.
    * If provided, bypasses matrix lookup (used for tieup tasks).
    */
@@ -129,27 +129,50 @@ export function ensurePlanComplete(plan: WeavingPlan, operation: string): void {
 }
 
 /**
+ * Management methods grouped with service metadata.
+ * Provides all information needed to generate DDD services.
+ */
+export interface ManagementMethods {
+  /** Management name (e.g., "BookmarkMgmt") */
+  name: string;
+  /** Entity name derived from management (e.g., "Bookmark") */
+  entityName: string;
+  /** Service class name (e.g., "BookmarkService") */
+  serviceName: string;
+  /** Port interface name (e.g., "BookmarkPort") */
+  portName: string;
+  /** All methods for this management */
+  methods: RawMethod[];
+  /** Read methods (read, list operations) */
+  readMethods: RawMethod[];
+  /** Write methods (create, update, delete operations) */
+  writeMethods: RawMethod[];
+  /** Passthrough methods (no CRUD classification) */
+  passthroughMethods: RawMethod[];
+}
+
+/**
  * Method helpers available in generator context.
  * Provides convenient access to filtered and grouped management methods.
  */
 export interface MethodHelpers {
   /** All collected methods (after pipeline transformation) */
   all: RawMethod[];
-  
-  /** Group methods by management name */
-  byManagement(): Map<string, RawMethod[]>;
+
+  /** Group methods by management name with service metadata */
+  byManagement(): Map<string, ManagementMethods>;
   /** Group methods by CRUD operation */
   byCrud(): Map<string, RawMethod[]>;
   /** Get methods with specific tag */
   withTag(tag: string): RawMethod[];
   /** Get methods with specific CRUD operation */
   withCrud(op: string): RawMethod[];
-  
+
   /** Iterate all methods */
   forEach(cb: (method: RawMethod) => void): void;
   /** Iterate filtered methods */
   filteredForEach(filter: (method: RawMethod) => boolean, cb: (method: RawMethod) => void): void;
-  
+
   /** All create methods */
   get creates(): RawMethod[];
   /** All read methods */
@@ -174,7 +197,7 @@ export interface EntityWithFields extends EntityMetadata, ComputedEntityHelpers 
 export interface EntityHelpers {
   /** All collected entities */
   all: EntityMetadata[];
-  
+
   /** Group entities by management name */
   byManagement(): Map<string, EntityMetadata[]>;
   /** Get entities with specific tag */
@@ -183,14 +206,17 @@ export interface EntityHelpers {
   get readOnly(): EntityMetadata[];
   /** Get read-write entities */
   get readWrite(): EntityMetadata[];
-  
+
   /** Get entities with field metadata and computed helpers */
   withFields(): EntityWithFields[];
-  
+
   /** Iterate all entities */
   forEach(cb: (entity: EntityMetadata) => void): void;
   /** Iterate filtered entities */
-  filteredForEach(filter: (entity: EntityMetadata) => boolean, cb: (entity: EntityMetadata) => void): void;
+  filteredForEach(
+    filter: (entity: EntityMetadata) => boolean,
+    cb: (entity: EntityMetadata) => void
+  ): void;
 }
 
 /**
@@ -209,20 +235,20 @@ export interface GeneratorContext {
   packageDir: string;
   /** Method collection helpers (populated by treadle-kit) - CLASSIC API */
   methods?: MethodHelpers;
-  
-  /** 
+
+  /**
    * Entity collection helpers (populated by treadle-kit).
    * Provides access to entities associated with managements.
    */
   entities?: EntityHelpers;
-  
-  /** 
+
+  /**
    * Query builder API (populated by treadle-kit) - NEW API.
    * Chainable queries: context.query?.methods.crud('create').tag('auth').all
    */
   query?: MethodQueryAPI<RawMethod>;
-  
-  /** 
+
+  /**
    * Configuration data from tieup (warpData).
    * Available when treadle is invoked via .tieup()
    */

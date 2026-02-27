@@ -1,34 +1,33 @@
 import { invoke } from '@tauri-apps/api/core';
 import { createServices as createDomainServices } from '@o19/foundframe-front';
-import { createDrizzleProxy } from './drizzleProxy.js';
-import { createTauriAdaptors } from './adaptors/index.js';
+//import { createDrizzleProxy } from './drizzleProxy.js';
 import { TauriPreviewAdaptor } from './adaptors/preview.adaptor.js';
 
-export { createTauriAdaptors, type StreamEntryResult, type AddMediaLinkParams, type AddTextNoteParams } from './adaptors/index.js';
-export { TauriBookmarkAdaptor, TauriPostAdaptor, TauriMediaAdaptor, TauriPersonAdaptor, TauriConversationAdaptor, TauriStreamAdaptor, TauriDeviceAdaptor } from './adaptors/index.js';
+// Re-export types from foundframe-front for convenience
+export type * from '@o19/foundframe-front/ports';
+export * from '../spire/ts/adaptors/index.js';
+import { createTauriAdaptor } from '../spire/ts/adaptors/index.js';
+import type { ScannedPairingData } from '@o19/foundframe-front/ports';
 
-// Re-export device types from foundframe-front for convenience
-export type { 
-  PairedDevice, 
-  PairingQrData, 
-  ScannedPairingData,
-  DevicePort
-} from '@o19/foundframe-front/ports';
+import { TauriDeviceAdaptor } from './adaptors/device.adaptor.js';
 
-export function createServices(dbName = "database.db") {
-  const db = createDrizzleProxy(dbName);
-  const adaptors = createTauriAdaptors(db);
+import { TauriTheStreamAdaptor } from './adaptors/theStream.adaptor.js';
+
+export function createServices(dbName = 'deardiary.db') {
+  const adaptors = createTauriAdaptor();
   return createDomainServices({
     ...adaptors,
     preview: new TauriPreviewAdaptor(),
+    device: new TauriDeviceAdaptor(),
+    theStream: new TauriTheStreamAdaptor()
   });
 }
 
 export type IPersistenceServices = ReturnType<typeof createServices>;
 
 export type NotificationPermissionStatus = {
-  status: 'prompt' | 'denied' | 'granted'
-}
+  status: 'prompt' | 'denied' | 'granted';
+};
 
 export async function convertJpegToWebp(jpeg: Uint8Array): Promise<Uint8Array> {
   const bytes = await invoke<number[]>('plugin:o19-foundframe-tauri|convert_jpeg_to_webp', {
@@ -47,7 +46,7 @@ export async function compressWebpToSize(webp: Uint8Array, maxSize: number): Pro
 }
 
 export async function requestPermissions(): Promise<NotificationPermissionStatus> {
-  return await invoke('plugin:o19-foundframe-tauri|request_permissions')
+  return await invoke('plugin:o19-foundframe-tauri|request_permissions');
 }
 
 // ============================================================================
@@ -58,13 +57,6 @@ export type PairingQrResponse = {
   url: string;
   emojiIdentity: string;
   nodeIdHex: string;
-};
-
-export type ScannedPairingData = {
-  emojiIdentity: string;
-  deviceName: string;
-  nodeIdHex: string;
-  nodeId: string;
 };
 
 export type PairedDeviceInfo = {
@@ -101,7 +93,7 @@ export async function unpairDevice(nodeIdHex: string): Promise<void> {
 // Camera API
 // ============================================================================
 
-// Note: Camera commands go through the o19-foundframe-tauri plugin, which delegates to 
+// Note: Camera commands go through the o19-foundframe-tauri plugin, which delegates to
 // the native CameraPlugin on Android. This ensures proper permission handling.
 
 export type CameraMode = 'preview' | 'qr' | 'photo';
@@ -194,10 +186,10 @@ export async function checkCameraPermissions(): Promise<Pick<CameraPermissionRes
 /**
  * Listen for QR code scan events.
  * Use with Tauri's `listen` function:
- * 
+ *
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
- * 
+ *
  * listen('qr-scanned', (event) => {
  *   console.log('QR Code:', event.payload.content);
  * });
@@ -207,10 +199,10 @@ export const QR_SCANNED_EVENT = 'qr-scanned';
 
 /**
  * Listen for photo capture events.
- * 
+ *
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
- * 
+ *
  * listen('photo-captured', (event) => {
  *   console.log('Photo saved:', event.payload.uri);
  * });

@@ -86,6 +86,70 @@ Access inner rings: `foundframe.inner.core.thestream`
 
 ---
 
+## Package WARP Overrides 🌀
+
+Packages can override their own spiral configuration. When the loom runs, it auto-discovers `loom/WARP.ts` in each package directory and merges configurations.
+
+### How It Works
+
+```typescript
+// workspace/loom/WARP.ts - Main architecture, just a plain unconfigured spiral
+export const front = loom.spiral()
+  .tieup({ treadles: [{ treadle: mainTreadle }] });  // Runs first
+
+// workspace/packages/foundframe-front/loom/WARP.ts - Package override
+export const front = loom.spiral.typescript.ddd()
+  .tieup({ treadles: [{ treadle: packageTreadle }] });  // Runs second
+
+// Result: Both treadles execute; package ring replaces main ring
+// Tieups merge (main first, package second); package can fully redefine
+```
+
+### Use Cases
+
+```typescript
+// Override 1: Custom package structure
+export const front = loom.spiral(loom.tsCore(), {
+  packagePath: 'custom/path',  // Different output location
+  language: 'typescript'
+}).tieup({ treadles: [customStructureTreadle] });
+
+// Override 2: Additional tieups without redefining ring
+export const front = tauri.typescript.ddd()
+  .tieup({ treadles: [{ treadle: extraAdaptor }] });
+// ^ Merges with main WARP.ts tieups; both run
+
+// Override 3: Completely different generator set
+export const front = loom.spiral(myCustomCore())
+  .tieup({
+    treadles: [
+      { treadle: vueTreadle },
+      { treadle: viteTreadle },
+      { treadle: piniaTreadle }
+    ]
+  });
+```
+
+### Resolution Order
+
+1. **Main WARP.ts** loads → rings created, lazy tieups stored
+2. **Metadata computed** → `packagePath` determined from export name
+3. **Package WARP.ts** auto-loaded → `{packagePath}/loom/WARP.ts` (if exists)
+4. **Tieups merged** → main tieups + package tieups (concatenated)
+5. **Final ring used** → package ring replaces main ring for that export
+
+> **🌀 Rule:** Package WARPs are always loaded when present. No opt-in needed. Merge strategy: tieups concatenate; ring replaces.
+
+### Debugging
+
+```bash
+# See which package WARPs are loaded
+DEBUG_PACKAGE_WARP=1 pnpm spire-loom
+# Output: "🌀 Package WARP: front from packages/foundframe-front/loom/WARP.ts"
+```
+
+---
+
 ## Writing Treadles
 
 Treadles map architectural connections to file generation tasks. They receive metadata from the WARP.ts graph and generate/modify files.
@@ -114,14 +178,35 @@ export const myTreadle = defineTreadle({
     { template: 'my/lib.rs.ejs', path: 'src/lib.rs', language: 'rust' }
   ],
   
-  // Modify existing files
-  patches: [{
-    type: 'ensureBlock',
-    targetFile: 'Cargo.toml',
-    marker: 'my-deps',
-    template: 'my/cargo.ejs',
-    language: 'toml'
-  }]
+  // Hookups: declarative modifications to existing files
+  hookups: [
+    // Cargo.toml dependencies
+    { path: 'Cargo.toml', dependencies: { serde: '^1.0' } },
+    
+    // TypeScript class method injection
+    { 
+      path: 'src/db-router.ts',
+      classes: {
+        DbRouter: {
+          methods: {
+            init: { prepend: ['this.generated = true;'] }
+          }
+        }
+      }
+    },
+    
+    // Rust impl block modification
+    {
+      path: 'src/handler.rs',
+      impls: {
+        'EventHandler': {
+          methods: {
+            'new': { prepend: ['// Generated setup'] }
+          }
+        }
+      }
+    }
+  ]
 });
 
 export default generateFromTreadle(myTreadle);
@@ -160,6 +245,7 @@ outputs: [(ctx) => {
 data: (ctx) => {
   // Classic API - simple access
   const creates = ctx.methods?.creates;
+  const entities = ctx.entities?.withFields();  // @Mgmt.Entity() data
   
   // Query API - chainable filters
   const authCreates = ctx.query?.methods
@@ -173,7 +259,7 @@ data: (ctx) => {
     .management('BookmarkMgmt')
     .all;
   
-  return { authCreates, bookmarkReads };
+  return { authCreates, bookmarkReads, entities };
 }
 ```
 
@@ -348,44 +434,92 @@ export class <%= entity.pascal %>Service {
 <% }) -%>
 ```
 
+### Method Helpers
+
+Methods come with pre-computed helpers for common patterns:
+
+```ejs
+// Stub return values for mock implementations
+<% methods.forEach(m => { -%>
+  fn <%= m.name %>() -> <%= m.rsReturnType %> {
+    // m.stubReturn provides appropriate default for the type:
+    // Rust: 'String::new()', 'Vec::new()', 'Default::default()'
+    // TypeScript: "'', 0, false, []"
+    // Kotlin: '"", 0, false, emptyList()'
+    <%= m.stubReturn %>
+  }
+<% }) -%>
+```
+
 ---
 
-## Patches (Idempotent Modifications)
+## Hookups: Advanced File Modification
 
-Modify existing files with marker-based blocks:
+Declarative modifications to external files (Cargo.toml, AndroidManifest.xml, source files):
 
 ```typescript
-patches: [
-  // Static patch
+hookups: [
+  // TypeScript: class methods and imports
   {
-    type: 'ensureBlock',
-    targetFile: 'src/lib.rs',
-    marker: 'spire-imports',
-    template: 'imports.rs.ejs',
-    language: 'rust',
-    position: { after: 'use std::' }
+    path: '{packageDir}/src/router.ts',
+    imports: ['import { handler } from "./generated";'],
+    classes: {
+      Router: {
+        fields: ['private initialized = false;'],
+        methods: {
+          init: { prepend: ['this.initialized = true;'] },
+          destroy: { append: ['cleanup();'] }
+        },
+        newMethods: ['generatedRoute() { return "/api"; }']
+      }
+    }
   },
   
-  // Dynamic: patches share global context (use data() for variables)
-  (ctx) => ctx.methods?.creates.map(m => ({
-    type: 'ensureBlock' as const,
-    targetFile: 'src/commands.rs',
-    marker: `cmd-${m.name}`,
-    template: 'command.rs.ejs',
-    language: 'rust'
-    // No per-item context here - template uses data() result
-  })) || []
+  // Rust: impl blocks and standalone functions
+  {
+    path: '{packageDir}/src/lib.rs',
+    impls: {
+      'MyService': {
+        methods: { 'new': { prepend: ['// Setup'] } }
+      }
+    },
+    functions: {
+      'main': { append: ['println!("Done");'] }
+    }
+  },
+  
+  // File-block: template-based block insertion (patch replacement)
+  // Language auto-detected from file extension (.rs → rust, .ts → typescript, etc.)
+  {
+    path: '{packageDir}/src/db.rs',
+    template: 'rust/db_commands.rs.ejs',
+    context: { entities: ctx.entities?.all },
+    position: { after: 'use sqlx::' }
+  }
 ]
 ```
 
-Creates marked blocks:
-```rust
-/* SPIRE-LOOM:TREADLE-NAME:MARKER */
-// Generated content
-/* /SPIRE-LOOM:TREADLE-NAME:MARKER */
-```
+### Patches (Deprecated)
 
-**Note:** Patches share global `data()` context. For per-item context, use `outputs` with `context: { item }`.
+**⚠️ `patches` is deprecated. Use `hookups` with `language` + `template` instead.**
+
+Old pattern → New pattern:
+```typescript
+// Old (deprecated)
+patches: [{
+  type: 'ensureBlock',
+  targetFile: 'src/lib.rs',
+  marker: 'spire-imports',
+  template: 'imports.rs.ejs',
+  language: 'rust'
+}]
+
+// New (hookup) - language auto-detected from .rs extension
+hookups: [{
+  path: 'src/lib.rs',
+  template: 'imports.rs.ejs'
+}]
+```
 
 ---
 
@@ -399,6 +533,7 @@ Creates marked blocks:
 6. **Tieup treadles for extensions** - Attach via `.tieup()` with `warpData`
 7. **Workspace templates override builtins** - Place in `loom/bobbin/`
 8. **Query API for complex filtering** - Chainable: `.crud().tag().management()`
+9. **Hookups modify external files** - `patches` deprecated; use declarative hookups with method-level targeting
 
 ---
 

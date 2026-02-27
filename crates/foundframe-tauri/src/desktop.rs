@@ -49,6 +49,16 @@ impl<R: Runtime> DesktopPlatform<R> {
     let foundframe = o19_foundframe::init(init_options, on_runtime_exit)
       .map_err(|e| Error::Other(format!("Failed to initialize foundframe: {e}")))?;
 
+    Self::from_foundframe(app_handle, foundframe)
+  }
+
+  /// Create a DesktopPlatform from an existing Foundframe instance.
+  /// 
+  /// This allows the caller to control initialization options and callbacks.
+  pub fn from_foundframe(
+    app_handle: AppHandle<R>,
+    foundframe: o19_foundframe::Foundframe,
+  ) -> Result<Self> {
     let events = foundframe.events_clone();
 
     // Create PKB service
@@ -58,7 +68,7 @@ impl<R: Runtime> DesktopPlatform<R> {
 
     // Create TheStream
     let device_pubkey = [0u8; 32]; // TODO: Get from KERI
-    let stream = TheStream::with_pubkey(pkb, events.clone(), device_pubkey);
+    let stream = TheStream::with_pubkey(pkb, events.clone(), device_pubkey, None);
     let _stream_listener = stream.start_listening();
 
     Ok(Self {
@@ -169,7 +179,7 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
 
     let node_handle =
       NodeHandle::new().map_err(|e| Error::Other(format!("Failed to create node handle: {e}")))?;
-    let device_manager = DeviceManager::new(node_handle);
+    let mut device_manager = DeviceManager::new(node_handle);
 
     let followers = device_manager
       .list_followers()
@@ -180,19 +190,19 @@ impl<R: Runtime> Platform for DesktopPlatform<R> {
     for follower in followers {
       let alias = format!(
         "Device {}",
-        &follower.node_id[..8.min(follower.node_id.len())]
+        &follower.nid.to_string()[..8.min(follower.nid.to_string().len())]
       );
 
-      match device_manager.follow_device(&follower.node_id) {
+      match device_manager.follow_device(follower.nid) {
         Ok(_) => {
           newly_paired.push(PairedDeviceInfo {
-            node_id: follower.node_id,
+            node_id: follower.nid.to_string(),
             alias,
             paired: true,
           });
         }
         Err(e) => {
-          tracing::warn!("Failed to auto-follow {}: {}", follower.node_id, e);
+          tracing::warn!("Failed to auto-follow {}: {}", follower.nid, e);
         }
       }
     }

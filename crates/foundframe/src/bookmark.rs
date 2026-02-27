@@ -4,6 +4,7 @@
 
 use std::path::Path;
 
+use crate::db::BookmarkFilter;
 use crate::error::{Error, Result};
 use crate::pkb::DirectoryId;
 use crate::thestream::{StreamEntry, TheStream};
@@ -38,6 +39,21 @@ pub trait BookmarkStream {
   /// Returns a list of (stream_entry, bookmark_data) tuples.
   fn list_bookmarks(&self, directory: Option<&str>) -> Result<Vec<(StreamEntry, BookmarkData)>>;
 
+  /// List bookmarks from the database with optional filtering.
+  ///
+  /// Requires database indexing to be enabled. Use `filter` to narrow results:
+  /// - `filter.uri = Some(url)` for exact URL match
+  /// - `filter.after = Some(timestamp)` for temporal filtering
+  /// - `filter.before = Some(timestamp)` for temporal filtering
+  ///
+  /// Returns raw database rows (not full PKB entries).
+  async fn list_bookmarks_filtered(
+    &self,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    filter: BookmarkFilter,
+  ) -> Result<Vec<crate::db::BookmarkData>>;
+
   /// Delete (soft-delete) a bookmark by its URL.
   ///
   /// Marks the bookmark as deleted without removing it from the PKB.
@@ -53,22 +69,18 @@ impl BookmarkStream for TheStream {
   ) -> Result<StreamEntry> {
     let directory = DirectoryId::from("bookmarks");
 
-    let data = serde_json::json!({
+    // Bookmark uses 'url' in its data model (not 'uri')
+    let data = crate::pkb::StructuredData::new("Bookmark", serde_json::json!({
         "url": url.into(),
         "title": title,
         "notes": notes,
         "creation_context": {},
-    });
+    }));
 
-    let chunk = crate::pkb::StreamChunk::StructuredData {
-      db_type: "Bookmark".to_string(),
-      data,
-    };
-
-    let filename = chunk.generate_filename(crate::pkb::now_timestamp(), title);
+    let filename = data.generate_filename(crate::pkb::now_timestamp(), title);
     let path = std::path::PathBuf::from(filename);
 
-    self.add_chunk(directory, path, chunk)
+    self.add_entry(directory, path, data)
   }
 
   fn get_bookmark_by_url(&self, url: &str) -> Result<Option<(StreamEntry, BookmarkData)>> {
@@ -168,6 +180,19 @@ impl BookmarkStream for TheStream {
     }
 
     Ok(false)
+  }
+
+  async fn list_bookmarks_filtered(
+    &self,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    filter: BookmarkFilter,
+  ) -> Result<Vec<crate::db::BookmarkData>> {
+    let db = self.db.as_ref()
+      .ok_or_else(|| Error::Other("Database not available".into()))?;
+    
+    db.list_bookmarks(limit, offset, filter).await
+      .map_err(|e| Error::Other(format!("Database error: {}", e)))
   }
 }
 

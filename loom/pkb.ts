@@ -6,8 +6,6 @@
  * the user's personal knowledge.
  *
  * Reach: Private (Core only)
- *
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
 import { reach, Management, crud } from '@o19/spire-loom';
@@ -57,7 +55,7 @@ export class PkbMgmt extends Management {
 
 /**
  * Repository information
- */
+ *
 @PkbMgmt.Entity()
 export class Repository {
   name!: string;
@@ -67,3 +65,4 @@ export class Repository {
   isDefault!: boolean;
   rid!: string; // Radicle ID
 }
+*/

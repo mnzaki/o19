@@ -140,7 +140,7 @@ export class Weaver {
    */
   async buildPlan(workspaceRoot?: string): Promise<WeavingPlan> {
     const heddles = await this.initHeddles(workspaceRoot);
-    return heddles.buildPlan(this.warp, this.managements);
+    return heddles.buildPlan(this.warp, this.managements, workspaceRoot);
   }
 
   /**

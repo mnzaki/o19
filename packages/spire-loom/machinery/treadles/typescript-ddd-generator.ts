@@ -8,8 +8,9 @@
 
 import { TypescriptSpiraler } from '../../warp/spiral/spiralers/typescript/index.js';
 import { TsCore } from '../../warp/spiral/index.js';
-import { defineTreadle, generateFromTreadle } from '../treadle-kit/declarative.js';
-import type { GeneratorContext } from '../heddles/index.js';
+import { defineTreadle, generateFromTreadle, type OutputSpec } from '../treadle-kit/declarative.js';
+import type { ManagementMethods } from '../heddles/types.js';
+import { camelCase } from '../treadle-kit/index.js';
 
 // ============================================================================
 // Treadle Definition
@@ -33,7 +34,7 @@ export const typescriptDDDTreadle = defineTreadle({
   // Method filtering and transformation
   methods: {
     filter: 'front',
-    pipeline: [],
+    pipeline: []
   },
 
   // Template data
@@ -46,28 +47,42 @@ export const typescriptDDDTreadle = defineTreadle({
       // Package info
       packageName: metadata.packageName,
       packagePath: core.metadata?.packagePath || `packages/${metadata.packageName}`,
-      
+
       // Store rings for hookup
       _currentRing: current.ring,
-      _coreRing: previous.ring,
+      _coreRing: previous.ring
     };
   },
 
   // Output files
   // Note: paths are relative to the package directory (packageDir is prepended by weaver)
   outputs: [
-    {
-      template: 'typescript/ports.ts.ejs',
-      path: 'src/ports.gen.ts',
-      language: 'typescript',
-    },
-    {
-      template: 'typescript/types.ts.ejs',
-      path: 'src/types.gen.ts',
-      language: 'typescript',
-    },
-  ],
+    (ctx) => {
+      const methodsByMgmt = ctx.methods?.byManagement();
+      if (!methodsByMgmt || methodsByMgmt.size === 0) {
+        console.log('[ddd-services] No management methods found, skipping generation');
+        return [];
+      }
 
+      // Convert Map values to array for iteration
+      // Note: methods will be passed via generateCode transform, not in context
+      const services = Array.from(methodsByMgmt.values()).map((mgmt: ManagementMethods) => ({
+        name: mgmt.name,
+        entityName: mgmt.entityName,
+        entityCamelName: camelCase(mgmt.entityName),
+        serviceName: mgmt.serviceName,
+        portName: mgmt.portName
+      }));
+      const outputs: OutputSpec[] = [];
+      outputs.push({
+        template: 'typescript/ports.ts.ejs',
+        path: 'src/ports/index.ts',
+        language: 'typescript',
+        context: { services }
+      });
+      return outputs;
+    }
+  ]
 });
 
 // ============================================================================

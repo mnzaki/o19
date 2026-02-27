@@ -10,7 +10,7 @@ links = "o19-foundframe-tauri"
 [dependencies]
 tauri = {workspace = true }
 o19-foundframe = { workspace = true }
-foundframe-to-sql = { workspace = true }
+#foundframe-to-sql = { workspace = true }
 thiserror = { workspace = true }
 reqwest = {workspace = true, features = ["json", "stream"] }
 libcaesium = {workspace = true, features = ["jpg", "webp"] }

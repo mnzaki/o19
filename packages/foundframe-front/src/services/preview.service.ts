@@ -3,16 +3,13 @@
  * Domain service for managing URL preview caching
  */
 
-import { PreviewAdaptor, type PreviewPort } from '../ports/preview.port.js';
+import { type PreviewPort } from '../ports/preview.port.js';
 import type { PreviewMetadata } from '../ports/preview.port.js';
 
-export { PreviewAdaptor };
 export type { PreviewPort, PreviewMetadata };
 
-export class PreviewService extends PreviewAdaptor implements PreviewPort {
-  constructor(private adaptor: PreviewPort) {
-    super();
-  }
+export class PreviewService implements PreviewPort {
+  constructor(private adaptor: PreviewPort) {}
 
   getForURL(url: string): Promise<PreviewMetadata> {
     return this.adaptor.getForURL(url);

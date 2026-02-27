@@ -9,11 +9,12 @@
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "check-types": "turbo run check-types",
-    "loom": "node --import tsx packages/spire-loom/cli/index.ts",
-    "loom:i": "node --import tsx packages/spire-loom/cli-interactive/index.tsx"
+    "loom": "spire-loom",
+    "loomi": "spire-loom-interactive"
   },
   "devDependencies": {
     "@o19/spire-loom": "workspace:*",
+    "@o19/foundframe-front": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "prettier": "^3.7.4",
     "prettier-plugin-svelte": "^3.4.0",

@@ -13,7 +13,7 @@ export { MediaService } from './media.service.js';
 export { PostService, createEmptyAccumulation } from './post.service.js';
 export { BookmarkService } from './bookmark.service.js';
 export { ConversationService } from './conversation.service.js';
-export { TheStreamService } from './thestream.service.js';
+export { TheStreamService } from './theStream.service.js';
 export { ViewService } from './view.service.js';
 export { PreviewService } from './preview.service.js';
 export { DeviceService } from './device.service.js';
@@ -23,7 +23,7 @@ export type { IDeviceService } from './device.service.js';
  * Aggregate service factory
  * Creates domain services wired to concrete adaptors
  */
-import type { DatabasePorts, DevicePort } from '../ports/index.js';
+import type { DatabasePorts, DevicePort, PreviewPort, ViewPort } from '../ports/index.js';
 
 export interface DatabaseServices {
   person: import('./person.service.js').PersonService;
@@ -31,7 +31,7 @@ export interface DatabaseServices {
   post: import('./post.service.js').PostService;
   bookmark: import('./bookmark.service.js').BookmarkService;
   conversation: import('./conversation.service.js').ConversationService;
-  stream: import('./thestream.service.js').TheStreamService;
+  theStream: import('./theStream.service.js').TheStreamService;
   view: import('./view.service.js').ViewService;
   device: import('./device.service.js').DeviceService;
 }
@@ -41,7 +41,8 @@ export type DomainServices = DatabaseServices & {
 };
 
 export type Ports = DatabasePorts & {
-  preview: import('../ports/preview.port.js').PreviewPort;
+  view: ViewPort;
+  preview: PreviewPort;
   device: DevicePort;
 };
 
@@ -63,7 +64,7 @@ export async function createDomainServicesAsync(ports: Ports): Promise<DomainSer
     import('./post.service.js'),
     import('./bookmark.service.js'),
     import('./conversation.service.js'),
-    import('./thestream.service.js'),
+    import('./theStream.service.js'),
     import('./view.service.js'),
     import('./preview.service.js'),
     import('./device.service.js')
@@ -75,7 +76,7 @@ export async function createDomainServicesAsync(ports: Ports): Promise<DomainSer
     post: new PostService(ports.post),
     bookmark: new BookmarkService(ports.bookmark),
     conversation: new ConversationService(ports.conversation),
-    stream: new TheStreamService(ports.stream),
+    theStream: new TheStreamService(ports.theStream),
     view: new ViewService(ports.view),
     preview: new PreviewService(ports.preview),
     device: new DeviceService(ports.device)
@@ -88,7 +89,7 @@ import { MediaService } from './media.service.js';
 import { PostService } from './post.service.js';
 import { BookmarkService } from './bookmark.service.js';
 import { ConversationService } from './conversation.service.js';
-import { TheStreamService } from './thestream.service.js';
+import { TheStreamService } from './theStream.service.js';
 import { ViewService } from './view.service.js';
 import { PreviewService } from './preview.service.js';
 import { DeviceService } from './device.service.js';
@@ -100,7 +101,7 @@ export function createServices(ports: Ports): DomainServices {
     post: new PostService(ports.post),
     bookmark: new BookmarkService(ports.bookmark),
     conversation: new ConversationService(ports.conversation),
-    stream: new TheStreamService(ports.stream),
+    theStream: new TheStreamService(ports.theStream),
     view: new ViewService(ports.view),
     preview: new PreviewService(ports.preview),
     device: new DeviceService(ports.device)

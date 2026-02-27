@@ -12,10 +12,10 @@
  *   - spire-loom-mud-warp    (MUD text adventure)
  */
 
-import { createRequire } from 'module';
-import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // 1. Setup Context
 const __filename = fileURLToPath(import.meta.url);
@@ -44,25 +44,48 @@ try {
 // We spawn a new Node process that uses the 'tsx' loader to run your CLI.
 // We use '--import' (Node 18.19+ / 20.6+) which is the modern standard.
 
-const args = [
-  '--import',
-  'tsx', // This loads the tsx loader from the User's CWD
-  '-e',
-  `import { findWorkspaceConfig } from '@o19/spire-loom/cli';
-   const config = await findWorkspaceConfig(); if (!config) {
-     console.error("Couldn't find WARP.ts in workspace loom dir");
-     process.exit(1); // it looks crazy I know but unfortunateleys
-   } // We need this crazy weaving to avoid a class identity issue due
-   const warpPath = config.workspace.warpPath; // to parallel imports
-   import { main } from      '${cliEntry}';    // since we use tsx
-   import(warpPath)
-    .then(mod => {
-      mod = mod.default?.weave ? mod : mod.default ;
-      return main(() => mod.default.weave(mod, config), mod)
-    })`,
-  '--',
-  ...process.argv.slice(1) // Pass through user arguments
-];
+// Check for early-exit args (help/version) that don't need WARP loading
+const userArgs = process.argv.slice(2);
+const isHelp = userArgs.includes('--help') || userArgs.includes('-h');
+const isVersion = userArgs.includes('--version') || userArgs.includes('-V');
+
+let args;
+if (isHelp || isVersion) {
+  // Fast path: don't load WARP, just show help/version
+  args = [
+    '--import',
+    'tsx',
+    '-e',
+    `import { main, handleCommonArgs, showHelp, showVersion, parseArgs } from '${cliEntry}';
+     const args = process.argv.slice(2);
+     const opts = parseArgs(args);
+     if (opts.help) { showHelp(); process.exit(0); }
+     if (opts.version) { showVersion(); process.exit(0); }`,
+    '--',
+    ...userArgs
+  ];
+} else {
+  // Normal path: load WARP and run full CLI
+  args = [
+    '--import',
+    'tsx',
+    '-e',
+    `import { findWorkspaceConfig } from '@o19/spire-loom/cli';
+     const config = await findWorkspaceConfig(); if (!config) {
+       console.error("Couldn't find WARP.ts in workspace loom dir");
+       process.exit(1);
+     }
+     const warpPath = config.workspace.warpPath;
+     import { main } from '${cliEntry}';
+     import(warpPath)
+      .then(mod => {
+        mod = mod.default?.weave ? mod : mod.default;
+        return main(() => mod.default.weave(mod, config), mod)
+      })`,
+    '--',
+    ...userArgs
+  ];
+}
 
 const child = spawn(process.execPath, args, {
   stdio: 'inherit', // Important: Lets colors, input, and output flow through

@@ -123,3 +123,18 @@ export {
 
 export { generateAndroidService, type AndroidGenerationOptions } from './android-generator.js';
 export { generateTauriPlugin, type TauriGenerationOptions } from './tauri-generator.js';
+
+// DDD Services Treadle - TypeScript domain layer generation
+export {
+  dddServicesTreadle,
+  generateDddServices,
+  type ManagementService,
+  type ServiceMethod
+} from './ddd-services.js';
+
+// Tauri Adaptor Treadle - Tauri command binding generation
+export {
+  tauriAdaptorTreadle,
+  generateTauriAdaptors,
+  type TauriAdaptorConfig
+} from './tauri-adaptor.js';

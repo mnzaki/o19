@@ -377,3 +377,74 @@ export function getRustStructMetadata(
     fields: ctor.__rustFields || new Map()
   };
 }
+
+// ============================================================================
+// Language Definition 🌾
+//
+// Self-registers Rust as a language with the reed system.
+// This enables dynamic language discovery and code generation.
+// ============================================================================
+
+import { declareLanguage } from '../machinery/reed/language.js';
+import {
+  transformForRust,
+  type RustMethod as BobbinRustMethod
+} from '../machinery/bobbin/code-generator.js';
+import { RustCore, rustCore } from './spiral/rust.js';
+import { RustAndroidSpiraler } from './spiral/spiralers/rust/index.js';
+import { DesktopSpiraler } from './spiral/spiralers/desktop.js';
+
+/**
+ * Rust language definition.
+ *
+ * Self-registers on module load. This is the single source of truth
+ * for Rust configuration in spire-loom.
+ */
+export const rustLanguage = declareLanguage<BobbinRustMethod>({
+  name: 'rust',
+
+  codeGen: {
+    fileExtensions: ['.rs.ejs', '.jni.rs.ejs'],
+    transform: transformForRust,
+    typeMappings: [
+      { tsType: 'string', targetType: 'String' },
+      { tsType: 'number', targetType: 'i64' },
+      { tsType: 'boolean', targetType: 'bool' },
+      { tsType: 'bool', targetType: 'bool' }
+    ],
+    getStubReturn: (returnType, isCollection) => {
+      if (returnType === 'bool') return 'false';
+      if (returnType === 'String') return 'String::new()';
+      if (returnType.startsWith('Vec<')) return 'Vec::new()';
+      if (returnType.startsWith('i') || returnType.startsWith('u')) return '0';
+      if (returnType === '()') return '()';
+      return `// Entity type: ${returnType}\n    Default::default()`;
+    }
+  },
+
+  warp: {
+    externalLayerClass: RustExternalLayer,
+    fieldDecorators: {
+      Mutex,
+      Option,
+      i64,
+      u64,
+      string,
+      bool,
+      f64,
+      Vec
+    },
+    classDecorator: Struct,
+    core: {
+      coreClass: RustCore,
+      createCore: (layer) => rustCore(layer || new RustExternalLayer())
+    },
+    spiralers: {
+      android: RustAndroidSpiraler,
+      desktop: DesktopSpiraler
+    },
+    exposeBaseFactory: true
+  }
+});
+
+// Type mappings are automatically registered by declareLanguage()

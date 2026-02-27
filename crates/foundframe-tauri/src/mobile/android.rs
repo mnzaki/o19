@@ -18,7 +18,7 @@ use tauri::{AppHandle, Emitter, Runtime, plugin::PluginApi};
 pub fn init<R: Runtime, C: DeserializeOwned>(
   app: &AppHandle<R>,
   _api: PluginApi<R, C>,
-  plugin_handle: tauri::plugin::PluginHandle<R>,
+  plugin_handle: Option<tauri::plugin::PluginHandle<R>>,
 ) -> Result<AndroidPlatform<R>> {
   AndroidPlatform::new(app.clone(), plugin_handle)
 }
@@ -31,11 +31,11 @@ pub struct AndroidPlatform<R: Runtime> {
   app_handle: AppHandle<R>,
   events: EventBus,
   service_client: Mutex<ServiceClient>,
-  plugin_handle: tauri::plugin::PluginHandle<R>,
+  plugin_handle: Option<tauri::plugin::PluginHandle<R>>,
 }
 
 impl<R: Runtime> AndroidPlatform<R> {
-  fn new(app_handle: AppHandle<R>, plugin_handle: tauri::plugin::PluginHandle<R>) -> Result<Self> {
+  fn new(app_handle: AppHandle<R>, plugin_handle: Option<tauri::plugin::PluginHandle<R>>) -> Result<Self> {
     // Connect to the service
     let mut service_client = ServiceClient::new();
     let connection_result = service_client.connect();
@@ -144,7 +144,7 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
   // ===========================================================================
 
   fn generate_pairing_qr(&self, _device_name: String) -> Result<PairingQrResponse> {
-    let url = self.with_client(|c| c.generate_pairing_code())?;
+    let url: String = self.with_client(|c: &ServiceClient| c.generate_pairing_code())?;
 
     // Parse the URL to extract emoji identity and node ID
     let node_id_hex = url.split('/').last().unwrap_or("").to_string();
@@ -178,14 +178,14 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
   }
 
   fn check_followers_and_pair(&self) -> Result<Vec<PairedDeviceInfo>> {
-    let followers = self.with_client(|c| c.list_followers())?;
+    let followers: Vec<String> = self.with_client(|c: &ServiceClient| c.list_followers())?;
 
     let mut newly_paired = Vec::new();
 
     for nid in followers {
       let alias = format!("Device {}", &nid[..8.min(nid.len())]);
 
-      match self.with_client(|c| c.follow_device(&nid)) {
+      match self.with_client(|c: &ServiceClient| c.follow_device(&nid)) {
         Ok(_) => {
           newly_paired.push(PairedDeviceInfo {
             node_id: nid,
@@ -206,9 +206,18 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
   // Camera Operations - Delegated to Tauri Android Plugin
   // ===========================================================================
 
+  /// Get the plugin handle for mobile plugin operations
+  /// 
+  /// NOTE: PluginHandle is only available when the platform is initialized
+  /// from within a Tauri plugin context. If initialized directly (e.g., in tests),
+  /// camera operations will return an error.
+  pub fn get_plugin_handle(&self) -> Result<&tauri::plugin::PluginHandle<R>> {
+    self.plugin_handle.as_ref()
+      .ok_or_else(|| Error::Other("Plugin handle not available. Camera operations require Android plugin context.".to_string()))
+  }
+
   fn start_camera(&self, mode: String, camera_direction: String) -> Result<serde_json::Value> {
-    self
-      .plugin_handle
+    self.get_plugin_handle()?
       .run_mobile_plugin(
         "startCamera",
         serde_json::json!({
@@ -220,22 +229,19 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
   }
 
   fn stop_camera(&self) -> Result<serde_json::Value> {
-    self
-      .plugin_handle
+    self.get_plugin_handle()?
       .run_mobile_plugin("stopCamera", ())
       .map_err(|e| Error::Other(format!("Camera error: {}", e)))
   }
 
   fn capture_photo(&self) -> Result<serde_json::Value> {
-    self
-      .plugin_handle
+    self.get_plugin_handle()?
       .run_mobile_plugin("capturePhoto", ())
       .map_err(|e| Error::Other(format!("Camera error: {}", e)))
   }
 
   fn set_camera_mode(&self, mode: String, camera_direction: String) -> Result<serde_json::Value> {
-    self
-      .plugin_handle
+    self.get_plugin_handle()?
       .run_mobile_plugin(
         "setCameraMode",
         serde_json::json!({
@@ -247,22 +253,19 @@ impl<R: Runtime> Platform for AndroidPlatform<R> {
   }
 
   fn is_camera_active(&self) -> Result<serde_json::Value> {
-    self
-      .plugin_handle
+    self.get_plugin_handle()?
       .run_mobile_plugin("isCameraActive", ())
       .map_err(|e| Error::Other(format!("Camera error: {}", e)))
   }
 
   fn request_camera_permissions(&self) -> Result<serde_json::Value> {
-    self
-      .plugin_handle
+    self.get_plugin_handle()?
       .run_mobile_plugin("requestCameraPermissions", ())
       .map_err(|e| Error::Other(format!("Camera error: {}", e)))
   }
 
   fn check_camera_permissions(&self) -> Result<serde_json::Value> {
-    self
-      .plugin_handle
+    self.get_plugin_handle()?
       .run_mobile_plugin("checkCameraPermissions", ())
       .map_err(|e| Error::Other(format!("Camera error: {}", e)))
   }

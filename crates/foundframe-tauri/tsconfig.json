@@ -4,8 +4,15 @@
     "target": "es2021",
     "module": "esnext",
     "moduleResolution": "bundler",
+    "rootDir": ".",
     "outDir": "js-dist"
   },
-  "include": ["ts/*.ts"],
-  "exclude": ["js-dist", "node_modules"]
+  "include": [
+    "ts/**/*.ts",
+    "spire/**/*.ts"
+  ],
+  "exclude": [
+    "js-dist",
+    "node_modules"
+  ]
 }

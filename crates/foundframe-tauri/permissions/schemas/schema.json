@@ -295,222 +295,6 @@
       "type": "string",
       "oneOf": [
         {
-          "description": "Enables the add-bookmark command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-add-bookmark",
-          "markdownDescription": "Enables the add-bookmark command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the add-bookmark command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-add-bookmark",
-          "markdownDescription": "Denies the add-bookmark command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the add-conversation command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-add-conversation",
-          "markdownDescription": "Enables the add-conversation command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the add-conversation command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-add-conversation",
-          "markdownDescription": "Denies the add-conversation command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the add-media-link command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-add-media-link",
-          "markdownDescription": "Enables the add-media-link command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the add-media-link command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-add-media-link",
-          "markdownDescription": "Denies the add-media-link command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the add-person command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-add-person",
-          "markdownDescription": "Enables the add-person command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the add-person command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-add-person",
-          "markdownDescription": "Denies the add-person command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the add-post command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-add-post",
-          "markdownDescription": "Enables the add-post command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the add-post command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-add-post",
-          "markdownDescription": "Denies the add-post command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_capture_photo command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-capture-photo",
-          "markdownDescription": "Enables the allow_capture_photo command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_capture_photo command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-capture-photo",
-          "markdownDescription": "Denies the allow_capture_photo command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_check_camera_permissions command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-check-camera-permissions",
-          "markdownDescription": "Enables the allow_check_camera_permissions command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_check_camera_permissions command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-check-camera-permissions",
-          "markdownDescription": "Denies the allow_check_camera_permissions command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_check_followers_and_pair command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-check-followers-and-pair",
-          "markdownDescription": "Enables the allow_check_followers_and_pair command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_check_followers_and_pair command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-check-followers-and-pair",
-          "markdownDescription": "Denies the allow_check_followers_and_pair command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_confirm_pairing command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-confirm-pairing",
-          "markdownDescription": "Enables the allow_confirm_pairing command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_confirm_pairing command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-confirm-pairing",
-          "markdownDescription": "Denies the allow_confirm_pairing command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_generate_pairing_qr command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-generate-pairing-qr",
-          "markdownDescription": "Enables the allow_generate_pairing_qr command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_generate_pairing_qr command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-generate-pairing-qr",
-          "markdownDescription": "Denies the allow_generate_pairing_qr command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_is_camera_active command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-is-camera-active",
-          "markdownDescription": "Enables the allow_is_camera_active command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_is_camera_active command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-is-camera-active",
-          "markdownDescription": "Denies the allow_is_camera_active command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_list_paired_devices command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-list-paired-devices",
-          "markdownDescription": "Enables the allow_list_paired_devices command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_list_paired_devices command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-list-paired-devices",
-          "markdownDescription": "Denies the allow_list_paired_devices command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_parse_pairing_qr command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-parse-pairing-qr",
-          "markdownDescription": "Enables the allow_parse_pairing_qr command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_parse_pairing_qr command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-parse-pairing-qr",
-          "markdownDescription": "Denies the allow_parse_pairing_qr command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_request_camera_permissions command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-request-camera-permissions",
-          "markdownDescription": "Enables the allow_request_camera_permissions command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_request_camera_permissions command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-request-camera-permissions",
-          "markdownDescription": "Denies the allow_request_camera_permissions command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_set_camera_mode command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-set-camera-mode",
-          "markdownDescription": "Enables the allow_set_camera_mode command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_set_camera_mode command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-set-camera-mode",
-          "markdownDescription": "Denies the allow_set_camera_mode command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_start_camera command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-start-camera",
-          "markdownDescription": "Enables the allow_start_camera command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_start_camera command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-start-camera",
-          "markdownDescription": "Denies the allow_start_camera command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_stop_camera command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-stop-camera",
-          "markdownDescription": "Enables the allow_stop_camera command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_stop_camera command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-stop-camera",
-          "markdownDescription": "Denies the allow_stop_camera command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the allow_unpair_device command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-allow-unpair-device",
-          "markdownDescription": "Enables the allow_unpair_device command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the allow_unpair_device command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-allow-unpair-device",
-          "markdownDescription": "Denies the allow_unpair_device command without any pre-configured scope."
-        },
-        {
           "description": "Enables the capture_photo command without any pre-configured scope.",
           "type": "string",
           "const": "allow-capture-photo",
@@ -571,18 +355,6 @@
           "markdownDescription": "Denies the compress_webp_to_size command without any pre-configured scope."
         },
         {
-          "description": "Enables the confirm-pairing command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-confirm-pairing",
-          "markdownDescription": "Enables the confirm-pairing command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the confirm-pairing command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-confirm-pairing",
-          "markdownDescription": "Denies the confirm-pairing command without any pre-configured scope."
-        },
-        {
           "description": "Enables the confirm_pairing command without any pre-configured scope.",
           "type": "string",
           "const": "allow-confirm-pairing",
@@ -607,42 +379,6 @@
           "markdownDescription": "Denies the convert_jpeg_to_webp command without any pre-configured scope."
         },
         {
-          "description": "Enables the create-repository command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-create-repository",
-          "markdownDescription": "Enables the create-repository command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the create-repository command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-create-repository",
-          "markdownDescription": "Denies the create-repository command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the follow-device command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-follow-device",
-          "markdownDescription": "Enables the follow-device command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the follow-device command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-follow-device",
-          "markdownDescription": "Denies the follow-device command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the generate-pairing-code command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-generate-pairing-code",
-          "markdownDescription": "Enables the generate-pairing-code command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the generate-pairing-code command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-generate-pairing-code",
-          "markdownDescription": "Denies the generate-pairing-code command without any pre-configured scope."
-        },
-        {
           "description": "Enables the generate_pairing_qr command without any pre-configured scope.",
           "type": "string",
           "const": "allow-generate-pairing-qr",
@@ -653,42 +389,6 @@
           "type": "string",
           "const": "deny-generate-pairing-qr",
           "markdownDescription": "Denies the generate_pairing_qr command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get-default-repository command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-default-repository",
-          "markdownDescription": "Enables the get-default-repository command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get-default-repository command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-default-repository",
-          "markdownDescription": "Denies the get-default-repository command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get-node-alias command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-node-alias",
-          "markdownDescription": "Enables the get-node-alias command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get-node-alias command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-node-alias",
-          "markdownDescription": "Denies the get-node-alias command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the get-node-id command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-get-node-id",
-          "markdownDescription": "Enables the get-node-id command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the get-node-id command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-get-node-id",
-          "markdownDescription": "Denies the get-node-id command without any pre-configured scope."
         },
         {
           "description": "Enables the html_preview_json command without any pre-configured scope.",
@@ -703,30 +403,6 @@
           "markdownDescription": "Denies the html_preview_json command without any pre-configured scope."
         },
         {
-          "description": "Enables the is-following command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-is-following",
-          "markdownDescription": "Enables the is-following command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the is-following command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-is-following",
-          "markdownDescription": "Denies the is-following command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the is-node-running command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-is-node-running",
-          "markdownDescription": "Enables the is-node-running command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the is-node-running command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-is-node-running",
-          "markdownDescription": "Denies the is-node-running command without any pre-configured scope."
-        },
-        {
           "description": "Enables the is_camera_active command without any pre-configured scope.",
           "type": "string",
           "const": "allow-is-camera-active",
@@ -737,42 +413,6 @@
           "type": "string",
           "const": "deny-is-camera-active",
           "markdownDescription": "Denies the is_camera_active command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the list-followers command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-list-followers",
-          "markdownDescription": "Enables the list-followers command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the list-followers command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-list-followers",
-          "markdownDescription": "Denies the list-followers command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the list-paired-devices command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-list-paired-devices",
-          "markdownDescription": "Enables the list-paired-devices command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the list-paired-devices command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-list-paired-devices",
-          "markdownDescription": "Denies the list-paired-devices command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the list-repositories command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-list-repositories",
-          "markdownDescription": "Enables the list-repositories command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the list-repositories command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-list-repositories",
-          "markdownDescription": "Denies the list-repositories command without any pre-configured scope."
         },
         {
           "description": "Enables the list_paired_devices command without any pre-configured scope.",
@@ -797,42 +437,6 @@
           "type": "string",
           "const": "deny-media-preview-json",
           "markdownDescription": "Denies the media_preview_json command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the on-event command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-on-event",
-          "markdownDescription": "Enables the on-event command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the on-event command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-on-event",
-          "markdownDescription": "Denies the on-event command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the on-status-change command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-on-status-change",
-          "markdownDescription": "Enables the on-status-change command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the on-status-change command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-on-status-change",
-          "markdownDescription": "Denies the on-status-change command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the on-sync-complete command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-on-sync-complete",
-          "markdownDescription": "Enables the on-sync-complete command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the on-sync-complete command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-on-sync-complete",
-          "markdownDescription": "Denies the on-sync-complete command without any pre-configured scope."
         },
         {
           "description": "Enables the parse_pairing_qr command without any pre-configured scope.",
@@ -895,18 +499,6 @@
           "markdownDescription": "Denies the run_sql command without any pre-configured scope."
         },
         {
-          "description": "Enables the set-default-repository command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-set-default-repository",
-          "markdownDescription": "Enables the set-default-repository command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the set-default-repository command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-set-default-repository",
-          "markdownDescription": "Denies the set-default-repository command without any pre-configured scope."
-        },
-        {
           "description": "Enables the set_camera_mode command without any pre-configured scope.",
           "type": "string",
           "const": "allow-set-camera-mode",
@@ -917,18 +509,6 @@
           "type": "string",
           "const": "deny-set-camera-mode",
           "markdownDescription": "Denies the set_camera_mode command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the start-node command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-start-node",
-          "markdownDescription": "Enables the start-node command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the start-node command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-start-node",
-          "markdownDescription": "Denies the start-node command without any pre-configured scope."
         },
         {
           "description": "Enables the start_camera command without any pre-configured scope.",
@@ -955,18 +535,6 @@
           "markdownDescription": "Denies the start_service command without any pre-configured scope."
         },
         {
-          "description": "Enables the stop-node command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-stop-node",
-          "markdownDescription": "Enables the stop-node command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the stop-node command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-stop-node",
-          "markdownDescription": "Denies the stop-node command without any pre-configured scope."
-        },
-        {
           "description": "Enables the stop_camera command without any pre-configured scope.",
           "type": "string",
           "const": "allow-stop-camera",
@@ -977,54 +545,6 @@
           "type": "string",
           "const": "deny-stop-camera",
           "markdownDescription": "Denies the stop_camera command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the subscribe-events command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-subscribe-events",
-          "markdownDescription": "Enables the subscribe-events command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the subscribe-events command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-subscribe-events",
-          "markdownDescription": "Denies the subscribe-events command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the supports-events command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-supports-events",
-          "markdownDescription": "Enables the supports-events command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the supports-events command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-supports-events",
-          "markdownDescription": "Denies the supports-events command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the unfollow-device command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-unfollow-device",
-          "markdownDescription": "Enables the unfollow-device command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the unfollow-device command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-unfollow-device",
-          "markdownDescription": "Denies the unfollow-device command without any pre-configured scope."
-        },
-        {
-          "description": "Enables the unpair-device command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-unpair-device",
-          "markdownDescription": "Enables the unpair-device command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the unpair-device command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-unpair-device",
-          "markdownDescription": "Denies the unpair-device command without any pre-configured scope."
         },
         {
           "description": "Enables the unpair_device command without any pre-configured scope.",
@@ -1039,18 +559,6 @@
           "markdownDescription": "Denies the unpair_device command without any pre-configured scope."
         },
         {
-          "description": "Enables the unsubscribe-events command without any pre-configured scope.",
-          "type": "string",
-          "const": "allow-unsubscribe-events",
-          "markdownDescription": "Enables the unsubscribe-events command without any pre-configured scope."
-        },
-        {
-          "description": "Denies the unsubscribe-events command without any pre-configured scope.",
-          "type": "string",
-          "const": "deny-unsubscribe-events",
-          "markdownDescription": "Denies the unsubscribe-events command without any pre-configured scope."
-        },
-        {
           "description": "Enables the url_preview_json command without any pre-configured scope.",
           "type": "string",
           "const": "allow-url-preview-json",
@@ -1063,10 +571,10 @@
           "markdownDescription": "Denies the url_preview_json command without any pre-configured scope."
         },
         {
-          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-url-preview-json`\n- `allow-html-preview-json`\n- `allow-media-preview-json`\n- `allow-compress-webp-to-size`\n- `allow-convert-jpeg-to-webp`\n- `allow-request-permissions`\n- `allow-start-camera`\n- `allow-stop-camera`\n- `allow-capture-photo`\n- `allow-set-camera-mode`\n- `allow-is-camera-active`\n- `allow-request-camera-permissions`\n- `allow-check-camera-permissions`\n- `allow-generate-pairing-qr`\n- `allow-parse-pairing-qr`\n- `allow-confirm-pairing`\n- `allow-list-paired-devices`\n- `allow-check-followers-and-pair`\n- `allow-unpair-device`\n- `allow-check-service-status`\n- `allow-start-service`",
+          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-url-preview-json`\n- `allow-bookmark-add-bookmark`\n- `allow-bookmark-get-bookmark`\n- `allow-bookmark-get-bookmark-by-uri`\n- `allow-bookmark-list-bookmarks`\n- `allow-bookmark-update-bookmark`\n- `allow-bookmark-delete-bookmark`\n- `allow-conversation-add-conversation`\n- `allow-conversation-get-conversation`\n- `allow-conversation-list-conversations`\n- `allow-conversation-update-conversation`\n- `allow-conversation-delete-conversation`\n- `allow-conversation-add-participant`\n- `allow-conversation-remove-participant`\n- `allow-conversation-list-participants`\n- `allow-conversation-add-conversation-media`\n- `allow-conversation-remove-conversation-media`\n- `allow-conversation-list-conversation-media`\n- `allow-device-generate-pairing-code`\n- `allow-device-confirm-pairing`\n- `allow-device-unpair-device`\n- `allow-device-list-paired-devices`\n- `allow-device-follow-device`\n- `allow-device-unfollow-device`\n- `allow-device-list-followers`\n- `allow-device-is-following`\n- `allow-media-get-media`\n- `allow-media-get-media-by-hash`\n- `allow-media-list-media`\n- `allow-media-update-media`\n- `allow-media-delete-media`\n- `allow-media-add-media-link`\n- `allow-media-add-media-file`\n- `allow-media-source-register-source`\n- `allow-media-source-get-source`\n- `allow-media-source-list-sources`\n- `allow-media-source-update-source`\n- `allow-media-source-unregister-source`\n- `allow-media-source-poll-source`\n- `allow-media-source-get-health`\n- `allow-media-source-reset-errors`\n- `allow-person-add-person`\n- `allow-person-get-person`\n- `allow-person-get-person-by-handle`\n- `allow-person-list-people`\n- `allow-person-update-person`\n- `allow-person-delete-person`\n- `allow-post-add-post`\n- `allow-post-get-post`\n- `allow-post-list-posts`\n- `allow-post-update-post`\n- `allow-post-delete-post`\n- `allow-the-stream-get-entries`\n- `allow-the-stream-get-entry`\n- `allow-the-stream-delete-entry`\n- `allow-the-stream-get-entries-by-kind`\n- `allow-the-stream-search`\n- `allow-the-stream-add-bookmark`\n- `allow-the-stream-add-post`\n- `allow-the-stream-add-media`\n- `allow-the-stream-add-person`\n- `allow-the-stream-add-conversation`\n- `allow-view-add-view`\n- `allow-view-get-view`\n- `allow-view-list-views`\n- `allow-view-delete-view`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-url-preview-json`\n- `allow-html-preview-json`\n- `allow-media-preview-json`\n- `allow-compress-webp-to-size`\n- `allow-convert-jpeg-to-webp`\n- `allow-request-permissions`\n- `allow-start-camera`\n- `allow-stop-camera`\n- `allow-capture-photo`\n- `allow-set-camera-mode`\n- `allow-is-camera-active`\n- `allow-request-camera-permissions`\n- `allow-check-camera-permissions`\n- `allow-generate-pairing-qr`\n- `allow-parse-pairing-qr`\n- `allow-confirm-pairing`\n- `allow-list-paired-devices`\n- `allow-check-followers-and-pair`\n- `allow-unpair-device`\n- `allow-check-service-status`\n- `allow-start-service`"
+          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-ping`\n- `allow-url-preview-json`\n- `allow-bookmark-add-bookmark`\n- `allow-bookmark-get-bookmark`\n- `allow-bookmark-get-bookmark-by-uri`\n- `allow-bookmark-list-bookmarks`\n- `allow-bookmark-update-bookmark`\n- `allow-bookmark-delete-bookmark`\n- `allow-conversation-add-conversation`\n- `allow-conversation-get-conversation`\n- `allow-conversation-list-conversations`\n- `allow-conversation-update-conversation`\n- `allow-conversation-delete-conversation`\n- `allow-conversation-add-participant`\n- `allow-conversation-remove-participant`\n- `allow-conversation-list-participants`\n- `allow-conversation-add-conversation-media`\n- `allow-conversation-remove-conversation-media`\n- `allow-conversation-list-conversation-media`\n- `allow-device-generate-pairing-code`\n- `allow-device-confirm-pairing`\n- `allow-device-unpair-device`\n- `allow-device-list-paired-devices`\n- `allow-device-follow-device`\n- `allow-device-unfollow-device`\n- `allow-device-list-followers`\n- `allow-device-is-following`\n- `allow-media-get-media`\n- `allow-media-get-media-by-hash`\n- `allow-media-list-media`\n- `allow-media-update-media`\n- `allow-media-delete-media`\n- `allow-media-add-media-link`\n- `allow-media-add-media-file`\n- `allow-media-source-register-source`\n- `allow-media-source-get-source`\n- `allow-media-source-list-sources`\n- `allow-media-source-update-source`\n- `allow-media-source-unregister-source`\n- `allow-media-source-poll-source`\n- `allow-media-source-get-health`\n- `allow-media-source-reset-errors`\n- `allow-person-add-person`\n- `allow-person-get-person`\n- `allow-person-get-person-by-handle`\n- `allow-person-list-people`\n- `allow-person-update-person`\n- `allow-person-delete-person`\n- `allow-post-add-post`\n- `allow-post-get-post`\n- `allow-post-list-posts`\n- `allow-post-update-post`\n- `allow-post-delete-post`\n- `allow-the-stream-get-entries`\n- `allow-the-stream-get-entry`\n- `allow-the-stream-delete-entry`\n- `allow-the-stream-get-entries-by-kind`\n- `allow-the-stream-search`\n- `allow-the-stream-add-bookmark`\n- `allow-the-stream-add-post`\n- `allow-the-stream-add-media`\n- `allow-the-stream-add-person`\n- `allow-the-stream-add-conversation`\n- `allow-view-add-view`\n- `allow-view-get-view`\n- `allow-view-list-views`\n- `allow-view-delete-view`"
         }
       ]
     }

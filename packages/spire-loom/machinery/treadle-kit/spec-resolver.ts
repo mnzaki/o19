@@ -25,10 +25,7 @@
  * A spec item, an array of specs, or a function returning either.
  * The standard pattern for treadle-kit specs (outputs, patches, hookups).
  */
-export type SpecOrFn<T, C> =
-  | T
-  | T[]
-  | ((context: C) => T | T[] | undefined);
+export type SpecOrFn<T, C> = T | T[] | ((context: C) => T | T[] | undefined);
 
 /**
  * Resolve a single spec that may be:
@@ -41,10 +38,7 @@ export type SpecOrFn<T, C> =
  * @param context Context passed to functions
  * @returns Flattened array of resolved specs
  */
-export function resolveSpec<T, C>(
-  specOrFn: SpecOrFn<T, C>,
-  context: C
-): T[] {
+export function resolveSpec<T, C>(specOrFn: SpecOrFn<T, C>, context: C): T[] {
   if (typeof specOrFn === 'function') {
     const result = (specOrFn as (context: C) => T | T[] | undefined)(context);
     if (result === undefined) return [];
@@ -63,11 +57,8 @@ export function resolveSpec<T, C>(
  * @param context Context passed to functions
  * @returns Flattened array of all resolved specs
  */
-export function resolveSpecs<T, C>(
-  specs: Array<SpecOrFn<T, C>>,
-  context: C
-): T[] {
-  return specs.flatMap(s => resolveSpec(s, context));
+export function resolveSpecs<T, C>(specs: Array<SpecOrFn<T, C>>, context: C): T[] {
+  return specs.flatMap((s) => resolveSpec(s, context));
 }
 
 /**
@@ -85,16 +76,11 @@ export interface ConditionalSpec<C> {
  * @param context Context passed to functions and conditions
  * @returns Filtered, flattened array of resolved specs
  */
-export function resolveSpecsWithCondition<
-  T extends ConditionalSpec<C>,
-  C
->(
+export function resolveSpecsWithCondition<T extends ConditionalSpec<C>, C>(
   specs: Array<SpecOrFn<T, C>>,
   context: C
 ): T[] {
-  return resolveSpecs(specs, context).filter(
-    spec => !spec.condition || spec.condition(context)
-  );
+  return resolveSpecs(specs, context).filter((spec) => !spec.condition || spec.condition(context));
 }
 
 /**
@@ -110,7 +96,5 @@ export function resolveSpecsWithFilter<T, C>(
   context: C,
   filter: (spec: T, context: C) => boolean
 ): T[] {
-  return resolveSpecs(specs, context).filter(
-    spec => filter(spec, context)
-  );
+  return resolveSpecs(specs, context).filter((spec) => filter(spec, context));
 }

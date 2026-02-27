@@ -104,6 +104,43 @@ export function buildBlockRegex(startMarker: string, endMarker: string): RegExp 
 /**
  * Create markers for a specific language.
  */
+/**
+ * Detect marker language from file path.
+ * Returns the appropriate language identifier for createMarkers().
+ */
+export function detectLanguageFromPath(filePath: string): 'rust' | 'gradle' | 'xml' | 'toml' {
+  const lowerPath = filePath.toLowerCase();
+  
+  if (lowerPath.endsWith('.rs')) {
+    return 'rust';
+  }
+  if (lowerPath.endsWith('.gradle') || lowerPath.endsWith('.gradle.kts')) {
+    return 'gradle';
+  }
+  if (lowerPath.endsWith('.kt')) {
+    // Kotlin uses same markers as Gradle (line comments)
+    return 'gradle';
+  }
+  if (lowerPath.endsWith('.ts') || lowerPath.endsWith('.tsx') || 
+      lowerPath.endsWith('.js') || lowerPath.endsWith('.jsx')) {
+    // TypeScript/JavaScript uses same markers as Gradle (line comments)
+    return 'gradle';
+  }
+  if (lowerPath.endsWith('.xml') || lowerPath.endsWith('.html') || lowerPath.endsWith('.plist')) {
+    return 'xml';
+  }
+  if (lowerPath.endsWith('.toml')) {
+    return 'toml';
+  }
+  if (lowerPath.endsWith('.json')) {
+    // JSON doesn't support comments well, use gradle-style (will be in strings)
+    return 'gradle';
+  }
+  
+  // Default to gradle-style (line comments) for unknown files
+  return 'gradle';
+}
+
 export function createMarkers(
   language: 'rust' | 'gradle' | 'xml' | 'toml',
   scope: string,

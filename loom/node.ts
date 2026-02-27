@@ -5,8 +5,6 @@
  * The node is the fundamental unit of identity in the Radicle network.
  *
  * Reach: Private (Core only)
- *
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
 import { reach, Management, crud } from '@o19/spire-loom';
@@ -64,7 +62,7 @@ export class NodeMgmt extends Management {
 
 /**
  * Node status information
- */
+ *
 @NodeMgmt.Entity()
 export class NodeStatus {
   nodeId!: string;
@@ -74,3 +72,4 @@ export class NodeStatus {
   peersConnected!: number;
   repositoriesHosted!: number;
 }
+/**/

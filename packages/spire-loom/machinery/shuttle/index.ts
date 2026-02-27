@@ -146,6 +146,7 @@ export {
   createGradleMarkers,
   createXmlMarkers,
   createTomlMarkers,
+  detectLanguageFromPath,
   escapeMarkerForRegex,
   buildBlockRegex,
   findBlock,

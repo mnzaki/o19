@@ -18,26 +18,26 @@ export type { CrudOperation } from './crud.js';
  * ═════════════════════════════════════════════════════════════════════════════
  * GLOBAL METADATA REGISTRY
  * ═════════════════════════════════════════════════════════════════════════════
- * 
+ *
  * PROBLEM:
  *   When spire-loom is symlinked (e.g., in monorepos with workspace:* deps),
  *   Node.js may load the package through multiple paths:
  *   - /project/node_modules/@o19/spire-loom  (symlink)
  *   - /project/o19/packages/spire-loom       (real path)
- *   
+ *
  *   This causes MODULE DUPLICATION: the same module is loaded twice, creating
  *   separate WeakMap instances. Metadata stored by @loom.reach() in one instance
  *   is invisible to getReach() in the other.
- * 
+ *
  * SOLUTION:
  *   Use a global registry on globalThis. All module instances share the same
  *   WeakMaps, ensuring metadata is accessible regardless of import path.
- * 
+ *
  * ALTERNATIVES CONSIDERED:
  *   - Symbol.for(): Works for primitives, not WeakMaps
  *   - Proper module resolution: Difficult with tsx + symlinks
  *   - Build step: Would lose TypeScript source benefits
- * 
+ *
  * This pattern is safe because:
  *   - WeakMaps don't leak memory (keys are garbage collected)
  *   - globalThis is per-process, isolated between projects
@@ -65,7 +65,7 @@ if (!globalThis[GLOBAL_KEY]) {
     reach: new WeakMap<Function, 'Private' | 'Local' | 'Global'>(),
     crud: new WeakMap<Function, Map<string, CrudMetadata>>(),
     tags: new WeakMap<Function, Map<string, string[]>>(),
-    entities: new WeakMap<Function, EntityMetadata[]>(),
+    entities: new WeakMap<Function, EntityMetadata[]>()
   };
 }
 
@@ -129,6 +129,10 @@ export interface EntityMetadata {
   name: string;
   /** Management class this entity belongs to */
   managementName: string;
+  /** Management class name without 'Mgmt' */
+  serviceName: string;
+  /** Entity name all lower case */
+  lower: string;
   /** Optional metadata attached by decorator */
   options?: EntityOptions;
   /** Field metadata for code generation */
@@ -180,8 +184,6 @@ export interface TagMetadata {
   options?: Record<string, unknown>;
 }
 
-
-
 /**
  * Get reach level for a Management class.
  */
@@ -221,29 +223,31 @@ const PENDING_ENTITIES = Symbol('loom:pendingEntities');
 /**
  * Register an entity class with a Management class.
  * This is called by the Management.Entity decorator.
- * 
+ *
  * Uses delayed binding: stores on a global list and resolves when getEntities is called.
  */
-function registerEntity(
+function registerEntity<T extends new (...args: any[]) => T>(
   mgmtClass: typeof Management | undefined,
-  entityClass: new (...args: any[]) => any,
+  entityClass: T,
   context: ClassDecoratorContext,
   options: EntityOptions
-): typeof entityClass {
-  const entityName = context.name ?? entityClass.name;
-  
+): T {
+  const entityName = entityClass.name;
+
   if (!mgmtClass) {
     throw new Error(
       `@Entity decorator called without Management context. ` +
-      `Make sure the Management class is imported before the Entity. ` +
-      `Entity: ${entityName}`
+        `Make sure the Management class is imported before the Entity. ` +
+        `Entity: ${entityName}`
     );
   }
-  
+
   const metadata: EntityMetadata = {
     entityClass,
     name: entityName,
     managementName: mgmtClass.name,
+    serviceName: mgmtClass.name.slice(0, -'Mgmt'.length),
+    lower: entityName.toLowerCase(),
     options
   };
 
@@ -285,10 +289,10 @@ export abstract class Management {
     if (!mgmtClass) {
       throw new Error(
         `@Entity decorator 'this' is undefined. ` +
-        `Make sure to call as @MgmtClass.Entity() not @Entity. `
+          `Make sure to call as @MgmtClass.Entity() not @Entity. `
       );
     }
-    return function<T extends new (...args: any[]) => any>(
+    return function <T extends new (...args: any[]) => any>(
       target: T,
       context: ClassDecoratorContext<T>
     ): T {
@@ -307,10 +311,10 @@ export abstract class Management {
     if (!mgmtClass) {
       throw new Error(
         `@EntityOptions decorator 'this' is undefined. ` +
-        `Make sure to call as @MgmtClass.EntityOptions({...}) not @EntityOptions. `
+          `Make sure to call as @MgmtClass.EntityOptions({...}) not @EntityOptions. `
       );
     }
-    return function<T extends new (...args: any[]) => any>(
+    return function <T extends new (...args: any[]) => any>(
       target: T,
       context: ClassDecoratorContext<T>
     ): T {
@@ -366,6 +370,6 @@ export function link<L extends ExternalLayer>(linkTarget: L | (() => L)) {
  * Get link metadata from a Management class.
  * Returns undefined if not linked.
  */
-export function getLinkTarget(mgmtClass: typeof Management): LinkMetadata | undefined {
+export function getLinkTarget<T extends typeof Management>(mgmtClass: T): LinkMetadata | undefined {
   return (mgmtClass as any)[LINK_TARGET];
 }

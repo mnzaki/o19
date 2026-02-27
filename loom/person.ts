@@ -16,68 +16,81 @@
  *   }
  *
  * Reach: Global (extends from Core to Front)
- *
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
-import loom from '@o19/spire-loom';
-import { foundframe } from './core.js';
+import loom, { crud } from '@o19/spire-loom';
+import { foundframe } from './WARP.js';
 
 // ============================================================================
-// MANAGEMENT
+// FILTER TYPE
+// ============================================================================
+
+/**
+ * Filter criteria for Person list queries.
+ * All fields are optional - only specified filters are applied.
+ */
+export interface PersonFilter {
+  /** Filter by display name (exact match) */
+  displayName?: string;
+  /** Filter by handle (exact match) */
+  handle?: string;
+  /** Filter by avatar media reference */
+  avatarMediaId?: number;
+  /** Only return entries with createdAt >= this timestamp (inclusive) */
+  after?: number;
+  /** Only return entries with createdAt <= this timestamp (inclusive) */
+  before?: number;
+}
+
+// ============================================================================
+// MANAGEMENT (defined first to avoid TDZ)
 // ============================================================================
 
 @loom.reach('Global')
 @loom.link(foundframe.inner.core.thestream)
 export class PersonMgmt extends loom.Management {
-  // ========================================================================
-  // CONSTANTS (available in all rings)
-  // ========================================================================
-
   MAX_NAME_LENGTH = 100;
   MAX_HANDLE_LENGTH = 50;
   DEFAULT_DIRECTORY = 'people';
   GIT_BRANCH = 'main';
 
-  // ========================================================================
-  // CRUD METHODS
-  // ========================================================================
-
-  /**
-   * Add a person to the stream
-   */
   @loom.crud.create
   addPerson(displayName: string, handle?: string, metadata?: Record<string, unknown>): void {
     throw new Error('Imprint only');
   }
 
-  /**
-   * Get a person by ID
-   */
   @loom.crud.read
   getPerson(id: number): Person {
     throw new Error('Imprint only');
   }
 
-  /**
-   * Get a person by their handle
-   */
   @loom.crud.read({ by: 'handle' })
   getPersonByHandle(handle: string): Person {
     throw new Error('Imprint only');
   }
 
   /**
-   * List all people with pagination
+   * List people with optional filtering.
+   * 
+   * @example
+   * // Basic pagination
+   * listPeople(50, 0)
+   * 
+   * // By handle
+   * listPeople(50, 0, { handle: '@alice' })
+   * 
+   * // Recent people
+   * listPeople(50, 0, { after: Date.now() - 86400000 })
    */
   @loom.crud.list({ collection: true })
-  listPeople(limit?: number, offset?: number): Person[] {
+  listPeople(
+    limit?: number,
+    offset?: number,
+    filter?: PersonFilter
+  ): Person[] {
     throw new Error('Imprint only');
   }
 
-  /**
-   * Update a person's metadata
-   */
   @loom.crud.update
   updatePerson(
     id: number,
@@ -88,9 +101,6 @@ export class PersonMgmt extends loom.Management {
     throw new Error('Imprint only');
   }
 
-  /**
-   * Delete a person (soft delete)
-   */
   @loom.crud.delete_({ soft: true })
   deletePerson(id: number): boolean {
     throw new Error('Imprint only');
@@ -101,29 +111,13 @@ export class PersonMgmt extends loom.Management {
 // ENTITY
 // ============================================================================
 
-/**
- * Person entity - People and contacts
- */
 @PersonMgmt.Entity()
 export class Person {
-  /** Primary key */
-  id!: number;
-
-  /** Display name */
-  displayName!: string;
-
-  /** Unique handle (optional) */
-  handle?: string;
-
-  /** Avatar media reference */
-  avatarMediaId?: number;
-
-  /** Extended metadata (DID, KERI AID, etc) */
-  metadata?: Record<string, unknown>;
-
-  /** When this person was added */
-  createdAt!: number;
-
-  /** When this person was last updated */
-  updatedAt!: number;
+  id = crud.field.id();
+  displayName = crud.field.string();
+  handle = crud.field.string({ nullable: true });
+  avatarMediaId = crud.field.int({ nullable: true });
+  metadata = crud.field.json<Record<string, unknown>>({ nullable: true });
+  createdAt = crud.field.createdAt();
+  updatedAt = crud.field.updatedAt();
 }

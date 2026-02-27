@@ -569,7 +569,7 @@ async fn start_media_service_thread(
                     }
                   }
                   MediaServiceCommand::GetHealth { respond } => {
-                    let health = registry.health_check().await.unwrap_or_default();
+                    let health = registry.health_check().await;
                     let _ = respond.send(health);
                   }
                   MediaServiceCommand::Shutdown => {

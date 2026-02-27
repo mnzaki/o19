@@ -42,9 +42,8 @@ pub enum Error {
   #[error("Core error: {0}")]
   Core(#[from] o19_foundframe::Error),
 
-  #[error("Database error: {0}")]
-  Database(#[from] foundframe_to_sql::error::Error),
-
+  //#[error("Database error: {0}")]
+  //Database(#[from] foundframe_to_sql::error::Error),
   #[error("SQL error: {0}")]
   Sql(String),
 

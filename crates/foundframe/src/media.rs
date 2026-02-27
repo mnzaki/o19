@@ -4,8 +4,9 @@
 
 use std::path::PathBuf;
 
-use crate::error::Result;
-use crate::pkb::{DirectoryId, StreamChunk};
+use crate::db::MediaFilter;
+use crate::error::{Error, Result};
+use crate::pkb::{DirectoryId, StructuredData};
 use crate::thestream::{StreamEntry, TheStream};
 
 /// Media extension trait for TheStream
@@ -31,6 +32,16 @@ pub trait MediaStream {
   ///
   /// This creates both a media file AND a media link entry.
   fn add_media(&self, file_path: &std::path::Path, title: Option<&str>) -> Result<StreamEntry>;
+
+  /// List media from the database with optional filtering.
+  ///
+  /// Requires database indexing to be enabled.
+  async fn list_media_filtered(
+    &self,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    filter: MediaFilter,
+  ) -> Result<Vec<crate::db::MediaData>>;
 }
 
 impl MediaStream for TheStream {
@@ -42,20 +53,16 @@ impl MediaStream for TheStream {
     title: Option<&str>,
     mime_type: Option<&str>,
   ) -> Result<StreamEntry> {
-    let chunk = StreamChunk::MediaLink {
-      url: url.into(),
-      mime_type: mime_type.map(|s| s.to_string()),
-      title: title.map(|s| s.to_string()),
-    };
+    let data = StructuredData::media(url, mime_type.map(|s| s.to_string()), title.map(|s| s.to_string()));
 
-    let filename = chunk.generate_filename(crate::pkb::now_timestamp(), title);
+    let filename = data.generate_filename(crate::pkb::now_timestamp(), title);
 
     let path = match subpath {
       Some(sub) => PathBuf::from(sub).join(filename),
       None => PathBuf::from(filename),
     };
 
-    self.add_chunk(directory, path, chunk)
+    self.add_entry(directory, path, data)
   }
 
   fn add_media(&self, file_path: &std::path::Path, title: Option<&str>) -> Result<StreamEntry> {
@@ -65,6 +72,19 @@ impl MediaStream for TheStream {
     let url = format!("file://{}", file_path.display());
 
     self.add_media_link(directory, None, url, title, None)
+  }
+
+  async fn list_media_filtered(
+    &self,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    filter: MediaFilter,
+  ) -> Result<Vec<crate::db::MediaData>> {
+    let db = self.db.as_ref()
+      .ok_or_else(|| Error::Other("Database not available".into()))?;
+    
+    db.list_medias(limit, offset, filter).await
+      .map_err(|e| Error::Other(format!("Database error: {}", e)))
   }
 }
 

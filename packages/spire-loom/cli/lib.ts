@@ -23,7 +23,6 @@ export interface CliOptions {
 }
 
 export function parseArgs(args: string[]): CliOptions {
-  console.log({ args });
   const options: CliOptions = {};
 
   for (let i = 0; i < args.length; i++) {
@@ -369,8 +368,8 @@ export async function findWorkspaceConfig(): Promise<WeaverConfig | null> {
 
     console.log(`📍 Package detected: ${workspace.currentPackage}`);
     if (suggested) {
-      console.log(`   Suggested filter: "${suggested}" (derived from package name)`);
-      console.log(`   Run with -p ${suggested} to generate, or -p all for all packages\n`);
+      packageFilter = suggested;
+      console.log(`   Auto-filtering to: "${suggested}" (use -p all to override)\n`);
     }
   } else if (workspace.type === 'workspace') {
     console.log(`📍 Workspace detected: ${workspace.root}`);

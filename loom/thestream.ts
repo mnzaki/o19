@@ -22,12 +22,41 @@
  *   }
  *
  * Reach: Global (extends from Core to Front)
- *
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
-import loom from '@o19/spire-loom';
-import { foundframe } from './core.js';
+import loom, { crud } from '@o19/spire-loom';
+import { foundframe } from './WARP.js';
+import type { TheStreamEntry } from '@o19/foundframe-front/domain';
+// ============================================================================
+// FILTER TYPE
+// ============================================================================
+
+/**
+ * Filter criteria for TheStreamEntry list queries.
+ * All fields are optional - only specified filters are applied.
+ */
+export interface TheStreamEntryFilter {
+  /** Filter by entry kind ('media', 'post', 'bookmark', 'person', 'conversation') */
+  kind?: string;
+  /** Filter by directory path */
+  directory?: string;
+  /** Filter by content hash */
+  contentHash?: string;
+  /** Filter by person reference */
+  personId?: number;
+  /** Filter by post reference */
+  postId?: number;
+  /** Filter by media reference */
+  mediaId?: number;
+  /** Filter by bookmark reference */
+  bookmarkId?: number;
+  /** Filter by conversation reference */
+  conversationId?: number;
+  /** Only return entries with seenAt >= this timestamp (inclusive) */
+  after?: number;
+  /** Only return entries with seenAt <= this timestamp (inclusive) */
+  before?: number;
+}
 
 // ============================================================================
 // MANAGEMENT (must be defined before Entity to avoid TDZ)
@@ -35,7 +64,7 @@ import { foundframe } from './core.js';
 
 @loom.reach('Global')
 @loom.link(foundframe.inner.core.thestream)
-export class TheStreamMgmt extends loom.Management {
+class TheStreamMgmt extends loom.Management {
   // ========================================================================
   // CONSTANTS (available in all rings)
   // ========================================================================
@@ -49,17 +78,35 @@ export class TheStreamMgmt extends loom.Management {
 
   /**
    * Get entries from the stream (newest first)
+   *
+   * @param limit - Maximum number of entries to return
+   * @param offset - Number of entries to skip (for pagination)
+   * @param filter - Optional filter criteria for advanced querying
+   *
+   * @example
+   * // Basic pagination
+   * getEntries(50, 0)
+   *
+   * // Only posts
+   * getEntries(50, 0, { kind: 'post' })
+   *
+   * // Media from a specific time range
+   * getEntries(50, 0, {
+   *   kind: 'media',
+   *   after: Date.now() - 86400000,
+   *   before: Date.now()
+   * })
+   *
+   * // By specific entity reference
+   * getEntries(50, 0, { personId: 42 })
    */
   @loom.crud.list({ collection: true })
-  getEntries(
-    limit?: number,
-    before?: number // seenAt timestamp for pagination
-  ): TheStreamEntry[] {
+  getEntries(limit?: number, offset?: number, filter?: TheStreamEntryFilter): TheStreamEntry[] {
     throw new Error('Imprint only');
   }
 
   /**
-   * Get entries filtered by kind
+   * Get entries filtered by kind (convenience method)
    */
   getEntriesByKind(
     kind: 'media' | 'post' | 'bookmark' | 'person' | 'conversation',
@@ -108,7 +155,50 @@ export class TheStreamMgmt extends loom.Management {
   search(query: string, kinds?: string[], limit?: number): TheStreamEntry[] {
     throw new Error('Imprint only');
   }
+
+  // ========================================================================
+  // ADD OPERATIONS (add entities to the stream)
+  // ========================================================================
+
+  /**
+   * Add a bookmark to the stream
+   */
+  addBookmark(bookmarkId: number, seenAt?: number): TheStreamEntry {
+    throw new Error('Imprint only');
+  }
+
+  /**
+   * Add a post to the stream
+   */
+  addPost(postId: number, seenAt?: number): TheStreamEntry {
+    throw new Error('Imprint only');
+  }
+
+  /**
+   * Add media to the stream
+   */
+  addMedia(mediaId: number, seenAt?: number): TheStreamEntry {
+    throw new Error('Imprint only');
+  }
+
+  /**
+   * Add a person to the stream
+   */
+  addPerson(personId: number, seenAt?: number): TheStreamEntry {
+    throw new Error('Imprint only');
+  }
+
+  /**
+   * Add a conversation to the stream
+   */
+  addConversation(conversationId: number, seenAt?: number): TheStreamEntry {
+    throw new Error('Imprint only');
+  }
 }
+
+// ============================================================================
+// ENTITY
+// ============================================================================
 
 /**
  * TheStream entry - Temporal experience log
@@ -117,37 +207,19 @@ export class TheStreamMgmt extends loom.Management {
  * Uses polymorphic FKs to reference different entity types.
  */
 @TheStreamMgmt.Entity()
-export class TheStreamEntry {
-  /** Primary key */
-  id!: number;
-
-  /** When the user saw/experienced this (user-controlled timestamp) */
-  seenAt!: number;
-
-  /** Polymorphic: Person reference (null if not a person entry) */
-  personId?: number;
-
-  /** Polymorphic: Post reference (null if not a post entry) */
-  postId?: number;
-
-  /** Polymorphic: Media reference (null if not a media entry) */
-  mediaId?: number;
-
-  /** Polymorphic: Bookmark reference (null if not a bookmark entry) */
-  bookmarkId?: number;
-
-  /** Polymorphic: Conversation reference (null if not a conversation entry) */
-  conversationId?: number;
-
-  /** PKB directory path (e.g., "notes/diary/2024") */
-  directory?: string;
-
-  /** Entity kind tag */
-  kind?: 'media' | 'post' | 'bookmark' | 'person' | 'conversation';
-
-  /** BLAKE3 content hash for verification */
-  contentHash?: string;
-
-  /** When this entry was created (system timestamp) */
-  createdAt!: number;
+export class StreamEntry {
+  id = crud.field.id();
+  seenAt = crud.field.int();
+  personId = crud.field.int({ nullable: true });
+  postId = crud.field.int({ nullable: true });
+  mediaId = crud.field.int({ nullable: true });
+  bookmarkId = crud.field.int({ nullable: true });
+  conversationId = crud.field.int({ nullable: true });
+  directory = crud.field.string({ nullable: true });
+  kind = crud.field.string({ nullable: true });
+  contentHash = crud.field.string({ nullable: true });
+  createdAt = crud.field.createdAt();
 }
+
+export { TheStreamMgmt };
+export type ListFilter = TheStreamEntryFilter;

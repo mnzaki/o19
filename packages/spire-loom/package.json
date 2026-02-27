@@ -60,15 +60,20 @@
       "import": "./machinery/treadle-kit/index.ts",
       "default": "./machinery/treadle-kit/index.ts"
     },
-    "./machinery/bobbin": {
-      "types": "./machinery/bobbin/index.ts",
-      "import": "./machinery/bobbin/index.ts",
-      "default": "./machinery/bobbin/index.ts"
+    "./machinery/heddles": {
+      "types": "./machinery/heddles/index.ts",
+      "import": "./machinery/heddles/index.ts",
+      "default": "./machinery/heddles/index.ts"
     },
     "./machinery/treadles": {
       "types": "./machinery/treadles/index.ts",
       "import": "./machinery/treadles/index.ts",
       "default": "./machinery/treadles/index.ts"
+    },
+    "./machinery/bobbin": {
+      "types": "./machinery/bobbin/index.ts",
+      "import": "./machinery/bobbin/index.ts",
+      "default": "./machinery/bobbin/index.ts"
     },
     "./machinery/shuttle": {
       "types": "./machinery/shuttle/index.ts",

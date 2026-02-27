@@ -18,13 +18,18 @@ import type { RawMethod } from './bobbin/index.js';
 
 /**
  * Convert string to PascalCase.
- * 
+ *
  * @example
  * pascalCase('my-service') // 'MyService'
  * pascalCase('my_service') // 'MyService'
  * pascalCase('myService')  // 'MyService'
  */
 export function pascalCase(str: string): string {
+  if (str.charAt(0) === str.charAt(0).toUpperCase()) {
+    // already pascal
+    return str;
+  }
+
   return str
     .split(/[-_]/)
     .map((s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())
@@ -33,18 +38,22 @@ export function pascalCase(str: string): string {
 
 /**
  * Convert string to camelCase.
- * 
+ *
  * @example
  * camelCase('my_service') // 'myService'
  * camelCase('my-service') // 'myService'
+ * camelCase('MyService')  // 'myService'
  */
 export function camelCase(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+  return str
+    .replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+    .replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())
+    .replace(/^[A-Z]/, (letter) => letter.toLowerCase());
 }
 
 /**
  * Convert string to snake_case.
- * 
+ *
  * @example
  * toSnakeCase('MyService') // 'my_service'
  * toSnakeCase('myService') // 'my_service'
@@ -60,7 +69,7 @@ export function toSnakeCase(str: string): string {
 /**
  * Convert camelCase/PascalCase to snake_case with handling for consecutive capitals.
  * More comprehensive than toSnakeCase for complex names.
- * 
+ *
  * @example
  * toSnakeCaseFull('HTTPRequest') // 'http_request'
  * toSnakeCaseFull('addBookmark') // 'add_bookmark'
@@ -102,7 +111,7 @@ export interface ServiceNaming {
 
 /**
  * Build service naming from core metadata and spiraler affix.
- * 
+ *
  * @param packageName - Base package name (e.g., 'foundframe')
  * @param nameAffix - Optional affix (e.g., 'radicle')
  * @returns Complete service naming data
@@ -142,7 +151,7 @@ export interface AndroidPackageData {
 
 /**
  * Build Android-specific package paths.
- * 
+ *
  * @param _basePackageName - Base package name (unused, kept for compatibility)
  * @param gradleNamespace - Gradle namespace (e.g., 'ty.circulari.o19')
  * @returns Android package path data
@@ -178,12 +187,12 @@ export interface WrapperNaming {
 
 /**
  * Build generic wrapper naming from core name and affix.
- * 
+ *
  * @param coreName - Base core name (e.g., 'foundframe')
  * @param affix - Optional affix (e.g., 'radicle')
  * @param options - Naming pattern options
  * @returns Wrapper naming data
- * 
+ *
  * @example
  * // For Tauri plugin:
  * buildWrapperNaming('foundframe', 'radicle', {
@@ -202,9 +211,11 @@ export function buildWrapperNaming(
 ): WrapperNaming {
   const pascalCore = pascalCase(coreName);
   const pascalAffix = affix ? pascalCase(affix) : '';
-  
+
   const baseName = pascalAffix ? `${pascalCore}${pascalAffix}` : pascalCore;
-  const snakeBase = affix ? `${toSnakeCase(coreName)}_${toSnakeCase(affix)}` : toSnakeCase(coreName);
+  const snakeBase = affix
+    ? `${toSnakeCase(coreName)}_${toSnakeCase(affix)}`
+    : toSnakeCase(coreName);
 
   return {
     wrapperName: `${baseName}${options.wrapperSuffix}`,
@@ -250,7 +261,7 @@ export function buildTauriPluginNaming(coreName: string, affix?: string): Wrappe
 
 /**
  * Rust crate naming data.
- * Handles conversion between Cargo crate names (with hyphens) and 
+ * Handles conversion between Cargo crate names (with hyphens) and
  * Rust identifiers (with underscores).
  */
 export interface CrateNaming {
@@ -267,7 +278,7 @@ export interface CrateNaming {
 /**
  * Convert a Cargo crate name to a valid Rust identifier.
  * Replaces hyphens with underscores.
- * 
+ *
  * @example
  * toRustIdentifier('o19-foundframe') // 'o19_foundframe'
  * toRustIdentifier('my-crate-name')  // 'my_crate_name'
@@ -279,7 +290,7 @@ export function toRustIdentifier(crateName: string): string {
 /**
  * Extract the base name from a prefixed crate name.
  * Removes common prefixes like 'o19-'.
- * 
+ *
  * @example
  * extractBaseName('o19-foundframe') // 'foundframe'
  * extractBaseName('my-crate')       // 'my-crate' (no recognized prefix)
@@ -297,10 +308,10 @@ export function extractBaseName(crateName: string): string {
 
 /**
  * Build complete crate naming data from a Cargo crate name.
- * 
+ *
  * @param crateName - The Cargo crate name (e.g., 'o19-foundframe')
  * @returns Complete crate naming data
- * 
+ *
  * @example
  * buildCrateNaming('o19-foundframe')
  * // {
@@ -327,7 +338,7 @@ export function buildCrateNaming(crateName: string): CrateNaming {
 /**
  * Map internal type representation to AIDL type.
  * AIDL supports: primitives, String, Parcelable, arrays, interfaces
- * 
+ *
  * @param type - The internal type (e.g., 'String', 'i32', 'Vec<u8>')
  * @returns The AIDL type (e.g., 'String', 'int', 'byte[]')
  */
@@ -335,7 +346,7 @@ export function mapToAidlType(type: string): string {
   // Handle nullable marker
   const isNullable = type.startsWith('?');
   const baseType = isNullable ? type.slice(1) : type;
-  
+
   // Map to AIDL type
   switch (baseType.toLowerCase()) {
     // Primitives
@@ -397,12 +408,14 @@ export interface AidlMethod extends RawMethod {
 /**
  * Map method parameters for AIDL generation.
  * Adds AIDL-specific type info and direction qualifiers.
- * 
+ *
  * @param params - Raw parameters to transform
  * @returns Parameters with AIDL type information added
  */
-export function addAidlTypesToParams(params: Array<{ name: string; type: string; optional?: boolean }>): AidlParam[] {
-  return params.map(param => ({
+export function addAidlTypesToParams(
+  params: Array<{ name: string; type: string; optional?: boolean }>
+): AidlParam[] {
+  return params.map((param) => ({
     ...param,
     aidlType: mapToAidlType(param.type),
     direction: 'in' // Default: client sends data to service
@@ -412,12 +425,12 @@ export function addAidlTypesToParams(params: Array<{ name: string; type: string;
 /**
  * Add AIDL type information to all methods.
  * Adds aidlReturnType and aidlType to each method's params.
- * 
+ *
  * @param methods - Raw methods to transform
  * @returns Methods with AIDL type information added
  */
 export function addAidlTypesToMethods(methods: RawMethod[]): AidlMethod[] {
-  return methods.map(method => ({
+  return methods.map((method) => ({
     ...method,
     aidlReturnType: mapToAidlType(method.returnType),
     params: addAidlTypesToParams(method.params)

@@ -22,11 +22,19 @@ export type CreateBookmark = Omit<Bookmark, 'id' | 'createdAt'>;
 /** Properties that can be updated */
 export type UpdateBookmark = Partial<Omit<Bookmark, 'id' | 'createdAt'>>;
 
-/** Filters for querying bookmarks */
-export interface BookmarkFilters {
-  dateRange?: { from?: Date; to?: Date };
-  keywords?: string[];
-  url?: string;
-  sortBy?: 'recent' | 'oldest';
-  pagination?: { limit?: number; offset?: number };
+/** Filter criteria for bookmark queries (matches loom BookmarkFilter) */
+export interface BookmarkFilter {
+  /** Filter by URI (exact match) */
+  uri?: string;
+  /** Filter by title (exact match) */
+  title?: string;
+  /** Filter by notes content (exact match) */
+  notes?: string;
+  /** Only return entries with createdAt >= this timestamp (inclusive) */
+  after?: number;
+  /** Only return entries with createdAt <= this timestamp (inclusive) */
+  before?: number;
 }
+
+/** @deprecated Use BookmarkFilter instead */
+export type BookmarkFilters = BookmarkFilter;

@@ -147,7 +147,7 @@ describe('Foundframe-Front Integration', () => {
     console.log('Test kit mock treadle works with TreadleDefinition!');
   });
 
-  it('should include TypeScript layers in weaving plan', () => {
+  it('should include TypeScript layers in weaving plan', async () => {
     @typescript.Class
     class DB {}
     const prisma = spiral(DB);
@@ -159,7 +159,7 @@ describe('Foundframe-Front Integration', () => {
 
     // Create heddles and build plan
     const heddles = new Heddles(createDefaultMatrix());
-    const plan = heddles.buildPlan(warp);
+    const plan = await heddles.buildPlan(warp);
 
     // Check that TypeScript layers are in the plan
     const allNodes = Array.from(plan.nodesByType.values()).flat();
@@ -175,7 +175,7 @@ describe('Foundframe-Front Integration', () => {
     console.log('Edges:', plan.edges.map(e => `${e.from.constructor.name} -> ${e.to.constructor.name}`));
   });
 
-  it('should traverse full foundframe-front chain in plan', () => {
+  it('should traverse full foundframe-front chain in plan', async () => {
     // Build the full chain using the new pattern
     @rust.Struct class Core {}
     @typescript.Class class DB {}
@@ -198,7 +198,7 @@ describe('Foundframe-Front Integration', () => {
 
     // Build plan
     const heddles = new Heddles(createDefaultMatrix());
-    const plan = heddles.buildPlan(warp);
+    const plan = await heddles.buildPlan(warp);
 
     // Log all nodes
     console.log('\nFull chain nodes:');

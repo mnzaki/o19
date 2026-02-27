@@ -2,5 +2,5 @@
 // Export all Kysely adaptor implementations
 
 <% entities.forEach(function(entity) { -%>
-export { Kysely<%= entity.pascal %>Adaptor } from './<%= entity.lower %>.adaptor.gen.js';
+export { Kysely<%= entity.pascal %>Adaptor } from './<%= entity.lower %>.adaptor.js';
 <% }); -%>

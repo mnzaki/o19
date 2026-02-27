@@ -59,11 +59,12 @@ export async function main(
     console.log(`   Files unchanged: ${result.filesUnchanged}`);
 
     if (result.errors.length > 0) {
-      console.log(`\n⚠️  Errors: ${result.errors.length}`);
+      console.log(`\n❌ Errors: ${result.errors.length}`);
       for (const error of result.errors) {
         console.error(`   - ${error.message}`);
       }
-      process.exit(1);
+      // Re-throw the first error to show full stack trace
+      throw result.errors[0];
     }
   } catch (error) {
     console.error('\n❌ Error:', error);

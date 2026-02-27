@@ -15,7 +15,7 @@ const services = locals.services;
 
 <%_ for (const service of services) { _%>
 export {
-  <%= service.entityName %>KyselyAdaptor,
+  <%= service.entityName %>Adaptor,
   <%= service.entityName %>TauriAdaptor
-} from './<%= service.entityName.toLowerCase() %>.adaptor.gen.js';
+} from './<%= service.entityName.toLowerCase() %>.adaptor.js';
 <%_ } _%>

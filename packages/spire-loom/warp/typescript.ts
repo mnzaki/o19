@@ -190,3 +190,67 @@ export const String = createTypeDecorator('string');
 export const Number = createTypeDecorator('number');
 export const Boolean = createTypeDecorator('boolean');
 export const Date = createTypeDecorator('Date');
+
+// ============================================================================
+// Language Definition 🌾
+//
+// Self-registers TypeScript as a language with the reed system.
+// ============================================================================
+
+import { declareLanguage } from '../machinery/reed/language.js';
+import {
+  transformForTypeScript,
+  type TypeScriptMethod
+} from '../machinery/bobbin/code-generator.js';
+import { TsCore, tsCore } from './spiral/typescript.js';
+import { TypescriptSpiraler } from './spiral/spiralers/typescript/index.js';
+
+/**
+ * TypeScript language definition.
+ *
+ * Self-registers on module load.
+ */
+export const typescriptLanguage = declareLanguage<TypeScriptMethod>({
+  name: 'typescript',
+
+  codeGen: {
+    fileExtensions: ['.ts.ejs', '.tsx.ejs'],
+    transform: transformForTypeScript,
+    typeMappings: [
+      { tsType: 'string', targetType: 'string' },
+      { tsType: 'number', targetType: 'number' },
+      { tsType: 'boolean', targetType: 'boolean' },
+      { tsType: 'bool', targetType: 'boolean' }
+    ],
+    getStubReturn: (returnType, isCollection) => {
+      if (returnType === 'boolean') return 'false';
+      if (returnType === 'string') return "''";
+      if (returnType === 'number') return '0';
+      if (returnType === 'void') return 'undefined';
+      if (isCollection) return '[]';
+      return `{} as ${returnType}`;
+    }
+  },
+
+  warp: {
+    externalLayerClass: TsExternalLayer,
+    fieldDecorators: {
+      Optional,
+      String,
+      Number,
+      Boolean,
+      Date
+    },
+    classDecorator: Class,
+    core: {
+      coreClass: TsCore,
+      createCore: (layer) => tsCore(layer || new TsExternalLayer())
+    },
+    spiralers: {
+      typescript: TypescriptSpiraler
+    },
+    exposeBaseFactory: true
+  }
+});
+
+// Type mappings are automatically registered by declareLanguage()

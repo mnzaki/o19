@@ -99,15 +99,10 @@ export function findNodeForRing(
  * Recursively collect layers from a ring and its inner rings.
  */
 export function collectLayersFromRing(ring: SpiralRing, layers: Set<Layer>): void {
-  const ringName = (ring as any).name || ring.constructor.name;
   const hasTieup = !!(ring as any).tieup;
-  const isSurfaceRing = ring.constructor.name === 'SurfaceRing';
-  console.log(`[TRAVERSAL] collectLayersFromRing: ${ringName}, type: ${ring.constructor.name}, has tieup: ${hasTieup}, is SurfaceRing: ${isSurfaceRing}`);
-  console.log(`[TRAVERSAL]   ring.tieup =`, (ring as any).tieup);
   if (hasTieup) {
     // This is a Layer with potential tieups
     layers.add(ring as unknown as Layer);
-    console.log(`[TRAVERSAL]   Added to layers: ${ringName}`);
   }
 
   // Recurse into inner rings
@@ -143,11 +138,8 @@ export function collectLayersFromRing(ring: SpiralRing, layers: Set<Layer>): voi
 export function collectAllLayers(warp: Record<string, SpiralRing>): Set<Layer> {
   const layers = new Set<Layer>();
 
-  console.log(`[TRAVERSAL] collectAllLayers: ${Object.keys(warp).length} exports`);
   for (const [name, ring] of Object.entries(warp)) {
-    console.log(`[TRAVERSAL]   Checking ${name}: instanceof SpiralRing = ${ring instanceof SpiralRing}`);
     if (ring instanceof SpiralRing) {
-      console.log(`[TRAVERSAL]   -> Calling collectLayersFromRing for ${name}`);
       collectLayersFromRing(ring, layers);
     }
   }

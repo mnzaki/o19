@@ -13,15 +13,28 @@
  * This file defines the foundframe architecture using the loom DSL.
  */
 
-import loom, { typescript } from '@o19/spire-loom';
-import { kyselyAdaptorTreadle } from './treadles/kysely-adaptor.js';
-import { tauriAdaptorTreadle } from './treadles/tauri-adaptor.js';
+import loom from '@o19/spire-loom';
 import { tauriAndroidCommandsTreadle } from './treadles/tauri-android-commands.js';
-import { dddServicesTreadle } from './treadles/ddd-services.js';
 import { tauriDesktopPlatformTreadle } from './treadles/tauri-desktop-platform.js';
 import { appHookupTreadle } from './treadles/app-hookups.js';
-import { foundframe } from './core.js';
-export { foundframe };
+
+// ============================================================================
+// PLACEHOLDER SPIRALS - Replaced by Package WARPs
+// ============================================================================
+// Package WARPs are auto-discovered at {packagePath}/loom/WARP.ts
+// and replace these placeholders while merging tieups.
+
+// Placeholder for foundframe - package WARP at o19/crates/foundframe/loom/WARP.ts
+export const foundframe = loom.spiral(loom.spiral.rust.core());
+
+// Placeholder for tauri - package WARP at o19/crates/foundframe-tauri/loom/WARP.ts
+// Note: Workspace tieups are defined below and will be merged with package WARP tieups
+export const tauri = loom.spiral(loom.spiral.tauri.core());
+tauri.name = 'foundframe-tauri';
+
+// Placeholder for front - package WARP at packages/foundframe-front/loom/WARP.ts
+export const front = loom.spiral(loom.spiral.typescript.core());
+front.name = 'foundframe-front';
 
 // ============================================================================
 // PLATFORM RINGS (spiral out from Core)
@@ -31,13 +44,6 @@ export { foundframe };
  * Android Ring - foreground service wrapping Core
  * Package: foundframe-android
  * Path: o19/crates/foundframe-android
- *
- * Runs Core in :foundframe process with foreground service.
- *
- * The service is named IFoundframeRadicle (I{core}Radicle pattern)
- * where 'Radicle' is the nameAffix.
- *
- * gradleNamespace sets the Android package name for the generated code.
  */
 export const android = foundframe.android.foregroundService({
   nameAffix: 'radicle',
@@ -49,8 +55,6 @@ android.name = 'foundframe-android';
  * Desktop Ring - direct calls to Core
  * Package: foundframe-desktop
  * Path: o19/crates/foundframe-desktop
- *
- * Desktop apps call Core directly (same process).
  */
 export const desktop = foundframe.desktop.direct();
 
@@ -62,140 +66,44 @@ export const desktop = foundframe.desktop.direct();
 // export const ios = foundframe.ios.service();
 
 // ============================================================================
-// AGGREGATION RING (multiplexes platform rings)
+// WORKSPACE TIEUPS (merged with package WARP tieups during weaving)
 // ============================================================================
 
-/**
- * Tauri Ring - aggregates platform rings into a plugin
- * Package: foundframe-tauri
- * Path: o19/crates/foundframe-tauri
- *
- * Tauri routes to different platform rings based on target:
- *   - Desktop → uses desktop ring (direct calls)
- *   - Android → uses android ring (AIDL service)
- *   - iOS → uses ios ring (future)
- */
-/**
- * Tauri Ring - aggregates platform rings into a plugin
- * Package: foundframe-tauri
- * Path: o19/crates/foundframe-tauri
- *
- * Tauri routes to different platform rings based on target:
- *   - Desktop → uses desktop ring (direct calls)
- *   - Android → uses android ring (AIDL service)
- *   - iOS → uses ios ring (future)
- */
-export const tauri = loom.spiral.tauri
-  .plugin({
-    ddd: {
-      adaptors: {
-        // filterOut: ['crud:read', 'crud:list']  // TEMP: Generate all methods for testing
+// Apply workspace-level tieups to tauri spiral
+// These will be merged with package WARP tieups during weaving
+
+tauri.tieup({
+  treadles: [
+    {
+      treadle: tauriAndroidCommandsTreadle,
+      warpData: {
+        servicePackage: 'ty.circulari.o19',
+        serviceClient: 'FoundframeRadicleClient'
       }
-      /*
-      translators: {
-        [Foundframe.thestream]: {
-          returnValues: streamEntryTranslator
-        }
+    }
+  ]
+});
+
+tauri.tieup({
+  treadles: [
+    {
+      treadle: tauriDesktopPlatformTreadle,
+      warpData: {
+        coreName: 'foundframe',
+        coreCrateName: 'o19-foundframe'
       }
-      */
-    },
-    // Override core name detection (loom.spiral.tauri creates standalone core)
-    coreName: 'foundframe',
-    coreCrateName: 'o19-foundframe'
-  })
-  .tieup({
-    treadles: [
-      {
-        treadle: tauriAndroidCommandsTreadle,
-        warpData: {
-          servicePackage: 'ty.circulari.o19',
-          serviceClient: 'FoundframeRadicleClient'
-        }
-      }
-    ]
-  })
-  .tieup({
-    treadles: [
-      {
-        treadle: tauriDesktopPlatformTreadle,
-        warpData: {
-          coreName: 'foundframe',
-          coreCrateName: 'o19-foundframe'
-        }
-      }
-    ]
-  });
-tauri.name = 'foundframe-tauri';
+    }
+  ]
+});
 
 // ============================================================================
-// FRONT RINGS (spiral out from Tauri)
+// EXAMPLE APPLICATION
 // ============================================================================
-
-//export const prisma = loom.spiral.typescript.prisma();
-
-/**
- * Front Ring - TypeScript domain layer
- * Package: foundframe-front
- * Path: packages/foundframe-front
- *
- * Generates TypeScript domain types and Port interfaces
- * from Management Imprints.
- *
- * With Kysely adaptor implementations via custom treadle.
- */
-export const front = loom.spiral.typescript
-  .ddd()
-  .tieup({
-    treadles: [
-      {
-        treadle: kyselyAdaptorTreadle,
-        warpData: {
-          entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
-          operations: ['read', 'list']
-        }
-      }
-    ]
-  })
-  .tieup({
-    treadles: [
-      {
-        treadle: tauriAdaptorTreadle,
-        warpData: {
-          entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
-          operations: ['create', 'update', 'delete']
-        }
-      }
-    ]
-  })
-  .tieup({
-    treadles: [
-      {
-        treadle: dddServicesTreadle,
-        warpData: {}
-      }
-    ]
-  });
-front.name = 'foundframe-front';
-
-/**
- * Drizzle Adaptor Ring - ORM implementation of Ports
- * Package: foundframe-drizzle
- * Path: packages/foundframe-drizzle
- *
- * Implements the Port interfaces defined in front layer
- * using Drizzle ORM. Filtered to read-only operations
- * for this adaptor (can be combined with other adaptors
- * for full CRUD).
- */
-//export const drizzle = front.typescript.drizzle_adaptors({ filter: ['read'] });
 
 /**
  * MyTauriApp - Example application
  * Package: my-tauri-app
  * Path: apps/my-tauri-app
- *
- * The example application demonstrating the stack.
- * This is an app that wraps the front layer.
  */
 export const myTauriApp = loom.spiral.tauri.app().tieup({
   treadles: [
@@ -214,49 +122,6 @@ myTauriApp.name = 'MyTauriApp';
 // FUTURE RINGS
 // ============================================================================
 
-/**
- * Drizzle ORM adaptor
- * Package: foundframe-drizzle
- * Path: packages/foundframe-drizzle
- */
 // export const drizzle = foundframe.drizzle.schema();
-
-/*
-class StreamEntry {
-  @rust.i64
-  id?: number;
-
-  /// When *I* first encountered this (milliseconds since epoch).
-  @rust.u64
-  seen_at!: number;
-
-  /// Git commit hash when this was recorded.
-  commit_hash!: string;
-
-  /// Reference to the actual content.
-  /// Format: `pkb://{identity}/{repo}/{path}?v={commit}`
-  reference!: string;
-
-  /// inline summary for quick display, we always get it for the methods we use,
-  //  although it is an Option in the rust struct
-  summary!: StreamSummary;
-}
-
-class StreamSummary {
-  /// Title for display.
-  title!: string;
-  /// Type of content (post, media, bookmark, etc.).
-  content_type!: string;
-  /// Brief preview.
-  preview?: string;
-}
-
-const streamEntryTranslator = (entry: StreamEntry) => {
-  if (entry.summary.content_type === 'bookmark') {
-    return function(service: any) {
-    }
-  }
-};
-*/
 
 export default loom;

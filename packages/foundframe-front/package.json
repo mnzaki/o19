@@ -12,25 +12,37 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
     },
     "./domain": {
-      "types": "./dist/domain/entities/index.d.ts",
-      "import": "./dist/domain/entities/index.js"
+      "types": "./dist/src/domain/index.d.ts",
+      "import": "./dist/src/domain/index.js"
     },
     "./ports": {
-      "types": "./dist/ports/index.d.ts",
-      "import": "./dist/ports/index.js"
+      "types": "./dist/src/ports/index.d.ts",
+      "import": "./dist/src/ports/index.js",
+      "default": "./dist/src/ports/index.js"
     },
     "./services": {
-      "types": "./dist/services/index.d.ts",
-      "import": "./dist/services/index.js"
+      "types": "./dist/src/services/index.d.ts",
+      "import": "./dist/src/services/index.js"
+    },
+    "./spire/ports": {
+      "types": "./dist/spire/src/ports/index.d.ts",
+      "import": "./dist/spire/src/ports/index.js"
+    },
+    "./spire/services": {
+      "types": "./dist/spire/src/services/index.d.ts",
+      "import": "./dist/spire/src/services/index.js"
     }
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "typescript": "5.9.2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
   }
 }

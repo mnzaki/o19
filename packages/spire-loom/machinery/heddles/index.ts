@@ -17,10 +17,12 @@ export {
   type GenerationTask,
   type WeavingPlan,
   type MethodHelpers,
+  type ServiceMethod,
+  type ManagementMethods,
   type GeneratorContext,
   type GeneratorFunction,
   type GeneratedFile,
-  ensurePlanComplete,
+  ensurePlanComplete
 } from './types.js';
 
 // Re-export query types from sley for GeneratorContext.query
@@ -28,25 +30,20 @@ export {
   type BoundQuery,
   type QueryAPI,
   type MethodQueryAPI,
-  type CrudOperation,
+  type CrudOperation
 } from '../sley/query.js';
 
 // ============================================================================
 // Matrix
 // ============================================================================
 
-export {
-  GeneratorMatrix,
-  DEFAULT_MATRIX,
-} from './matrix.js';
+export { GeneratorMatrix, DEFAULT_MATRIX } from './matrix.js';
 
 // ============================================================================
 // Enrichment (computed metadata from ownership chain)
 // ============================================================================
 
-export {
-  enrichManagementMethods,
-} from './enrichment.js';
+export { enrichManagementMethods } from './enrichment.js';
 
 // ============================================================================
 // Traversal Utilities
@@ -59,32 +56,27 @@ export {
   collectLayersFromRing,
   detectRelationship,
   findRoots,
-  getPathToRoot,
+  getPathToRoot
 } from './traversal.js';
 
 // ============================================================================
 // Metadata
 // ============================================================================
 
-export {
-  ensureMetadata,
-} from './metadata.js';
+export { ensureMetadata } from './metadata.js';
 
 // ============================================================================
 // Plan Builder (Main Heddles class)
 // ============================================================================
 
-export {
-  Heddles,
-  createHeddles,
-} from './plan-builder.js';
+export { Heddles, createHeddles } from './plan-builder.js';
 
 // ============================================================================
 // Legacy Re-export (for backward compatibility)
 // ============================================================================
 
-/** 
- * @deprecated Import from specific modules instead. 
+/**
+ * @deprecated Import from specific modules instead.
  * This re-export will be removed in a future version.
  */
 export * from './pattern-matcher.js';

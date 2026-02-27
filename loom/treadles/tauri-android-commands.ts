@@ -24,7 +24,6 @@ import {
 } from '@o19/spire-loom/machinery/treadle-kit';
 import { addManagementPrefix } from '@o19/spire-loom/machinery/sley';
 
-
 // ============================================================================
 // Treadle Definition
 // ============================================================================
@@ -82,25 +81,19 @@ export const tauriAndroidCommandsTreadle = defineTreadle({
     }
   ],
 
-  // Declarative hookups following APP-010 spec
-  // Supports both lines (strings) and objects (structured) forms
   hookups: [
     // Kotlin hookup: Add FoundframeCommandProvider to ApiPlugin
     {
       path: 'android/src/main/java/ApiPlugin.kt',
 
       // Import statements - array of lines form
-      imports: [
-        'import ty.circulari.o19.ff.FoundframeCommandProvider'
-      ],
+      imports: ['import ty.circulari.o19.ff.FoundframeCommandProvider'],
 
       // Class modifications for ApiPlugin
       classes: {
         ApiPlugin: {
           // Add field for command provider - array of lines form
-          fields: [
-            'private var foundframeCommands: FoundframeCommandProvider? = null'
-          ],
+          fields: ['private var foundframeCommands: FoundframeCommandProvider? = null'],
 
           // Modify existing methods
           methods: {
@@ -113,16 +106,13 @@ export const tauriAndroidCommandsTreadle = defineTreadle({
               ]
             },
             onDestroy: {
-              prepend: [
-                '// Cleanup Foundframe commands',
-                'foundframeCommands?.cleanup()'
-              ]
+              prepend: ['// Cleanup Foundframe commands', 'foundframeCommands?.cleanup()']
             }
           }
         }
       }
     },
-    
+
     // RustModule hookup: Ensure spire module is declared (fallback)
     {
       path: 'src/lib.rs',

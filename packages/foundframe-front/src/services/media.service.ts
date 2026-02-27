@@ -1,34 +1,40 @@
 /**
- * Media service
+ * Media service - Extension of generated service
  * Domain service for managing media files
+ *
+ * This extends the generated MediaService from spire/ to add:
+ * - Data object adapter for create() (routes to createLink or createFile)
+ * - Content hash lookup alias
  */
 
-import { MediaAdaptor, type MediaPort } from '../ports/media.port.js';
-import type { Media, CreateMedia, UpdateMedia } from '../domain/entities/media.js';
+import { MediaService as GeneratedMediaService } from '../../spire/src/services/index.js';
+import type { MediaPort } from '../../spire/src/ports/index.js';
+import type { Media, CreateMedia } from '../domain/entities/media.js';
 
-export class MediaService extends MediaAdaptor implements MediaPort {
-  constructor(private adaptor: MediaPort) {
-    super();
+export class MediaService extends GeneratedMediaService {
+  constructor(adaptor: MediaPort) {
+    super(adaptor, adaptor);
   }
 
-  create(data: CreateMedia): Promise<Media> {
-    // TODO: Add content hash calculation for deduplication
-    return this.adaptor.create(data);
+  /**
+   * Create media from data object
+   * Routes to addMediaLink (for URLs) or addMediaFile (for paths)
+   * TODO: Add content hash calculation for deduplication
+   */
+  async create(data: CreateMedia): Promise<void> {
+    if (data.uri.startsWith('http://') || data.uri.startsWith('https://')) {
+      // Link media
+      return this.addMediaLink(data);
+    } else {
+      // File media
+      return this.addMediaFile(data);
+    }
   }
 
-  getById(id: number): Promise<Media | null> {
-    return this.adaptor.getById(id);
-  }
-
-  update(id: number, data: UpdateMedia): Promise<void> {
-    return this.adaptor.update(id, data);
-  }
-
-  delete(id: number): Promise<void> {
-    return this.adaptor.delete(id);
-  }
-
-  findByContentHash(contentHash: string): Promise<Media | null> {
-    return this.adaptor.findByContentHash(contentHash);
+  /**
+   * Alias: findByContentHash → getMedia (generated method name)
+   */
+  async findByContentHash(contentHash: string): Promise<Media> {
+    return this.getMedia(contentHash);
   }
 }

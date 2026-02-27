@@ -30,14 +30,14 @@
 //! - No complex merge conflicts from divergent histories
 //! - Content is merged by simple file presence/absence with latest-wins
 
-pub mod chunk;
+pub mod stream;
 pub mod directory;
 pub mod entry;
 pub mod merge;
 pub mod radicle;
 pub mod service;
 
-pub use chunk::{sanitize_filename, ChunkId, EntryId, MediaLink, StreamChunk};
+pub use stream::{sanitize_filename, EntryId, StructuredData};
 pub use directory::{Directory, DirectoryId, DirectoryMeta, DirectoryRegistry, PkbBase};
 pub use entry::{Entry, EntryMeta};
 pub use merge::{MergeResult, MergeStrategy};

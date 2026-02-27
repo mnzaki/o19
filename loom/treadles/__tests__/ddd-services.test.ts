@@ -129,13 +129,13 @@ describe('dddServicesTreadle', () => {
       
       // Should generate: port, service, adaptor, 3 index files, adaptor-selector
       const expectedFiles = [
-        'src/ports/gen/bookmark.port.gen.ts',
-        'src/services/gen/bookmark.service.gen.ts',
-        'src/adaptors/gen/bookmark.adaptor.gen.ts',
-        'src/ports/gen/index.gen.ts',
-        'src/services/gen/index.gen.ts',
-        'src/adaptors/gen/index.gen.ts',
-        'src/adaptor-selector.gen.ts'
+        'src/ports/bookmark.port.ts',
+        'src/services/bookmark.service.ts',
+        'src/adaptors/bookmark.adaptor.ts',
+        'src/ports/index.ts',
+        'src/services/index.ts',
+        'src/adaptors/index.ts',
+        'src/adaptor-selector.ts'
       ];
       
       assert.equal(outputs.length, expectedFiles.length);
@@ -179,9 +179,9 @@ describe('dddServicesTreadle', () => {
       const outputs = outputsFn(ctx);
       
       // Should have 2 of each: port, service, adaptor = 6 + 3 index files + 1 selector = 10
-      const portFiles = outputs.filter((o: any) => o.path.includes('.port.gen.ts'));
-      const serviceFiles = outputs.filter((o: any) => o.path.includes('.service.gen.ts'));
-      const adaptorFiles = outputs.filter((o: any) => o.path.includes('.adaptor.gen.ts'));
+      const portFiles = outputs.filter((o: any) => o.path.includes('.port.ts'));
+      const serviceFiles = outputs.filter((o: any) => o.path.includes('.service.ts'));
+      const adaptorFiles = outputs.filter((o: any) => o.path.includes('.adaptor.ts'));
       
       assert.equal(portFiles.length, 2);
       assert.equal(serviceFiles.length, 2);

@@ -18,6 +18,7 @@ export type HookupType =
   | 'rust-module'
   | 'kotlin'
   | 'typescript'
+  | 'typescript-file'
   | 'vite-config'
   | 'npm-package'
   | 'ios-plist'
@@ -38,7 +39,7 @@ export function detectHookupType(filePath: string): HookupType {
   if (lowerPath.includes('build.gradle') || lowerPath.endsWith('.gradle.kts')) {
     return 'gradle';
   }
-  if (lowerPath.endsWith('src/lib.rs') || lowerPath.endsWith('src/main.rs') || lowerPath.endsWith('build.rs')) {
+  if (lowerPath.endsWith('.rs')) {
     return 'rust-module';
   }
   if (lowerPath.endsWith('.kt')) {
@@ -46,6 +47,9 @@ export function detectHookupType(filePath: string): HookupType {
   }
   if (lowerPath.endsWith('index.ts') || lowerPath.endsWith('index.js')) {
     return 'typescript';
+  }
+  if (lowerPath.endsWith('.ts') || lowerPath.endsWith('.js') || lowerPath.endsWith('.tsx') || lowerPath.endsWith('.jsx')) {
+    return 'typescript-file';
   }
   if (lowerPath.includes('vite.config')) {
     return 'vite-config';
@@ -323,6 +327,29 @@ export interface RustModuleHookup extends BaseHookup {
    * ```
    */
   variables?: RustVariableDeclaration[];
+  
+  /**
+   * impl block modifications by type name.
+   * Key is the type name (e.g., 'MyStruct', 'MyTrait for MyType').
+   * 
+   * Example:
+   * ```typescript
+   * impls: {
+   *   'MyService': {
+   *     methods: {
+   *       'new': { prepend: ['// Initialize spire'] }
+   *     }
+   *   }
+   * }
+   * ```
+   */
+  impls?: Record<string, ClassModifications>;
+  
+  /**
+   * Standalone function modifications (not in an impl block).
+   * Key is the function name.
+   */
+  functions?: Record<string, MethodModifications>;
 }
 
 // ============================================================================
@@ -349,6 +376,33 @@ export interface TypeScriptIndexHookup extends BaseHookup {
   
   /** Import statements to add (for side effects or types) */
   imports?: TypeScriptImportEntry[];
+}
+
+// ============================================================================
+// TypeScript File Hookup (.ts / .js files) - Full class/method support
+// ============================================================================
+
+export interface TypeScriptFileHookup extends BaseHookup {
+  path: `${string}.ts` | `${string}.js` | `${string}.tsx` | `${string}.jsx`;
+  
+  /**
+   * Import statements to add.
+   * Each string should be a valid TypeScript import.
+   * Supports template functions.
+   */
+  imports?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
+  
+  /**
+   * Class modifications by class name.
+   * Key is the class name (e.g., 'MyService').
+   */
+  classes?: Record<string, ClassModifications>;
+  
+  /**
+   * Standalone function modifications (not in a class).
+   * Key is the function name.
+   */
+  functions?: Record<string, MethodModifications>;
 }
 
 export interface TypeScriptImport {
@@ -480,13 +534,28 @@ export interface IosPlistHookup extends BaseHookup {
 }
 
 // ============================================================================
-// Kotlin File Hookup (.kt files)
+// Shared Method Modification Types
 // ============================================================================
 
-export interface KotlinClassModifications {
+export interface MethodModifications {
   /**
-   * Field declarations to add to the class.
-   * Each string should be a valid Kotlin field: "private var name: Type? = null"
+   * Code to prepend at the start of the method body.
+   * Array of valid statements.
+   * Supports template functions.
+   */
+  prepend?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
+  
+  /**
+   * Code to append at the end of the method body.
+   * Array of valid statements.
+   * Supports template functions.
+   */
+  append?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
+}
+
+export interface ClassModifications {
+  /**
+   * Field/property declarations to add to the class.
    * Supports template functions.
    */
   fields?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
@@ -495,31 +564,25 @@ export interface KotlinClassModifications {
    * Method modifications by method name.
    * Key is the method name (e.g., 'load', 'onDestroy').
    */
-  methods?: Record<string, KotlinMethodModifications>;
+  methods?: Record<string, MethodModifications>;
   
   /**
    * New methods to add to the class.
-   * Each string should be a complete valid Kotlin method.
+   * Each string should be a complete valid method.
    * Supports template functions.
    */
   newMethods?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
 }
 
-export interface KotlinMethodModifications {
-  /**
-   * Code to prepend at the start of the method body.
-   * Array of valid Kotlin statements.
-   * Supports template functions.
-   */
-  prepend?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
-  
-  /**
-   * Code to append at the end of the method body.
-   * Array of valid Kotlin statements.
-   * Supports template functions.
-   */
-  append?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
-}
+// ============================================================================
+// Kotlin File Hookup (.kt files)
+// ============================================================================
+
+/** @deprecated Use MethodModifications instead */
+export type KotlinMethodModifications = MethodModifications;
+
+/** @deprecated Use ClassModifications instead */
+export type KotlinClassModifications = ClassModifications;
 
 /** Method modification entry type */
 export type KotlinMethodModificationEntry = KotlinMethodModifications;
@@ -544,11 +607,30 @@ export interface KotlinHookup extends BaseHookup {
 // Generic File Block Hookup (fallback)
 // ============================================================================
 
+export interface TomlArrayHookup {
+  /** TOML path to the array (e.g., 'default.permissions') */
+  path: string;
+  /** Items to add to the array (duplicates will be skipped) */
+  items: string[];
+}
+
 export interface FileBlockHookup extends BaseHookup {
   path: string;
   
-  /** Language for marker formatting */
-  language: 'rust' | 'typescript' | 'javascript' | 'kotlin' | 'xml' | 'toml' | 'json' | 'gradle';
+  /** 
+   * Language for marker formatting.
+   * Auto-detected from file extension if not specified.
+   * 
+   * Detected mappings:
+   * - `.rs` → rust
+   * - `.ts`, `.tsx`, `.js`, `.jsx` → typescript
+   * - `.kt` → kotlin (uses gradle markers)
+   * - `.gradle`, `.gradle.kts` → gradle
+   * - `.toml` → toml
+   * - `.xml` → xml
+   * - `.json` → json
+   */
+  language?: 'rust' | 'typescript' | 'javascript' | 'kotlin' | 'xml' | 'toml' | 'json' | 'gradle';
   
   /** 
    * Custom markers (if not using file-type defaults).
@@ -559,8 +641,11 @@ export interface FileBlockHookup extends BaseHookup {
     end: string;
   };
   
-  /** Block content to insert */
-  content: string;
+  /** Block content to insert (required unless tomlArray is specified) */
+  content?: string;
+  
+  /** TOML array manipulation - for adding items to TOML arrays */
+  tomlArray?: TomlArrayHookup;
   
   /** Insertion position hints */
   position?: {
@@ -581,6 +666,8 @@ export type HookupSpec =
   | GradleHookup
   | RustModuleHookup
   | KotlinHookup
+  | TypeScriptIndexHookup
+  | TypeScriptFileHookup
   | ViteConfigHookup
   | NpmPackageHookup
   | IosPlistHookup
@@ -647,8 +734,14 @@ export function validateHookup(spec: HookupSpec): ValidationResult {
     }
     case 'file-block': {
       const block = spec as FileBlockHookup;
-      if (!block.content) {
-        errors.push('File block hookup must have content');
+      if (!block.content && !block.tomlArray) {
+        errors.push('File block hookup must have content or tomlArray');
+      }
+      if (block.tomlArray && !block.tomlArray.path) {
+        errors.push('tomlArray must have a path');
+      }
+      if (block.tomlArray && (!block.tomlArray.items || block.tomlArray.items.length === 0)) {
+        errors.push('tomlArray must have items');
       }
       break;
     }

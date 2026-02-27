@@ -27,6 +27,7 @@ log = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 reqwest = { workspace = true, features = ["json", "stream"] }
 sqlite = { workspace = true, features = ["bundled"] }
+sea-query = { version = "0.32", default-features = false, features = ["backend-sqlite"] }
 
 # for media scraping and previewing
 scraper = { workspace = true }

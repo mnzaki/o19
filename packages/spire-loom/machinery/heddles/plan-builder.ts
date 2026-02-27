@@ -8,7 +8,15 @@ import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler } from '../../w
 import { CoreRing } from '../../warp/spiral/index.js';
 import { SurfaceRing } from '../../warp/spiral/surface.js';
 import type { ManagementMetadata } from '../reed/index.js';
-import { collectAllTieups, type TieupTreadle } from '../../warp/tieups.js';
+import {
+  collectAllTieups,
+  getTieups,
+  addTieup,
+  getLazyTieups,
+  clearLazyTieups,
+  type LazyTieup,
+  type TieupTreadle
+} from '../../warp/tieups.js';
 import { generateFromTreadle, type TreadleDefinition } from '../treadle-kit/declarative.js';
 import type {
   SpiralEdge,
@@ -26,6 +34,9 @@ import {
   findNodeForRing,
 } from './traversal.js';
 import { ensureMetadata } from './metadata.js';
+import { loadWarp } from '../reed/workspace-discovery.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 /**
  * The Heddles - builds the weaving plan from a WARP.ts module.
@@ -44,38 +55,120 @@ export class Heddles {
    *
    * @param warp - The exported rings from WARP.ts
    * @param managements - Management Imprints collected from loom/
+   * @param workspaceRoot - Optional workspace root for WARP override checking
    * @returns A plan with edges, nodes, managements, and generation tasks
    */
-  buildPlan(warp: Record<string, SpiralRing>, managements: ManagementMetadata[] = []): WeavingPlan {
+  async buildPlan(
+    warp: Record<string, SpiralRing>,
+    managements: ManagementMetadata[] = [],
+    workspaceRoot?: string
+  ): Promise<WeavingPlan> {
     const edges: SpiralEdge[] = [];
     const nodesByType = new Map<string, SpiralNode[]>();
     const tasks: GenerationTask[] = [];
 
     // HEDDLES: Enrich managements with computed metadata
-    // This is where we compute useResult, wrappers, etc. from ownership chain
     const enrichedManagements = enrichManagementMethods(managements);
 
-    // Track seen ring pairs to deduplicate tasks (using WeakMap for object identity)
+    // Track seen ring pairs to deduplicate tasks
     const seenRingPairs = new WeakMap<SpiralRing, Set<SpiralRing>>();
 
-    // Traverse each exported ring
-    for (const [exportName, ring] of Object.entries(warp)) {
-      if (!(ring instanceof SpiralRing)) {
-        continue;
-      }
+    // Registry for lazy tieups: exportName -> LazyTieup[]
+    const lazyTieupRegistry = new Map<string, LazyTieup[]>();
 
-      // Ensure metadata is computed from export name
+    // Create a mutable copy of warp (ESM modules are read-only)
+    const mutableWarp = { ...warp };
+
+    // ==========================================================================
+    // Phase 0: Ensure metadata and collect lazy tieups from main WARP
+    // ==========================================================================
+
+    for (const [exportName, ring] of Object.entries(mutableWarp)) {
+      if (!(ring instanceof SpiralRing)) continue;
+
       ensureMetadata(ring, exportName);
 
+      // Collect lazy tieups from main WARP
+      const lazyTieups = getLazyTieups(ring);
+      if (lazyTieups.length > 0) {
+        lazyTieupRegistry.set(exportName, [...lazyTieups]);
+      }
+    }
+
+    // ==========================================================================
+    // Phase 1: Auto-load package WARPs and merge lazy tieups
+    // ==========================================================================
+
+    if (workspaceRoot) {
+      for (const [exportName, ring] of Object.entries(mutableWarp)) {
+        if (!(ring instanceof SpiralRing)) continue;
+
+        const packagePath = (ring as any).metadata?.packagePath;
+        if (!packagePath) continue;
+
+        const packageWarpPath = path.join(workspaceRoot, packagePath, 'loom', 'WARP.ts');
+        if (!fs.existsSync(packageWarpPath)) continue;
+
+        try {
+
+          const packageWarp = await loadWarp(packageWarpPath, workspaceRoot);
+          const packageRing = packageWarp[exportName];
+
+          if (packageRing instanceof SpiralRing) {
+
+            // Ensure metadata on package ring
+            ensureMetadata(packageRing, exportName);
+
+            // Collect lazy tieups from package WARP
+            const packageLazyTieups = getLazyTieups(packageRing);
+
+
+            // Merge: main tieups first, then package tieups
+            const existingTieups = lazyTieupRegistry.get(exportName) || [];
+            const mergedTieups = [...existingTieups, ...packageLazyTieups];
+            lazyTieupRegistry.set(exportName, mergedTieups);
+
+            // Use package ring as the base
+            mutableWarp[exportName] = packageRing;
+          }
+        } catch (error) {
+          // Log error for debugging but continue - package WARP is optional
+          if (process.env.DEBUG_PACKAGE_WARP) {
+            console.error(`[DEBUG] Failed to load package WARP from ${packageWarpPath}:`, error);
+          }
+        }
+      }
+    }
+
+    // ==========================================================================
+    // Phase 2: Apply merged lazy tieups to resolved rings
+    // ==========================================================================
+
+    for (const [exportName, ring] of Object.entries(mutableWarp)) {
+      if (!(ring instanceof SpiralRing)) continue;
+
+      const tieups = lazyTieupRegistry.get(exportName) || [];
+
+      for (const tieup of tieups) {
+        addTieup(ring, tieup.source, { treadles: tieup.treadles });
+      }
+
+      clearLazyTieups(ring);
+    }
+
+    // ==========================================================================
+    // Phase 3: Traverse resolved rings and build generation tasks
+    // ==========================================================================
+    for (const [exportName, ring] of Object.entries(mutableWarp)) {
+      if (!(ring instanceof SpiralRing)) continue;
+
       this.traverse(ring, null, 0, exportName, (node) => {
-        // Record node by type
         const typeName = node.typeName;
         if (!nodesByType.has(typeName)) {
           nodesByType.set(typeName, []);
         }
         nodesByType.get(typeName)!.push(node);
 
-        // If we have a parent, record the edge and check for generation
         if (node.parent) {
           const edge: SpiralEdge = {
             from: node.parent.ring,
@@ -85,25 +178,15 @@ export class Heddles {
           };
           edges.push(edge);
 
-          // Match against matrix
-          // The edge direction is parent -> child (outer -> inner)
-          // Matrix expects (current, previous) where current wraps previous
-          // So current = parent (outer), previous = node (inner)
           const currentType = node.parent.typeName;
           const previousType = typeName;
 
-          // DEBUG
-          if (process.env.DEBUG_MATRIX) {
-            console.log(`[MATRIX] Trying: ${currentType} -> ${previousType}`);
-          }
-
-          // Deduplicate using WeakMap for object identity
           if (!seenRingPairs.has(node.parent.ring)) {
             seenRingPairs.set(node.parent.ring, new Set());
           }
           const innerSet = seenRingPairs.get(node.parent.ring)!;
           if (innerSet.has(node.ring)) {
-            return; // Skip duplicate
+            return;
           }
 
           const generator = this.matrix.getPair(currentType, previousType);
@@ -111,8 +194,8 @@ export class Heddles {
             innerSet.add(node.ring);
             tasks.push({
               match: [currentType, previousType],
-              current: node.parent, // outer ring (e.g., RustAndroidSpiraler)
-              previous: node, // inner ring (e.g., RustCore)
+              current: node.parent,
+              previous: node,
               exportName
             });
           }
@@ -120,31 +203,16 @@ export class Heddles {
       });
     }
 
-    // Collect tieup tasks from all layers
-    // Tieup treadles are added directly to tasks, bypassing matrix matching
-    console.log('[HEDDLES] Warp exports:', Object.keys(warp).join(', '));
-    for (const [name, ring] of Object.entries(warp)) {
-      console.log(`[HEDDLES]   ${name}: ${ring?.constructor?.name || typeof ring}`);
-    }
-    const allLayers = collectAllLayers(warp);
+    // ==========================================================================
+    // Phase 4: Collect tieup tasks from all layers
+    // ==========================================================================
+    const allLayers = collectAllLayers(mutableWarp);
     const tieups = collectAllTieups(allLayers);
 
-    // DEBUG: Always log tieup collection
-    console.log(`[HEDDLES] Collected ${tieups.length} tieup(s) from ${allLayers.size} layer(s)`);
-    for (const layer of allLayers) {
-      console.log(`[HEDDLES]   Layer: ${(layer as any).name || layer.constructor.name} (${layer.constructor.name})`);
-    }
-    for (const tieup of tieups) {
-      console.log(`[HEDDLES]   Tieup: target=${(tieup.target as any).name || 'unnamed'}, treadles=${tieup.config.treadles.length}`);
-    }
 
     for (const tieup of tieups) {
       const targetNode = findNodeForRing(nodesByType, tieup.target);
       const sourceNode = findNodeForRing(nodesByType, tieup.source);
-
-      if (process.env.DEBUG_MATRIX) {
-        console.log(`[HEDDLES] Processing tieup: source=${sourceNode?.exportName || 'NOT FOUND'}, target=${targetNode?.exportName || 'NOT FOUND'}`);
-      }
 
       if (!targetNode || !sourceNode) continue;
 
@@ -152,12 +220,6 @@ export class Heddles {
         const treadle = entry.treadle;
         const warpData = entry.warpData;
 
-        if (process.env.DEBUG_MATRIX) {
-          const isTdef = this.isTreadleDefinition(treadle);
-          console.log(`[HEDDLES]   Treadle: isTreadleDefinition=${isTdef}, hasWarpData=${!!warpData}`);
-        }
-
-        // Get or create generator
         let generator: GeneratorFunction;
         if (this.isTreadleDefinition(treadle)) {
           generator = generateFromTreadle(treadle);
@@ -165,33 +227,20 @@ export class Heddles {
           generator = treadle as GeneratorFunction;
         }
 
-        // Create synthetic task with config (warpData) for tieup treadles
         tasks.push({
           match: [targetNode.typeName, sourceNode.typeName],
           current: targetNode,
           previous: sourceNode,
           exportName: targetNode.exportName ?? 'unknown',
-          generator,  // Bypasses matrix lookup
-          config: warpData  // Pass warpData to weaver
+          generator,
+          config: warpData
         });
-
-        if (process.env.DEBUG_MATRIX) {
-          console.log(`[HEDDLES]   Added tieup task: ${targetNode.typeName} -> ${sourceNode.typeName}`);
-        }
       }
     }
 
-    // Mark plan as complete - now safe to traverse
-    // Use enriched managements (with computed useResult, wrappers, etc.)
     return { edges, nodesByType, managements: enrichedManagements, tasks, _isComplete: true };
   }
 
-  /**
-   * Traverse the spiral tree, calling the visitor for each node.
-   *
-   * Each ring keeps its PRIMARY export name (the first one assigned).
-   * Subsequent traversals use the existing export name.
-   */
   private traverse(
     ring: SpiralRing,
     parent: SpiralNode | null,
@@ -199,10 +248,7 @@ export class Heddles {
     traversalExportName: string,
     visitor: (node: SpiralNode) => void
   ): void {
-    // Get the effective type name
     const typeName = getEffectiveTypeName(ring);
-
-    // Use existing export name if ring was already traversed, otherwise assign new one
     const exportName = this.ringExportNames.get(ring) ?? traversalExportName;
     if (!this.ringExportNames.has(ring)) {
       this.ringExportNames.set(ring, exportName);
@@ -218,22 +264,16 @@ export class Heddles {
 
     visitor(node);
 
-    // Recurse into inner ring(s)
     if (ring instanceof SpiralOut) {
-      // Single inner ring - this is the "true" inner ring (typically a CoreRing)
       if (ring.inner) {
         const existingExport = this.ringExportNames.get(ring.inner);
-        // If already marked and it's a CoreRing, the existing is from a previous Core export
-        // In that case, keep the existing. Otherwise use the current export name.
         const innerExportName =
           existingExport && ring.inner instanceof CoreRing ? existingExport : exportName;
         this.traverse(ring.inner, node, depth + 1, innerExportName, visitor);
       }
 
-      // Also traverse any spiraler properties attached to the SpiralOut
       for (const [key, value] of Object.entries(ring)) {
         if (key !== 'inner' && value instanceof SpiralRing) {
-          // Skip if this spiraler's innerRing points back to us (would create cycle)
           if (value instanceof Spiraler && value.innerRing === ring) {
             continue;
           }
@@ -241,63 +281,43 @@ export class Heddles {
         }
       }
     } else if (ring instanceof Spiraler) {
-      // Spiraler wraps an inner ring (typically a CoreRing)
-      // The inner ring's identity comes from its ORIGINAL Core export,
-      // not from this platform Spiraler. Don't overwrite the exportName.
       if (ring.innerRing) {
-        // Use existing export name if available, otherwise fall back to current
         const innerExportName = this.ringExportNames.get(ring.innerRing) ?? exportName;
         this.traverse(ring.innerRing, node, depth + 1, innerExportName, visitor);
       }
     } else if (ring instanceof MuxSpiraler) {
-      // MuxSpiraler (like TauriSpiraler) aggregates multiple platform rings
       for (const inner of ring.innerRings) {
         this.traverse(inner, node, depth + 1, exportName, visitor);
       }
     } else if (ring instanceof SpiralMux) {
-      // Multiple inner rings
       for (const inner of ring.innerRings) {
         this.traverse(inner, node, depth + 1, exportName, visitor);
       }
 
-      // Also traverse spiraler properties
       for (const [key, value] of Object.entries(ring)) {
         if (key !== 'innerRings' && value instanceof SpiralRing) {
           this.traverse(value, node, depth + 1, exportName, visitor);
         }
       }
     } else if (ring instanceof SurfaceRing) {
-      // SurfaceRing wraps an inner ring (typically SpiralOut for apps)
-      // Traverse into it so we can generate code for the inner spiral
       if (ring.inner) {
         this.traverse(ring.inner, node, depth + 1, exportName, visitor);
       }
     }
   }
 
-  /**
-   * Check if a value is a TreadleDefinition.
-   */
   private isTreadleDefinition(value: unknown): value is TreadleDefinition {
     if (typeof value !== 'object' || value === null) {
       return false;
     }
     const v = value as Record<string, unknown>;
-
-    // Traditional matrix treadle has matches
     const hasMatches = 'matches' in v && Array.isArray(v.matches);
-
-    // Tieup-style treadle has methods and outputs (no matches needed)
     const hasMethods = 'methods' in v && typeof v.methods === 'object' && v.methods !== null;
     const hasOutputs = 'outputs' in v && Array.isArray(v.outputs);
-
     return hasMatches || (hasMethods && hasOutputs);
   }
 }
 
-/**
- * Create a new Heddles instance with the default matrix.
- */
 export function createHeddles(matrix?: GeneratorMatrix): Heddles {
   return new Heddles(matrix);
 }

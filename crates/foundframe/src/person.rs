@@ -2,7 +2,8 @@
 //!
 //! Handles person/contact ingestions into the Personal Knowledge Base.
 
-use crate::error::Result;
+use crate::db::PersonFilter;
+use crate::error::{Error, Result};
 use crate::pkb::DirectoryId;
 use crate::thestream::{StreamEntry, TheStream};
 
@@ -14,6 +15,16 @@ pub trait PersonStream {
     display_name: impl Into<String>,
     handle: Option<&str>,
   ) -> Result<StreamEntry>;
+
+  /// List persons from the database with optional filtering.
+  ///
+  /// Requires database indexing to be enabled.
+  async fn list_persons_filtered(
+    &self,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    filter: PersonFilter,
+  ) -> Result<Vec<crate::db::PersonData>>;
 }
 
 impl PersonStream for TheStream {
@@ -30,14 +41,24 @@ impl PersonStream for TheStream {
         "metadata": {},
     });
 
-    let chunk = crate::pkb::StreamChunk::StructuredData {
-      db_type: "Person".to_string(),
-      data,
-    };
+    let data = crate::pkb::StructuredData::new("Person", data);
 
-    let filename = chunk.generate_filename(crate::pkb::now_timestamp(), None);
+    let filename = data.generate_filename(crate::pkb::now_timestamp(), None);
     let path = std::path::PathBuf::from(filename);
 
-    self.add_chunk(directory, path, chunk)
+    self.add_entry(directory, path, data)
+  }
+
+  async fn list_persons_filtered(
+    &self,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    filter: PersonFilter,
+  ) -> Result<Vec<crate::db::PersonData>> {
+    let db = self.db.as_ref()
+      .ok_or_else(|| Error::Other("Database not available".into()))?;
+    
+    db.list_persons(limit, offset, filter).await
+      .map_err(|e| Error::Other(format!("Database error: {}", e)))
   }
 }

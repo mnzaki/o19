@@ -22,7 +22,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use foundframe_to_sql::ListenerHandle;
+//use foundframe_to_sql::ListenerHandle;
 use tauri::{
   Emitter, Manager, Runtime,
   plugin::{Builder, TauriPlugin},
@@ -37,8 +37,6 @@ pub use platform::{PairedDeviceInfo, PairingQrResponse, Platform, ScannedPairing
 
 #[cfg(desktop)]
 mod desktop;
-#[path = "../spire/src/desktop_mainline_bridge.rs"]
-pub mod desktop_mainline_bridge;
 #[cfg(mobile)]
 mod mobile;
 
@@ -46,7 +44,7 @@ mod commands;
 mod error;
 mod models;
 mod platform;
-pub mod sql_proxy;
+//pub mod sql_proxy;
 
 pub use error::{Error, Result};
 
@@ -59,7 +57,7 @@ pub trait O19Extension<R: Runtime> {
   fn events(&self) -> &EventBus;
 
   /// Access the database.
-  fn db(&self) -> &foundframe_to_sql::Database;
+  //fn db(&self) -> &foundframe_to_sql::Database;
 
   /// Access TheStream for adding content.
   fn stream(&self) -> &TheStream;
@@ -77,9 +75,9 @@ impl<R: Runtime, T: Manager<R>> O19Extension<R> for T {
     &self.state::<AppState>().inner().events
   }
 
-  fn db(&self) -> &foundframe_to_sql::Database {
-    &self.state::<AppState>().inner().db
-  }
+  //fn db(&self) -> &foundframe_to_sql::Database {
+  //  &self.state::<AppState>().inner().db
+  //}
 
   fn db_path(&self) -> PathBuf {
     self.state::<AppState>().inner().db_path.clone()
@@ -99,12 +97,10 @@ pub struct AppState {
   pub events: EventBus,
 
   /// Database connection (manually managed, not generated).
-  pub db: foundframe_to_sql::Database,
-
+  //pub db: foundframe_to_sql::Database,
   pub db_path: PathBuf,
-
-  /// sql_listener to keep it alive
-  _sql_listener: ListenerHandle,
+  //// sql_listener to keep it alive
+  //_sql_listener: ListenerHandle,
 }
 
 /// Initialize the plugin.
@@ -113,7 +109,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     .invoke_handler(tauri::generate_handler![
       // User commands (kept in src/commands.rs)
       commands::ping,
-      commands::run_sql,
+      //commands::run_sql,
       commands::subscribe_stream_events,
       commands::url_preview_json,
       commands::html_preview_json,
@@ -136,52 +132,84 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       commands::check_service_status,
       commands::start_service,
       /* SPIRE_COMMANDS_START */
-      crate::spire::commands::add_bookmark,
-      crate::spire::commands::get_bookmark,
-      crate::spire::commands::list_bookmarks,
-      crate::spire::commands::delete_bookmark,
-      crate::spire::commands::generate_pairing_code,
-      crate::spire::commands::confirm_pairing,
-      crate::spire::commands::unpair_device,
-      crate::spire::commands::list_paired_devices,
-      crate::spire::commands::follow_device,
-      crate::spire::commands::unfollow_device,
-      crate::spire::commands::list_followers,
-      crate::spire::commands::is_following,
-      crate::spire::commands::subscribe_events,
-      crate::spire::commands::unsubscribe_events,
-      crate::spire::commands::supports_events,
+      // Bookmark commands
+      crate::spire::commands::bookmark_add_bookmark,
+      crate::spire::commands::bookmark_get_bookmark,
+      crate::spire::commands::bookmark_list_bookmarks,
+      crate::spire::commands::bookmark_delete_bookmark,
+      // Device commands
+      crate::spire::commands::device_generate_pairing_code,
+      crate::spire::commands::device_confirm_pairing,
+      crate::spire::commands::device_unpair_device,
+      crate::spire::commands::device_list_paired_devices,
+      crate::spire::commands::device_follow_device,
+      crate::spire::commands::device_unfollow_device,
+      crate::spire::commands::device_list_followers,
+      crate::spire::commands::device_is_following,
+      // Media commands
+      crate::spire::commands::media_add_media_link,
+      crate::spire::commands::media_add_media_file,
+      crate::spire::commands::media_get_media,
+      crate::spire::commands::media_list_media,
+      crate::spire::commands::media_delete_media,
+      // Person commands
+      crate::spire::commands::person_add_person,
+      crate::spire::commands::person_get_person_by_handle,
+      crate::spire::commands::person_list_people,
+      crate::spire::commands::person_update_person,
+      crate::spire::commands::person_delete_person,
+      // Post commands
+      crate::spire::commands::post_add_post,
+      crate::spire::commands::post_get_post,
+      crate::spire::commands::post_list_posts,
+      crate::spire::commands::post_update_post,
+      crate::spire::commands::post_delete_post,
+      // Conversation commands
+      crate::spire::commands::conversation_add_conversation,
+      crate::spire::commands::conversation_get_conversation,
+      crate::spire::commands::conversation_list_conversations,
+      crate::spire::commands::conversation_update_conversation,
+      crate::spire::commands::conversation_delete_conversation,
+      crate::spire::commands::conversation_add_participant,
+      crate::spire::commands::conversation_remove_participant,
+      crate::spire::commands::conversation_list_participants,
+      crate::spire::commands::conversation_add_conversation_media,
+      crate::spire::commands::conversation_remove_conversation_media,
+      crate::spire::commands::conversation_list_conversation_media,
       /* SPIRE_COMMANDS_END */
     ])
-    .setup(|app, api| {      // Initialize RustExternalLayer platform (generated)
-      let _RustExternalLayer = o19_foundframe_tauri::spire::setupSpireRustExternalLayer(app, &api)?;
-
+    .setup(|app, api| {
       o19_foundframe::setup_logging();
 
-      // Initialize foundframe platform (generated)
-      let _foundframe = crate::spire::setupSpireFoundframe(app, &api)?;
-
-      // Initialize platform (desktop/mobile)
-      #[cfg(mobile)]
-      let platform = std::sync::Arc::new(mobile::init(app, api)?) as std::sync::Arc<dyn Platform>;
-      #[cfg(desktop)]
-      let platform = std::sync::Arc::new(desktop::init(app, api)?) as std::sync::Arc<dyn Platform>;
-
-      // Initialize foundframe-specific state (manually managed)
+      // Initialize foundframe (we own the creation)
       let app_data_dir = app.path().app_data_dir()?;
+      let radicle_home = app_data_dir.join(".foundframe.radicle");
+
+      let init_options = o19_foundframe::InitOptions::new(&radicle_home, "foundframe")
+        .pkb_base(PathBuf::from("pkb"));
+
+      // Clone for the exit callback
+      let exit_handle = app.clone();
+      let on_runtime_exit = Some(Box::new(move || {
+        tracing::info!("Radicle runtime exited, shutting down via Tauri...");
+        exit_handle.exit(0);
+      }) as Box<dyn FnOnce() + Send>);
+
+      let foundframe = o19_foundframe::init(init_options, on_runtime_exit)
+        .map_err(|e| Error::Other(format!("Failed to initialize foundframe: {e}")))?;
+
+      info!("Foundframe initialized successfully");
+
+      // Create platform using src/desktop.rs (which implements src/platform.rs::Platform)
+      #[cfg(desktop)]
+      let platform = std::sync::Arc::new(desktop::DesktopPlatform::from_foundframe(app.clone(), foundframe)?)
+        as std::sync::Arc<dyn Platform>;
+      #[cfg(mobile)]
+      let platform = std::sync::Arc::new(mobile::init(app, api, None)?) as std::sync::Arc<dyn Platform>;
+
+      // Initialize foundframe-specific state
       let db_path = app_data_dir.join("deardiary.db");
       info!("Database path: {:?}", db_path);
-
-      // Initialize database (same on all platforms)
-      let db = foundframe_to_sql::Database::open(&db_path)?;
-      let sql_adapter =
-        foundframe_to_sql::StreamToSql::new(db.clone(), platform.event_bus().clone());
-      sql_adapter.migrate()?;
-      info!("Database migrations complete");
-
-      // Start SQL adapter listening to events
-      let sql_listener = sql_adapter.start();
-      info!("SQL adapter started");
 
       // Clone event bus before moving platform
       let events = platform.event_bus().clone();
@@ -191,9 +219,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       app.manage(AppState {
         platform,
         events,
-        db,
         db_path: db_path.clone(),
-        _sql_listener: sql_listener,
       });
 
       info!("o19-foundframe-tauri plugin initialized successfully");

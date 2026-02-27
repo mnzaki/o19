@@ -6,6 +6,8 @@
  * - Add use statements
  * - Inject Tauri commands into generate_handler![]
  * - Add Tauri plugin setup code
+ * - Modify impl block methods
+ * - Modify standalone functions
  *
  * > *"The spire module anchors the generated code to the source."*
  */
@@ -13,7 +15,23 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { GeneratorContext } from '../../heddles/index.js';
-import type { RustModuleHookup, HookupResult, RustModuleEntry, RustModuleDeclaration, RustVariableDeclaration, HookupType } from './types.js';
+import type { 
+  RustModuleHookup, 
+  HookupResult, 
+  RustModuleEntry, 
+  RustModuleDeclaration, 
+  RustVariableDeclaration, 
+  HookupType,
+  ClassModifications,
+  MethodModifications,
+} from './types.js';
+import { 
+  modifyMethod, 
+  findClassBody,
+  RustMethodConfig, 
+  RustImplPattern,
+  findMatchingBrace,
+} from './method-modifier.js';
 
 // ============================================================================
 // Types
@@ -31,12 +49,6 @@ interface ParsedModuleDecl {
 
 /**
  * Apply Rust module hookup to lib.rs or main.rs.
- *
- * Handles:
- * 1. Module declarations (with #[path] attribute support)
- * 2. Use statements
- * 3. Tauri generate_handler![] command injection
- * 4. Tauri plugin setup code injection
  */
 export async function applyRustModuleHookup(
   filePath: string,
@@ -45,7 +57,6 @@ export async function applyRustModuleHookup(
 ): Promise<HookupResult> {
   const changes: string[] = [];
   
-  // Ensure file exists
   if (!fs.existsSync(filePath)) {
     return {
       path: filePath,
@@ -63,7 +74,7 @@ export async function applyRustModuleHookup(
     const declChanges = applyModuleDeclarations(content, hookup.moduleDeclarations);
     if (declChanges.modified) {
       content = declChanges.content;
-      changes.push(`Added module declarations: ${hookup.moduleDeclarations.map(d => 
+      changes.push(`Added modules: ${hookup.moduleDeclarations.map(d => 
         typeof d === 'string' ? d : d.name
       ).join(', ')}`);
     }
@@ -113,7 +124,28 @@ export async function applyRustModuleHookup(
     }
   }
   
-  // Write if modified
+  // 6. Apply impl block modifications
+  if (hookup.impls) {
+    for (const [typeName, implMod] of Object.entries(hookup.impls)) {
+      const result = applyImplModifications(content, typeName, implMod, context);
+      if (result.modified) {
+        content = result.content;
+        changes.push(`Modified impl: ${typeName}`);
+      }
+    }
+  }
+  
+  // 7. Apply standalone function modifications
+  if (hookup.functions) {
+    for (const [funcName, funcMod] of Object.entries(hookup.functions)) {
+      const result = modifyMethod(content, funcName, funcMod, RustMethodConfig, context);
+      if (result.modified) {
+        content = result.content;
+        changes.push(`Modified function: ${funcName}`);
+      }
+    }
+  }
+  
   const modified = content !== originalContent;
   if (modified) {
     fs.writeFileSync(filePath, content, 'utf-8');
@@ -130,15 +162,104 @@ export async function applyRustModuleHookup(
 }
 
 // ============================================================================
+// Impl Block Modifications
+// ============================================================================
+
+function applyImplModifications(
+  content: string,
+  typeName: string,
+  implMod: ClassModifications,
+  context: GeneratorContext
+): { content: string; modified: boolean } {
+  let modified = false;
+  
+  // Find the impl block - need to handle "impl TypeName" and "impl Trait for TypeName"
+  const implPattern = new RegExp(`impl(?:<[^>]+>)?\\s+(?:(\\w+)\\s+for\\s+)?${typeName}\\b`, 'g');
+  const implMatch = implPattern.exec(content);
+  
+  if (!implMatch) {
+    return { content, modified: false };
+  }
+  
+  const implStart = implMatch.index;
+  const afterDecl = content.substring(implStart);
+  const braceMatch = afterDecl.match(/\s*\{/);
+  
+  if (!braceMatch) {
+    return { content, modified: false };
+  }
+  
+  const bodyStart = implStart + braceMatch.index! + braceMatch[0].length - 1;
+  const bodyEnd = findMatchingBrace(content, bodyStart);
+  
+  if (bodyEnd === -1) {
+    return { content, modified: false };
+  }
+  
+  const beforeBody = content.substring(0, bodyStart + 1);
+  let implBody = content.substring(bodyStart + 1, bodyEnd);
+  const afterBody = content.substring(bodyEnd);
+  let bodyModified = false;
+  
+  // Add associated items (consts, types) - treat as "fields"
+  if (implMod.fields) {
+    for (const field of implMod.fields) {
+      const fieldDecl = typeof field === 'function'
+        ? field(context, (context as any).data || {})
+        : field;
+      
+      if (fieldDecl && !implBody.includes(fieldDecl.trim())) {
+        implBody = `    ${fieldDecl}\n${implBody}`;
+        bodyModified = true;
+      }
+    }
+  }
+  
+  // Add new methods
+  if (implMod.newMethods) {
+    for (const method of implMod.newMethods) {
+      const methodDecl = typeof method === 'function'
+        ? method(context, (context as any).data || {})
+        : method;
+      
+      if (methodDecl) {
+        // Extract fn name for duplicate checking
+        const fnNameMatch = methodDecl.match(/fn\s+(\w+)/);
+        const fnName = fnNameMatch?.[1];
+        
+        if (fnName && !implBody.includes(`fn ${fnName}(`)) {
+          implBody += `\n    ${methodDecl.trim()}\n`;
+          bodyModified = true;
+        }
+      }
+    }
+  }
+  
+  // Modify existing methods
+  if (implMod.methods) {
+    for (const [methodName, methodMod] of Object.entries(implMod.methods)) {
+      const result = modifyMethod(implBody, methodName, methodMod, RustMethodConfig, context);
+      if (result.modified) {
+        implBody = result.content;
+        bodyModified = true;
+      }
+    }
+  }
+  
+  if (bodyModified) {
+    content = beforeBody + implBody + afterBody;
+    modified = true;
+  }
+  
+  return { content, modified };
+}
+
+// ============================================================================
 // Module Declarations
 // ============================================================================
 
-/**
- * Parse a module declaration entry to structured form.
- */
 function parseModuleEntry(entry: RustModuleEntry): RustModuleDeclaration {
   if (typeof entry === 'string') {
-    // Parse "pub mod name;" or "mod name;" or "#[path=..."] pub mod name;"
     const pubMatch = entry.match(/pub\s+mod\s+(\w+)/);
     const modMatch = entry.match(/mod\s+(\w+)/);
     const pathMatch = entry.match(/#\[path\s*=\s*"([^"]+)"\]/);
@@ -153,9 +274,6 @@ function parseModuleEntry(entry: RustModuleEntry): RustModuleDeclaration {
   return entry;
 }
 
-/**
- * Format a module declaration to code.
- */
 function formatModuleDecl(decl: RustModuleDeclaration): string {
   let result = '';
   if (decl.path) {
@@ -166,9 +284,6 @@ function formatModuleDecl(decl: RustModuleDeclaration): string {
   return result;
 }
 
-/**
- * Apply module declarations to content.
- */
 function applyModuleDeclarations(
   content: string,
   declarations: RustModuleEntry[]
@@ -179,20 +294,17 @@ function applyModuleDeclarations(
     const decl = parseModuleEntry(entry);
     const declCode = formatModuleDecl(decl);
     
-    // Check if already exists
+    // Check if module already declared
     const declRegex = new RegExp(`mod\\s+${decl.name}\\s*;`);
     if (declRegex.test(content)) {
-      // Module already declared, skip
       continue;
     }
     
-    // Find insertion point: after last mod declaration, or at end
     const lastModMatch = content.match(/mod\s+\w+\s*;\s*$/m);
     if (lastModMatch) {
       const insertPos = content.lastIndexOf(lastModMatch[0]) + lastModMatch[0].length;
       content = content.slice(0, insertPos) + '\n' + declCode + content.slice(insertPos);
     } else {
-      // No existing mod declarations, add at end
       content += '\n' + declCode + '\n';
     }
     modified = true;
@@ -205,16 +317,12 @@ function applyModuleDeclarations(
 // Use Statements
 // ============================================================================
 
-/**
- * Apply use statements to content.
- */
 function applyUseStatements(
   content: string,
   useStatements: string[]
 ): { content: string; modified: boolean } {
   let modified = false;
   
-  // Find the use section
   const useRegex = /^(use\s+[^;]+;\s*)+/m;
   const useMatch = content.match(useRegex);
   
@@ -224,18 +332,15 @@ function applyUseStatements(
       normalized + ';';
     }
     
-    // Check if already exists
     if (content.includes(normalized)) {
       continue;
     }
     
     if (useMatch) {
-      // Insert after last use statement
       const lastUse = useMatch[0].trim().split('\n').pop() || '';
       const insertPos = content.indexOf(lastUse) + lastUse.length;
       content = content.slice(0, insertPos) + '\n' + normalized + content.slice(insertPos);
     } else {
-      // No use statements, add after any #![attributes] or at start
       const attrMatch = content.match(/^(#!?\[[^\]]+\]\s*)+/);
       if (attrMatch) {
         const insertPos = attrMatch[0].length;
@@ -254,19 +359,14 @@ function applyUseStatements(
 // Tauri Commands
 // ============================================================================
 
-/**
- * Apply Tauri commands to generate_handler![] macro.
- */
 function applyTauriCommands(
   content: string,
   commands: string[]
 ): { content: string; modified: boolean } {
-  // Find generate_handler![] macro
   const handlerRegex = /tauri::generate_handler!\s*\[([^\]]*)\]/;
   const match = content.match(handlerRegex);
   
   if (!match) {
-    // No generate_handler found - that's OK, might not be a Tauri file
     return { content, modified: false };
   }
   
@@ -276,12 +376,10 @@ function applyTauriCommands(
   for (const cmd of commands) {
     const normalized = cmd.trim().replace(/,$/, '');
     
-    // Check if already in handler
     if (handlerContent.includes(normalized)) {
       continue;
     }
     
-    // Add to handler (prepend for cleaner diffs)
     if (handlerContent.trim()) {
       handlerContent = '\n    ' + normalized + ',' + handlerContent;
     } else {
@@ -301,30 +399,23 @@ function applyTauriCommands(
 // Plugin Init
 // ============================================================================
 
-/**
- * Apply Tauri plugin initialization to .setup() closure.
- */
 function applyPluginInit(
   content: string,
   pluginInit: { fnName: string; stateType: string; setup: string }
 ): { content: string; modified: boolean } {
-  // Find .setup() closure
   const setupRegex = /\.setup\s*\(\s*\|[^|]+\|[^}]*\{([^}]*)\}\s*\)/;
   const match = content.match(setupRegex);
   
   if (!match) {
-    // No setup found
     return { content, modified: false };
   }
   
   const setupBody = match[1];
   
-  // Check if already initialized
   if (setupBody.includes(pluginInit.fnName)) {
     return { content, modified: false };
   }
   
-  // Insert setup code at end of setup body
   const insertCode = `    ${pluginInit.setup}\n`;
   const newSetupBody = setupBody + insertCode;
   
@@ -345,21 +436,6 @@ interface VariableDeclResult {
   errors: string[];
 }
 
-/**
- * Apply variable declarations to build.rs with deep matching.
- * 
- * STRATEGY:
- * 1. Parse existing variable declarations in the file
- * 2. For each requested variable:
- *    - If exists with spire marker → replace value
- *    - If exists without marker → ERROR (manual conflict)
- *    - If doesn't exist → add with marker
- * 
- * MARKER FORMAT:
- * // SPIRE-LOOM:VARIABLE:name
- * let name: Type = value;
- * // /SPIRE-LOOM:VARIABLE:name
- */
 function applyVariableDeclarations(
   filePath: string,
   content: string,
@@ -388,38 +464,30 @@ interface SingleVarResult {
   error?: string;
 }
 
-/**
- * Apply a single variable declaration.
- */
 function applySingleVariable(
   content: string,
   variable: RustVariableDeclaration
 ): SingleVarResult {
   const { name, type, value, mutable = false, spireManaged = true, description } = variable;
   
-  // Build the declaration code
   const mutKeyword = mutable ? 'mut ' : '';
   const newDecl = `let ${mutKeyword}${name}: ${type} = ${value};`;
   
-  // Check for spire-managed marker
   const spireMarkerStart = `// SPIRE-LOOM:VARIABLE:${name}`;
   const spireMarkerEnd = `// /SPIRE-LOOM:VARIABLE:${name}`;
   const spirePattern = new RegExp(
-    `${escapeRegex(spireMarkerStart)}\\s*\\n?([^\\n]*)\\n?\\s*${escapeRegex(spireMarkerEnd)}`,
+    `${escapeRegex(spireMarkerStart)}\s*\n?([^\n]*)\n?\s*${escapeRegex(spireMarkerEnd)}`,
     'g'
   );
   
   const spireMatch = content.match(spirePattern);
   
   if (spireMatch) {
-    // Spire-managed variable exists - replace it
     const newBlock = `${spireMarkerStart}\n${newDecl}\n${spireMarkerEnd}`;
     const newContent = content.replace(spirePattern, newBlock);
     return { content: newContent, modified: true };
   }
   
-  // Check for non-spire variable with same name
-  // Pattern: let name: Type = ...; or let mut name: Type = ...;
   const varPattern = new RegExp(
     `let\\s+(mut\\s+)?${escapeRegex(name)}\\s*:\\s*${escapeRegex(type)}\\s*=\\s*([^;]+);`,
     'g'
@@ -428,7 +496,6 @@ function applySingleVariable(
   const existingMatch = content.match(varPattern);
   
   if (existingMatch) {
-    // Variable exists but is not spire-managed
     const desc = description || `${name}: ${type}`;
     return {
       content,
@@ -439,11 +506,9 @@ function applySingleVariable(
     };
   }
   
-  // Variable doesn't exist - add it with markers
   if (spireManaged) {
     const block = `\n${spireMarkerStart}\n${newDecl}\n${spireMarkerEnd}\n`;
     
-    // Try to find fn main() to insert before
     const mainMatch = content.match(/fn\s+main\s*\(\s*\)/);
     if (mainMatch) {
       const insertPos = content.indexOf(mainMatch[0]);
@@ -451,18 +516,13 @@ function applySingleVariable(
       return { content: newContent, modified: true };
     }
     
-    // No main found, add at end
     return { content: content + block, modified: true };
   } else {
-    // Non-spire managed - just add the declaration
     const line = `${newDecl}\n`;
     return { content: content + '\n' + line, modified: true };
   }
 }
 
-/**
- * Escape special regex characters.
- */
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

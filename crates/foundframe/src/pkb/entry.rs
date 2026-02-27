@@ -8,7 +8,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use super::chunk::EntryId;
+use super::stream::EntryId;
 use crate::error::Result;
 
 /// A PKB entry.

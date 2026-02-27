@@ -1,41 +1,46 @@
 /**
- * Person service
+ * Person service - Extension of generated service
  * Domain service for managing people
+ *
+ * This extends the generated PersonService from spire/ to add:
+ * - Data object adapters for create/update (generated takes positional params)
+ * - search(): Partial match search (generated filter does exact match)
+ * - getByDid(): Lookup by DID (not in generated filter)
+ * - getAll(): Alias for list()
  */
 
-import { PersonAdaptor, type PersonPort } from '../ports/person.port.js';
-import type { Person, CreatePerson, UpdatePerson } from '../domain/entities/person.js';
+import { PersonService as GeneratedPersonService } from '../../spire/src/services/index.js';
+import type { PersonPort } from '../../spire/src/ports/index.js';
+import type { Person } from '../domain/entities/person.js';
 
-export class PersonService extends PersonAdaptor implements PersonPort {
-  constructor(private adaptor: PersonPort) {
-    super();
+export class PersonService extends GeneratedPersonService {
+  constructor(adaptor: PersonPort) {
+    super(adaptor, adaptor);
   }
 
-  create(data: CreatePerson): Promise<Person> {
-    return this.adaptor.create(data);
+  /**
+   * Search people by keyword (partial match in displayName)
+   * Generated list() with filter does exact match only
+   */
+  async search(query: string, limit?: number): Promise<Person[]> {
+    const all = await this.list({ limit: limit || 100, offset: 0 });
+    const lowerQuery = query.toLowerCase();
+    return all.filter((p) => p.displayName.toLowerCase().includes(lowerQuery));
   }
 
-  getById(id: number): Promise<Person | null> {
-    return this.adaptor.getById(id);
+  /**
+   * Get person by DID
+   * Not supported by generated filter - requires client-side search
+   */
+  async getByDid(did: string): Promise<Person | null> {
+    const all = await this.list({ limit: 1000, offset: 0 });
+    return all.find((p) => p.did === did) || null;
   }
 
-  update(id: number, data: UpdatePerson): Promise<void> {
-    return this.adaptor.update(id, data);
-  }
-
-  delete(id: number): Promise<void> {
-    return this.adaptor.delete(id);
-  }
-
-  search(query: string, limit?: number): Promise<Person[]> {
-    return this.adaptor.search(query, limit);
-  }
-
-  getByDid(did: string): Promise<Person | null> {
-    return this.adaptor.getByDid(did);
-  }
-
-  getAll(limit?: number): Promise<Person[]> {
-    return this.adaptor.getAll(limit);
+  /**
+   * Alias: getAll → list with offset 0
+   */
+  async getAll(limit?: number): Promise<Person[]> {
+    return this.list({ limit: limit || 100, offset: 0 });
   }
 }

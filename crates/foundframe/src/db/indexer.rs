@@ -10,7 +10,7 @@ use crossbeam_channel::Receiver;
 use tracing::{debug, error, info, warn};
 
 use crate::db::{DbCommand, DbHandle};
-use crate::pkb::StreamChunk;
+use crate::pkb::StructuredData;
 use crate::thestream::{StreamEntry, TheStreamEvent};
 use crate::signal::EventBus;
 
@@ -56,14 +56,14 @@ impl EventIndexer {
     /// Handle a single TheStream event.
     fn handle_event(&self, event: TheStreamEvent) -> crate::Result<()> {
         match event {
-            TheStreamEvent::ChunkAdded { entry, chunk, directory } => {
+            TheStreamEvent::ChunkAdded { entry, data, directory } => {
                 debug!("Indexing ChunkAdded: {:?}", entry.id);
-                self.index_chunk(&entry, &chunk, &directory)?;
+                self.index_data(&entry, &data, &directory)?;
             }
             
-            TheStreamEvent::ChunkUpdated { entry, chunk, directory } => {
+            TheStreamEvent::ChunkUpdated { entry, data, directory } => {
                 debug!("Indexing ChunkUpdated: {:?}", entry.id);
-                self.update_chunk(&entry, &chunk, &directory)?;
+                self.update_data(&entry, &data, &directory)?;
             }
             
             TheStreamEvent::ChunkRemoved { directory, entry_id } => {
@@ -71,9 +71,9 @@ impl EventIndexer {
                 self.remove_chunk(&directory, entry_id)?;
             }
             
-            TheStreamEvent::EntryPulled { entry, chunk, directory, source_device } => {
+            TheStreamEvent::EntryPulled { entry, data, directory, source_device } => {
                 debug!("Indexing EntryPulled from {}: {:?}", source_device, entry.id);
-                self.index_chunk(&entry, &chunk, &directory)?;
+                self.index_data(&entry, &data, &directory)?;
             }
             
             // Sync events don't need indexing - they're just notifications
@@ -85,48 +85,43 @@ impl EventIndexer {
         Ok(())
     }
 
-    /// Index a new chunk into SQLite.
-    fn index_chunk(
+    /// Index new data into SQLite.
+    fn index_data(
         &self,
         entry: &StreamEntry,
-        chunk: &StreamChunk,
+        data: &StructuredData,
         directory: &crate::pkb::DirectoryId,
     ) -> crate::Result<()> {
-        // TODO: Match on chunk type and index appropriately
-        // For now, just log that we would index
-        let chunk_type = match chunk {
-            StreamChunk::MediaLink { .. } => "media",
-            StreamChunk::TextNote { .. } => "text",
-            StreamChunk::StructuredData { db_type, .. } => db_type.as_str(),
-        };
+        // Index based on data_type
+        let data_type = data.data_type.as_str();
         debug!(
-            "Would index chunk: type={}, dir={}, entry={:?}",
-            chunk_type,
+            "Would index data: type={}, dir={}, entry={:?}",
+            data_type,
             directory,
             entry.id
         );
         
-        // Example: if bookmark, insert into bookmarks table
-        // self.db.insert_bookmark(...).await;
+        // TODO: Match on data_type and insert into appropriate table
+        // match data_type {
+        //     "Bookmark" => self.db.insert_bookmark(...).await,
+        //     "Media" => self.db.insert_media(...).await,
+        //     ...
+        // }
         
         Ok(())
     }
 
-    /// Update an existing chunk in SQLite.
-    fn update_chunk(
+    /// Update existing data in SQLite.
+    fn update_data(
         &self,
         entry: &StreamEntry,
-        chunk: &StreamChunk,
+        data: &StructuredData,
         directory: &crate::pkb::DirectoryId,
     ) -> crate::Result<()> {
-        let chunk_type = match chunk {
-            StreamChunk::MediaLink { .. } => "media",
-            StreamChunk::TextNote { .. } => "text",
-            StreamChunk::StructuredData { db_type, .. } => db_type.as_str(),
-        };
+        let data_type = data.data_type.as_str();
         debug!(
-            "Would update chunk: type={}, dir={}, entry={:?}",
-            chunk_type,
+            "Would update data: type={}, dir={}, entry={:?}",
+            data_type,
             directory,
             entry.id
         );

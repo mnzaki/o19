@@ -166,7 +166,7 @@ async function runDirect() {
   }
 
   console.log(`📄 Loading: ${workspace.warpPath}\n`);
-  const warp = await loadWarp(workspace.warpPath);
+  const warp = await loadWarp(workspace.warpPath, workspace.root);
 
   const config: WeaverConfig = {
     workspace,

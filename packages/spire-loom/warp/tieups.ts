@@ -9,7 +9,7 @@
  * @example
  * ```typescript
  * // Attach a declarative treadle to a layer
- * const myTreadle = defineTreadle({...});
+ * const myTreadle = declareTreadle({...});
  * const foundframe = loom.spiral(Foundframe)
  *   .tieup({ treadles: [{ treadle: myTreadle, warpData: {} }] });
  * ```
@@ -26,7 +26,7 @@ import type { TreadleDefinition } from '../machinery/treadle-kit/declarative.js'
 /**
  * Supported treadle types for tieups.
  * - GeneratorFunction: Result of generateFromTreadle()
- * - TreadleDefinition: Result of defineTreadle()
+ * - TreadleDefinition: Result of declareTreadle()
  */
 export type TieupTreadle = GeneratorFunction | TreadleDefinition;
 
@@ -41,7 +41,7 @@ export type CustomTreadle = never;
 export interface TreadleEntry {
   /** 
    * The treadle to execute.
-   * Can be a TreadleDefinition (from defineTreadle).
+   * Can be a TreadleDefinition (from declareTreadle).
    */
   treadle: TieupTreadle;
   /** Data passed to this specific treadle */
@@ -82,11 +82,38 @@ export interface StoredTieup {
 const TIEUPS_KEY = Symbol('loom:tieups');
 
 /**
+ * Symbol for storing lazy tieups on layers.
+ * These are applied after WARP override resolution.
+ * @internal
+ */
+const LAZY_TIEUPS_KEY = Symbol('loom:lazyTieups');
+
+/**
+ * Lazy tieup specification (stored before context is available).
+ * @internal
+ */
+export interface LazyTieup {
+  source: Layer;
+  treadles: TreadleEntry[];
+}
+
+/**
  * Get tieups attached to a layer.
+ * Returns both applied tieups and lazy tieups (for backwards compatibility).
  * @internal
  */
 export function getTieups(layer: Layer): StoredTieup[] {
-  return (layer as any)[TIEUPS_KEY] || [];
+  const applied = (layer as any)[TIEUPS_KEY] || [];
+  
+  // Also include lazy tieups as StoredTieup format
+  const lazy = getLazyTieups(layer);
+  const lazyAsStored: StoredTieup[] = lazy.map(lt => ({
+    target: layer,
+    source: lt.source,
+    config: { treadles: lt.treadles }
+  }));
+  
+  return [...applied, ...lazyAsStored];
 }
 
 /**
@@ -112,6 +139,37 @@ export function collectAllTieups(layers: Iterable<Layer>): StoredTieup[] {
 }
 
 // ============================================================================
+// Lazy Tieup Storage (for WARP override support)
+// ============================================================================
+
+/**
+ * Get lazy tieups stored on a layer.
+ * @internal
+ */
+export function getLazyTieups(layer: Layer): LazyTieup[] {
+  return (layer as any)[LAZY_TIEUPS_KEY] || [];
+}
+
+/**
+ * Add a lazy tieup to a layer.
+ * These are applied after WARP override resolution.
+ * @internal
+ */
+export function addLazyTieup(target: Layer, source: Layer, treadles: TreadleEntry[]): void {
+  const existing = getLazyTieups(target);
+  (target as any)[LAZY_TIEUPS_KEY] = [...existing, { source, treadles }];
+}
+
+/**
+ * Clear lazy tieups from a layer.
+ * Called after they've been applied.
+ * @internal
+ */
+export function clearLazyTieups(layer: Layer): void {
+  (layer as any)[LAZY_TIEUPS_KEY] = [];
+}
+
+// ============================================================================
 // Chaining API
 // ============================================================================
 
@@ -123,7 +181,7 @@ export function collectAllTieups(layers: Iterable<Layer>): StoredTieup[] {
  * @example
  * ```typescript
  * // Use this layer as both source and target
- * const myTreadle = defineTreadle({...});
+ * const myTreadle = declareTreadle({...});
  * const foundframe = loom.spiral(Foundframe)
  *   .tieup({ treadles: [{ treadle: myTreadle, warpData: {} }] });
  *
@@ -151,9 +209,9 @@ export function tieup<L extends Layer>(
     config = sourceOrConfig as TieupConfig;
   }
 
-  // Store the tieup on the target (this)
-  const { source: _, ...configWithoutSource } = config;
-  addTieup(this, source, configWithoutSource);
+  // Store the tieup lazily - will be applied after WARP override resolution
+  // during plan building when full context is available
+  addLazyTieup(this, source, config.treadles);
 
   return this; // Chainable
 }

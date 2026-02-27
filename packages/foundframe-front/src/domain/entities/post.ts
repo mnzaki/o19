@@ -32,9 +32,17 @@ export type UpdatePost = {
   links?: XanaduLink[];
 };
 
-/** Filters for querying posts */
-export interface PostFilters {
-  dateFrom?: Date;
-  dateTo?: Date;
-  keywords?: string[];
+/** Filter criteria for post queries (matches loom PostFilter) */
+export interface PostFilter {
+  /** Filter by content hash (exact match) */
+  contentHash?: string;
+  /** Filter by author DID (exact match) */
+  authorDid?: string;
+  /** Only return entries with createdAt >= this timestamp (inclusive) */
+  after?: number;
+  /** Only return entries with createdAt <= this timestamp (inclusive) */
+  before?: number;
 }
+
+/** @deprecated Use PostFilter instead */
+export type PostFilters = PostFilter;

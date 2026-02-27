@@ -21,25 +21,16 @@
  *   }
  *
  * Reach: Global (extends from Core to Front)
- *
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
-import loom from '@o19/spire-loom';
-import { foundframe } from './core.js';
+import loom, { crud } from '@o19/spire-loom';
+import { foundframe } from './WARP.js';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-/**
- * Media source capabilities
- */
 type MediaSourceCapability = 'Pull' | 'Push' | 'Webhook' | 'Stream';
-
-/**
- * Adapter types for different source kinds
- */
 type MediaAdapterType = 'file' | 'http' | 'rss' | 'atom' | 'activitypub' | 'webhook';
 
 /**
@@ -165,41 +156,27 @@ export class MediaSourceMgmt extends loom.Management {
 // ENTITY
 // ============================================================================
 
-/**
- * MediaSource entity - External media connections
- */
 @MediaSourceMgmt.Entity()
 export class MediaSource {
-  /** Primary key */
-  id!: number;
+  id = crud.field.id();
 
-  /** Source URL or identifier */
-  url!: string;
+  url = crud.field.string();
 
-  /** Adapter type for this source */
-  adapterType!: MediaAdapterType;
+  adapterType = crud.field.string();
 
-  /** Opaque cursor for resuming polling (JSON) */
-  cursorState?: Record<string, unknown>;
+  cursorState = crud.field.json<Record<string, unknown>>({ nullable: true });
 
-  /** Capabilities this source supports (JSON) */
-  capabilities!: MediaSourceCapability[];
+  capabilities = crud.field.json<MediaSourceCapability[]>();
 
-  /** Adapter-specific configuration (JSON) */
-  config?: Record<string, unknown>;
+  config = crud.field.json<Record<string, unknown>>({ nullable: true });
 
-  /** When this source was last polled */
-  lastPolledAt?: number;
+  lastPolledAt = crud.field.int({ nullable: true });
 
-  /** Last error message (if any) */
-  lastError?: string;
+  lastError = crud.field.string({ nullable: true });
 
-  /** Whether this source is currently active */
-  isActive!: boolean;
+  isActive = crud.field.bool({ default: false });
 
-  /** When this source was created */
-  createdAt!: number;
+  createdAt = crud.field.createdAt();
 
-  /** When this source was last updated */
-  updatedAt!: number;
+  updatedAt = crud.field.updatedAt();
 }

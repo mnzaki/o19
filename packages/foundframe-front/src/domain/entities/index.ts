@@ -2,51 +2,21 @@
  * Domain entities
  */
 
-export type {
-  Person,
-  CreatePerson,
-  UpdatePerson,
-} from './person.js';
+// Re-export types used by entities from values
+export type { AccumulableBit } from '../values/content.js';
 
-export type {
-  Media,
-  CreateMedia,
-  UpdateMedia,
-} from './media.js';
+export * from './person.js';
 
-export type {
-  Post,
-  CreatePost,
-  UpdatePost,
-  PostFilters,
-} from './post.js';
+export * from './media.js';
 
-export type {
-  Bookmark,
-  CreateBookmark,
-  UpdateBookmark,
-  BookmarkFilters,
-} from './bookmark.js';
+export * from './post.js';
 
-export type {
-  Conversation,
-  ConversationParticipant,
-  ConversationMedia,
-  CreateConversation,
-  UpdateConversation,
-} from './conversation.js';
+export * from './bookmark.js';
 
-export type {
-  StreamChunkType,
-  StreamChunk,
-  StreamEntry,
-  AddToStream,
-  StreamFilters,
-} from './stream.js';
+export * from './conversation.js';
 
-export type {
-  View,
-  ViewFilters,
-  CreateView,
-  UpdateView,
-} from './view.js';
+export type * from './thestream.js';
+
+export * from './view.js';
+
+export * from './media_source.js';

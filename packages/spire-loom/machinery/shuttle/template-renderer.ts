@@ -93,7 +93,7 @@ export async function renderEjs(options: Omit<RenderOptions, 'outputPath'>): Pro
     throw new Error('Either template or templateString must be provided');
   }
   
-  return ejsLib.render(template, options.data, {
+  return ejsLib.render(template, { h: templateHelpers, ...options.data }, {
     beautify: true,
     ...options.ejsOptions,
   });

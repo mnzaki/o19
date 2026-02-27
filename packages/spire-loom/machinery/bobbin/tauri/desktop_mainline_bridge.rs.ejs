@@ -7,15 +7,16 @@
 //! NOTE: Custom methods (camera, pairing) are NOT implemented here.
 //! They remain in the mainline src/desktop.rs as hand-written code.
 
-use crate::platform::{Platform, HasEventBus, HasStream, *};
+use crate::platform::{Platform, HasEventBus, HasStream};
 use crate::{Error, Result};
 use <%- spireModule %>::platform::<%- spirePlatformTrait %>;
-use <%- spireModule %>::models::*;
+// Use types from main crate::models (not spire::models) to match Platform trait
+use crate::models::{NotificationPermissionStatus, PairingQrResponse, ScannedPairingData, PairedDeviceInfo};
 use o19_foundframe::signal::EventBus;
 use o19_foundframe::thestream::TheStream;
 use serde::de::DeserializeOwned;
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager, Runtime, plugin::PluginApi};
+use tauri::{AppHandle, Runtime, plugin::PluginApi};
 
 /// Initialize the desktop platform bridge.
 pub fn init<R: Runtime, C: DeserializeOwned>(
@@ -80,8 +81,12 @@ impl<R: Runtime> Platform for <%- bridgePlatformName %><R> {
   }
 
   fn request_permissions(&self) -> Result<NotificationPermissionStatus> {
-    self.spire_platform.request_permissions()
-      .map_err(|e| Error::Other(e.to_string()))
+    // Convert from spire::models::NotificationPermissionStatus to crate::models::NotificationPermissionStatus
+    let spire_status = self.spire_platform.request_permissions()
+      .map_err(|e| Error::Other(e.to_string()))?;
+    Ok(NotificationPermissionStatus {
+      status: spire_status.status,
+    })
   }
 
   fn shutdown(&self) -> Result<()> {
@@ -93,15 +98,15 @@ impl<R: Runtime> Platform for <%- bridgePlatformName %><R> {
   // Device Pairing - NOT IMPLEMENTED (custom mainline only)
   // ========================================================================
 
-  fn generate_pairing_qr(&self, _device_name: String) -> Result<PairingQrResponse> {
+  fn generate_pairing_qr(&self, _device_name: String) -> Result<crate::models::PairingQrResponse> {
     Err(Error::Other("generate_pairing_qr not implemented in bridge platform".into()))
   }
 
-  fn parse_pairing_url(&self, _url: String) -> Result<ScannedPairingData> {
+  fn parse_pairing_url(&self, _url: String) -> Result<crate::models::ScannedPairingData> {
     Err(Error::Other("parse_pairing_url not implemented in bridge platform".into()))
   }
 
-  fn check_followers_and_pair(&self) -> Result<Vec<PairedDeviceInfo>> {
+  fn check_followers_and_pair(&self) -> Result<Vec<crate::models::PairedDeviceInfo>> {
     Err(Error::Other("check_followers_and_pair not implemented in bridge platform".into()))
   }
 
@@ -143,23 +148,19 @@ impl<R: Runtime> Platform for <%- bridgePlatformName %><R> {
 // ============================================================================
 
 /// Extension trait for accessing spire CRUD methods through the bridge.
+/// 
+/// Note: Trait-based access (BookmarkOps, DeviceOps, etc.) not yet implemented.
+/// Use `spire_platform()` for direct access to operations.
 pub trait SpireBridgeExt<R: Runtime> {
-  /// Access bookmark operations via spire platform.
-  fn spire_bookmark(&self) -> &impl BookmarkOps;
-  /// Access device operations via spire platform.
-  fn spire_device(&self) -> &impl DeviceOps;
-  /// Access media operations via spire platform.
-  fn spire_media(&self) -> &impl MediaOps;
-  /// Access person operations via spire platform.
-  fn spire_person(&self) -> &impl PersonOps;
-  /// Access post operations via spire platform.
-  fn spire_post(&self) -> &impl PostOps;
-  /// Access conversation operations via spire platform.
-  fn spire_conversation(&self) -> &impl ConversationOps;
+  /// Access the spire platform for direct CRUD operations.
+  fn spire_platform(&self) -> &impl <%- spirePlatformTrait %>;
 }
 
-// Note: These would need actual trait definitions for BookmarkOps, etc.
-// For now, users can access via spire_platform() directly.
+impl<R: Runtime> SpireBridgeExt<R> for <%- bridgePlatformName %><R> {
+  fn spire_platform(&self) -> &impl <%- spirePlatformTrait %> {
+    &self.spire_platform
+  }
+}
 
 /// Re-export the spire platform for direct access.
 pub use <%- spireModule %>::desktop::DesktopPlatform as SpireDesktopPlatform;

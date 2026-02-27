@@ -7,7 +7,8 @@
 import * as path from 'node:path';
 import type { SpiralNode, GeneratorContext, WeavingPlan, MethodHelpers } from '../heddles/index.js';
 import { ensurePlanComplete } from '../heddles/index.js';
-import type { ManagementMetadata, EntityMetadata } from '../reed/index.js';
+import type { ManagementMetadata } from '../reed/index.js';
+import { type EntityMetadata } from '../../warp/imprint.js';
 import { filterByReach } from '../reed/index.js';
 import type { MgmtMethod } from '../sley/index.js';
 import type { RawMethod } from '../bobbin/index.js';
@@ -28,18 +29,28 @@ import { createQueryAPI } from '../sley/query.js';
 
 /**
  * Create a treadle kit for building generators.
- * 
+ *
  * The kit provides a unified interface for:
  * - Validating spiral node types
  * - Collecting and transforming methods
  * - Building template data
  * - Generating files from templates
  * - Running hookups for external file configuration
- * 
+ *
  * @param context - The generator context with plan, paths, etc.
  * @returns TreadleKit with all capabilities
  */
 export function createTreadleKit(context: GeneratorContext): TreadleKit {
+  // EAGER: Collect entities immediately when kit is created
+  // This ensures context.entities is always available, not just after collectMethods()
+  const allEntities: EntityMetadata[] = [];
+  for (const mgmt of context.plan.managements) {
+    if (mgmt.entities) {
+      allEntities.push(...mgmt.entities);
+    }
+  }
+  context.entities = buildContextEntities(allEntities);
+
   return {
     context,
     plan: context.plan,
@@ -90,30 +101,22 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
 
       // Apply pipeline transformations (defaults to identity)
       let processedMethods = mgmtMethods;
-      for (const transform of (config.pipeline || [])) {
+      for (const transform of config.pipeline || []) {
         processedMethods = transform(processedMethods);
       }
 
       // Convert to RawMethod
       const rawMethods = processedMethods.map((m) => toRawMethod(m));
-      
+
       // Build and attach method helpers to context (classic API)
       context.methods = buildContextMethods(rawMethods);
-      
+
       // Build and attach query API (new chainable API)
       context.query = createQueryAPI(rawMethods);
-      
-      // Collect entities from all managements
-      const allEntities: EntityMetadata[] = [];
-      for (const mgmt of context.plan.managements) {
-        if (mgmt.entities) {
-          allEntities.push(...mgmt.entities);
-        }
-      }
-      
-      // Build and attach entity helpers to context
-      context.entities = buildContextEntities(allEntities);
-      
+
+      // NOTE: Entities are collected eagerly when kit is created (line 45-52)
+      // context.entities is already available
+
       return rawMethods;
     },
 
@@ -139,17 +142,16 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
         });
 
         // Merge per-output context with main data (context takes precedence)
-        const mergedData = output.context
-          ? { ...data, ...output.context }
-          : data;
+        const mergedData = output.context ? { ...data, ...output.context } : data;
 
-        // Generate the file (workspace templates checked first)
+        // Generate the file (workspace → package → builtin templates)
         const file = await generateCode({
           template: output.template,
           outputPath,
           data: mergedData,
           methods,
-          workspaceRoot: context.workspaceRoot
+          workspaceRoot: context.workspaceRoot,
+          packagePath: context.packagePath
         });
 
         files.push(file);

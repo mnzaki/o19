@@ -8,7 +8,7 @@
  *   Post {
  *     id          Int     @id @default(autoincrement())
  *     bits        String  // JSON: AccumulableBit[]
- *     links       String  // JSON: XanaduLink[]
+ *     // links removed - now using bits with LinkPreview type
  *     contentHash String? // BLAKE3 hash
  *     authorDid   String? // Future PKI
  *     signature   String? // Future PKI
@@ -17,34 +17,30 @@
  *   }
  *
  * Reach: Global (extends from Core to Front)
- *
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
-import loom from '@o19/spire-loom';
-import { foundframe } from './core.js';
+import loom, { crud } from '@o19/spire-loom';
+import { foundframe } from './WARP.js';
+// TODO much later we actually move these interfaces directly to here
+import { type AccumulableBit } from '@o19/foundframe-front/domain';
 
 // ============================================================================
-// TYPES (for JSON fields)
+// FILTER TYPE
 // ============================================================================
 
 /**
- * A bit of content - text, media reference, etc
+ * Filter criteria for Post list queries.
+ * All fields are optional - only specified filters are applied.
  */
-interface AccumulableBit {
-  type: 'text' | 'media' | 'link';
-  content: string;
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * Xanadu-style link between posts
- */
-interface XanaduLink {
-  sourcePostId: number;
-  targetPostId: number;
-  linkType: 'reply' | 'quote' | 'reference';
-  anchorText?: string;
+export interface PostFilter {
+  /** Filter by content hash (exact match) */
+  contentHash?: string;
+  /** Filter by author DID (exact match) */
+  authorDid?: string;
+  /** Only return entries with createdAt >= this timestamp (inclusive) */
+  after?: number;
+  /** Only return entries with createdAt <= this timestamp (inclusive) */
+  before?: number;
 }
 
 // ============================================================================
@@ -71,7 +67,7 @@ export class PostMgmt extends loom.Management {
    * Add a post to the stream
    */
   @loom.crud.create
-  addPost(bits: AccumulableBit[], links?: XanaduLink[]): void {
+  addPost(bits: AccumulableBit[]): number {
     throw new Error('Imprint only');
   }
 
@@ -84,10 +80,20 @@ export class PostMgmt extends loom.Management {
   }
 
   /**
-   * List all posts with pagination
+   * List posts with optional filtering.
+   *
+   * @example
+   * // Basic pagination
+   * listPosts(50, 0)
+   *
+   * // By author (when PKI is enabled)
+   * listPosts(50, 0, { authorDid: 'did:keri:...' })
+   *
+   * // Recent posts
+   * listPosts(50, 0, { after: Date.now() - 86400000 })
    */
   @loom.crud.list({ collection: true })
-  listPosts(limit?: number, offset?: number): Post[] {
+  listPosts(limit?: number, offset?: number, filter?: PostFilter): Post[] {
     throw new Error('Imprint only');
   }
 
@@ -95,7 +101,7 @@ export class PostMgmt extends loom.Management {
    * Update a post
    */
   @loom.crud.update
-  updatePost(id: number, bits?: AccumulableBit[], links?: XanaduLink[]): boolean {
+  updatePost(id: number, bits?: AccumulableBit[]): boolean {
     throw new Error('Imprint only');
   }
 
@@ -108,36 +114,13 @@ export class PostMgmt extends loom.Management {
   }
 }
 
-// ============================================================================
-// ENTITY (defined AFTER Management to avoid TDZ)
-// ============================================================================
-
-/**
- * Post entity - Short-form authored content
- */
 @PostMgmt.Entity()
 export class Post {
-  /** Primary key */
-  id!: number;
-
-  /** Content bits (AccumulableBit[]) */
-  bits!: AccumulableBit[];
-
-  /** Xanadu links to other posts */
-  links!: XanaduLink[];
-
-  /** BLAKE3 content hash for verification */
-  contentHash?: string;
-
-  /** Author DID (for future PKI) */
-  authorDid?: string;
-
-  /** Signature (for future PKI) */
-  signature?: string;
-
-  /** When this post was created */
-  createdAt!: number;
-
-  /** When this post was last updated */
-  updatedAt!: number;
+  id = crud.field.id();
+  bits = crud.field.json<AccumulableBit[]>();
+  contentHash = crud.field.string({ nullable: true });
+  authorDid = crud.field.string({ nullable: true });
+  signature = crud.field.string({ nullable: true });
+  createdAt = crud.field.createdAt();
+  updatedAt = crud.field.updatedAt();
 }

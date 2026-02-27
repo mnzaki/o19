@@ -5,7 +5,7 @@
  */
 
 import { SpiralRing, SpiralOut, SpiralMux } from '../../warp/index.js';
-import { CoreRing, RustCore, TsCore } from '../../warp/spiral/index.js';
+import { RustCore, TsCore } from '../../warp/spiral/index.js';
 import { SurfaceRing } from '../../warp/spiral/surface.js';
 
 /**

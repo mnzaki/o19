@@ -18,9 +18,23 @@ import { applyTypeScriptHookup } from './typescript.js';
 import { applyGradleHookup } from './gradle.js';
 import { applyKotlinHookup } from './kotlin.js';
 import { applyViteConfigHookup } from './vite-config.js';
+import { applyFileBlockHookup } from './file-block.js';
 
 // Re-export types
 export * from './types.js';
+
+// Re-export method-modifier utilities for advanced use
+export {
+  modifyMethod,
+  findClassBody,
+  findMatchingBrace,
+  KotlinMethodConfig,
+  TypeScriptMethodConfig,
+  RustMethodConfig,
+  KotlinClassPattern,
+  TypeScriptClassPattern,
+  RustImplPattern,
+} from './method-modifier.js';
 
 // Re-export individual handlers for advanced use
 export {
@@ -31,6 +45,7 @@ export {
   applyViteConfigHookup,
   applyGradleHookup,
   applyKotlinHookup,
+  applyFileBlockHookup,
 };
 
 // ============================================================================
@@ -117,6 +132,9 @@ async function routeHookup(
     case 'typescript':
       return applyTypeScriptHookup(filePath, spec as import('./types.js').TypeScriptIndexHookup, context);
     
+    case 'typescript-file':
+      return applyTypeScriptHookup(filePath, spec as import('./types.js').TypeScriptFileHookup, context);
+    
     case 'vite-config':
       return applyViteConfigHookup(filePath, spec as import('./types.js').ViteConfigHookup, context);
     
@@ -139,13 +157,7 @@ async function routeHookup(
       };
     
     case 'file-block':
-      // TODO: Implement generic file-block handler
-      return {
-        path: filePath,
-        type: 'file-block',
-        status: 'skipped',
-        message: 'file-block hookup not yet implemented',
-      };
+      return applyFileBlockHookup(filePath, spec as import('./types.js').FileBlockHookup, context);
     
     default:
       throw new Error(`Unknown hookup type: ${type}`);

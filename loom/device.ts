@@ -6,15 +6,13 @@
  * are followed, and the web of trust.
  *
  * Reach: Local (extends to Platform rings)
- *
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
 import loom from '@o19/spire-loom';
-import { foundframe } from './core.js';
+import { foundframe } from './WARP.js';
 
 @loom.reach('Local')
-@loom.link(foundframe.inner.core.device_manager)
+@loom.link(foundframe.inner.core.device_manager) // the error is because not package warp foundframe
 export class DeviceMgmt extends loom.Management {
   // ========================================================================
   // CONSTANTS
@@ -91,7 +89,7 @@ export class DeviceMgmt extends loom.Management {
 
 /**
  * Paired device information
- */
+ *
 @DeviceMgmt.Entity()
 export class PairedDevice {
   deviceId!: string;
@@ -100,13 +98,15 @@ export class PairedDevice {
   alias?: string;
   isOnline!: boolean;
 }
+*/
 
 /**
  * Follow relationship
- */
+ *
 @DeviceMgmt.Entity()
 export class Follow {
   deviceId!: string;
   followedAt!: number;
   trustScore!: number;
 }
+*/

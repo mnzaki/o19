@@ -1,0 +1,47 @@
+// spire-loom:entity-routing
+<% entities.forEach(function(entity) { -%>
+
+  /// Route <%= entity.name %> chunk to DB
+  fn route_<%= entity.lower %>_chunk(
+    &self,
+    entry: &StreamEntry,
+    chunk: &StreamChunk,
+  ) -> crate::Result<()> {
+    // Extract data from chunk
+<% if (entity.chunkType === 'StructuredData') { -%>
+    let (db_type, data) = match chunk {
+      StreamChunk::StructuredData { db_type, data } => (db_type, data),
+      _ => return Ok(()),
+    };
+<% } else if (entity.chunkType === 'MediaLink') { -%>
+    let (url, mime_type, title) = match chunk {
+      StreamChunk::MediaLink { url, mime_type, title } => (url, mime_type, title),
+      _ => return Ok(()),
+    };
+<% } else if (entity.chunkType === 'TextNote') { -%>
+    let (content, title) = match chunk {
+      StreamChunk::TextNote { content, title } => (content, title),
+      _ => return Ok(()),
+    };
+<% } -%>
+
+    // Build entity data
+    let data = <%= entity.name %>Data {
+<% entity.fieldAssignments.forEach(function(assignment) { -%>
+      <%= assignment.field %>: <%- assignment.extractor %>,
+<% }); -%>
+    };
+
+    // Insert into database
+    // TODO: This should be async - need to handle properly
+    // For now, log the intent
+    tracing::info!(
+      "Would insert <%= entity.lower %>: id={:?}, entry={:?}",
+      data.id,
+      entry.id
+    );
+
+    Ok(())
+  }
+<% }); -%>
+// /spire-loom:entity-routing

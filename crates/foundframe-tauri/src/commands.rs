@@ -1,29 +1,29 @@
-use crate::{Error, O19Extension, Result, models::*, sql_proxy};
+use crate::{O19Extension, Result, models::* /*, sql_proxy*/};
 use caesium::{
   SupportedFileTypes, compress_to_size_in_memory, convert_in_memory, parameters::CSParameters,
 };
 use o19_foundframe::preview;
-use tauri::{AppHandle, Manager, Runtime};
 use serde::Deserialize;
+use tauri::{AppHandle, Manager, Runtime};
 
 #[tauri::command]
 pub(crate) async fn ping() -> String {
   "pong".to_string()
 }
 
-#[tauri::command]
-pub(crate) async fn run_sql<R: Runtime>(
-  app: AppHandle<R>,
-  query: sql_proxy::SqlQuery,
-) -> Result<Vec<sql_proxy::SqlRow>> {
-  let db = app.db().clone();
-
-  let result = std::thread::spawn(move || sql_proxy::execute_sql_with_db(db, query))
-    .join()
-    .map_err(|e| Error::Other(format!("SQL execution panicked: {:?}", e)))?;
-
-  Ok(result?)
-}
+//#[tauri::command]
+//pub(crate) async fn run_sql<R: Runtime>(
+//  app: AppHandle<R>,
+//  query: sql_proxy::SqlQuery,
+//) -> Result<Vec<sql_proxy::SqlRow>> {
+//  let db = app.db().clone();
+//
+//  let result = std::thread::spawn(move || sql_proxy::execute_sql_with_db(db, query))
+//    .join()
+//    .map_err(|e| Error::Other(format!("SQL execution panicked: {:?}", e)))?;
+//
+//  Ok(result?)
+//}
 
 /// Subscribe to stream events from the frontend.
 #[tauri::command]

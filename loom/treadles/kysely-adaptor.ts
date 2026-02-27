@@ -68,69 +68,71 @@ export const kyselyAdaptorTreadle = defineTreadle({
   },
 
   // Dynamic outputs - one per entity + index + factory
-  outputs: [(ctx) => {
-    const config = ctx.config as KyselyAdaptorConfig | undefined;
-    if (!config?.entities) {
-      return [];
-    }
+  outputs: [
+    (ctx) => {
+      const config = ctx.config as KyselyAdaptorConfig | undefined;
+      if (!config?.entities) {
+        return [];
+      }
 
-    const outputs: OutputSpec[] = [];
-    const entities = config.entities;
-    const operations = config.operations || ['read', 'list'];
+      const outputs: OutputSpec[] = [];
+      const entities = config.entities;
+      const operations = config.operations || ['read', 'list'];
 
-    // Generate one output file per entity
-    for (const entity of entities) {
-      const entityLower = toLower(entity);
-      const entityPascal = toPascal(entity);
-      
+      // Generate one output file per entity
+      for (const entity of entities) {
+        const entityLower = toLower(entity);
+        const entityPascal = toPascal(entity);
+
+        outputs.push({
+          template: 'kysely/adaptor.ts.ejs',
+          path: `src/adaptors/${entityLower}.adaptor.ts`,
+          language: 'typescript',
+          // Per-output context with entity-specific data
+          context: {
+            entity: {
+              name: entity,
+              pascal: entityPascal,
+              lower: entityLower
+            },
+            operations: operations
+          }
+        });
+      }
+
+      // Index file
       outputs.push({
-        template: 'kysely/adaptor.ts.ejs',
-        path: `src/adaptors/gen/${entityLower}.adaptor.gen.ts`,
+        template: 'kysely/index.ts.ejs',
+        path: 'src/adaptors/index.ts',
         language: 'typescript',
-        // Per-output context with entity-specific data
         context: {
-          entity: {
-            name: entity,
-            pascal: entityPascal,
-            lower: entityLower
-          },
+          entities: entities.map((e) => ({
+            name: e,
+            pascal: toPascal(e),
+            lower: toLower(e)
+          })),
           operations: operations
         }
       });
+
+      // Factory file
+      outputs.push({
+        template: 'kysely/factory.ts.ejs',
+        path: 'src/adaptors/factory.ts',
+        language: 'typescript',
+        context: {
+          entities: entities.map((e) => ({
+            name: e,
+            pascal: toPascal(e),
+            lower: toLower(e)
+          })),
+          operations: operations
+        }
+      });
+
+      return outputs;
     }
-
-    // Index file
-    outputs.push({
-      template: 'kysely/index.ts.ejs',
-      path: 'src/adaptors/gen/index.gen.ts',
-      language: 'typescript',
-      context: {
-        entities: entities.map(e => ({
-          name: e,
-          pascal: toPascal(e),
-          lower: toLower(e)
-        })),
-        operations: operations
-      }
-    });
-
-    // Factory file
-    outputs.push({
-      template: 'kysely/factory.ts.ejs',
-      path: 'src/adaptors/gen/factory.gen.ts',
-      language: 'typescript',
-      context: {
-        entities: entities.map(e => ({
-          name: e,
-          pascal: toPascal(e),
-          lower: toLower(e)
-        })),
-        operations: operations
-      }
-    });
-
-    return outputs;
-  }],
+  ],
 
   // Template data - provides base configuration
   data: (ctx) => {
@@ -140,7 +142,7 @@ export const kyselyAdaptorTreadle = defineTreadle({
     }
 
     return {
-      entities: config.entities.map(e => ({
+      entities: config.entities.map((e) => ({
         name: e,
         pascal: toPascal(e),
         lower: toLower(e)
@@ -154,5 +156,4 @@ export const kyselyAdaptorTreadle = defineTreadle({
 // Exports
 // ============================================================================
 
-export type { KyselyAdaptorConfig };
 export const generateKyselyAdaptors = generateFromTreadle(kyselyAdaptorTreadle);

@@ -22,12 +22,33 @@
  *   ConversationMedia { conversationId, mediaId, context? }
  *
  * Reach: Global (extends from Core to Front)
- *
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
  */
 
-import loom from '@o19/spire-loom';
-import { foundframe } from './core.js';
+import loom, { crud } from '@o19/spire-loom';
+import { foundframe } from './WARP.js';
+
+// ============================================================================
+// FILTER TYPE
+// ============================================================================
+
+/**
+ * Filter criteria for Conversation list queries.
+ * All fields are optional - only specified filters are applied.
+ */
+export interface ConversationFilter {
+  /** Filter by title (exact match) */
+  title?: string;
+  /** Filter by source URL (exact match) */
+  sourceUrl?: string;
+  /** Filter by capture time >= this timestamp */
+  captureTimeAfter?: number;
+  /** Filter by capture time <= this timestamp */
+  captureTimeBefore?: number;
+  /** Only return entries with createdAt >= this timestamp (inclusive) */
+  after?: number;
+  /** Only return entries with createdAt <= this timestamp (inclusive) */
+  before?: number;
+}
 
 // ============================================================================
 // TYPES (for JSON fields)
@@ -66,7 +87,12 @@ export class ConversationMgmt extends loom.Management {
    * Add a conversation to the stream
    */
   @loom.crud.create
-  addConversation(content: ConversationEntry[], title?: string, sourceUrl?: string): void {
+  addConversation(
+    content: ConversationEntry[],
+    captureTime: Date,
+    title?: string,
+    sourceUrl?: string
+  ): void {
     throw new Error('Imprint only');
   }
 
@@ -79,10 +105,20 @@ export class ConversationMgmt extends loom.Management {
   }
 
   /**
-   * List all conversations with pagination
+   * List conversations with optional filtering.
+   *
+   * @example
+   * // Basic pagination
+   * listConversations(50, 0)
+   *
+   * // By source URL
+   * listConversations(50, 0, { sourceUrl: 'https://chat.example.com/room/123' })
+   *
+   * // Recent conversations
+   * listConversations(50, 0, { after: Date.now() - 86400000 })
    */
   @loom.crud.list({ collection: true })
-  listConversations(limit?: number, offset?: number): Conversation[] {
+  listConversations(limit?: number, offset?: number, filter?: ConversationFilter): Conversation[] {
     throw new Error('Imprint only');
   }
 
@@ -165,55 +201,37 @@ export class ConversationMgmt extends loom.Management {
  * Conversation entity - Multi-party communication capture
  */
 @ConversationMgmt.Entity()
-export class Conversation {
-  /** Primary key */
-  id!: number;
-
-  /** Optional title */
-  title?: string;
-
-  /** Content entries (ConversationEntry[]) */
-  content!: ConversationEntry[];
-
-  /** When this conversation was captured */
-  captureTime!: number;
-
-  /** Timestamp of first message */
-  firstEntryTime?: number;
-
-  /** Timestamp of last message */
-  lastEntryTime?: number;
-
-  /** Source URL if imported (e.g., chat export) */
-  sourceUrl?: string;
-
-  /** When this conversation was added */
-  createdAt!: number;
-
-  /** When this conversation was last updated */
-  updatedAt!: number;
+class Conversation {
+  id = crud.field.id();
+  title = crud.field.string({ nullable: true });
+  content = crud.field.json<ConversationEntry[]>();
+  attributedTo = crud.field.string({ nullable: true }); // matches StructuredData.conversation()
+  captureTime = crud.field.int();
+  firstEntryTime = crud.field.int({ nullable: true });
+  lastEntryTime = crud.field.int({ nullable: true });
+  sourceUrl = crud.field.string({ nullable: true });
+  createdAt = crud.field.createdAt();
+  updatedAt = crud.field.updatedAt();
 }
 
 /**
  * ConversationParticipant junction entity
- */
+ *
 @ConversationMgmt.Entity()
 export class ConversationParticipant {
-  conversationId!: number;
-
-  personId!: number;
-
-  role?: string;
+  conversationId = crud.field.int();
+  personId = crud.field.int();
+  role = crud.field.string({ nullable: true });
 }
+*/
 
 /**
  * ConversationMedia junction entity
- */
+ *
 @ConversationMgmt.Entity()
 export class ConversationMedia {
-  conversationId!: number;
-
-  mediaId!: number;
-
-  context?: Record<string, unknown>;
+  conversationId = crud.field.int();
+  mediaId = crud.field.int();
+  context = crud.field.json<Record<string, unknown>>({ nullable: true });
 }
+*/

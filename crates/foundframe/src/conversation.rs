@@ -6,7 +6,8 @@
 //! streaming operations. Conversations in foundframe represent multi-party
 //! communication contexts that can enter TheStream™ as encounter events.
 
-use crate::error::Result;
+use crate::db::ConversationFilter;
+use crate::error::{Error, Result};
 use crate::pkb::DirectoryId;
 use crate::thestream::{StreamEntry, TheStream};
 
@@ -26,6 +27,16 @@ pub trait ConversationStream {
     conversation_id: impl Into<String>,
     title: Option<&str>,
   ) -> Result<StreamEntry>;
+
+  /// List conversations from the database with optional filtering.
+  ///
+  /// Requires database indexing to be enabled.
+  async fn list_conversations_filtered(
+    &self,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    filter: ConversationFilter,
+  ) -> Result<Vec<crate::db::ConversationData>>;
 }
 
 impl ConversationStream for TheStream {
@@ -42,15 +53,25 @@ impl ConversationStream for TheStream {
         "encounter_type": "conversation_viewed",
     });
 
-    let chunk = crate::pkb::StreamChunk::StructuredData {
-      db_type: "Conversation".to_string(),
-      data,
-    };
+    let data = crate::pkb::StructuredData::new("Conversation", data);
 
-    let filename = chunk.generate_filename(crate::pkb::now_timestamp(), title);
+    let filename = data.generate_filename(crate::pkb::now_timestamp(), title);
     let path = std::path::PathBuf::from(filename);
 
-    self.add_chunk(directory, path, chunk)
+    self.add_entry(directory, path, data)
+  }
+
+  async fn list_conversations_filtered(
+    &self,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    filter: ConversationFilter,
+  ) -> Result<Vec<crate::db::ConversationData>> {
+    let db = self.db.as_ref()
+      .ok_or_else(|| Error::Other("Database not available".into()))?;
+    
+    db.list_conversations(limit, offset, filter).await
+      .map_err(|e| Error::Other(format!("Database error: {}", e)))
   }
 }
 

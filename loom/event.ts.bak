@@ -7,8 +7,6 @@
  * 
  * Reach: Local (extends to Platform rings)
  * 
- * NOTE: This is a METADATA IMPRINT for code generation. Not executable TypeScript.
- * 
  * The pattern: Outer rings subscribe via EventMgmt.subscribeEvents(callback),
  * then receive events through the EventCallback interface methods.
  */

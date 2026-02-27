@@ -1,34 +1,36 @@
-//! TheStream™ - Temporal experience orchestration.
-//!
-//! TheStream™ is the orchestration layer that mediates between raw PKB (git files)
-//! and the database view. It converts PKB events into StreamChunk events,
-//! maintains the stream of experience, and provides the domain API for
-//! adding content to the Personal Knowledge Base.
-//!
-//! # Architecture
-//!
-//! ```
-//! PKB (git repos)
-//!     ↓ (emits PkbEvent)
-//! TheStream (converts to StreamChunks, emits TheStreamEvent)
-//!     ↓ (emits TheStreamEvent)
-//! Database (SQLite ViewModel)
-//! ```
-//!
-//! # The Rhythm
-//!
-//! TheStream™ embodies the O-O-F rhythm (observe twice, react once):
-//! - Files exist in PKB first (observation)
-//! - TheStream™ witnesses them (observation)
-//! - Database reflects the experience (reaction)
-//!
-//! But variance is encoded: some identities may use O-F-F or other patterns.
-//!
-//! # Extension Methods
-//!
-//! Additional TheStream methods are implemented in other modules:
-//! - [`BookmarkStream`](crate::bookmark::BookmarkStream) - `add_bookmark()` and related bookmark operations
-//!   (see `src/bookmark.rs` for the trait implementation)
+use crate::db::commands::StreamEntryFilter;
+
+// TheStream™ - Temporal experience orchestration.
+//
+// TheStream™ is the orchestration layer that mediates between raw PKB (git files)
+// and the database view. It converts PKB events into StructuredData events,
+// maintains the stream of experience, and provides the domain API for
+// adding content to the Personal Knowledge Base.
+//
+// # Architecture
+//
+// ```
+// PKB (git repos)
+//     ↓ (emits PkbEvent)
+// TheStream (converts to StreamChunks, emits TheStreamEvent)
+//     ↓ (emits TheStreamEvent)
+// Database (SQLite ViewModel)
+// ```
+//
+// # The Rhythm
+//
+// TheStream™ embodies the O-O-F rhythm (observe twice, react once):
+// - Files exist in PKB first (observation)
+// - TheStream™ witnesses them (observation)
+// - Database reflects the experience (reaction)
+//
+// But variance is encoded: some identities may use O-F-F or other patterns.
+//
+// # Extension Methods
+//
+// Additional TheStream methods are implemented in other modules:
+// - [`BookmarkStream`](crate::bookmark::BookmarkStream) - `add_bookmark()` and related bookmark operations
+//   (see `src/bookmark.rs` for the trait implementation)
 
 use std::path::PathBuf;
 
@@ -36,7 +38,7 @@ use emoji_from_entropy::EmojiIdentity;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
-use crate::pkb::{DirectoryId, EntryId, PkbService, StreamChunk};
+use crate::pkb::{DirectoryId, EntryId, PkbService, StructuredData};
 use crate::signal::{EventBus, PkbEvent};
 
 /// PKB URL type alias for convenience.
@@ -79,14 +81,14 @@ pub struct StreamSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum TheStreamEvent {
-  /// A chunk was added to a PKB directory.
+  /// Data was added to a PKB directory.
   ///
   /// This is the primary event for content creation.
   ChunkAdded {
     /// The stream entry (the "seeing" record).
     entry: StreamEntry,
-    /// The actual content chunk.
-    chunk: StreamChunk,
+    /// The actual content data.
+    data: StructuredData,
     /// Which directory it was added to.
     directory: DirectoryId,
   },
@@ -97,20 +99,20 @@ pub enum TheStreamEvent {
   EntryPulled {
     /// The stream entry.
     entry: StreamEntry,
-    /// The content chunk.
-    chunk: StreamChunk,
+    /// The content data.
+    data: StructuredData,
     /// Which directory.
     directory: DirectoryId,
     /// Which device it came from.
     source_device: String,
   },
 
-  /// A chunk was updated (file changed).
+  /// Data was updated (file changed).
   ChunkUpdated {
     /// The stream entry with new commit hash.
     entry: StreamEntry,
     /// The updated content.
-    chunk: StreamChunk,
+    data: StructuredData,
     /// Which directory.
     directory: DirectoryId,
   },
@@ -156,7 +158,7 @@ pub struct TheStream {
 
   /// This device's emoji identity (for URL generation).
   pub(crate) identity: EmojiIdentity,
-  
+
   /// Optional database handle for SQLite indexing.
   /// When present, TheStream will sync PKB changes to SQLite.
   pub(crate) db: Option<crate::db::DbHandle>,
@@ -203,12 +205,12 @@ impl TheStream {
     let identity = EmojiIdentity::from_256_bits(pubkey);
     Self::new(pkb, events, identity, db)
   }
-  
+
   /// Get the database handle if available.
   pub fn db(&self) -> Option<&crate::db::DbHandle> {
     self.db.as_ref()
   }
-  
+
   /// Check if database indexing is enabled.
   pub fn has_db(&self) -> bool {
     self.db.is_some()
@@ -270,12 +272,12 @@ impl TheStream {
 
   /// Convert a PKB event to a TheStream event.
   fn convert_pkb_event(event: &PkbEvent, identity: &EmojiIdentity) -> Option<TheStreamEvent> {
-    use crate::pkb::StreamChunk;
+    use crate::pkb::StructuredData;
 
     match event {
       PkbEvent::EntryCreatedOrPulled {
         directory,
-        entry_id,
+        entry_id: _,
         path,
         from_remote,
         source_device,
@@ -292,23 +294,23 @@ impl TheStream {
           summary: None,
         };
 
-        // Create placeholder chunk (actual content would be read from file)
-        let chunk = StreamChunk::TextNote {
-          content: String::new(),
-          title: None,
-        };
+        // Create placeholder data (actual content would be read from file)
+        let data = StructuredData::new(
+          "Entry",
+          serde_json::json!({"path": path.display().to_string()}),
+        );
 
         if *from_remote {
           Some(TheStreamEvent::EntryPulled {
             entry,
-            chunk,
+            data,
             directory: directory.clone(),
             source_device: source_device.clone().unwrap_or_default(),
           })
         } else {
           Some(TheStreamEvent::ChunkAdded {
             entry,
-            chunk,
+            data,
             directory: directory.clone(),
           })
         }
@@ -337,26 +339,28 @@ impl TheStream {
   // Generic chunk addition
   //===========================================================================
 
-  /// Add a generic StreamChunk to a PKB directory.
+  /// Add an entry to TheStream™ (and PKB directory).
   ///
   /// This is the core method - all other `add_*` methods delegate here.
+  /// Emits TheStreamEvent::ChunkAdded which is captured by the indexer
+  /// and other downstream consumers.
   ///
   /// # Arguments
   /// * `directory` - Which PKB directory to add to
   /// * `path` - Relative path within the directory
-  /// * `chunk` - The content to add
+  /// * `data` - The structured content to add
   ///
   /// # Returns
   /// The StreamEntry representing this addition.
-  pub fn add_chunk(
+  pub fn add_entry(
     &self,
     directory: DirectoryId,
     path: PathBuf,
-    chunk: StreamChunk,
+    data: StructuredData,
   ) -> Result<StreamEntry> {
-    // Get directory path and ingest the chunk
+    // Get directory path and ingest the data
     let dir_path = self.dir_path(&directory)?;
-    let entry_id = chunk.ingest(&dir_path, &path)?;
+    let _entry_id = data.ingest(&dir_path, &path)?;
 
     // Get current commit hash
     let commit_hash = self.get_head_commit(&directory)?;
@@ -370,29 +374,29 @@ impl TheStream {
       seen_at: crate::pkb::now_timestamp() * 1000, // Convert to ms
       commit_hash,
       reference,
-      summary: Self::extract_summary(&chunk),
+      summary: Self::extract_summary(&data),
     };
 
     // Emit event
     self.events.emit(TheStreamEvent::ChunkAdded {
       entry: entry.clone(),
-      chunk,
+      data,
       directory,
     });
 
     Ok(entry)
   }
 
-  /// Add a chunk and return both the entry and entry ID.
+  /// Add an entry and return both the entry and entry ID.
   ///
   /// This is useful when you need the content hash for referencing.
-  pub fn add_chunk_with_id(
+  pub fn add_entry_with_id(
     &self,
     directory: DirectoryId,
     path: PathBuf,
-    chunk: StreamChunk,
+    data: StructuredData,
   ) -> Result<(StreamEntry, EntryId)> {
-    let entry = self.add_chunk(directory.clone(), path.clone(), chunk.clone())?;
+    let entry = self.add_entry(directory.clone(), path.clone(), data.clone())?;
 
     // Re-read to get the entry ID from the content hash
     let full_path = self.dir_path(&directory)?.join(&path);
@@ -432,42 +436,81 @@ impl TheStream {
     Ok((directory, path, commit))
   }
 
-  /// Extract a summary from a chunk for quick display.
-  pub(crate) fn extract_summary(chunk: &StreamChunk) -> Option<StreamSummary> {
-    match chunk {
-      StreamChunk::MediaLink { url, title, .. } => Some(StreamSummary {
-        title: title.clone().unwrap_or_else(|| "Media".to_string()),
-        content_type: "media".to_string(),
-        preview: Some(url.clone()),
-      }),
-      StreamChunk::TextNote { content, title } => {
-        let preview = content.chars().take(100).collect();
-        Some(StreamSummary {
-          title: title.clone().unwrap_or_else(|| "Note".to_string()),
-          content_type: "text".to_string(),
-          preview: Some(preview),
-        })
-      }
-      StreamChunk::StructuredData { db_type, data } => {
-        // Try to extract title from data
-        let title = data
-          .get("title")
-          .and_then(|v| v.as_str())
-          .map(|s| s.to_string())
-          .unwrap_or_else(|| db_type.clone());
+  /// Extract a summary from structured data for quick display.
+  pub(crate) fn extract_summary(data: &StructuredData) -> Option<StreamSummary> {
+    // Try to extract title from data
+    let title = data
+      .get("title")
+      .and_then(|v| v.as_str())
+      .map(|s| s.to_string())
+      .unwrap_or_else(|| data.data_type.clone());
 
-        Some(StreamSummary {
-          title,
-          content_type: db_type.to_lowercase(),
-          preview: None,
-        })
-      }
-    }
+    // Try to extract preview
+    let preview = data
+      .get("content")
+      .or_else(|| data.get("uri"))
+      .or_else(|| data.get("url"))
+      .and_then(|v| v.as_str())
+      .map(|s| s.chars().take(100).collect());
+
+    Some(StreamSummary {
+      title,
+      content_type: data.data_type.to_lowercase(),
+      preview,
+    })
   }
 
   /// Get the event bus for subscribing to TheStream™ events.
   pub fn events(&self) -> &EventBus {
     &self.events
+  }
+
+  /// List stream entries from the database with optional filtering.
+  ///
+  /// This is the primary query interface for TheStream™ when database
+  /// indexing is enabled. Use `filter` to narrow results:
+  ///
+  /// # Filter Examples
+  /// ```rust,ignore
+  /// // All entries, paginated
+  /// let entries = stream.list_entries_filtered(50, 0, StreamEntryFilter::new()).await?;
+  ///
+  /// // Only posts
+  /// let filter = StreamEntryFilter::new().kind("post");
+  /// let posts = stream.list_entries_filtered(50, 0, filter).await?;
+  ///
+  /// // Media from a specific time range
+  /// let filter = StreamEntryFilter::new()
+  ///     .kind("media")
+  ///     .after(1700000000000)
+  ///     .before(1800000000000);
+  /// let media = stream.list_entries_filtered(50, 0, filter).await?;
+  ///
+  /// // By specific entity reference
+  /// let filter = StreamEntryFilter::new().person_id(42);
+  /// let person_entries = stream.list_entries_filtered(50, 0, filter).await?;
+  /// ```
+  ///
+  /// # Arguments
+  /// * `limit` - Maximum number of entries to return
+  /// * `offset` - Number of entries to skip (for pagination)
+  /// * `filter` - Filter criteria (`StreamEntryFilter` from `crate::db`)
+  ///
+  /// # Errors
+  /// Returns an error if database indexing is not enabled.
+  pub async fn list_entries_filtered(
+    &self,
+    limit: usize,
+    offset: usize,
+    filter: StreamEntryFilter,
+  ) -> Result<Vec<crate::db::streamentry_data::StreamEntryData>> {
+    let db = self.db.as_ref().ok_or_else(|| {
+      Error::Other("Database indexing not enabled. Call start_networking() first.".into())
+    })?;
+
+    db.list_streamentrys(Some(limit), Some(offset), filter)
+      .await
+      .map_err(|e| Error::Other(format!("Database query failed: {}", e)))
   }
 }
 
@@ -479,7 +522,7 @@ impl TheStream {
 /// * `reference` - PKB URL to the content (e.g., "pkb://🌲😀🍕/notes/diary/2024/My Day.js.md")
 pub fn see(thestream: &TheStream, reference: &str) -> Result<StreamEntry> {
   // Parse the reference to extract directory and path
-  let (directory, path, commit_hash) = thestream.parse_pkb_url(reference)?;
+  let (directory, _path, commit_hash) = thestream.parse_pkb_url(reference)?;
 
   // Create a stream entry without ingesting new content
   let entry = StreamEntry {
@@ -495,10 +538,7 @@ pub fn see(thestream: &TheStream, reference: &str) -> Result<StreamEntry> {
   // The database layer will need to resolve this
   thestream.events.emit(TheStreamEvent::ChunkAdded {
     entry: entry.clone(),
-    chunk: StreamChunk::TextNote {
-      content: String::new(), // Placeholder - reference only
-      title: None,
-    },
+    data: StructuredData::new("Reference", serde_json::json!({"reference": reference})),
     directory,
   });
 
@@ -512,7 +552,7 @@ pub fn see(thestream: &TheStream, reference: &str) -> Result<StreamEntry> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::pkb::{DirectoryId, StreamChunk};
+  use crate::pkb::StructuredData;
 
   #[test]
   fn test_stream_entry_serialization() {
@@ -538,22 +578,22 @@ mod tests {
 
   #[test]
   fn test_extract_summary() {
-    let media = StreamChunk::MediaLink {
-      url: "https://example.com/image.png".to_string(),
-      mime_type: Some("image/png".to_string()),
-      title: Some("Sunset".to_string()),
-    };
+    let media = StructuredData::media(
+      "https://example.com/image.png",
+      Some("image/png".to_string()),
+      Some("Sunset".to_string()),
+    );
 
     let summary = TheStream::extract_summary(&media).unwrap();
     assert_eq!(summary.title, "Sunset");
     assert_eq!(summary.content_type, "media");
 
-    let text = StreamChunk::TextNote {
-      content: "Hello world this is a long note".to_string(),
-      title: Some("Greeting".to_string()),
-    };
+    let post = StructuredData::post(
+      "Hello world this is a long note",
+      Some("Greeting".to_string()),
+    );
 
-    let summary = TheStream::extract_summary(&text).unwrap();
+    let summary = TheStream::extract_summary(&post).unwrap();
     assert_eq!(summary.title, "Greeting");
     assert!(summary.preview.unwrap().contains("Hello"));
   }

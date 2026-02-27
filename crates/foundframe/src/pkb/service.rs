@@ -14,11 +14,11 @@ use crate::radicle::NodeHandle;
 use crate::signal::{EventBus, PkbEvent};
 
 use super::{
-  chunk::{EntryId, StreamChunk},
   directory::{Directory, DirectoryEntry, DirectoryMeta, DirectoryRegistry, PkbBase},
   entry::Entry,
   merge::MergeResult,
   now_timestamp,
+  stream::{EntryId, StructuredData},
 };
 
 /// The main PKB service.
@@ -445,10 +445,10 @@ impl PkbService {
   // Content Ingestion
   //=========================================================================
 
-  /// Ingest a StreamChunk into a directory.
-  pub fn ingest_chunk(
+  /// Ingest structured data into a directory.
+  pub fn ingest_data(
     &mut self,
-    chunk: StreamChunk,
+    data: &StructuredData,
     directory: &str,
     path: &Path,
   ) -> Result<EntryId> {
@@ -463,8 +463,8 @@ impl PkbService {
       path
     };
 
-    // Ingest the chunk
-    let entry_id = chunk.ingest(&dir.path, path)?;
+    // Ingest the data
+    let entry_id = data.ingest(&dir.path, path)?;
 
     // Commit the changes
     self.commit_changes(&dir, path, &format!("Add entry: {:?}", entry_id))?;

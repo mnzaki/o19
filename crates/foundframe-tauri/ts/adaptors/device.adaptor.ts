@@ -1,11 +1,16 @@
 /**
  * Tauri Device Adaptor
- * 
+ *
  * Implements DevicePort by invoking Tauri commands.
  * Delegates to the Platform implementation (local on desktop, service on Android).
  */
 
-import { DeviceAdaptor, type DevicePort, type PairedDevice, type PairingQrData, type ScannedPairingData } from '@o19/foundframe-front/ports';
+import {
+  type DevicePort,
+  type PairedDevice,
+  type PairingQrData,
+  type ScannedPairingData
+} from '@o19/foundframe-front';
 import { invoke } from '@tauri-apps/api/core';
 
 // Response types from Tauri (snake_case from Rust)
@@ -28,12 +33,15 @@ interface PairedDeviceInfo {
   paired: boolean;
 }
 
-export class TauriDeviceAdaptor extends DeviceAdaptor implements DevicePort {
+export class TauriDeviceAdaptor implements DevicePort {
   async generatePairingQr(deviceName: string): Promise<PairingQrData> {
-    const result = await invoke<GeneratePairingQrResponse>('plugin:o19-foundframe-tauri|generate_pairing_qr', { 
-      deviceName 
-    });
-    
+    const result = await invoke<GeneratePairingQrResponse>(
+      'plugin:o19-foundframe-tauri|generate_pairing_qr',
+      {
+        deviceName
+      }
+    );
+
     // Convert snake_case to camelCase
     return {
       url: result.url,
@@ -43,10 +51,13 @@ export class TauriDeviceAdaptor extends DeviceAdaptor implements DevicePort {
   }
 
   async parsePairingUrl(url: string): Promise<ScannedPairingData> {
-    const result = await invoke<ScannedPairingResponse>('plugin:o19-foundframe-tauri|parse_pairing_url', { 
-      url 
-    });
-    
+    const result = await invoke<ScannedPairingResponse>(
+      'plugin:o19-foundframe-tauri|parse_pairing_url',
+      {
+        url
+      }
+    );
+
     return {
       emojiIdentity: result.emojiIdentity,
       deviceName: result.deviceName,
@@ -56,11 +67,11 @@ export class TauriDeviceAdaptor extends DeviceAdaptor implements DevicePort {
   }
 
   async confirmPairing(nodeIdHex: string, alias: string): Promise<PairedDevice> {
-    const result = await invoke<PairedDeviceInfo>('plugin:o19-foundframe-tauri|confirm_pairing', { 
-      nodeIdHex, 
-      alias 
+    const result = await invoke<PairedDeviceInfo>('plugin:o19-foundframe-tauri|confirm_pairing', {
+      nodeIdHex,
+      alias
     });
-    
+
     return {
       nodeId: result.nodeId,
       alias: result.alias,
@@ -69,9 +80,11 @@ export class TauriDeviceAdaptor extends DeviceAdaptor implements DevicePort {
   }
 
   async listPairedDevices(): Promise<PairedDevice[]> {
-    const results = await invoke<PairedDeviceInfo[]>('plugin:o19-foundframe-tauri|list_paired_devices');
-    
-    return results.map(r => ({
+    const results = await invoke<PairedDeviceInfo[]>(
+      'plugin:o19-foundframe-tauri|list_paired_devices'
+    );
+
+    return results.map((r) => ({
       nodeId: r.nodeId,
       alias: r.alias,
       paired: r.paired
@@ -79,9 +92,11 @@ export class TauriDeviceAdaptor extends DeviceAdaptor implements DevicePort {
   }
 
   async checkFollowersAndPair(): Promise<PairedDevice[]> {
-    const results = await invoke<PairedDeviceInfo[]>('plugin:o19-foundframe-tauri|check_followers_and_pair');
-    
-    return results.map(r => ({
+    const results = await invoke<PairedDeviceInfo[]>(
+      'plugin:o19-foundframe-tauri|check_followers_and_pair'
+    );
+
+    return results.map((r) => ({
       nodeId: r.nodeId,
       alias: r.alias,
       paired: r.paired
@@ -89,8 +104,8 @@ export class TauriDeviceAdaptor extends DeviceAdaptor implements DevicePort {
   }
 
   async unpairDevice(nodeIdHex: string): Promise<void> {
-    await invoke<void>('plugin:o19-foundframe-tauri|unpair_device', { 
-      nodeIdHex 
+    await invoke<void>('plugin:o19-foundframe-tauri|unpair_device', {
+      nodeIdHex
     });
   }
 }

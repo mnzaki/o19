@@ -61,7 +61,7 @@ export const tauriDesktopPlatformTreadle = defineTreadle({
       mainlinePlatformTrait: 'Platform',
       mainlineDesktopPlatform: 'DesktopPlatform',
       // Generated bridge
-      bridgePlatformName: `Spire${coreNamePascal}DesktopBridge`,
+      bridgePlatformName: `Spire${coreNamePascal}DesktopBridge`
     };
   },
 
@@ -76,16 +76,22 @@ export const tauriDesktopPlatformTreadle = defineTreadle({
   ],
 
   // Hookup: Add bridge module to mainline lib.rs
-  hookups: [{
-    path: 'src/lib.rs',
-    moduleDeclarations: [
-      { name: 'desktop_mainline_bridge', path: '../spire/src/desktop_mainline_bridge.rs', pub: true }
-    ]
-  }]
+  hookups: [
+    {
+      path: 'src/lib.rs',
+      moduleDeclarations: [
+        {
+          name: 'desktop_mainline_bridge',
+          path: '../spire/src/desktop_mainline_bridge.rs',
+          pub: true
+        }
+      ]
+    }
+  ]
 });
 
 // ============================================================================
 // Generator Export
 // ============================================================================
 
-export { generateFromTreadle };
+export const generateTauriDesktopPlatform = generateFromTreadle(tauriDesktopPlatformTreadle);

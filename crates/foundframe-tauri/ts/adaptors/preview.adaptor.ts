@@ -4,7 +4,6 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { PreviewAdaptor } from '@o19/foundframe-front';
 import type { PreviewPort, PreviewMetadata } from '@o19/foundframe-front';
 
 type HtmlPreviewJSON = {
@@ -30,13 +29,15 @@ type MediaPreviewJSON = {
 };
 
 type PreviewType =
-  | { type: 'html' } & HtmlPreviewJSON
-  | { type: 'media' } & MediaPreviewJSON
+  | ({ type: 'html' } & HtmlPreviewJSON)
+  | ({ type: 'media' } & MediaPreviewJSON)
   | { type: 'unknown' };
 
-export class TauriPreviewAdaptor extends PreviewAdaptor implements PreviewPort {
+export class TauriPreviewAdaptor implements PreviewPort {
   async getForURL(url: string): Promise<PreviewMetadata> {
-    const result = await invoke<PreviewType>('plugin:o19-foundframe-tauri|url_preview_json', { url });
+    const result = await invoke<PreviewType>('plugin:o19-foundframe-tauri|url_preview_json', {
+      url
+    });
 
     // Convert PreviewType to PreviewMetadata
     if (result.type === 'html') {
@@ -46,7 +47,7 @@ export class TauriPreviewAdaptor extends PreviewAdaptor implements PreviewPort {
         description: result.description,
         imagePath: result.imageUrl,
         siteName: result.siteName,
-        fetchedAt: new Date(),
+        fetchedAt: new Date()
       };
     } else if (result.type === 'media') {
       return {
@@ -55,13 +56,13 @@ export class TauriPreviewAdaptor extends PreviewAdaptor implements PreviewPort {
         description: result.metadata.description,
         imagePath: result.thumbnailPath,
         siteName: undefined,
-        fetchedAt: new Date(),
+        fetchedAt: new Date()
       };
     } else {
       // Unknown type - return minimal metadata
       return {
         url,
-        fetchedAt: new Date(),
+        fetchedAt: new Date()
       };
     }
   }

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::error::Result;
-use crate::pkb::{PkbService, StreamChunk};
+use crate::pkb::{PkbService, StructuredData};
 
 use super::types::{BatchResult, MediaItem};
 
@@ -51,10 +51,10 @@ impl IngestionChannel {
             }
         }
         
-        // Transform to PKB StreamChunk and add
-        let chunk = self.item_to_chunk(item)?;
+        // Transform to PKB StructuredData and add
+        let data = self.item_to_data(item)?;
         // SPIRAL: Need proper directory and path here
-        let _entry_id = chunk.ingest(std::path::Path::new("/tmp/pkb"), std::path::Path::new("media"))?;
+        let _entry_id = data.ingest(std::path::Path::new("/tmp/pkb"), std::path::Path::new("media"))?;
         
         // Update cache using source_id
         self.seen_cache.write().await.insert(
@@ -102,9 +102,9 @@ impl IngestionChannel {
         })
     }
     
-    fn item_to_chunk(&self, _item: MediaItem) -> Result<StreamChunk> {
-        // SPIRAL: Transform MediaItem to PKB StreamChunk
+    fn item_to_data(&self, _item: MediaItem) -> Result<StructuredData> {
+        // SPIRAL: Transform MediaItem to PKB StructuredData
         // This is where we determine the target directory, naming, etc.
-        todo!("Transform MediaItem to StreamChunk")
+        todo!("Transform MediaItem to StructuredData")
     }
 }

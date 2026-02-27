@@ -30,10 +30,7 @@
  */
 
 import { toSnakeCase } from '../machinery/stringing.js';
-import {
-  mapToRustType,
-  mapToSqlType
-} from '../machinery/bobbin/type-mappings.js';
+import { mapToRustType, mapToSqlType } from '../machinery/bobbin/type-mappings.js';
 
 // ============================================================================
 // Options Interfaces
@@ -69,6 +66,7 @@ export interface BaseOptions<T = any> {
 export interface StringOptions extends BaseOptions<string> {
   /** Maximum length (for VARCHAR), undefined means TEXT */
   length?: number;
+  enum?: string[];
 }
 
 /**

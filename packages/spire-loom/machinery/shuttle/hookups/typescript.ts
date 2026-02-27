@@ -1,56 +1,73 @@
 /**
- * TypeScript Index Hookup 📘
+ * TypeScript Hookup 📘
  *
- * Hooks into TypeScript/JavaScript index files to:
- * - Add export statements (star exports, named exports)
+ * Hooks into TypeScript/JavaScript files to:
  * - Add import statements
- * - Maintain clean re-export patterns for spire integration
+ * - Add export statements (for index files)
+ * - Modify class methods (prepend/append code)
+ * - Add new methods to classes
+ * - Modify standalone functions
  *
- * > *"The index file gathers and exposes what the spire generates."*
+ * > *"The bridge between generated and hand-written TypeScript."*
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { GeneratorContext } from '../../heddles/index.js';
-import type { TypeScriptIndexHookup, HookupResult, TypeScriptExportEntry, TypeScriptImportEntry, TypeScriptExport, TypeScriptImport, HookupType } from './types.js';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface ParsedExport {
-  source: string;
-  star: boolean;
-  names: string[];
-}
-
-interface ParsedImport {
-  source: string;
-  namespace?: string;
-  default?: string;
-  names: string[];
-  typeOnly: boolean;
-}
+import type { 
+  TypeScriptIndexHookup, 
+  TypeScriptFileHookup,
+  HookupResult, 
+  TypeScriptExportEntry, 
+  TypeScriptImportEntry, 
+  TypeScriptExport, 
+  TypeScriptImport, 
+  HookupType,
+  ClassModifications,
+  MethodModifications,
+} from './types.js';
+import { 
+  modifyMethod, 
+  findClassBody,
+  TypeScriptMethodConfig, 
+  TypeScriptClassPattern,
+} from './method-modifier.js';
 
 // ============================================================================
 // Main Handler
 // ============================================================================
 
 /**
- * Apply TypeScript index hookup to index.ts or index.js.
- *
- * Handles:
- * 1. Export statements (star exports, named exports)
- * 2. Import statements
+ * Apply TypeScript hookup (index or regular file).
+ * Dispatches to appropriate handler based on path.
  */
 export async function applyTypeScriptHookup(
+  filePath: string,
+  hookup: TypeScriptIndexHookup | TypeScriptFileHookup,
+  context: GeneratorContext
+): Promise<HookupResult> {
+  // Check if it's an index file (simple exports/imports only)
+  const isIndexFile = /index\.(ts|js)$/.test(filePath.toLowerCase());
+  
+  if (isIndexFile && !('classes' in hookup || 'functions' in hookup)) {
+    return applyTypeScriptIndexHookup(filePath, hookup as TypeScriptIndexHookup, context);
+  }
+  
+  return applyTypeScriptFileHookup(filePath, hookup as TypeScriptFileHookup, context);
+}
+
+/**
+ * Apply TypeScript index file hookup (index.ts / index.js).
+ *
+ * Handles simple export/import statements only.
+ */
+async function applyTypeScriptIndexHookup(
   filePath: string,
   hookup: TypeScriptIndexHookup,
   context: GeneratorContext
 ): Promise<HookupResult> {
   const changes: string[] = [];
   
-  // Ensure file exists
   if (!fs.existsSync(filePath)) {
     return {
       path: filePath,
@@ -63,7 +80,7 @@ export async function applyTypeScriptHookup(
   let content = fs.readFileSync(filePath, 'utf-8');
   const originalContent = content;
   
-  // 1. Apply imports
+  // Apply imports
   if (hookup.imports && hookup.imports.length > 0) {
     const importChanges = applyImports(content, hookup.imports);
     if (importChanges.modified) {
@@ -72,7 +89,7 @@ export async function applyTypeScriptHookup(
     }
   }
   
-  // 2. Apply exports
+  // Apply exports
   if (hookup.exports && hookup.exports.length > 0) {
     const exportChanges = applyExports(content, hookup.exports);
     if (exportChanges.modified) {
@@ -81,7 +98,6 @@ export async function applyTypeScriptHookup(
     }
   }
   
-  // Write if modified
   const modified = content !== originalContent;
   if (modified) {
     fs.writeFileSync(filePath, content, 'utf-8');
@@ -97,13 +113,160 @@ export async function applyTypeScriptHookup(
   };
 }
 
+/**
+ * Apply TypeScript file hookup with full class/method support.
+ */
+async function applyTypeScriptFileHookup(
+  filePath: string,
+  hookup: TypeScriptFileHookup,
+  context: GeneratorContext
+): Promise<HookupResult> {
+  const changes: string[] = [];
+  
+  if (!fs.existsSync(filePath)) {
+    return {
+      path: filePath,
+      type: 'typescript-file' as HookupType,
+      status: 'error',
+      message: `File not found: ${filePath}`,
+    };
+  }
+  
+  let content = fs.readFileSync(filePath, 'utf-8');
+  const originalContent = content;
+  
+  // Apply imports
+  if (hookup.imports && hookup.imports.length > 0) {
+    const importChanges = applyImports(content, hookup.imports);
+    if (importChanges.modified) {
+      content = importChanges.content;
+      changes.push(`Added ${hookup.imports.length} imports`);
+    }
+  }
+  
+  // Apply class modifications
+  if (hookup.classes) {
+    for (const [className, classMod] of Object.entries(hookup.classes)) {
+      const result = applyClassModifications(content, className, classMod, context);
+      if (result.modified) {
+        content = result.content;
+        changes.push(`Modified class: ${className}`);
+      }
+    }
+  }
+  
+  // Apply standalone function modifications
+  if (hookup.functions) {
+    for (const [funcName, funcMod] of Object.entries(hookup.functions)) {
+      const result = modifyMethod(content, funcName, funcMod, TypeScriptMethodConfig, context);
+      if (result.modified) {
+        content = result.content;
+        changes.push(`Modified function: ${funcName}`);
+      }
+    }
+  }
+  
+  const modified = content !== originalContent;
+  if (modified) {
+    fs.writeFileSync(filePath, content, 'utf-8');
+  }
+  
+  return {
+    path: filePath,
+    type: 'typescript-file' as HookupType,
+    status: modified ? 'applied' : 'skipped',
+    message: modified 
+      ? `Updated ${path.basename(filePath)}: ${changes.join(', ')}`
+      : `No changes needed for ${path.basename(filePath)}`,
+  };
+}
+
 // ============================================================================
-// Import Handling
+// Class Modifications
 // ============================================================================
 
-/**
- * Parse an import entry to structured form.
- */
+function applyClassModifications(
+  content: string,
+  className: string,
+  classMod: ClassModifications,
+  context: GeneratorContext
+): { content: string; modified: boolean } {
+  let modified = false;
+  
+  const classInfo = findClassBody(content, className, TypeScriptClassPattern);
+  if (!classInfo) {
+    return { content, modified: false };
+  }
+  
+  let classBody = classInfo.body;
+  let bodyModified = false;
+  
+  // Add fields
+  if (classMod.fields) {
+    for (const field of classMod.fields) {
+      const fieldDecl = typeof field === 'function'
+        ? field(context, (context as any).data || {})
+        : field;
+      
+      if (fieldDecl && !classBody.includes(fieldDecl.trim())) {
+        // Add field at start of class body
+        classBody = `    ${fieldDecl}\n${classBody}`;
+        bodyModified = true;
+      }
+    }
+  }
+  
+  // Add new methods
+  if (classMod.newMethods) {
+    for (const method of classMod.newMethods) {
+      const methodDecl = typeof method === 'function'
+        ? method(context, (context as any).data || {})
+        : method;
+      
+      if (methodDecl) {
+        // Extract method name for duplicate checking
+        const methodNameMatch = methodDecl.match(/(\w+)\s*[\(\=]/);
+        const methodName = methodNameMatch?.[1];
+        
+        if (methodName && !classBody.includes(`${methodName}(`)) {
+          classBody += `\n    ${methodDecl.trim()}\n`;
+          bodyModified = true;
+        }
+      }
+    }
+  }
+  
+  // Modify existing methods
+  if (classMod.methods) {
+    for (const [methodName, methodMod] of Object.entries(classMod.methods)) {
+      const result = modifyMethod(classBody, methodName, methodMod, TypeScriptMethodConfig, context);
+      if (result.modified) {
+        classBody = result.content;
+        bodyModified = true;
+      }
+    }
+  }
+  
+  if (bodyModified) {
+    content = classInfo.beforeBody + classBody + classInfo.afterBody;
+    modified = true;
+  }
+  
+  return { content, modified };
+}
+
+// ============================================================================
+// Import Handling (shared)
+// ============================================================================
+
+interface ParsedImport {
+  source: string;
+  namespace?: string;
+  default?: string;
+  names: string[];
+  typeOnly: boolean;
+}
+
 function parseImportEntry(entry: TypeScriptImportEntry): ParsedImport {
   if (typeof entry === 'string') {
     return parseImportLine(entry);
@@ -117,36 +280,28 @@ function parseImportEntry(entry: TypeScriptImportEntry): ParsedImport {
   };
 }
 
-/**
- * Parse an import line to structured form.
- */
 function parseImportLine(line: string): ParsedImport {
   const trimmed = line.trim();
   
-  // Check for type-only import
   const typeOnly = trimmed.startsWith('import type ');
   const importBody = typeOnly ? trimmed.slice(12) : trimmed.slice(7);
   
-  // import * as X from '...'
   const namespaceMatch = importBody.match(/^\*\s+as\s+(\w+)\s+from\s+['"]([^'"]+)['"];?$/);
   if (namespaceMatch) {
     return { source: namespaceMatch[2], namespace: namespaceMatch[1], names: [], typeOnly };
   }
   
-  // import X from '...' (default)
   const defaultMatch = importBody.match(/^(\w+)\s+from\s+['"]([^'"]+)['"];?$/);
   if (defaultMatch) {
     return { source: defaultMatch[2], default: defaultMatch[1], names: [], typeOnly };
   }
   
-  // import { X, Y } from '...' (named)
   const namedMatch = importBody.match(/^\{\s*([^}]+)\}\s+from\s+['"]([^'"]+)['"];?$/);
   if (namedMatch) {
     const names = namedMatch[1].split(',').map(n => n.trim()).filter(Boolean);
     return { source: namedMatch[2], names, typeOnly };
   }
   
-  // import '...' (side effect) or fallback
   const sideEffectMatch = importBody.match(/^['"]([^'"]+)['"];?$/);
   if (sideEffectMatch) {
     return { source: sideEffectMatch[1], names: [], typeOnly };
@@ -155,9 +310,6 @@ function parseImportLine(line: string): ParsedImport {
   return { source: '', names: [], typeOnly };
 }
 
-/**
- * Format a parsed import to code.
- */
 function formatImport(parsed: ParsedImport): string {
   if (parsed.namespace) {
     const typeKeyword = parsed.typeOnly ? 'type ' : '';
@@ -179,13 +331,9 @@ function formatImport(parsed: ParsedImport): string {
     return `import ${typeKeyword}{ ${parsed.names.join(', ')} } from '${parsed.source}';`;
   }
   
-  // Side effect import
   return `import '${parsed.source}';`;
 }
 
-/**
- * Apply imports to content.
- */
 function applyImports(
   content: string,
   imports: TypeScriptImportEntry[]
@@ -196,24 +344,20 @@ function applyImports(
   for (const entry of imports) {
     const parsed = parseImportEntry(entry);
     
-    // Check if already exists
     if (hasImport(existingImports, parsed)) {
       continue;
     }
     
     const importLine = formatImport(parsed);
     
-    // Find insertion point: after last import, or at start
     const importRegex = /^(import\s+[^;]+;\s*)+/m;
     const importMatch = content.match(importRegex);
     
     if (importMatch) {
-      // Insert after last import
       const lastImport = importMatch[0].trim().split('\n').pop() || '';
       const insertPos = content.indexOf(lastImport) + lastImport.length;
       content = content.slice(0, insertPos) + '\n' + importLine + content.slice(insertPos);
     } else {
-      // No imports, add at start
       content = importLine + '\n' + content;
     }
     
@@ -224,9 +368,6 @@ function applyImports(
   return { content, modified };
 }
 
-/**
- * Parse existing imports from content.
- */
 function parseExistingImports(content: string): ParsedImport[] {
   const imports: ParsedImport[] = [];
   const importRegex = /^import\s+[^;]+;/gm;
@@ -239,9 +380,6 @@ function parseExistingImports(content: string): ParsedImport[] {
   return imports;
 }
 
-/**
- * Check if an import already exists.
- */
 function hasImport(existing: ParsedImport[], parsed: ParsedImport): boolean {
   return existing.some(imp => 
     imp.source === parsed.source &&
@@ -253,12 +391,15 @@ function hasImport(existing: ParsedImport[], parsed: ParsedImport): boolean {
 }
 
 // ============================================================================
-// Export Handling
+// Export Handling (index files only)
 // ============================================================================
 
-/**
- * Parse an export entry to structured form.
- */
+interface ParsedExport {
+  source: string;
+  star: boolean;
+  names: string[];
+}
+
 function parseExportEntry(entry: TypeScriptExportEntry): ParsedExport {
   if (typeof entry === 'string') {
     return parseExportLine(entry);
@@ -270,37 +411,23 @@ function parseExportEntry(entry: TypeScriptExportEntry): ParsedExport {
   };
 }
 
-/**
- * Parse an export line to structured form.
- */
 function parseExportLine(line: string): ParsedExport {
   const trimmed = line.trim();
   
-  // export * from '...'
   const starMatch = trimmed.match(/^export\s+\*\s+from\s+['"]([^'"]+)['"];?$/);
   if (starMatch) {
     return { source: starMatch[1], star: true, names: [] };
   }
   
-  // export { X, Y } from '...' (re-export)
   const namedMatch = trimmed.match(/^export\s+\{\s*([^}]+)\}\s+from\s+['"]([^'"]+)['"];?$/);
   if (namedMatch) {
     const names = namedMatch[1].split(',').map(n => n.trim()).filter(Boolean);
     return { source: namedMatch[2], star: false, names };
   }
   
-  // export { X, Y } (local export - not a re-export, ignore source)
-  const localMatch = trimmed.match(/^export\s+\{/);
-  if (localMatch) {
-    return { source: '', star: false, names: [] };
-  }
-  
   return { source: '', star: false, names: [] };
 }
 
-/**
- * Format a parsed export to code.
- */
 function formatExport(parsed: ParsedExport): string {
   if (parsed.star) {
     return `export * from '${parsed.source}';`;
@@ -313,9 +440,6 @@ function formatExport(parsed: ParsedExport): string {
   return `export * from '${parsed.source}';`;
 }
 
-/**
- * Apply exports to content.
- */
 function applyExports(
   content: string,
   exports: TypeScriptExportEntry[]
@@ -326,39 +450,32 @@ function applyExports(
   for (const entry of exports) {
     const parsed = parseExportEntry(entry);
     
-    // Skip empty/invalid exports
     if (!parsed.source && !parsed.star && parsed.names.length === 0) {
       continue;
     }
     
-    // Check if already exists
     if (hasExport(existingExports, parsed)) {
       continue;
     }
     
     const exportLine = formatExport(parsed);
     
-    // Find insertion point: after last export statement, or at end
     const exportRegex = /^(export\s+[^;]+;\s*)+/m;
     const exportMatch = content.match(exportRegex);
     
     if (exportMatch) {
-      // Insert after last export
       const lastExport = exportMatch[0].trim().split('\n').pop() || '';
       const insertPos = content.indexOf(lastExport) + lastExport.length;
       content = content.slice(0, insertPos) + '\n' + exportLine + content.slice(insertPos);
     } else {
-      // No exports, add at end (or after imports if any)
       const importRegex = /^(import\s+[^;]+;\s*)+/m;
       const importMatch = content.match(importRegex);
       
       if (importMatch) {
-        // Add after imports
         const lastImport = importMatch[0].trim().split('\n').pop() || '';
         const insertPos = content.indexOf(lastImport) + lastImport.length;
         content = content.slice(0, insertPos) + '\n\n' + exportLine + content.slice(insertPos);
       } else {
-        // Add at end
         content = content.trimEnd() + '\n' + exportLine + '\n';
       }
     }
@@ -370,9 +487,6 @@ function applyExports(
   return { content, modified };
 }
 
-/**
- * Parse existing exports from content.
- */
 function parseExistingExports(content: string): ParsedExport[] {
   const exports: ParsedExport[] = [];
   const exportRegex = /^export\s+[^;]+;/gm;
@@ -388,9 +502,6 @@ function parseExistingExports(content: string): ParsedExport[] {
   return exports;
 }
 
-/**
- * Check if an export already exists.
- */
 function hasExport(existing: ParsedExport[], parsed: ParsedExport): boolean {
   return existing.some(exp => 
     exp.source === parsed.source &&

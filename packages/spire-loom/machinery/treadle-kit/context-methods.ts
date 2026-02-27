@@ -11,7 +11,7 @@
 import type { MgmtMethod } from '../sley/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 import type { ManagementMetadata } from '../reed/index.js';
-import type { MethodHelpers } from '../heddles/index.js';
+import type { MethodHelpers, ServiceMethod, ManagementMethods } from '../heddles/index.js';
 import { groupByManagement, groupByCrud } from '../sley/index.js';
 import { camelCase, toSnakeCase } from '../stringing.js';
 
@@ -23,7 +23,7 @@ import { camelCase, toSnakeCase } from '../stringing.js';
  * The implName is the method part without the management prefix.
  *
  * Includes enriched metadata from heddles (useResult, wrappers, fieldName).
- * 
+ *
  * @param method - Management method from pipeline
  * @returns Raw method ready for code generation
  */
@@ -69,7 +69,7 @@ export function toRawMethod(method: MgmtMethod): RawMethod {
 
 /**
  * Build MethodLink from management link metadata.
- * 
+ *
  * @param mgmt - Management metadata
  * @returns Link info or undefined if no link
  */
@@ -87,7 +87,7 @@ export function buildMethodLink(
 /**
  * Extract management name from bind-point name.
  * Best-effort mapping since RawMethod doesn't have managementName.
- * 
+ *
  * @param bindPointName - Snake_case method name (e.g., "bookmark_add_bookmark")
  * @param managementNames - All known management names
  * @returns Best matching management name or undefined
@@ -108,21 +108,54 @@ export function extractManagementFromBindPoint(
 }
 
 /**
+ * Extract entity name from management name.
+ * E.g., "BookmarkMgmt" -> "Bookmark"
+ */
+function extractEntityName(managementName: string): string {
+  return managementName.replace(/Mgmt$/, '');
+}
+
+/**
+ * Build ManagementMethods from a collection of methods.
+ */
+function buildManagementMethods(mgmtName: string, methods: RawMethod[]): ManagementMethods {
+  const entityName = extractEntityName(mgmtName);
+
+  // Classify methods by CRUD operation
+  const readMethods = methods.filter(
+    (m) => m.crudOperation === 'read' || m.crudOperation === 'list'
+  );
+  const writeMethods = methods.filter((m) =>
+    ['create', 'update', 'delete'].includes(m.crudOperation || '')
+  );
+  const passthroughMethods = methods.filter((m) => !m.crudOperation);
+
+  return {
+    name: mgmtName,
+    entityName,
+    serviceName: `${entityName}Service`,
+    portName: `${entityName}Port`,
+    methods,
+    readMethods,
+    writeMethods,
+    passthroughMethods
+  };
+}
+
+/**
  * Build method helpers for GeneratorContext.
  * Provides convenient access to filtered and grouped methods.
- * 
+ *
  * Uses sley's groupByManagement and groupByCrud utilities for consistent
  * grouping behavior across the codebase.
- * 
+ *
  * @param methods - Raw methods after pipeline transformation
  * @returns Method helpers with grouping and filtering
  */
 export function buildContextMethods(methods: RawMethod[]): MethodHelpers {
   // Extract management name from method (from metadata or name prefix)
-  const methodsWithMgmt = methods.map(m => {
-    const mgmtName = (m as any).managementName || 
-                     m.name.split('_')[0] || 
-                     'unknown';
+  const methodsWithMgmt = methods.map((m) => {
+    const mgmtName = (m as any).managementName || m.name.split('_')[0] || 'unknown';
     if (mgmtName === 'unknown') {
       console.warn(`[context-methods] Could not extract management name from method: ${m.name}`);
     }
@@ -135,45 +168,57 @@ export function buildContextMethods(methods: RawMethod[]): MethodHelpers {
 
   return {
     all: methods,
-    
-    byManagement(): Map<string, RawMethod[]> {
+
+    byManagement(): Map<string, ManagementMethods> {
       // Filter out 'unknown' entries and warn if any exist
-      const result = new Map<string, RawMethod[]>();
+      const result = new Map<string, ManagementMethods>();
       byMgmtMap.forEach((methods, mgmtName) => {
         if (mgmtName === 'unknown') {
-          console.warn(`[context-methods] ${methods.length} method(s) without management name:`, 
-            methods.map(m => m.name).join(', '));
+          console.warn(
+            `[context-methods] ${methods.length} method(s) without management name:`,
+            methods.map((m) => m.name).join(', ')
+          );
           return;
         }
-        result.set(mgmtName, methods as RawMethod[]);
+        result.set(mgmtName, buildManagementMethods(mgmtName, methods as RawMethod[]));
       });
       return result;
     },
-    
+
     byCrud(): Map<string, RawMethod[]> {
       return byCrudMap as Map<string, RawMethod[]>;
     },
-    
+
     withTag(tag: string): RawMethod[] {
-      return methods.filter(m => (m as any).tags?.includes(tag));
+      return methods.filter((m) => (m as any).tags?.includes(tag));
     },
-    
+
     withCrud(op: string): RawMethod[] {
-      return methods.filter(m => (m as any).crudOperation === op);
+      return methods.filter((m) => (m as any).crudOperation === op);
     },
-    
+
     forEach(cb: (method: RawMethod) => void): void {
       methods.forEach(cb);
     },
-    
+
     filteredForEach(filter: (method: RawMethod) => boolean, cb: (method: RawMethod) => void): void {
       methods.filter(filter).forEach(cb);
     },
-    
-    get creates(): RawMethod[] { return this.withCrud('create'); },
-    get reads(): RawMethod[] { return this.withCrud('read'); },
-    get updates(): RawMethod[] { return this.withCrud('update'); },
-    get deletes(): RawMethod[] { return this.withCrud('delete'); },
-    get lists(): RawMethod[] { return this.withCrud('list'); }
+
+    get creates(): RawMethod[] {
+      return this.withCrud('create');
+    },
+    get reads(): RawMethod[] {
+      return this.withCrud('read');
+    },
+    get updates(): RawMethod[] {
+      return this.withCrud('update');
+    },
+    get deletes(): RawMethod[] {
+      return this.withCrud('delete');
+    },
+    get lists(): RawMethod[] {
+      return this.withCrud('list');
+    }
   };
 }

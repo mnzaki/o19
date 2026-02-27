@@ -34,8 +34,66 @@ export interface WorkspaceInfo {
  * If in a package subdirectory, walks up to find parent workspace.
  */
 export function detectWorkspace(cwd: string = process.cwd()): WorkspaceInfo {
+  // Check if this is a package directory (has Cargo.toml or package.json)
+  // AND is NOT a workspace root (no [workspace] in Cargo.toml)
+  const hasCargoToml = fs.existsSync(path.join(cwd, 'Cargo.toml'));
+  const hasPackageJson = fs.existsSync(path.join(cwd, 'package.json'));
+  
+  if (hasCargoToml || hasPackageJson) {
+    // Check if this is actually a workspace root
+    const isCargoWorkspace = hasCargoToml && 
+      fs.readFileSync(path.join(cwd, 'Cargo.toml'), 'utf-8').includes('[workspace]');
+    const isPnpmWorkspace = fs.existsSync(path.join(cwd, 'pnpm-workspace.yaml'));
+    
+    // If it's not a workspace root, treat as package
+    if (!isCargoWorkspace && !isPnpmWorkspace) {
+      let packageName: string | undefined;
+      
+      if (hasCargoToml) {
+        const cargoContent = fs.readFileSync(path.join(cwd, 'Cargo.toml'), 'utf-8');
+        const nameMatch = cargoContent.match(/^name\s*=\s*"([^"]+)"/m);
+        if (nameMatch) packageName = nameMatch[1];
+      }
+      
+      if (!packageName && hasPackageJson) {
+        const pkgJson = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
+        packageName = pkgJson.name;
+      }
+      
+      // Walk up to find parent workspace
+      let current = cwd;
+      while (current !== path.dirname(current)) {
+        current = path.dirname(current);
+        const parentHasLoom = fs.existsSync(path.join(current, 'loom', 'WARP.ts'));
+        const parentHasPnpm = fs.existsSync(path.join(current, 'pnpm-workspace.yaml'));
+        const parentHasCargoWorkspace = fs.existsSync(path.join(current, 'Cargo.toml')) &&
+          fs.readFileSync(path.join(current, 'Cargo.toml'), 'utf-8').includes('[workspace]');
+        
+        if (parentHasLoom || parentHasPnpm || parentHasCargoWorkspace) {
+          const loomPath = path.join(current, 'loom', 'WARP.ts');
+          return { 
+            type: 'package', 
+            root: current, 
+            warpPath: fs.existsSync(loomPath) ? loomPath : undefined,
+            currentPackage: packageName 
+          };
+        }
+      }
+      
+      // No parent workspace found - standalone package
+      const loomPath = path.join(cwd, 'loom', 'WARP.ts');
+      return { 
+        type: 'package', 
+        root: cwd, 
+        warpPath: fs.existsSync(loomPath) ? loomPath : undefined,
+        currentPackage: packageName 
+      };
+    }
+  }
+  
+  // Check if this is a workspace root
   const hasPnpmWorkspace = fs.existsSync(path.join(cwd, 'pnpm-workspace.yaml'));
-  const hasCargoWorkspace = fs.existsSync(path.join(cwd, 'Cargo.toml')) && 
+  const hasCargoWorkspace = hasCargoToml && 
     fs.readFileSync(path.join(cwd, 'Cargo.toml'), 'utf-8').includes('[workspace]');
   const hasLoomDir = fs.existsSync(path.join(cwd, 'loom'));
   
@@ -45,40 +103,6 @@ export function detectWorkspace(cwd: string = process.cwd()): WorkspaceInfo {
       return { type: 'workspace', root: cwd, warpPath: loomPath };
     }
     return { type: 'workspace', root: cwd };
-  }
-  
-  const hasCargoToml = fs.existsSync(path.join(cwd, 'Cargo.toml'));
-  const hasPackageJson = fs.existsSync(path.join(cwd, 'package.json'));
-  
-  if (hasCargoToml || hasPackageJson) {
-    let packageName: string | undefined;
-    
-    if (hasCargoToml) {
-      const cargoContent = fs.readFileSync(path.join(cwd, 'Cargo.toml'), 'utf-8');
-      const nameMatch = cargoContent.match(/^name\s*=\s*"([^"]+)"/m);
-      if (nameMatch) packageName = nameMatch[1];
-    }
-    
-    if (!packageName && hasPackageJson) {
-      const pkgJson = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf-8'));
-      packageName = pkgJson.name;
-    }
-    
-    // Walk up to find parent workspace
-    let current = cwd;
-    while (current !== path.dirname(current)) {
-      current = path.dirname(current);
-      const loomPath = path.join(current, 'loom', 'WARP.ts');
-      if (fs.existsSync(loomPath)) {
-        return { 
-          type: 'package', 
-          root: current, 
-          warpPath: loomPath,
-          currentPackage: packageName 
-        };
-      }
-    }
-    return { type: 'package', root: cwd, currentPackage: packageName };
   }
   
   return { type: 'unknown', root: cwd };
@@ -98,11 +122,30 @@ import { RustCore } from '../../warp/spiral/rust.js';
  * 
  * Note: If a layer/core already has a custom .name or options set in WARP.ts, 
  * they are preserved.
+ * 
+ * @param warpPath - Path to WARP.ts
+ * @param workspaceRoot - Optional workspace root for consistent module resolution
  */
-export async function loadWarp(warpPath: string): Promise<Record<string, any>> {
+export async function loadWarp(warpPath: string, workspaceRoot?: string): Promise<Record<string, any>> {
   const { pathToFileURL } = await import('node:url');
   const warpUrl = pathToFileURL(warpPath).href;
-  const warp = await import(warpUrl);
+  
+  // If workspaceRoot is provided, temporarily change cwd for consistent module resolution
+  // This ensures imports from WARP.ts resolve the same regardless of where spire-loom runs
+  const originalCwd = process.cwd();
+  if (workspaceRoot) {
+    process.chdir(workspaceRoot);
+  }
+  
+  let warp: Record<string, any>;
+  try {
+    warp = await import(warpUrl);
+  } finally {
+    // Always restore original cwd
+    if (workspaceRoot) {
+      process.chdir(originalCwd);
+    }
+  }
   
   // Track which RustCore instances have been configured to avoid overwriting
   // when multiple spiralers wrap the same core (e.g., foundframe and android)

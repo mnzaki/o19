@@ -14,5 +14,5 @@ const services = locals.services;
  */
 
 <%_ for (const service of services) { _%>
-export { <%= service.serviceName %> } from './<%= service.entityName.toLowerCase() %>.service.gen.js';
+export { <%= service.serviceName %> } from './<%= service.entityCamelName %>.service.js';
 <%_ } _%>
