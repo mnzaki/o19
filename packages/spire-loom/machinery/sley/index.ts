@@ -43,44 +43,9 @@ export {
   fromSourceMethods
 } from './method-pipeline.js';
 
-// CRUD Mapping - DEPRECATED: Use method-pipeline for new code
-/**
- * @deprecated These exports are legacy and will be removed in a future version.
- * Use MethodPipeline from './method-pipeline.js' instead:
- *   - Replace `shouldFilterMethod` / `filterMethodsByTags` with `tagFilter()`
- *   - Replace `mapManagementCrud` with `crudInterfaceMapping()`
- */
-export {
-  type Tag,
-  type TagFilter,
-  type CrudAdaptorConfig,
-  type CrudMapping,
-  type ParamMapping,
-  type ManagementCrudMethods,
-  type PassthroughMethod,
-  type SourceMethod,
-  shouldFilterMethod,
-  filterMethodsByTags,
-  isCrudAdaptorEnabled,
-  mapManagementCrud
-} from './crud-mapping.js';
-
-// Method Translator - DEPRECATED: Use method-pipeline for new code
-/**
- * @deprecated These exports are legacy and will be removed in a future version.
- * Use MethodPipeline from './method-pipeline.js' instead:
- *   - Replace `translateMethods` with `MethodPipeline`
- *   - Replace `TranslatedMethod` with `MgmtMethod`
- */
-export {
-  type TranslatedMethod,
-  type TranslatedParam,
-  type SourceMethod as TranslatorSourceMethod,
-  type TranslationConfig,
-  type GroupedMethods,
-  translateMethods,
-  translateAndGroupMethods
-} from './method-translator.js';
+// Legacy modules - internal use only, will be removed
+// These are kept for internal compatibility but not exported publicly
+// Use method-pipeline for new code
 
 // Query Builder - Chainable queries over methods (APP-009)
 export {

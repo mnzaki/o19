@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import type { SpiralNode, GeneratorContext } from '../heddles/index.js';
 import type { HookupSpec } from '../shuttle/hookups/types.js';
 import {
-  defineTreadle,
+  declareTreadle,
   generateFromTreadle,
   buildTauriPluginNaming
 } from '../treadle-kit/index.js';
@@ -31,7 +31,7 @@ function toPermissionId(commandName: string): string {
 // Tauri Plugin Treadle Definition
 // ============================================================================
 
-export const tauriPluginTreadle = defineTreadle({
+export const tauriPluginTreadle = declareTreadle({
   matches: [{ current: 'TauriSpiraler.plugin', previous: 'RustCore' }],
 
   validate: (current, previous) => {

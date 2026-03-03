@@ -195,41 +195,138 @@ export const Date = createTypeDecorator('Date');
 // Language Definition 🌾
 //
 // Self-registers TypeScript as a language with the reed system.
+//
+// Uses the new classes-as-config architecture:
+// - TypeFactory for rich type definitions
+// - Rendering config for code formatting
+// - Auto-generated transform from primitives
 // ============================================================================
 
-import { declareLanguage } from '../machinery/reed/language.js';
 import {
-  transformForTypeScript,
-  type TypeScriptMethod
-} from '../machinery/bobbin/code-generator.js';
+  declareLanguage,
+  LanguageType,
+  type TypeFactory,
+  type LanguageParam,
+} from '../machinery/reed/language.js';
+import { camelCase } from '../machinery/stringing.js';
 import { TsCore, tsCore } from './spiral/typescript.js';
 import { TypescriptSpiraler } from './spiral/spiralers/typescript/index.js';
+
+// ============================================================================
+// TypeScript-Specific Types
+// ============================================================================
+
+/**
+ * TypeScript parameter with language-specific metadata.
+ */
+interface TypeScriptParam extends LanguageParam {
+  /** TypeScript type name (e.g., 'string', 'number', 'T[]') */
+  tsType: string;
+}
+
+// ============================================================================
+// TypeScript Type Factory
+// ============================================================================
+
+/**
+ * Type factory for TypeScript code generation.
+ * 
+ * TypeScript types map 1:1 with TypeScript types (no transformation needed),
+ * but we still define them explicitly for consistency with the architecture.
+ */
+class TypeScriptTypeFactory implements TypeFactory<TypeScriptParam, LanguageType> {
+  // Primitive types
+  boolean = new LanguageType('boolean', 'false', true);
+  string = new LanguageType('string', "''", true);
+  number = new LanguageType('number', '0', true);
+  void = new LanguageType('void', 'undefined', true);
+
+  // Generic type factories
+  array(itemType: LanguageType): LanguageType {
+    return new LanguageType(`${itemType.name}[]`, '[]');
+  }
+
+  optional(innerType: LanguageType): LanguageType {
+    return new LanguageType(`${innerType.name} | undefined`, 'undefined');
+  }
+
+  promise(innerType: LanguageType): LanguageType {
+    return new LanguageType(`Promise<${innerType.name}>`, 'Promise.resolve()');
+  }
+
+  result(okType: LanguageType, _errType?: string | LanguageType): LanguageType {
+    // TypeScript typically doesn't use Result<T, E> pattern
+    // but we provide it for compatibility with Rust patterns
+    return new LanguageType(okType.name, okType.stubReturn);
+  }
+
+  // Entity type factory
+  entity(name: string): LanguageType {
+    return new LanguageType(name, `{} as ${name}`, false, true);
+  }
+
+  // Map TypeScript type to TypeScript type (identity mapping)
+  fromTsType(tsType: string, isCollection: boolean): LanguageType {
+    const baseType = (() => {
+      switch (tsType.toLowerCase()) {
+        case 'string':
+          return this.string;
+        case 'number':
+          return this.number;
+        case 'boolean':
+        case 'bool':
+          return this.boolean;
+        case 'void':
+          return this.void;
+        default:
+          // Complex type / entity
+          return this.entity(tsType);
+      }
+    })();
+
+    return isCollection ? this.array(baseType) : baseType;
+  }
+}
+
+// ============================================================================
+// Language Definition
+// ============================================================================
 
 /**
  * TypeScript language definition.
  *
- * Self-registers on module load.
+ * Self-registers on module load. Uses the new classes-as-config architecture:
+ * - TypeFactory provides rich type metadata
+ * - Rendering config defines code formatting
+ * - Transform is auto-generated from these primitives
  */
-export const typescriptLanguage = declareLanguage<TypeScriptMethod>({
+export const typescriptLanguage = declareLanguage<TypeScriptParam, LanguageType>({
   name: 'typescript',
 
   codeGen: {
     fileExtensions: ['.ts.ejs', '.tsx.ejs'],
-    transform: transformForTypeScript,
-    typeMappings: [
-      { tsType: 'string', targetType: 'string' },
-      { tsType: 'number', targetType: 'number' },
-      { tsType: 'boolean', targetType: 'boolean' },
-      { tsType: 'bool', targetType: 'boolean' }
-    ],
-    getStubReturn: (returnType, isCollection) => {
-      if (returnType === 'boolean') return 'false';
-      if (returnType === 'string') return "''";
-      if (returnType === 'number') return '0';
-      if (returnType === 'void') return 'undefined';
-      if (isCollection) return '[]';
-      return `{} as ${returnType}`;
-    }
+    
+    // Type factory defines how types map (identity for TypeScript)
+    types: new TypeScriptTypeFactory(),
+    
+    // Rendering config defines code formatting
+    rendering: {
+      formatParamName: camelCase,
+      functionSignature: (method) => {
+        const params = method.params.map(p => 
+          `${p.name}${p.optional ? '?' : ''}: ${p.langType}`
+        ).join(', ');
+        return `${method.camelName}(${params}): ${method.returnTypeDef.name}`;
+      },
+      asyncFunctionSignature: (method) => {
+        const params = method.params.map(p => 
+          `${p.name}${p.optional ? '?' : ''}: ${p.langType}`
+        ).join(', ');
+        return `async ${method.camelName}(${params}): Promise<${method.returnTypeDef.name}>`;
+      },
+    },
+    
+    // No custom enhancers needed for TypeScript - defaults are sufficient
   },
 
   warp: {
@@ -252,5 +349,3 @@ export const typescriptLanguage = declareLanguage<TypeScriptMethod>({
     exposeBaseFactory: true
   }
 });
-
-// Type mappings are automatically registered by declareLanguage()

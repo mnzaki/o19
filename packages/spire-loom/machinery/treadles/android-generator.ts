@@ -23,7 +23,7 @@ import {
 } from '../treadle-kit/index.js';
 import { buildCrateNaming } from '../stringing.js';
 import { executeAndroidHookup, type AndroidHookupData } from '../shuttle/hookup-manager.js';
-import { defineTreadle, generateFromTreadle } from './index.js';
+import { declareTreadle, generateFromTreadle } from './index.js';
 import type { GeneratorContext } from '../heddles/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 
@@ -31,7 +31,7 @@ import type { RawMethod } from '../bobbin/index.js';
 // Treadle Definition
 // ============================================================================
 
-export const androidServiceTreadle = defineTreadle({
+export const androidServiceTreadle = declareTreadle({
   // When does this run?
   matches: [{ current: 'RustAndroidSpiraler.foregroundService', previous: 'RustCore' }],
 

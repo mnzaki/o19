@@ -71,12 +71,4 @@ export { ensureMetadata } from './metadata.js';
 
 export { Heddles, createHeddles } from './plan-builder.js';
 
-// ============================================================================
-// Legacy Re-export (for backward compatibility)
-// ============================================================================
-
-/**
- * @deprecated Import from specific modules instead.
- * This re-export will be removed in a future version.
- */
-export * from './pattern-matcher.js';
+// Note: pattern-matcher exports removed - import from './pattern-matcher.js' directly if needed

@@ -14,18 +14,19 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { renderEjs, generateFromEjs } from '../shuttle/template-renderer.js';
+import { renderEjs } from '../shuttle/template-renderer.js';
 import { getBuiltinTemplateDir } from '../shuttle/template-renderer.js';
 import type { GeneratedFile } from '../heddles/index.js';
-import {
-  mapToKotlinType,
-  mapToJniType,
-  mapToRustType,
-  generateJniToRustConversion,
-  generateRustToJniConversion,
-  getJniErrorValue
-} from './type-mappings.js';
-import { toSnakeCase, pascalCase, camelCase } from '../stringing.js';
+import { camelCase } from '../stringing.js';
+
+// Import languages to ensure they register themselves
+// This MUST happen before transformMethods is called
+import '../../warp/rust.js';
+import '../../warp/typescript.js';
+import '../../warp/kotlin.js';
+
+// Import the language registry
+import { languages } from '../reed/language.js';
 
 // ============================================================================
 // Types
@@ -90,46 +91,10 @@ export interface RawMethod<
 }
 
 /**
- * Kotlin-specific method transformation.
+ * Transformed method - language-specific extensions applied.
+ * This is a generic type that depends on the target language.
  */
-export interface KotlinMethod extends RawMethod {
-  ktReturnType: string;
-  params: Array<{ name: string; type: string; ktType: string }>;
-  /**
-   * Stub return value for mock implementations.
-   * E.g., "false", '""', "0", "emptyList()", "null".
-   */
-  stubReturn: string;
-}
-
-/**
- * Rust JNI-specific method transformation.
- */
-export interface RustJniMethod extends RawMethod {
-  jniReturnType: string;
-  rustReturnType: string;
-  returnConversion: string;
-  errorValue: string;
-  params: Array<{
-    name: string;
-    type: string;
-    jniType: string;
-    rustType: string;
-    conversion: string;
-  }>;
-  /** Service access preamble: code to access the service with proper error handling */
-  serviceAccessPreamble: string[];
-  /** Original method name for calling the implementation (e.g., 'generate_pairing_code') */
-  implName: string;
-}
-
-/**
- * AIDL-specific method transformation.
- */
-export interface AidlMethod extends RawMethod {
-  returnType: string;
-  params: Array<{ name: string; type: string }>;
-}
+export type TransformedMethod = RawMethod & Record<string, unknown>;
 
 /**
  * Type discriminator for language-specific transforms.
@@ -149,523 +114,21 @@ export type Language = 'kotlin' | 'rust' | 'rust_jni' | 'aidl' | 'typescript' | 
  * - platform.rs.ejs → rust
  * - interface.aidl.ejs → aidl
  *
+ * Uses the language registry for detection.
+ *
  * @param templatePath - Path to the EJS template
  */
 export function detectLanguage(templatePath: string): Language {
   const basename = path.basename(templatePath).toLowerCase();
 
-  // Check for double extension pattern: .{transform}.{ext}.ejs
-  // e.g., .jni.rs.ejs, .kt.ejs, .aidl.ejs
-
-  if (basename.endsWith('.jni.rs.ejs')) {
-    return 'rust_jni';
-  }
-  if (basename.endsWith('.rs.ejs')) {
-    return 'rust';
-  }
-  if (basename.endsWith('.kt.ejs') || basename.endsWith('.kts.ejs')) {
-    return 'kotlin';
-  }
-  if (basename.endsWith('.aidl.ejs')) {
-    return 'aidl';
-  }
-  if (basename.endsWith('.ts.ejs') || basename.endsWith('.tsx.ejs')) {
-    return 'typescript';
+  // Use language registry for detection
+  const lang = languages.detectByExtension(templatePath);
+  if (lang) {
+    return lang.name as Language;
   }
 
+  // Fallback for unknown extensions
   return 'unknown';
-}
-
-// ============================================================================
-// Method Transformations
-// ============================================================================
-
-/**
- * Transform raw methods for Kotlin output.
- */
-export function transformForKotlin(methods: RawMethod[]): KotlinMethod[] {
-  return methods.map((method) => {
-    const ktParams = method.params.map((p) => ({
-      name: p.name,
-      type: p.type,
-      ktType: mapToKotlinType(p.type, false),
-      optional: p.optional
-    }));
-    // Add toString() for template usage: <%= method.params %>
-    (ktParams as any).toString = function () {
-      return this.map((p: any) => `${p.name}: ${p.ktType}${p.optional ? '?' : ''}`).join(', ');
-    };
-
-    // Create camelDefinitionAsync helper
-    const camelName = camelCase(method.name);
-    const ktReturnType = mapToKotlinType(method.returnType, method.isCollection);
-    const camelDefinitionAsync = () =>
-      `suspend fun ${camelName}(${ktParams.toString()}): ${ktReturnType}`;
-    (camelDefinitionAsync as any).toString = camelDefinitionAsync;
-
-    // Generate stub return for Kotlin
-    const stubReturn = (() => {
-      if (ktReturnType === 'Boolean') return 'false';
-      if (ktReturnType === 'String') return '""';
-      if (ktReturnType === 'Int' || ktReturnType === 'Long') return '0';
-      if (ktReturnType === 'Unit') return '';
-      if (ktReturnType.startsWith('List<')) return 'emptyList()';
-      if (ktReturnType.endsWith('?')) return 'null';
-      // Complex types
-      return 'null';
-    })();
-
-    return {
-      ...method,
-      pascalName: pascalCase(method.name),
-      ktReturnType,
-      params: ktParams,
-      camelDefinitionAsync,
-      stubReturn
-    };
-  });
-}
-
-/**
- * Build Rust service access preamble based on link metadata.
- *
- * Returns lines of code to access the service, handling Option and Mutex
- * with proper error handling instead of unwrap.
- *
- * Examples:
- * - No link: `let __service = service;`
- * - device_manager:
- *   ```
- *   let __field = service.device_manager.as_ref().ok_or("device_manager not initialized")?;
- *   let mut __service = __field.lock().map_err(|_| "mutex poisoned")?;
- *   ```
- */
-function buildServiceAccessPreamble(link: MethodLink | undefined): string[] {
-  if (!link) {
-    return ['let __service = service;'];
-  }
-
-  const fieldName = link.fieldName;
-  const wrappers = link.wrappers || [];
-  const lines: string[] = [];
-
-  // Handle Option<Mutex<T>> pattern
-  if (wrappers.includes('Option') && wrappers.includes('Mutex')) {
-    lines.push(
-      `let __field = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`
-    );
-    lines.push(`let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`);
-  } else if (wrappers.includes('Option')) {
-    // Just Option<T>
-    lines.push(
-      `let __service = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`
-    );
-  } else if (wrappers.includes('Mutex')) {
-    // Just Mutex<T>
-    lines.push(
-      `let mut __service = service.${fieldName}.lock().map_err(|_| "${fieldName} mutex poisoned")?;`
-    );
-  } else {
-    // No wrappers
-    lines.push(`let __service = service.${fieldName};`);
-  }
-
-  return lines;
-}
-
-/**
- * Transform raw methods for Rust JNI output.
- */
-export function transformForRustJni(methods: RawMethod[]): RustJniMethod[] {
-  return methods.map((method) => {
-    const serviceAccessPreamble = buildServiceAccessPreamble(method.link);
-    const jniParams = method.params.map((p) => ({
-      ...p,
-      jniType: mapToJniType(p.type),
-      rustType: mapToRustType(p.type),
-      conversion: generateJniToRustConversion(p.name, p.type)
-    }));
-    // Add toString() for template usage: <%= method.params %>
-    (jniParams as any).toString = function () {
-      return this.map((p: any) => `${p.name}: ${p.rustType}`).join(', ');
-    };
-
-    // Create camelDefinitionAsync helper (JNI uses blocking style, but keeping consistent)
-    const camelName = camelCase(method.name);
-    const camelDefinitionAsync = () =>
-      `${camelName}(${jniParams.toString()}) -> ${mapToRustType(method.returnType)}`;
-    (camelDefinitionAsync as any).toString = camelDefinitionAsync;
-
-    return {
-      ...method,
-      pascalName: pascalCase(method.name),
-      jniReturnType: mapToJniType(method.returnType),
-      rustReturnType: mapToRustType(method.returnType),
-      returnConversion: generateRustToJniConversion('result', method.returnType),
-      errorValue: getJniErrorValue(method.returnType),
-      params: jniParams,
-      serviceAccessPreamble,
-      camelDefinitionAsync
-    };
-  });
-}
-
-/**
- * Transform raw methods for AIDL output.
- */
-export function transformForAidl(methods: RawMethod[]): AidlMethod[] {
-  return methods.map((method) => {
-    const aidlParams = method.params.map((p) => ({
-      name: p.name,
-      type: mapToAidlType(p.type, false)
-    }));
-    // Add toString() for template usage: <%= method.params %>
-    (aidlParams as any).toString = function () {
-      return this.map((p: any) => `${p.type} ${p.name}`).join(', ');
-    };
-
-    // Create camelDefinitionAsync helper (AIDL is sync but keeping consistent)
-    const camelName = camelCase(method.name);
-    const camelDefinitionAsync = () =>
-      `${mapToAidlType(method.returnType, method.isCollection)} ${camelName}(${aidlParams.toString()})`;
-    (camelDefinitionAsync as any).toString = camelDefinitionAsync;
-
-    return {
-      ...method,
-      pascalName: pascalCase(method.name),
-      returnType: mapToAidlType(method.returnType, method.isCollection),
-      params: aidlParams,
-      camelDefinitionAsync
-    };
-  });
-}
-
-/**
- * Rust method for Tauri platform trait.
- */
-export interface RustMethod extends RawMethod {
-  rsReturnType: string;
-  params: Array<{ name: string; type: string; rsType: string; optional?: boolean }>;
-  /**
-   * Whether methods return Result<T, E> for error handling.
-   * When true, the method signature should be wrapped in Result<T, Error>.
-   */
-  useResult: boolean;
-  /**
-   * The inner return type (without Result wrapper) for use in method bodies.
-   */
-  innerReturnType: string;
-  /**
-   * Service access preamble: code to access the service (handling Option/Mutex wrappers).
-   * Lines of Rust code to access the service from self.foundframe.
-   */
-  serviceAccessPreamble: string[];
-  /**
-   * The variable name that holds the service after preamble execution (e.g., '__service').
-   */
-  serviceVarName: string;
-  /**
-   * The impl name to call on the service (original method name without prefix).
-   */
-  implName: string;
-  /**
-   * Stub return value expression for default implementations.
-   * Includes the default value and optional comment for entity types.
-   * E.g., 'String::new()', 'Vec::new()', '// Entity type: Bookmark\n    Default::default()'.
-   */
-  stubReturn: string;
-}
-
-/**
- * TypeScript method for adaptor generation.
- */
-export interface TypeScriptMethod extends RawMethod {
-  jsName: string;
-  tsReturnType: string;
-  commandName: string;
-  responseType?: string;
-  returnMapping?: string;
-  hasCustomMapping: boolean;
-  params: Array<{ name: string; type: string; tsType: string; optional?: boolean }>;
-  /**
-   * Stub return value for mock implementations.
-   * E.g., "''", "0", "false", "[]", "{} as EntityType".
-   */
-  stubReturn: string;
-}
-
-/**
- * Transform raw methods for TypeScript adaptor output.
- */
-export function transformForTypeScript(methods: RawMethod[]): TypeScriptMethod[] {
-  return methods.map((method) => {
-    const tsReturnType = mapToTypeScriptType(method.returnType, method.isCollection);
-    const hasComplexReturn = !['string', 'number', 'boolean', 'void'].includes(
-      method.returnType.toLowerCase()
-    );
-    const tsParams = method.params.map((p) => ({
-      ...p,
-      tsType: mapToTypeScriptType(p.type, false),
-      optional: p.optional
-    }));
-    // Add toString() for template usage: <%= method.params %>
-    (tsParams as any).toString = function () {
-      return this.map((p: any) => `${p.name}${p.optional ? '?' : ''}: ${p.tsType}`).join(', ');
-    };
-
-    // Create camelDefinitionAsync helper
-    const jsName = method.jsName || camelCase(method.name);
-    const camelDefinitionAsync = () =>
-      `${jsName}(${tsParams.toString()}): Promise<${tsReturnType}>`;
-    (camelDefinitionAsync as any).toString = camelDefinitionAsync;
-
-    // Generate stub return for TypeScript
-    const stubReturn = (() => {
-      if (tsReturnType === 'boolean') return 'false';
-      if (tsReturnType === 'string') return "''";
-      if (tsReturnType === 'number') return '0';
-      if (tsReturnType === 'void') return 'undefined';
-      if (tsReturnType.startsWith('Array<') || tsReturnType.endsWith('[]')) return '[]';
-      // Complex types/objects
-      return `{} as ${tsReturnType}`;
-    })();
-
-    return {
-      ...method,
-      jsName,
-      pascalName: pascalCase(method.name),
-      tsReturnType,
-      commandName: method.name, // snake_case for Tauri command
-      responseType: hasComplexReturn ? `${pascalCase(method.name)}Response` : undefined,
-      returnMapping: hasComplexReturn ? generateResponseMapping(method.returnType) : undefined,
-      hasCustomMapping: hasComplexReturn,
-      params: tsParams,
-      camelDefinitionAsync,
-      stubReturn
-      // Preserve metadata for filtering
-    };
-  });
-}
-
-function mapToTypeScriptType(tsType: string, isCollection: boolean): string {
-  const baseType = (() => {
-    switch (tsType.toLowerCase()) {
-      case 'string':
-        return 'string';
-      case 'number':
-        return 'number';
-      case 'boolean':
-      case 'bool':
-        return 'boolean';
-      case 'void':
-        return 'void';
-      default:
-        return tsType; // Keep complex types as-is
-    }
-  })();
-  return isCollection ? `${baseType}[]` : baseType;
-}
-
-function generateResponseMapping(_returnType: string): string {
-  // Default mapping - assumes response has snake_case fields
-  return `{ ...result }`;
-}
-
-/**
- * Transform raw methods for pure Rust output (Tauri platform trait).
- *
- * Optional parameters are mapped to Option<T> in Rust.
- * When useResult is true, return types are wrapped in Result<T, Error>.
- */
-export function transformForRust(methods: RawMethod[]): RustMethod[] {
-  return methods.map((method) => {
-    const innerType = mapToTauriRustType(method.returnType, method.isCollection);
-    const useResult = method.useResult ?? false;
-    // When useResult is true, wrap the return type in Result
-    const rsReturnType =
-      useResult && method.returnType !== 'void' ? `Result<${innerType}, crate::Error>` : innerType;
-
-    // Build service access preamble based on link metadata
-    const serviceAccessPreamble = buildTauriServiceAccessPreamble(method.link);
-    // Convert impl name to snake_case for Rust
-    const implName = toSnakeCase(method.implName || method.name);
-
-    const rsParams = method.params.map((p) => {
-      const baseType = mapToTauriRustType(p.type, false);
-      // Wrap optional parameters in Option<T>
-      const rsType = p.optional ? `Option<${baseType}>` : baseType;
-      return {
-        ...p,
-        name: toSnakeCase(p.name), // Convert param names to snake_case too
-        rsType,
-        optional: p.optional
-      };
-    });
-    // Add toString() for template usage: <%= method.params %>
-    (rsParams as any).toString = function () {
-      return this.map((p: any) => `${p.name}: ${p.rsType}`).join(', ');
-    };
-
-    // Create camelDefinitionAsync helper (Rust uses async fn style)
-    const camelName = camelCase(method.name);
-    const camelDefinitionAsync = () =>
-      `async fn ${camelName}(${rsParams.toString()}) -> ${rsReturnType}`;
-    (camelDefinitionAsync as any).toString = camelDefinitionAsync;
-
-    // Generate stub return value for non-Result methods
-    // This provides a default value for stub implementations
-    const stubReturn = (() => {
-      if (rsReturnType === 'bool') return 'false';
-      if (rsReturnType === 'String') return 'String::new()';
-      if (rsReturnType.startsWith('Vec<')) return 'Vec::new()';
-      if (rsReturnType.startsWith('i') || rsReturnType.startsWith('u')) return '0';
-      if (rsReturnType === '()') return '()';
-      // Entity types and other complex types
-      return `// Entity type: ${rsReturnType}\n    Default::default()`;
-    })();
-
-    return {
-      ...method,
-      name: toSnakeCase(method.name),
-      implName,
-      pascalName: pascalCase(method.name),
-      rsReturnType,
-      innerReturnType: innerType,
-      useResult,
-      serviceAccessPreamble,
-      serviceVarName: '__service',
-      params: rsParams,
-      camelDefinitionAsync,
-      stubReturn
-    };
-  });
-}
-
-/**
- * Extract the implementation name from the bind-point name.
- * E.g., "bookmark_add_bookmark" -> "add_bookmark" (remove management prefix)
- */
-function extractImplName(bindPointName: string): string {
-  // Find the first underscore that separates management from method
-  // E.g., "bookmark_add_bookmark" -> "add_bookmark"
-  const parts = bindPointName.split('_');
-  if (parts.length >= 2) {
-    // Remove the management prefix (first part)
-    return parts.slice(1).join('_');
-  }
-  return bindPointName;
-}
-
-/**
- * Build Tauri service access preamble based on link metadata.
- *
- * Handles wrapper patterns for struct fields. The order of wrappers in the
- * metadata reflects decorator application order (bottom-to-top), which
- * determines the actual nesting: @rust.Mutex @rust.Option -> Mutex<Option<T>>
- *
- * Supported patterns:
- * - No link: direct access to foundframe
- * - Mutex<Option<T>>: lock mutex, then access Option (most common)
- * - Option<Mutex<T>>: access Option, then lock Mutex
- * - Option<T>: optional services
- * - Mutex<T>: mutex-wrapped services
- */
-function buildTauriServiceAccessPreamble(link: MethodLink | undefined): string[] {
-  if (!link) {
-    // No link - use foundframe directly
-    return ['let __service = foundframe;'];
-  }
-
-  const fieldName = link.fieldName;
-  const wrappers = link.wrappers || [];
-  const lines: string[] = [];
-
-  // Determine wrapper order: decorators apply bottom-to-top
-  // @rust.Mutex @rust.Option thestream = T  ->  Mutex<Option<T>>
-  // So we check if Mutex comes before Option in the array (applied after)
-  const mutexIndex = wrappers.indexOf('Mutex');
-  const optionIndex = wrappers.indexOf('Option');
-  const mutexIsOuter = mutexIndex > optionIndex; // Mutex applied after Option = outer
-
-  if (wrappers.includes('Mutex') && wrappers.includes('Option')) {
-    if (mutexIsOuter) {
-      // Mutex<Option<T>> - lock first, then access Option
-      lines.push(
-        `let __guard = foundframe.${fieldName}.lock().map_err(|_| Error::Other("${fieldName} mutex poisoned".into()))?`
-      );
-      lines.push(
-        `let __service = __guard.as_ref().ok_or_else(|| Error::Other("${fieldName} not initialized".into()))?`
-      );
-    } else {
-      // Option<Mutex<T>> - access Option, then lock
-      lines.push(
-        `let __field = foundframe.${fieldName}.as_ref().ok_or_else(|| Error::Other("${fieldName} not initialized".into()))?`
-      );
-      lines.push(
-        `let __service = __field.lock().map_err(|_| Error::Other("${fieldName} mutex poisoned".into()))?`
-      );
-    }
-  } else if (wrappers.includes('Option')) {
-    // Just Option<T>
-    lines.push(
-      `let __service = foundframe.${fieldName}.as_ref().ok_or_else(|| Error::Other("${fieldName} not initialized".into()))?`
-    );
-  } else if (wrappers.includes('Mutex')) {
-    // Just Mutex<T>
-    lines.push(
-      `let mut __service = foundframe.${fieldName}.lock().map_err(|_| Error::Other("${fieldName} mutex poisoned".into()))?`
-    );
-  } else {
-    // No wrappers - direct access
-    lines.push(`let __service = &foundframe.${fieldName}`);
-  }
-
-  return lines;
-}
-
-function mapToAidlType(tsType: string, isCollection: boolean): string {
-  const baseType = (() => {
-    switch (tsType.toLowerCase()) {
-      case 'string':
-        return 'String';
-      case 'number':
-        return 'int';
-      case 'boolean':
-      case 'bool':
-        return 'boolean';
-      case 'void':
-        return 'void';
-      default:
-        return 'String';
-    }
-  })();
-  return isCollection ? `${baseType}[]` : baseType;
-}
-
-/**
- * Map TypeScript type to Rust type for Tauri platform code.
- * (Local variant that supports collection types)
- */
-function mapToTauriRustType(tsType: string, isCollection: boolean = false): string {
-  const baseType = (() => {
-    switch (tsType.toLowerCase()) {
-      case 'string':
-        return 'String';
-      case 'number':
-        return 'i64';
-      case 'boolean':
-      case 'bool':
-        return 'bool';
-      case 'void':
-        return '()';
-      default:
-        // Preserve entity type names (e.g., "Bookmark", "Post")
-        // instead of converting to String. These should match
-        // the Rust struct names in the generated models.
-        return tsType;
-    }
-  })();
-  return isCollection ? `Vec<${baseType}>` : baseType;
 }
 
 // ============================================================================
@@ -767,9 +230,9 @@ export async function generateCode(options: GenerateOptions): Promise<GeneratedF
   // Detect language from template filename (double extension pattern)
   const language = detectLanguage(templatePath);
 
-  // Transform methods if provided
+  // Transform methods if provided and language is known
   let transformedMethods: unknown[] | undefined;
-  if (options.methods) {
+  if (options.methods && language !== 'unknown') {
     transformedMethods = transformMethods(options.methods, language);
   }
 
@@ -877,6 +340,11 @@ ${overrideInstructions}
 
 /**
  * Transform methods for the target language.
+ * 
+ * Uses the language registry to find the appropriate transform function.
+ * Languages must be imported before this is called to register themselves.
+ * 
+ * @throws Error if language is not registered or has no transform
  */
 function transformMethods(methods: RawMethod[], language: Language): RawMethod[] {
   for (const method of methods) {
@@ -889,28 +357,20 @@ function transformMethods(methods: RawMethod[], language: Language): RawMethod[]
     method.camelName = camelCase(method.name);
   }
 
-  let transformedMethods;
-  switch (language) {
-    case 'kotlin':
-      transformedMethods = transformForKotlin(methods);
-      break;
-    case 'rust':
-      transformedMethods = transformForRust(methods);
-      break;
-    case 'rust_jni':
-      transformedMethods = transformForRustJni(methods);
-      break;
-    case 'aidl':
-      transformedMethods = transformForAidl(methods);
-      break;
-    case 'typescript':
-      transformedMethods = transformForTypeScript(methods);
-      break;
-    default:
-      // No transformation for unknown languages
-      transformedMethods = methods;
+  // Use language registry for transforms
+  const lang = languages.get(language);
+  
+  if (!lang?.codeGen?.transform) {
+    throw new Error(
+      `Language '${language}' not registered or has no transform. ` +
+      `Make sure to import the language definition (e.g., 'import "@o19/spire-loom/warp/rust"').` +
+      `Registered languages: ${languages.getAll().map(l => l.name).join(', ') || '(none)'}`
+    );
   }
+  
+  const transformedMethods = lang.codeGen.transform(methods);
 
+  // Attach filter/map helpers that preserve transformation
   transformedMethods.filter = function (
     filter: (method: RawMethod, index: number, array: RawMethod[]) => boolean
   ): RawMethod[] {
@@ -994,3 +454,5 @@ export async function renderTemplate(options: RenderTemplateOptions): Promise<st
     data: options.data
   });
 }
+
+

@@ -1,7 +1,7 @@
 /**
  * Patches System Tests
  *
- * Tests for the declarative patches feature in defineTreadle.
+ * Tests for the declarative patches feature in declareTreadle.
  * Patches enable idempotent file modifications using marker-based blocks.
  */
 

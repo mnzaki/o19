@@ -22,7 +22,7 @@
  */
 
 import {
-  defineTreadle,
+  declareTreadle,
   generateFromTreadle,
   type OutputSpec
 } from '@o19/spire-loom/machinery/treadle-kit';
@@ -32,7 +32,7 @@ import { addManagementPrefix } from '@o19/spire-loom/machinery/sley';
 // Treadle Definition
 // ============================================================================
 
-export const tauriDesktopPlatformTreadle = defineTreadle({
+export const tauriDesktopPlatformTreadle = declareTreadle({
   name: 'tauri-desktop-platform',
 
   // Tieup treadle - invoked directly via .tieup() in WARP.ts

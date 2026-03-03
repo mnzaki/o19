@@ -19,7 +19,7 @@ export class Tauri<%= managementName %>Adaptor extends <%= extendsClass %> imple
   /**
    * <%= method.description || method.jsName %>
    */
-  async <%= method.jsName %>(<% method.params.forEach(function(param, idx) { %><%= param.name %><% if (param.optional) { %>?<% } %>: <%= param.tsType %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>): Promise<<%= method.returnType %>> {
+  async <%= method.jsName %>(<%- method.params.listWithOptionality %>): Promise<<%= method.returnType %>> {
 <% if (method.crudOperation === 'create') { -%>
     const id = await invoke<<%= method.invokeReturnType || 'number' %>>('<%= method.name %>', {
       <%= method.dataTransform %>,
@@ -32,14 +32,10 @@ export class Tauri<%= managementName %>Adaptor extends <%= extendsClass %> imple
     return result;
 <% } else { -%>
 <% if (method.returnType !== 'void') { -%>
-    return invoke<<%= method.returnType %>>('<%= method.name %>', {
+    return invoke<<%= method.returnType %>>('<%= method.name %>', <%- method.params.invocation %>);
 <% } else { -%>
-    await invoke<void>('<%= method.name %>', {
+    await invoke<void>('<%= method.name %>', <%- method.params.invocation %>);
 <% } -%>
-<% method.params.forEach(function(param) { -%>
-      <%= param.name %>,
-<% }); -%>
-    });
 <% } -%>
   }
 
@@ -49,16 +45,12 @@ export class Tauri<%= managementName %>Adaptor extends <%= extendsClass %> imple
   /**
    * <%= method.description || method.jsName %>
    */
-  async <%= method.jsName %>(<% method.params.forEach(function(param, idx) { %><%= param.name %><% if (param.optional) { %>?<% } %>: <%= param.tsType %><% if (idx < method.params.length - 1) { %>, <% } %><% }); %>): Promise<<%= method.returnType %>> {
+  async <%= method.jsName %>(<%- method.params.listWithOptionality %>): Promise<<%= method.returnType %>> {
 <% if (method.returnType !== 'void') { -%>
-    return invoke<<%= method.returnType %>>('<%= method.name %>', {
+    return invoke<<%= method.returnType %>>('<%= method.name %>', <%- method.params.invocation %>);
 <% } else { -%>
-    await invoke<void>('<%= method.name %>', {
+    await invoke<void>('<%= method.name %>', <%- method.params.invocation %>);
 <% } -%>
-<% method.params.forEach(function(param) { -%>
-      <%= param.invokeExpr || param.name %>,
-<% }); -%>
-    });
   }
 
 <% }); -%>

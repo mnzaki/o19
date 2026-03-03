@@ -57,10 +57,7 @@ class <%- serviceName %> : Service() {
 <% methods.forEach(function(method) { -%>
     /** <%- method.description || method.name %> */
     private external fun native<%- method.pascalName %>(
-        handle: Long<% if (method.params.length > 0) { %>,<% } %>
-        <% method.params.forEach(function(param, idx) { -%>
-        <%= param.name %>: <%- param.ktType %><% if (idx < method.params.length - 1) { %>,<% } %>
-        <% }); %>
+        handle: Long<% if (method.params.length > 0) { %>, <%- method.params.list %><% } %>
     ): <%- method.ktReturnType %>
     
 <% }); -%>
@@ -78,20 +75,11 @@ class <%- serviceName %> : Service() {
         <% methods.forEach(function(method) { -%>
         
         @Throws(RemoteException::class)
-        override fun <%= method.name %>(
-            <% method.params.forEach(function(param, idx) { -%>
-            <%= param.name %>: <%- param.ktType %><% if (idx < method.params.length - 1) { %>,<% } %>
-            <% }); %>
-        ): <%- method.ktReturnType %> {
+        override fun <%= method.name %>(<%- method.params.list %>): <%- method.ktReturnType %> {
             check(nativeHandle != 0L) { 
                 "Service not initialized - ensure service is started before binding" 
             }
-            return native<%- method.pascalName %>(
-                nativeHandle<% if (method.params.length > 0) { %>,<% } %>
-                <% method.params.forEach(function(param, idx) { -%>
-                <%= param.name %><% if (idx < method.params.length - 1) { %>,<% } %>
-                <% }); %>
-            )
+            return native<%- method.pascalName %>(nativeHandle<% if (method.params.length > 0) { %>, <%- method.params.names %><% } %>)
         }
         <% }); -%>
     }

@@ -58,10 +58,7 @@ if (['Bookmark', 'Media', 'Conversation', 'Person', 'Post', 'TheStream'].include
  */
 export interface <%= entityPascal %>ReadPort {
 <%_ for (const method of readMethods) { _%>
-  <%= getCrudMethodName(method, entityPascal, entityCamelName) %>(<%
-  if (method.params.length > 1) { %> data: { <%- method.params %> } <% } else { %>
-    <%- method.params %>
-  <% } %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>>;
+  <%= getCrudMethodName(method, entityPascal, entityCamelName) %>(<%- method.params.listWithOptionality %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>>;
 
 <%_ } _%>
 }
@@ -73,11 +70,11 @@ export interface <%= entityPascal %>ReadPort {
 export interface <%= entityPascal %>WritePort {
 
 <%_ for (const method of writeMethods) { _%>
-  <%= getCrudMethodName(method, entityPascal, entityCamelName) %>(data: { <%- method.params %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>>;
+  <%= getCrudMethodName(method, entityPascal, entityCamelName) %>(data: { <%- method.params.list %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>>;
 <%_ } _%>
 
 <%_ for (const method of deleteMethods) { _%>
-  <%= getCrudMethodName(method, entityPascal, entityCamelName) %>(<%- method.params %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>>;
+  <%= getCrudMethodName(method, entityPascal, entityCamelName) %>(<%- method.params.listWithOptionality %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>>;
 <%_ } _%>
 }
 
@@ -90,6 +87,6 @@ export interface <%= service.portName %> extends <%= entityPascal %>ReadPort, <%
   /**
    * <%= method.description || method.name %>
    */
-  <%= getCrudMethodName(method, entityPascal, entityCamelName) %>(data: { <%- method.params %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>>;
+  <%= getCrudMethodName(method, entityPascal, entityCamelName) %>(data: { <%- method.params.list %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>>;
 <%_ } _%>
 }

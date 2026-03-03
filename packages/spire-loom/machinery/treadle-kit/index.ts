@@ -46,7 +46,7 @@ export {
 // ============================================================================
 
 export {
-  defineTreadle,
+  declareTreadle,
   generateFromTreadle,
   type MatchPattern,
   type OutputSpec,

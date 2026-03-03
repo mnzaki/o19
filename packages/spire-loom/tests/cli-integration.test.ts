@@ -78,20 +78,27 @@ export default {
     }
   });
 
-  it('should handle empty workspace without crashing', async () => {
+  it('should handle missing tsx gracefully', async () => {
     const { exitCode, stderr } = await runCLI([], tempDir);
 
-    // Should either succeed or exit gracefully with a helpful message
-    // Should NOT crash with stack trace
+    // Should report that tsx is missing (peer dependency check)
+    // This is expected behavior - the CLI needs tsx to run TypeScript
+    if (stderr.includes('tsx') && stderr.includes('peer dependency')) {
+      assert.strictEqual(exitCode, 1, 'Should exit with code 1 when tsx is missing');
+      return;
+    }
+
+    // If tsx happens to be available (e.g., hoisted), that's fine too
+    // Just make sure it doesn't crash with a stack trace
     if (
-      stderr.includes('Error [ERR_') ||
       stderr.includes('SyntaxError') ||
-      stderr.includes('TypeError')
+      stderr.includes('TypeError') ||
+      stderr.includes('ReferenceError')
     ) {
       throw new Error(`CLI crashed with error: ${stderr}`);
     }
 
-    // Exit code should be 0 or a documented error code, not a crash
+    // Exit code should be 0 or 1
     assert.ok(
       exitCode === 0 || exitCode === 1,
       `CLI exited with unexpected code ${exitCode}. stderr: ${stderr}`
@@ -143,7 +150,7 @@ export default {
  * Additional test: Verify the actual o19 workspace can be processed
  * This runs in the actual o19 directory
  */
-describe.skip('CLI Integration - o19 Workspace', () => {
+describe('CLI Integration - o19 Workspace', () => {
   const cliPath = path.join(process.cwd(), 'bin', 'spire-loom.js');
   const o19Path = path.join(process.cwd(), '..', '..');
 
@@ -154,11 +161,26 @@ describe.skip('CLI Integration - o19 Workspace', () => {
       return;
     }
 
-    const { exitCode, stderr, stdout } = await runCLIInO19(['--help']);
+    const { exitCode, stderr } = await runCLIInO19([], 5000);
 
-    // --help should always work
-    assert.strictEqual(exitCode, 0, `CLI --help failed. stderr: ${stderr}`);
-    assert.ok(stdout.includes('spire-loom'), 'Help output should mention spire-loom');
+    // Should NOT crash with import errors
+    const crashIndicators = [
+      'Error [ERR_PACKAGE_PATH_NOT_EXPORTED]',
+      'SyntaxError',
+      'TypeError: Cannot',
+      'ReferenceError'
+    ];
+
+    for (const indicator of crashIndicators) {
+      if (stderr.includes(indicator)) {
+        throw new Error(
+          `CLI crashed with ${indicator}.\n\nFull stderr:\n${stderr}`
+        );
+      }
+    }
+
+    // If we get here, the CLI either succeeded or failed gracefully
+    assert.ok(exitCode === 0 || exitCode === 1, `CLI exited with unexpected code ${exitCode}`);
   });
 
   it('should report meaningful error for missing exports instead of crashing', async () => {
@@ -194,6 +216,40 @@ describe.skip('CLI Integration - o19 Workspace', () => {
     assert.ok(exitCode === 0 || exitCode === 1, `CLI exited with unexpected code ${exitCode}`);
   });
 
+  it('should not crash when run from a subdirectory (e.g., foundframe-tauri)', async () => {
+    const subdirPath = path.join(o19Path, 'crates', 'foundframe-tauri');
+    
+    // Only run if subdirectory exists
+    if (!fs.existsSync(subdirPath)) {
+      console.log('  ⚠️  Skipping - foundframe-tauri not found');
+      return;
+    }
+
+    const { exitCode, stderr } = await runCLIInDirectory(subdirPath, [], 10000);
+
+    // Check for crash indicators
+    const crashIndicators = [
+      'Error [ERR_PACKAGE_PATH_NOT_EXPORTED]',
+      'SyntaxError',
+      'TypeError: Cannot',
+      'ReferenceError',
+      'is not a function',
+      'Cannot read properties of undefined'
+    ];
+
+    for (const indicator of crashIndicators) {
+      if (stderr.includes(indicator)) {
+        throw new Error(
+          `CLI crashed with ${indicator} when run from subdirectory.\n\n` +
+            `Full stderr:\n${stderr}`
+        );
+      }
+    }
+
+    // Should succeed (exit 0) or fail gracefully
+    assert.ok(exitCode === 0 || exitCode === 1, `CLI exited with unexpected code ${exitCode}`);
+  });
+
   function runCLIInO19(
     args: string[],
     timeoutMs: number = 30000
@@ -201,6 +257,43 @@ describe.skip('CLI Integration - o19 Workspace', () => {
     return new Promise((resolve) => {
       const proc = spawn('node', [cliPath, ...args], {
         cwd: o19Path,
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      proc.stdout?.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr?.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on('close', (exitCode) => {
+        resolve({ exitCode, stdout, stderr });
+      });
+
+      proc.on('error', (error) => {
+        resolve({ exitCode: -1, stdout, stderr: error.message });
+      });
+
+      setTimeout(() => {
+        proc.kill();
+        resolve({ exitCode: -2, stdout, stderr: 'Timeout' });
+      }, timeoutMs);
+    });
+  }
+
+  function runCLIInDirectory(
+    cwd: string,
+    args: string[],
+    timeoutMs: number = 30000
+  ): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
+    return new Promise((resolve) => {
+      const proc = spawn('node', [cliPath, ...args], {
+        cwd,
         stdio: ['ignore', 'pipe', 'pipe']
       });
 

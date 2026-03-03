@@ -5,9 +5,9 @@
  * Will be restored after DbActor is fully working.
  */
 
-import { defineTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+import { declareTreadle } from '@o19/spire-loom/machinery/treadle-kit';
 
-export const dbEventRouterTreadle = defineTreadle({
+export const dbEventRouterTreadle = declareTreadle({
   name: 'db-event-router',
 
   methods: {

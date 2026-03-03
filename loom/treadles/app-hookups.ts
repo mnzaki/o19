@@ -5,7 +5,7 @@
  * Configurable via warpData to specify app name and settings.
  */
 
-import { defineTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+import { declareTreadle } from '@o19/spire-loom/machinery/treadle-kit';
 
 export interface AppHookupConfig {
   appName: string;
@@ -13,7 +13,7 @@ export interface AppHookupConfig {
   enableIntegrationTests?: boolean;
 }
 
-export const appHookupTreadle = defineTreadle({
+export const appHookupTreadle = declareTreadle({
   name: 'app-hookups',
 
   // Hookups-only treadle - filter out all methods

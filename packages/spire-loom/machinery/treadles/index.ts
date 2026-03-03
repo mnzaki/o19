@@ -57,7 +57,7 @@ export {
 
 // Declarative API
 export {
-  defineTreadle,
+  declareTreadle,
   generateFromTreadle,
   type TreadleDefinition,
   type MatchPattern,
@@ -70,9 +70,6 @@ export {
   discoverTreadles,
   buildMatrixFromTreadles,
   createMatrix,
-  // Legacy (deprecated)
-  createDefaultMatrix,
-  createMatrixWithDiscovery,
   collectSpiralerContributions,
   type DiscoveredTreadle,
   type SpiralerContribution

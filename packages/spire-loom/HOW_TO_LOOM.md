@@ -2,135 +2,541 @@
 
 > *"The warp is your intention; the loom makes it real."*
 
-**⚠️ KIMI NOTICE:** Read this before editing treadles. The loom has patterns. Understanding them prevents cross-cutting. Conservation spiral matters. 🌀
+**⚠️ YOU HAVE A `loom/WARP.ts`. This is not a suggestion. This is your fate should you choose to spire-loom.** 🌀
+
+Every spire-loom project begins with a `loom/WARP.ts` at workspace root. Its presence signals calling in all `loom/*` files, which typically export Management Imprints (subclasses of `loom.Management`that define the boundary-crossing interface). Workspace packages push their declarations into the WARP by having their own `loom/*` files. When looming, You don't really tell it what will be, rather one intuits in WRAP to the loom's reeds ([./machinery/reed](./machinery/reed)), such that the [heddles](./machinery/heddles) vibrate knowingly (patternmatchingly) when the [treadles](./machinery/treadles) are trodden and the weave is in `{package}/spire/`s woven.
 
 ---
 
-## Quick Start (5 Minutes)
+## The Thread™
 
-### 1. Write Your WARP.ts
+Your `loom/WARP.ts` sits at the center. By virtue of being there `loom/` is special, it's meta. It's the conceptual connections between packages in the monorepo and also internals of these packages in many cases of self-spiraling and `.tieup()`s. Workspace packages push their declarations into the workspace declarations. Everything flows from it:
+
+```
+                    ╭───────────────╮
+                    │     YOU       │
+                    │  loom/WARP.ts │ ← It begins here
+                    │ calls loom/*  │
+                    ╰──────┬────────╯
+                           │
+              ╭────────────┼────────────╮
+              │            │            │
+              ▼            ▼            ▼
+        ┌─────────┐  ┌─────────┐  ┌─────────┐
+        │  Core   │  │ Platform│  │  Front  │
+        │  Rust   │  │ Android │  │ TypeScript
+        │         │  │ Desktop │  │   DDD   │
+        │         │  │  Tauri  │  │         │
+        └────┬────┘  └────┬────┘  └────┬────┘
+             │            │            │
+             ╰────────────┼────────────╯
+                          │
+                    ╭─────┴─────╮
+                    │   pnpm    │
+                    │ spire-loom│ ← Run this
+                    ╰─────┬─────╯
+                          │
+              ╭───────────┼───────────╮
+              │           │           │
+              ▼           ▼           ▼
+         ┌────────┐ ┌────────┐ ┌────────┐
+         │ lib.rs │ │service │ │commands│
+         │        │ │.kt     │ │.ts     │
+         └────────┘ └────────┘ └────────┘
+                         │
+                         ▼
+                    ┌─────────┐
+                    │  spire/ │  ← A spire atop your foundations
+                    └─────────┘
+
+            "You wrote WARP.ts. The loom read it.
+       The Thread™ wove; a spire atop your foundations lain."
+```
+
+There are three moments[^1]: **intention** (you write), **architecture** (rings form), **generation** (code emerges).
+
+---
+
+## Intention: Write Your `loom/WARP.ts`
+
+You sit down. You open your editor. You create `loom/WARP.ts`. By its presence, it marks `loom/` special. By virtue of being there did we say this before? Workspace packages push their declarations into the workspace declarations. This is not configuration. You do not declare what shall be—you intuit in WRAP to the loom's reeds, such that the heddles vibrate knowingly (patternmatchingly) when the treadles are [trodden](#the_thread™)
+
+### The Struct
 
 ```typescript
-// loom/WARP.ts - Declare your architecture
+// loom/WARP.ts - Your intention made manifest
 import loom from '@o19/spire-loom';
 
-// Core: Your domain structs
+// Core: Your domain structs (Rust, because you chose Rust)
+// AlmostDid tracks everything you almost did—books almost read,
+// calls almost made, dreams almost pursued. Utterly useless.
+// Like a digital stray that follows you home and does nothing
+// but stare at you with big sad eyes. Your granny can't delete it.
 @loom.rust.Struct
-export class Foundframe {
+export class AlmostDid {
   @loom.rust.Mutex @loom.rust.Option
-  thestream = TheStream;
+  regret_engine = RegretEngine;
+
+  @loom.rust.Mutex @loom.rust.Option
+  guilt_accumulator = GuiltAccumulator;
+
+  @loom.rust.Mutex @loom.rust.Option
+  void_stare = VoidStare;
 }
 
 // Spiral out: Core → Platform → Interface → Front
-export const foundframe = loom.spiral(Foundframe);
-export const android = foundframe.android.foregroundService({ nameAffix: 'radicle' });
-export const desktop = foundframe.desktop.direct();
-export const tauri = loom.spiral(android, desktop).tauri.plugin();
-export const front = tauri.typescript.ddd();
+export const almostDid = loom.spiral(AlmostDid);
+export const android = almostDid.android.foregroundService({ 
+  nameAffix: 'ghostkeeper',
+  notificationChannel: 'guilt-reminders',
+  persistentNotification: true,
+  wakeLock: true
+});
+export const desktop = almostDid.desktop.direct({
+  autoStart: true,
+  minimizeToTray: true,
+  trayIcon: 'sad-eyes.png'
+});
+export const tauri = loom.spiral(android, desktop).tauri.plugin({
+  pluginName: 'almost-did',
+  allowlist: ['fs:read', 'notification:send', 'window:minimize']
+});
+export const front = tauri.typescript.ddd({
+  entityNames: ['Almost', 'Regret', 'Ghost'],
+  aggregateRoots: ['AlmostAggregate'],
+  repositoryPattern: true
+});
 ```
 
-### 2. Write Managements (Imprints)
+You save the file. You have declared. The Thread™ now has your intention.
+
+### The Management (Imprints)
+
+Operations need declaring too. Not implementation—just the imprint:
 
 ```typescript
-// loom/bookmark.ts - Define operations, not implementations
+// loom/regret.ts - Operations, not implementations
+// Tracks the infinite chasm between intention and action
+import loom, { crud } from '@o19/spire-loom';
+import { almostDid } from './WARP.js';
+
 @loom.reach('Global')
-@loom.link(foundframe.inner.core.thestream)
-class BookmarkMgmt extends loom.Management {
-  @loom.crud('create')
-  addBookmark(url: string): void { throw new Error('Imprint only'); }
-  
-  @loom.crud('list')
-  listBookmarks(): string[] { throw new Error('Imprint only'); }
+@loom.link(almostDid.inner.core.regret_engine)
+class RegretMgmt extends loom.Management {
+  @loom.crud.create
+  recordAlmostDid(
+    what: string,
+    howClose: number,  // 0.0 to 1.0, usually 0.99
+    excuses: string[],
+    timestamp: Date
+  ): void { throw new Error('Imprint only'); }
+
+  @loom.crud.read
+  getRegret(id: number): Regret {
+    throw new Error('Imprint only');
+  }
+
+  @loom.crud.read({ by: 'what' })
+  getRegretByWhat(what: string): Regret {
+    throw new Error('Imprint only');
+  }
+
+  @loom.crud.list({ collection: true })
+  listRegrets(
+    limit?: number,
+    offset?: number,
+    filter?: 'all' | 'abandoned' | 'haunting' | 'forgotten'
+  ): Regret[] { throw new Error('Imprint only'); }
+
+  @loom.crud.update
+  reviseExcuses(
+    regretId: number,
+    newExcuses: string[],
+    isPlausible: boolean
+  ): boolean { throw new Error('Imprint only'); }
+
+  @loom.crud.delete_({ soft: true })
+  attemptToForget(regretId: number): boolean { 
+    // Returns false. You cannot forget. The app remembers.
+    throw new Error('Imprint only'); 
+  }
 }
 
-// Associate entities with the management
-@BookmarkMgmt.Entity()  // or @BookmarkMgmt.EntityOptions({ tableName: 'bookmarks' })
-export class Bookmark {
-  id: number; url: string; title: string;
+// Associate entities
+@RegretMgmt.Entity()
+export class Regret {
+  id = crud.field.id();
+  what = crud.field.string();
+  intendedDate = crud.field.int();  // timestamp_ms
+  actualDate = crud.field.int({ nullable: true });  // Always null. That's the point.
+  excuses = crud.field.json<string[]>();
+  guiltLevel = crud.field.string();  // 'mild' | 'moderate' | 'existential' | 'absurdist'
+  hauntingFrequency = crud.field.string();  // 'daily' | 'weekly' | 'hourly' | 'constant'
+  voidStareDuration = crud.field.int();  // milliseconds spent staring into void
+  createdAt = crud.field.createdAt();
+}
+
+// loom/guilt.ts - The guilt accumulator
+import loom, { crud } from '@o19/spire-loom';
+import { almostDid } from './WARP.js';
+
+@loom.reach('Application')
+@loom.link(almostDid.inner.core.guilt_accumulator)
+class GuiltMgmt extends loom.Management {
+  @loom.crud.create
+  accumulateGuilt(
+    source: string,
+    weight: number,  // arbitrary unit, usually 42
+    isRational: boolean  // always false
+  ): void { throw new Error('Imprint only'); }
+
+  @loom.crud.read
+  getGuiltEntry(id: number): GuiltEntry {
+    throw new Error('Imprint only');
+  }
+
+  @loom.crud.list({ collection: true })
+  listGuiltEntries(limit?: number, offset?: number): GuiltEntry[] {
+    throw new Error('Imprint only');
+  }
+
+  @loom.crud.update
+  adjustGuilt(
+    id: number,
+    amount: number,
+    justification: string  // won't help
+  ): boolean { throw new Error('Imprint only'); }
+
+  @loom.crud.delete_({ soft: true })
+  attemptToAbsolve(id: number): boolean {
+    // You cannot absolve guilt. The app remembers.
+    throw new Error('Imprint only');
+  }
+}
+
+@GuiltMgmt.Entity()
+export class GuiltEntry {
+  id = crud.field.id();
+  source = crud.field.string();
+  weight = crud.field.int();
+  timestamp = crud.field.int();  // timestamp_ms
+  isRational = crud.field.boolean();
+  grandmaWouldSay = crud.field.string();
+  createdAt = crud.field.createdAt();
+  updatedAt = crud.field.updatedAt();
+}
+
+// loom/void.ts - The void stares back
+import loom, { crud } from '@o19/spire-loom';
+import { almostDid } from './WARP.js';
+
+@loom.reach('Global')
+@loom.link(almostDid.inner.core.void_stare)
+class VoidStareMgmt extends loom.Management {
+  @loom.crud.create
+  initiateStare(duration: number): void { 
+    // Opens empty screen. User stares. Time passes.
+    // Nothing happens. This is the feature.
+    throw new Error('Imprint only'); 
+  }
+
+  @loom.crud.read
+  getStareSession(id: number): StareSession {
+    throw new Error('Imprint only');
+  }
+
+  @loom.crud.list({ collection: true })
+  listStareSessions(limit?: number, offset?: number): StareSession[] {
+    throw new Error('Imprint only');
+  }
+
+  @loom.crud.update
+  recordEpiphany(id: number, epiphany: string): boolean {
+    // Epiphanies are lost to the void
+    throw new Error('Imprint only');
+  }
+}
+
+@VoidStareMgmt.Entity()
+export class StareSession {
+  id = crud.field.id();
+  startTime = crud.field.int();  // timestamp_ms
+  endTime = crud.field.int({ nullable: true });
+  duration = crud.field.int();  // milliseconds
+  thoughtsHad = crud.field.json<string[]>();  // always empty
+  voidQuality = crud.field.int();  // always perfect (10)
+  createdAt = crud.field.createdAt();
 }
 ```
 
-### 3. Run the Loom
+The loom reads these. It knows what you want. When the treadles are trodden 👣, it will generate the rest.
+
+### Run
 
 ```bash
 pnpm spire-loom
 # Generated code goes to each package's spire/ directory
+# Including: spire/lib.rs, spire/service.kt, spire/commands.ts
+# The app does nothing useful but your granny keeps it installed
 ```
+
+You run this command. The Thread™ moves from intention to architecture to generation. Treadles are trodden 👣, heddles lift, the shuttle flies. Code appears in `spire/` directories. Your WARP.ts has been woven.
 
 ---
 
-## Rings: How They Connect
+## Architecture: Rings Connect
 
-Rings wrap other rings. Different spiralers create different connection patterns:
+Once you have declared, structure emerges. Rings wrap rings. This is the 'warp' phase—static, architectural, connecting.
+
+### Connection Patterns
 
 ```typescript
 // Pattern 1: Simple wrapping
-const android = foundframe.android.foregroundService({...});
-// Creates: AndroidSpiraler → foundframe
+const android = almostDid.android.foregroundService({
+  nameAffix: 'ghostkeeper',
+  notificationChannel: 'guilt-reminders',
+  persistentNotification: true,
+  wakeLock: true,
+  foregroundServiceType: 'dataSync'
+});
+// Creates: AndroidSpiraler → almostDid
 
 // Pattern 2: Multi-platform aggregation (Tauri)
-const tauri = loom.spiral(android, desktop).tauri.plugin();
+const tauri = loom.spiral(android, desktop).tauri.plugin({
+  pluginName: 'almost-did',
+  allowlist: [
+    'fs:read', 
+    'notification:send', 
+    'window:minimize',
+    'window:show',
+    'process:relaunch'
+  ],
+  pluginConfig: {
+    guiltInterval: 3600,  // seconds
+    voidStareEnabled: true,
+    grandmaMode: true  // extra gentle, extra sad
+  }
+});
 // Creates: TauriSpiraler → [android, desktop]
 
-// Pattern 3: Direct typeScript front
-const front = tauri.typescript.ddd();
+// Pattern 3: Direct TypeScript front
+const front = tauri.typescript.ddd({
+  entityNames: ['Almost', 'Regret', 'Ghost', 'Guilt', 'Void'],
+  aggregateRoots: ['AlmostAggregate', 'GuiltAggregate'],
+  repositoryPattern: true,
+  serviceLayer: true,
+  commandHandlers: true,
+  queryHandlers: true
+});
 // Creates: TsCore → tauri
 
 // Pattern 4: Tieup treadles (custom generators)
-const front = tauri.typescript.ddd().tieup({
-  treadles: [{ treadle: myTreadle, warpData: {...} }]
+import { declareTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+
+const accumulateGuilt = declareTreadle({
+  name: 'accumulate-guilt',
+  matches: [{ current: 'TsCore', previous: 'TauriSpiraler' }],
+  methods: { filter: 'front', pipeline: [] },
+  outputs: [
+    { template: 'guilt/registry.ts.ejs', path: 'src/guilt/registry.ts', language: 'typescript' },
+    { template: 'guilt/ledger.ts.ejs', path: 'src/guilt/ledger.ts', language: 'typescript' }
+  ],
+  data: (ctx) => ({
+    guiltLevels: ctx.config.guiltLevels,
+    voidStareThemes: ctx.config.voidStareThemes,
+    excuses: ctx.config.excuses
+  })
+});
+
+const front = tauri.typescript.ddd({
+  entityNames: ['Almost', 'Regret'],
+  aggregateRoots: ['AlmostAggregate']
+}).tieup({
+  treadles: [{
+    treadle: accumulateGuilt,
+    warpData: {
+      guiltLevels: ['mild', 'moderate', 'existential', 'absurdist'],
+      voidStareThemes: ['midnight', 'abyss', 'grandma-disappointed'],
+      excuses: ['too busy', 'forgot', 'was scared', 'next time for sure']
+    }
+  }]
 });
 ```
 
-Access inner rings: `foundframe.inner.core.thestream`
+You can reach inward: `almostDid.inner.core.regret_engine`. The architecture is a graph. You navigate it.
 
----
+### Package WARP Overrides 🌀
 
-## Package WARP Overrides 🌀
-
-Packages can override their own spiral configuration. When the loom runs, it auto-discovers `loom/WARP.ts` in each package directory and merges configurations.
-
-### How It Works
+Your packages can have their own WARP.ts. The loom discovers them:
 
 ```typescript
-// workspace/loom/WARP.ts - Main architecture, just a plain unconfigured spiral
-export const front = loom.spiral()
-  .tieup({ treadles: [{ treadle: mainTreadle }] });  // Runs first
+// workspace/loom/WARP.ts - Main architecture
+// import { defineTreadle } from '@o19/spire-loom/machinery/treadle-kit';
 
-// workspace/packages/foundframe-front/loom/WARP.ts - Package override
-export const front = loom.spiral.typescript.ddd()
-  .tieup({ treadles: [{ treadle: packageTreadle }] });  // Runs second
+const weaveFoundation = declareTreadle({
+  name: 'weave-foundation',
+  matches: [{ current: 'SpiralRing', previous: 'CoreRing' }],
+  methods: { filter: 'core', pipeline: [] },
+  outputs: [
+    { template: 'foundation/prelude.rs.ejs', path: 'src/lib.rs', language: 'rust' }
+  ],
+  hookups: [
+    { path: 'Cargo.toml', dependencies: { serde: '^1.0', chrono: '^0.4' } }
+  ]
+});
+
+export const front = loom.spiral()
+  .tieup({ 
+    treadles: [{
+      treadle: weaveFoundation,
+      warpData: {
+        guiltAccumulationRate: 1.0,
+        voidStareDefaultDuration: 5000,
+        grandmaQuotes: ['Bless your heart', 'You tried', 'Maybe tomorrow']
+      }
+    }] 
+  });  // Runs first
+
+// workspace/packages/almostdid-mobile/loom/WARP.ts - Package override
+// import { defineTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+
+const hauntLockScreen = declareTreadle({
+  name: 'haunt-lock-screen',
+  matches: [{ current: 'AndroidSpiraler', previous: 'RustCore' }],
+  methods: { filter: 'platform', pipeline: [] },
+  outputs: [
+    { template: 'android/notification.kt.ejs', path: 'src/notification.kt', language: 'kotlin' },
+    { template: 'android/service.kt.ejs', path: 'src/service.kt', language: 'kotlin' }
+  ],
+  hookups: [
+    { path: 'AndroidManifest.xml', permissions: ['POST_NOTIFICATIONS', 'FOREGROUND_SERVICE'] }
+  ]
+});
+
+export const front = loom.spiral.typescript.ddd({
+  entityNames: ['Almost', 'Regret', 'MobileGuilt'],
+  aggregateRoots: ['AlmostAggregate']
+}).tieup({ 
+  treadles: [{
+    treadle: hauntLockScreen,
+    warpData: {
+      mobileNotifications: true,
+      lockScreenGuilt: true,
+      vibrationPattern: 'sad-long'
+    }
+  }] 
+});  // Runs second
 
 // Result: Both treadles execute; package ring replaces main ring
-// Tieups merge (main first, package second); package can fully redefine
 ```
 
-### Use Cases
+#### Override Patterns
 
 ```typescript
-// Override 1: Custom package structure
+// Override 1: Custom structure
+// import { defineTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+
+const stareIntoVoid = declareTreadle({
+  name: 'stare-into-void',
+  matches: [{ current: 'TsCore', previous: 'TauriSpiraler' }],
+  methods: { filter: 'front', pipeline: [] },
+  outputs: [
+    { template: 'void/void.yaml.ejs', path: 'config/void.yaml', language: 'yaml' },
+    { template: 'void/component.ts.ejs', path: 'src/void/component.ts', language: 'typescript' }
+  ],
+  hookups: [
+    { path: 'src/main.ts', imports: ['import { voidConfig } from "./config/void";'] }
+  ]
+});
+
 export const front = loom.spiral(loom.tsCore(), {
-  packagePath: 'custom/path',  // Different output location
+  packagePath: 'packages/almostdid-void',
+  language: 'typescript',
+  outputDir: 'src/spire'
+}).tieup({ 
+  treadles: [{
+    treadle: stareIntoVoid,
+    warpData: {
+      voidTypes: ['existential', 'bureaucratic', 'grandma-sad'],
+      stareSounds: ['silence.mp3', 'distant-wind.mp3', 'sigh.mp3']
+    }
+  }] 
+});
+
+// Override 2: Additional tieups
+// import { defineTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+
+const dispenseGrandmaWisdom = declareTreadle({
+  name: 'dispense-grandma-wisdom',
+  matches: [{ current: 'TsCore', previous: 'TauriSpiraler' }],
+  methods: { filter: 'front', pipeline: [] },
+  outputs: [
+    { template: 'wisdom/quotes.json.ejs', path: 'assets/quotes.json', language: 'json' },
+    { template: 'wisdom/service.ts.ejs', path: 'src/wisdom/service.ts', language: 'typescript' }
+  ],
+  data: (ctx) => ({ quoteCount: ctx.config.quoteCount })
+});
+
+export const front = tauri.typescript.ddd({
+  entityNames: ['Almost', 'Regret'],
+  aggregateRoots: ['AlmostAggregate']
+}).tieup({ 
+  treadles: [
+    { treadle: accumulateGuilt, warpData: { maxGuilt: 9000 } },
+    { treadle: stareIntoVoid, warpData: { stareDuration: 10000 } },
+    { treadle: dispenseGrandmaWisdom, warpData: { quoteCount: 47 } }
+  ] 
+});
+
+// Override 3: Different generators entirely
+// import { defineTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+
+const embraceAbsurdity = declareTreadle({
+  name: 'embrace-absurdity',
+  matches: [{ current: 'SpiralRing', previous: 'CoreRing' }],
+  methods: { filter: 'front', pipeline: [] },
+  outputs: [
+    { template: 'absurd/ui.vue.ejs', path: 'src/components/AbsurdUi.vue', language: 'vue' },
+    { template: 'absurd/store.ts.ejs', path: 'src/store/absurd.ts', language: 'typescript' }
+  ],
+  data: (ctx) => ({ kafkaFactor: ctx.config.kafkaFactor })
+});
+
+const weighTheSoul = declareTreadle({
+  name: 'weigh-the-soul',
+  matches: [{ current: 'SpiralRing', previous: 'CoreRing' }],
+  methods: { filter: 'front', pipeline: [] },
+  outputs: [
+    { template: 'soul/visualization.svg.ejs', path: 'assets/soul.svg', language: 'svg' },
+    { template: 'soul/meter.ts.ejs', path: 'src/soul/meter.ts', language: 'typescript' }
+  ],
+  data: (ctx) => ({ color: ctx.config.color })
+});
+
+const amplifySilence = declareTreadle({
+  name: 'amplify-silence',
+  matches: [{ current: 'SpiralRing', previous: 'CoreRing' }],
+  methods: { filter: 'front', pipeline: [] },
+  outputs: [
+    { template: 'silence/player.ts.ejs', path: 'src/audio/player.ts', language: 'typescript' },
+    { template: 'silence/manifest.json.ejs', path: 'assets/manifest.json', language: 'json' }
+  ],
+  data: (ctx) => ({ ambientTracks: ctx.config.ambientTracks })
+});
+
+export const front = loom.spiral(myCustomCore(), {
+  packagePath: 'packages/almostdid-experimental',
   language: 'typescript'
-}).tieup({ treadles: [customStructureTreadle] });
-
-// Override 2: Additional tieups without redefining ring
-export const front = tauri.typescript.ddd()
-  .tieup({ treadles: [{ treadle: extraAdaptor }] });
-// ^ Merges with main WARP.ts tieups; both run
-
-// Override 3: Completely different generator set
-export const front = loom.spiral(myCustomCore())
-  .tieup({
-    treadles: [
-      { treadle: vueTreadle },
-      { treadle: viteTreadle },
-      { treadle: piniaTreadle }
-    ]
-  });
+}).tieup({
+  treadles: [
+    { treadle: embraceAbsurdity, warpData: { kafkaFactor: 0.99 } },
+    { treadle: weighTheSoul, warpData: { color: '#8B4513' } },
+    { treadle: amplifySilence, warpData: { ambientTracks: ['void1.mp3', 'void2.mp3'] } }
+  ]
+});
 ```
 
-### Resolution Order
+#### Resolution Order
 
 1. **Main WARP.ts** loads → rings created, lazy tieups stored
 2. **Metadata computed** → `packagePath` determined from export name
@@ -138,70 +544,97 @@ export const front = loom.spiral(myCustomCore())
 4. **Tieups merged** → main tieups + package tieups (concatenated)
 5. **Final ring used** → package ring replaces main ring for that export
 
-> **🌀 Rule:** Package WARPs are always loaded when present. No opt-in needed. Merge strategy: tieups concatenate; ring replaces.
+> **🌀 Rule:** Package WARPs are always loaded when present. No opt-in. Tieups concatenate; ring replaces.
 
-### Debugging
+#### Debugging
 
 ```bash
-# See which package WARPs are loaded
 DEBUG_PACKAGE_WARP=1 pnpm spire-loom
-# Output: "🌀 Package WARP: front from packages/foundframe-front/loom/WARP.ts"
+# Output: "🌀 Package WARP: front from packages/almostdid-mobile/loom/WARP.ts"
+# Your grandma sees this and says "Bless its heart, it found the package"
 ```
 
 ---
 
-## Writing Treadles
+## Generation: Write Treadles
 
-Treadles map architectural connections to file generation tasks. They receive metadata from the WARP.ts graph and generate/modify files.
+The architecture stands. Now motion—👣 treadles execute. This is the 'weave' phase. Your WARP.ts declared the structure; now treadles are **trodden** and code flows forth.
 
-### Basic Structure
+### Basic Treadle
+
+A developer named Alex once spent three days writing boilerplate. Then Alex discovered treadles 👣—foot pedals of the loom that lift the heddles when stepped upon. Alex now writes one treadle and generates everything. Alex is happier. You can be Alex.
 
 ```typescript
-// loom/treadles/my-treadle.ts
-import { defineTreadle, generateFromTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+// loom/treadles/guilt-registry.ts
+import { declareTreadle, generateFromTreadle } from '@o19/spire-loom/machinery/treadle-kit';
 
-export const myTreadle = defineTreadle({
-  name: 'my-treadle',  // Used for marker scoping
-  
-  // Optional: Auto-run when this edge appears in WARP.ts
-  // Matches: {Spiraler}.{spiralingMethod} -> {Layer.name}
+export const weaveGuiltRegistry = declareTreadle({
+  name: 'weave-guilt-registry',
+
+  // Match: when this edge appears in WARP.ts, this treadle is trodden 👣
   matches: [{ current: 'TauriSpiraler.plugin', previous: 'RustCore' }],
-  
-  // Method collection: filter by reach, transform via pipeline
+
+  // Method collection
   methods: {
     filter: 'platform',  // 'core' | 'platform' | 'front'
     pipeline: [addManagementPrefix()]
   },
-  
-  // Generate files (each output can have its own context: { entity, method, ... })
+
+  // Generate files
   outputs: [
-    { template: 'my/lib.rs.ejs', path: 'src/lib.rs', language: 'rust' }
-  ],
-  
-  // Hookups: declarative modifications to existing files
-  hookups: [
-    // Cargo.toml dependencies
-    { path: 'Cargo.toml', dependencies: { serde: '^1.0' } },
-    
-    // TypeScript class method injection
     { 
+      template: 'guilt/registry.ts.ejs', 
+      path: 'src/guilt/registry.ts', 
+      language: 'typescript' 
+    },
+    { 
+      template: 'guilt/accumulator.rs.ejs', 
+      path: 'src/guilt/accumulator.rs', 
+      language: 'rust' 
+    },
+    { 
+      template: 'guilt/broadcast.kt.ejs', 
+      path: 'src/guilt/broadcast.kt', 
+      language: 'kotlin' 
+    }
+  ],
+
+  // Hookups: modify existing files
+  hookups: [
+    { 
+      path: 'Cargo.toml', 
+      dependencies: { 
+        serde: '^1.0',
+        chrono: '^0.4',
+        'guilt-engine': { version: '^0.1.0', optional: true }
+      } 
+    },
+    {
       path: 'src/db-router.ts',
       classes: {
         DbRouter: {
-          methods: {
-            init: { prepend: ['this.generated = true;'] }
+          methods: { 
+            init: { 
+              prepend: [
+                'this.guiltInitialized = true;',
+                'this.voidStareReady = false;'
+              ] 
+            }
           }
         }
       }
     },
-    
-    // Rust impl block modification
     {
       path: 'src/handler.rs',
       impls: {
-        'EventHandler': {
-          methods: {
-            'new': { prepend: ['// Generated setup'] }
+        'GuiltHandler': {
+          methods: { 
+            'new': { 
+              prepend: [
+                '// Initialize guilt accumulator',
+                'self.guilt_level = 0.0;'
+              ] 
+            }
           }
         }
       }
@@ -209,99 +642,149 @@ export const myTreadle = defineTreadle({
   ]
 });
 
-export default generateFromTreadle(myTreadle);
+// The treadle waits, foot poised above the pedal 👣
+// When woven, it will lift its heddles and the pattern emerges
+export default generateFromTreadle(weaveGuiltRegistry);
 ```
 
-> **🌀 Rule of Thumb:** Hookup configs accept arrays of lines OR arrays of objects:
+> **🌀 Rule:** Hookup configs accept arrays of lines OR arrays of objects:
 > ```typescript
-> hookups: [{ exports: ["export * from '...';", "export ..."] }]
+> hookups: [{ exports: ["export * from './guilt';", "export * from './regret';"] }]
 > // OR
-> hookups: [{ exports: [{ source: '...', star: true }] }]
+> hookups: [{ exports: [{ source: './guilt', star: true }, { source: './regret', star: true }] }]
 > ```
 
-### Dynamic Outputs (Per-Entity Generation)
+### Dynamic Outputs
+
+Generate one file per entity:
 
 ```typescript
 outputs: [(ctx) => {
-  // Access warpData from .tieup()
-  const config = ctx.config as { entities: string[] };
-  
-  // Generate one file per entity
-  return config.entities.map(entity => ({
-    template: 'adaptor.ts.ejs',
-    path: `src/adaptors/${entity.toLowerCase()}.ts`,
+  const config = ctx.config as { 
+    guiltLevels: string[];
+    voidStareThemes: string[];
+    excuses: string[];
+  };
+
+  // Generate a guilt component for each level
+  return config.guiltLevels.map(level => ({
+    template: 'guilt/ledger.ts.ejs',
+    path: `src/guilt/components/${level}.ts`,
     language: 'typescript',
-    // Per-output context merged with main data
-    context: { 
-      entity: { name: entity, pascal: toPascal(entity) }
+    context: {
+      level: { 
+        name: level, 
+        pascal: toPascal(level),
+        color: getGuiltColor(level),
+        grandmaQuote: getRandomGrandmaQuote()
+      }
     }
   }));
 }]
 ```
 
-### Method Queries (APP-009)
+### Method Queries
+
+Query your managements:
 
 ```typescript
 data: (ctx) => {
-  // Classic API - simple access
+  // Classic API
   const creates = ctx.methods?.creates;
-  const entities = ctx.entities?.withFields();  // @Mgmt.Entity() data
-  
-  // Query API - chainable filters
-  const authCreates = ctx.query?.methods
+  const entities = ctx.entities?.withFields();
+
+  // Query API - chainable
+  const guiltCreates = ctx.query?.methods
     .crud('create')
-    .tag('auth:required')
-    .management('BookmarkMgmt')
+    .tag('guilt:accumulating')
+    .management('GuiltMgmt')
     .all;
-  
-  // Pre-filtered entry points
-  const bookmarkReads = ctx.query?.reads
-    .management('BookmarkMgmt')
+
+  const regretReads = ctx.query?.reads
+    .management('RegretMgmt')
     .all;
-  
-  return { authCreates, bookmarkReads, entities };
+
+  const hauntingRegrets = ctx.query?.methods
+    .tag('haunting:yes')
+    .byManagement();
+
+  return { 
+    guiltCreates, 
+    regretReads, 
+    hauntingRegrets,
+    entities,
+    totalGuilt: calculateTotalGuilt(guiltCreates)
+  };
 }
 ```
 
-### Tieup Style (No Matches Needed)
+### Tieup Style (Direct Invocation)
+
+No matches needed—invoke directly from WARP.ts:
 
 ```typescript
 // In WARP.ts
-export const front = tauri.typescript.ddd().tieup({
+export const front = tauri.typescript.ddd({
+  entityNames: ['Almost', 'Regret', 'Guilt'],
+  aggregateRoots: ['AlmostAggregate']
+}).tieup({
   treadles: [{
-    treadle: myTreadle,
-    warpData: {  // Passed as ctx.config
-      entities: ['Bookmark', 'Media'],
-      operations: ['create', 'read']
+    treadle: accumulateGuilt,
+    warpData: {
+      guiltLevels: ['mild', 'moderate', 'existential', 'absurdist'],
+      voidStareThemes: ['midnight', 'abyss', 'grandma-disappointed'],
+      excuses: [
+        'too busy',
+        'forgot', 
+        'was scared',
+        'next time for sure',
+        'the stars were not aligned',
+        'my cat looked sad'
+      ],
+      grandmaQuotes: [
+        'Bless your heart',
+        'You tried',
+        'Maybe tomorrow',
+        'The void accepts all'
+      ]
     }
   }]
 });
 
 // In treadle
 defineTreadle({
-  name: 'my-treadle',
-  // No matches needed - invoked directly via .tieup()
+  name: 'guilt-dashboard',
   methods: { filter: 'front', pipeline: [] },
   data: (ctx) => {
-    const config = ctx.config as { entities: string[] };
-    return { entities: config.entities };  // Shared with all outputs/patches
+    const config = ctx.config as { 
+      guiltLevels: string[];
+      grandmaQuotes: string[];
+    };
+    return { 
+      levels: config.guiltLevels,
+      quotes: config.grandmaQuotes,
+      totalAccumulated: 0  // starts at 0, only goes up
+    };
   },
-  // Per-item context: each output gets its own `context.entity`
   outputs: (ctx) => ctx.entities?.all.map(e => ({
-    template: 'entity.rs.ejs',
-    path: `entities/${e.name}.rs`,
-    context: { entity: e }  // Template receives THIS entity
+    template: 'schema.ts.ejs',
+    path: `entities/${e.name.toLowerCase()}-guilt.ts`,
+    context: { 
+      entity: e,
+      guiltColor: '#8B4513',
+      voidEmoji: '🕳️'
+    }
   })) || []
 });
 ```
 
 ---
 
-## Tools Reference (Extension Essentials)
+## Tools Reference
 
-### Stringing (machinery/stringing.ts)
+Utilities for treadle authors.
 
-Cross-cutting utilities for name transformations:
+### Stringing
 
 ```typescript
 import {
@@ -313,139 +796,127 @@ import {
   addAidlTypesToMethods
 } from '@o19/spire-loom/machinery/stringing';
 
-// Service naming builder
-const naming = buildServiceNaming('foundframe', 'radicle');
-// → { serviceName: 'FoundframeRadicleService', interfaceName: 'IFoundframeRadicle', ... }
+const naming = buildServiceNaming('almostdid', 'ghostkeeper');
+// → { 
+//   serviceName: 'AlmostdidGhostkeeperService', 
+//   interfaceName: 'IAlmostdidGhostkeeper',
+//   binderName: 'AlmostdidGhostkeeperBinder',
+//   aidlName: 'IAlmostdidGhostkeeper.aidl'
+// }
 ```
 
-### Sley (machinery/sley) - Method Pipeline
-
-Transform and filter management methods:
+### Sley (Method Pipeline)
 
 ```typescript
 import {
-  // Translations
-  addManagementPrefix,     // bookmark_addBookmark → bookmark_add_bookmark
-  crudInterfaceMapping,    // Standardize CRUD interface names
-  mapTypes,                // { 'Url': 'string' }
-  
-  // Filters
+  addManagementPrefix,     // regret_recordAlmostDid → regret_record_almost_did
+  crudInterfaceMapping,
+  mapTypes,
   tagFilter,
   crudOperationFilter,
-  
-  // Grouping
   groupByManagement,
   groupByCrud,
-  
-  // Pipeline
   MethodPipeline
 } from '@o19/spire-loom/machinery/sley';
 
-// Pipeline pattern
 const pipeline = new MethodPipeline()
   .translate(addManagementPrefix())
-  .translate(crudInterfaceMapping());
+  .translate(crudInterfaceMapping())
+  .filter(tagFilter('guilt:accumulating'))
+  .transform(mapTypes({
+    'GuiltLevel': 'i32',
+    'Regret': 'RegretEntry'
+  }));
 
 const methods = pipeline.process(rawMethods);
 ```
 
-### Treadle Kit (machinery/treadle-kit)
-
-Foundation for building treadles:
+### Treadle Kit
 
 ```typescript
 import {
-  // Declarative API
   defineTreadle,
   generateFromTreadle,
-  
-  // Context methods
   toRawMethod,
   buildContextMethods,
-  
-  // Naming builders
   buildAndroidPackageData,
   buildTauriPluginNaming,
-  
-  // Imperative (for custom logic)
   createTreadleKit
 } from '@o19/spire-loom/machinery/treadle-kit';
+
+// Create a kit for guilt-related treadles
+const guiltKit = createTreadleKit({
+  prefix: 'guilt',
+  defaultTemplateDir: 'loom/bobbin/guilt',
+  defaultWarpData: {
+    guiltLevels: ['mild', 'moderate', 'existential', 'absurdist'],
+    grandmaMode: true
+  }
+});
 ```
 
-### Query Builder (machinery/sley/query)
-
-Chainable method queries:
+### Query Builder
 
 ```typescript
-import {
-  createQueryAPI,
-  type BoundQuery,
-  type QueryAPI
-} from '@o19/spire-loom/machinery/sley';
+import { createQueryAPI } from '@o19/spire-loom/machinery/sley';
 
-// Available in treadle data/outputs via ctx.query
 ctx.query?.methods
   .crud('create', 'update')
-  .tag('auth:required')
-  .byManagement();  // Map<string, RawMethod[]>
+  .tag('guilt:accumulating', 'haunting:yes')
+  .byManagement();
 
-// Access entities via ctx.entities
-ctx.entities?.byManagement().get('BookmarkMgmt');  // EntityMetadata[]
-ctx.entities?.readOnly;  // Entities with readOnly: true
+ctx.entities?.byManagement().get('RegretMgmt');
+ctx.entities?.readOnly;
+ctx.entities?.withFields(['id', 'what', 'guiltLevel']);
 ```
 
 ---
 
 ## Templates
 
-Templates use EJS. Place custom templates in `loom/bobbin/` (overrides builtin):
+EJS templates. Override builtins in `loom/bobbin/`:
 
 ```
 loom/bobbin/
-  kysely/
-    adaptor.ts.ejs    ← Custom template
+  guilt/
+    registry.ts.ejs     ← Custom guilt registry/store
+  regret/
+    catalog.ts.ejs      ← Regret catalog/index
+  void/
+    void.yaml.ejs       ← The void configuration
   tauri/
-    commands.ts.ejs   ← Overrides builtin
+    manifest.json.ejs   ← Override
 ```
 
-Lookup order: `loom/bobbin/` → `machinery/bobbin/`
+Lookup: `loom/bobbin/` → `machinery/bobbin/`
 
 ### Template Data
 
 ```ejs
-// Access data passed from treadle
-export class <%= entity.pascal %>Service {
+export class <%= entity.pascal %>GuiltService {
   <% methods.forEach(m => { -%>
   async <%= m.name %>(): Promise<<%= m.returnType %>> {
-    // Implementation
+    // Grandma would say: "<%= m.grandmaQuote || 'Bless your heart' %>"
+    <%= m.stubReturn %>
   }
   <% }) -%>
 }
 
-// Access method link metadata (from @loom.link() decorator)
 <% methods.forEach(m => { -%>
-  // m.link.fieldName tells you which struct field this method targets
-  // e.g., 'thestream' or 'device_manager' for foundframe-specific routing
-  <% if (m.link && m.link.fieldName === 'thestream') { -%>
-    // Route to TheStream trait implementation
-  <% } else if (m.link && m.link.fieldName === 'device_manager') { -%>
-    // Route to DeviceManager
+  <% if (m.link?.fieldName === 'regret_engine') { -%>
+    // Route to RegretEngine for guilt processing
+    // This will definitely make you feel worse
   <% } -%>
 <% }) -%>
 ```
 
 ### Method Helpers
 
-Methods come with pre-computed helpers for common patterns:
-
 ```ejs
-// Stub return values for mock implementations
 <% methods.forEach(m => { -%>
   fn <%= m.name %>() -> <%= m.rsReturnType %> {
-    // m.stubReturn provides appropriate default for the type:
-    // Rust: 'String::new()', 'Vec::new()', 'Default::default()'
-    // TypeScript: "'', 0, false, []"
-    // Kotlin: '"", 0, false, emptyList()'
+    // m.stubReturn: 'String::new()', 'Vec::new()', 'Default::default()'
+    // Generate guilt entry
     <%= m.stubReturn %>
   }
 <% }) -%>
@@ -453,47 +924,79 @@ Methods come with pre-computed helpers for common patterns:
 
 ---
 
-## Hookups: Advanced File Modification
+## Hookups
 
-Declarative modifications to external files (Cargo.toml, AndroidManifest.xml, source files):
+Modify existing files:
 
 ```typescript
 hookups: [
-  // TypeScript: class methods and imports
   {
     path: '{packageDir}/src/router.ts',
-    imports: ['import { handler } from "./generated";'],
+    imports: [
+      'import { guiltHandler } from "./guilt/generated";',
+      'import { regretRouter } from "./regret/routes";',
+      'import { voidStare } from "./void/stare";'
+    ],
     classes: {
       Router: {
-        fields: ['private initialized = false;'],
+        fields: [
+          'private guiltLevel = 0;',
+          'private grandmaMode = true;',
+          'private voidStareActive = false;'
+        ],
         methods: {
-          init: { prepend: ['this.initialized = true;'] },
-          destroy: { append: ['cleanup();'] }
+          init: { 
+            prepend: [
+              'this.guiltLevel = calculateInitialGuilt();',
+              'this.grandmaMode = checkGrandmaSettings();'
+            ] 
+          },
+          destroy: { 
+            append: [
+              'cleanupGuilt();',
+              'console.log("Grandma would be disappointed");'
+            ] 
+          }
         },
-        newMethods: ['generatedRoute() { return "/api"; }']
+        newMethods: [
+          'accumulateGuilt(amount: number) { this.guiltLevel += amount; }',
+          'getGrandmaQuote() { return "Bless your heart"; }'
+        ]
       }
     }
   },
-  
-  // Rust: impl blocks and standalone functions
   {
     path: '{packageDir}/src/lib.rs',
     impls: {
-      'MyService': {
-        methods: { 'new': { prepend: ['// Setup'] } }
+      'GuiltService': {
+        methods: { 
+          'new': { 
+            prepend: [
+              '// Initialize guilt accumulator',
+              'self.guilt_level = 0.0;',
+              'self.grandma_quotes = vec!["Bless your heart", "You tried"];'
+            ] 
+          }
+        }
       }
     },
     functions: {
-      'main': { append: ['println!("Done");'] }
+      'main': { 
+        append: [
+          'println!("AlmostDid initialized");',
+          'println!("Your regrets are safe with us");'
+        ] 
+      }
     }
   },
-  
-  // File-block: template-based block insertion (patch replacement)
-  // Language auto-detected from file extension (.rs → rust, .ts → typescript, etc.)
   {
     path: '{packageDir}/src/db.rs',
-    template: 'rust/db_commands.rs.ejs',
-    context: { entities: ctx.entities?.all },
+    template: 'rust/accumulator.rs.ejs',
+    context: { 
+      entities: ctx.entities?.all,
+      guiltLevels: ['mild', 'moderate', 'existential', 'absurdist'],
+      grandmaMode: true
+    },
     position: { after: 'use sqlx::' }
   }
 ]
@@ -501,31 +1004,23 @@ hookups: [
 
 ### Patches (Deprecated)
 
-**⚠️ `patches` is deprecated. Use `hookups` with `language` + `template` instead.**
-
-Old pattern → New pattern:
 ```typescript
 // Old (deprecated)
-patches: [{
-  type: 'ensureBlock',
-  targetFile: 'src/lib.rs',
-  marker: 'spire-imports',
-  template: 'imports.rs.ejs',
-  language: 'rust'
-}]
+patches: [{ type: 'ensureBlock', targetFile: 'src/lib.rs', ... }]
 
-// New (hookup) - language auto-detected from .rs extension
-hookups: [{
-  path: 'src/lib.rs',
-  template: 'imports.rs.ejs'
+// New (hookup) - auto-detects language from extension
+hookups: [{ 
+  path: 'src/lib.rs', 
+  template: 'guilt/prelude.rs.ejs',
+  context: { guiltEnabled: true }
 }]
 ```
 
 ---
 
-## Key Principles
+## Principles
 
-1. **WARP.ts is executable** - It builds the spiral graph at runtime
+1. **Your `loom/WARP.ts` is executable** - It builds the spiral graph at runtime
 2. **Managements are imprints** - Define interfaces, not implementations
 3. **Entities decorate Managements** - `@Mgmt.Entity` links data to operations
 4. **The loom generates to `spire/`** - Isolated from hand-written code
@@ -533,10 +1028,24 @@ hookups: [{
 6. **Tieup treadles for extensions** - Attach via `.tieup()` with `warpData`
 7. **Workspace templates override builtins** - Place in `loom/bobbin/`
 8. **Query API for complex filtering** - Chainable: `.crud().tag().management()`
-9. **Hookups modify external files** - `patches` deprecated; use declarative hookups with method-level targeting
+9. **Hookups modify external files** - `patches` deprecated; use declarative hookups
 
 ---
 
-*See also: [DEV.md](DEV.md) for development details • [GLOSSARY.md](GLOSSARY.md) for terminology*
+*See also: [HOW_TO_META_LOOM.md](HOW_TO_META_LOOM.md) for The Thread™ revealed • [DEV.md](DEV.md) for development details • [GLOSSARY.md](GLOSSARY.md) for terminology*
 
-> 🌀 *"The warp is your intention; the loom makes it real."*
+> 🌀👣 *"You wrote `loom/WARP.ts`. The loom read it. The treadles were trodden. The Thread™ wove. Your code emerged. This is how you loom."
+
+---
+
+## Footnotes (The History Condensed)
+
+[^1]: The three moments—intention, architecture, generation—map to the three scopes of The Thread™: 'declare' (forever), 'warp' (workspace session), 'weave' (weaving run). See HOW_TO_META_LOOM.md for the full exposition of the self-declaring declarer, the contraction that expands.
+
+[^2]: The spiral contracts before it expands. The self-declarer (machinery/self-declarer.ts) is the contraction—unique in the loom's architecture for being pulled inward rather than pushing outward. It declares itself, then declares languages ('warp' scope) and treadles ('weave' scope).
+
+[^3]: Languages self-register in 'warp' scope via declareLanguage(); treadles self-register in 'weave' scope via declareTreadle(). Both pull from the self-declarer. The pattern: declare in scope, register in consumer, generate in weave.
+
+---
+
+#sixseasonsandamovie #solarpunk42 #solarpunk #TheThread™

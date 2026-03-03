@@ -11,7 +11,7 @@ import { typescript, rust, spiral } from '../warp/index.js';
 import { getTieups } from '../warp/tieups.js';
 import type { TreadleDefinition } from '../machinery/treadle-kit/declarative.js';
 import { Heddles } from '../machinery/heddles/index.js';
-import { createDefaultMatrix } from '../machinery/treadle-kit/discovery.js';
+import { GeneratorMatrix } from '../machinery/heddles/index.js';
 import { createTestRunner, mockTreadles, createMockTreadle } from './kit/index.js';
 
 describe('Foundframe-Front Integration', () => {
@@ -158,7 +158,7 @@ describe('Foundframe-Front Integration', () => {
     };
 
     // Create heddles and build plan
-    const heddles = new Heddles(createDefaultMatrix());
+    const heddles = new Heddles(new GeneratorMatrix());
     const plan = await heddles.buildPlan(warp);
 
     // Check that TypeScript layers are in the plan
@@ -197,7 +197,7 @@ describe('Foundframe-Front Integration', () => {
     const warp = { core, prisma, front };
 
     // Build plan
-    const heddles = new Heddles(createDefaultMatrix());
+    const heddles = new Heddles(new GeneratorMatrix());
     const plan = await heddles.buildPlan(warp);
 
     // Log all nodes

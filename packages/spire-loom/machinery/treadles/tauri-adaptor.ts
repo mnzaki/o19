@@ -19,7 +19,7 @@
 
 import {
   camelCase,
-  defineTreadle,
+  declareTreadle,
   generateFromTreadle,
   pascalCase,
   type OutputSpec
@@ -41,7 +41,7 @@ export interface TauriAdaptorConfig {
 // Treadle Definition
 // ============================================================================
 
-export const tauriAdaptorTreadle = defineTreadle({
+export const tauriAdaptorTreadle = declareTreadle({
   name: 'tauri-adaptor',
 
   // Configuration schema for validation

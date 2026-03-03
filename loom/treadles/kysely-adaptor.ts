@@ -21,7 +21,7 @@
  */
 
 import {
-  defineTreadle,
+  declareTreadle,
   generateFromTreadle,
   type OutputSpec
 } from '@o19/spire-loom/machinery/treadle-kit';
@@ -52,7 +52,7 @@ function toLower(str: string): string {
 // Treadle Definition (Tieup Style - No Matches)
 // ============================================================================
 
-export const kyselyAdaptorTreadle = defineTreadle({
+export const kyselyAdaptorTreadle = declareTreadle({
   name: 'kysely-adaptor',
 
   // Configuration schema for validation

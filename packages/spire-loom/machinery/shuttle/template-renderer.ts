@@ -95,6 +95,8 @@ export async function renderEjs(options: Omit<RenderOptions, 'outputPath'>): Pro
   
   return ejsLib.render(template, { h: templateHelpers, ...options.data }, {
     beautify: true,
+    // Disable HTML escaping—we're generating code, not HTML
+    escape: (str: string) => str,
     ...options.ejsOptions,
   });
 }

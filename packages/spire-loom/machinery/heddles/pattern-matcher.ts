@@ -433,7 +433,6 @@ export class Heddles {
         // Get or create generator
         let generator: GeneratorFunction;
         if (this.isTreadleDefinition(treadle)) {
-          // @ts-ignore wtf
           generator = generateFromTreadle(treadle);
         } else {
           generator = treadle as GeneratorFunction;

@@ -66,21 +66,20 @@ import type {
 export class Tauri<%= entityPascal %>Adaptor implements <%= entityPascal %>ReadPort, <%= entityPascal %>WritePort {
 
 <%_ for (const method of passthroughMethods) { _%>
-  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(data: { <%- method.params %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
+  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(data: { <%- method.params.list %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
     return invoke('plugin:<%= pluginName %>|<%= method.name %>', data);
   }
 <%_ } _%>
 
 <%_ for (const method of readMethods) { _%>
-  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%
-  if (method.params.length > 1) { %> data: { <%- method.params %> } <% } else { %>
-  <%- method.params %>
-  <% } %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
-    return invoke('plugin:<%= pluginName %>|<%= method.name %>' <% if (method.params.length > 1) { %>
-      , data
-    <% } else if (method.params.length == 1) { %>
-      , { <%- method.params[0].name %> }
-    <% } %>);
+  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%- method.params.listWithOptionality %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
+<%_ if (method.params.length === 0) { _%>
+    return invoke('plugin:<%= pluginName %>|<%= method.name %>');
+<%_ } else if (method.params.length === 1) { _%>
+    return invoke('plugin:<%= pluginName %>|<%= method.name %>', { <%- method.params.names %> });
+<%_ } else { _%>
+    return invoke('plugin:<%= pluginName %>|<%= method.name %>', <%- method.params.invocation %>);
+<%_ } _%>
   }
 <%_ } _%>
 
@@ -90,14 +89,14 @@ export class Tauri<%= entityPascal %>Adaptor implements <%= entityPascal %>ReadP
  */
 
 <%_ for (const method of writeMethods) { _%>
-  <%= getCrudMethodName(method, entityPascal, entityCamel) %>(data: { <%- method.params %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
+  <%= getCrudMethodName(method, entityPascal, entityCamel) %>(data: { <%- method.params.list %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
     return invoke('plugin:<%= pluginName %>|<%= method.name %>', data);
   }
 <%_ } _%>
 
 <%_ for (const method of deleteMethods) { _%>
-  <%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%- method.params %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
-    return invoke('plugin:<%= pluginName %>|<%= method.name %>', { <%= method.params.map(p => p.name).join(', ') %> });
+  <%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%- method.params.listWithOptionality %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
+    return invoke('plugin:<%= pluginName %>|<%= method.name %>', <%- method.params.invocation %>);
   }
 <%_ } _%>
 

@@ -32,22 +32,12 @@ export {
   generateBatch,
   renderTemplate,
   detectLanguage,
-  transformForKotlin,
-  transformForRust,
-  transformForRustJni,
-  transformForAidl,
   type RawMethod,
   type TransformedMethod,
-  type KotlinMethod,
-  type RustMethod,
-  type RustJniMethod,
-  type AidlMethod,
-  type TypeScriptMethod,
   type Language,
   type GenerateOptions,
   type GenerationTask,
   type RenderTemplateOptions,
-  transformForTypeScript,
 } from './code-generator.js';
 
 // Gradle blocks: pre-wound configuration

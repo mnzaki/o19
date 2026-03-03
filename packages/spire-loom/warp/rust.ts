@@ -383,43 +383,227 @@ export function getRustStructMetadata(
 //
 // Self-registers Rust as a language with the reed system.
 // This enables dynamic language discovery and code generation.
+//
+// Uses the new classes-as-config architecture:
+// - TypeFactory for rich type definitions
+// - Rendering config for code formatting
+// - Auto-generated transform from primitives
 // ============================================================================
 
-import { declareLanguage } from '../machinery/reed/language.js';
 import {
-  transformForRust,
-  type RustMethod as BobbinRustMethod
-} from '../machinery/bobbin/code-generator.js';
+  declareLanguage,
+  LanguageType,
+  type TypeFactory,
+  type LanguageParam,
+  type TransformEnhancer,
+  type LanguageMethod,
+} from '../machinery/reed/language.js';
+import { toSnakeCase } from '../machinery/stringing.js';
 import { RustCore, rustCore } from './spiral/rust.js';
 import { RustAndroidSpiraler } from './spiral/spiralers/rust/index.js';
 import { DesktopSpiraler } from './spiral/spiralers/desktop.js';
 
+// ============================================================================
+// Rust-Specific Types
+// ============================================================================
+
+/**
+ * Rust parameter with language-specific metadata.
+ */
+interface RustParam extends LanguageParam {
+  /** Rust type name (e.g., 'i64', 'String', 'Vec<T>') */
+  rsType: string;
+  /** snake_case parameter name */
+  rsName: string;
+}
+
+/**
+ * Rust method with language-specific metadata.
+ */
+interface RustMethod extends LanguageMethod<RustParam> {
+  /** Rust return type */
+  rsReturnType: string;
+  /** snake_case implementation name for calling */
+  implName: string;
+  /** Service access preamble for error handling */
+  serviceAccessPreamble: string[];
+}
+
+// ============================================================================
+// Rust Type Factory
+// ============================================================================
+
+/**
+ * Type factory for Rust code generation.
+ * 
+ * Defines how TypeScript types map to Rust types,
+ * and provides stub return values for each type.
+ */
+class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
+  // Primitive types
+  boolean = new LanguageType('bool', 'false', true);
+  string = new LanguageType('String', 'String::new()', true);
+  number = new LanguageType('i64', '0', true);
+  void = new LanguageType('()', '()', true);
+
+  // Generic type factories
+  array(itemType: LanguageType): LanguageType {
+    return new LanguageType(`Vec<${itemType.name}>`, 'Vec::new()');
+  }
+
+  optional(innerType: LanguageType): LanguageType {
+    return new LanguageType(`Option<${innerType.name}>`, 'None');
+  }
+
+  promise(innerType: LanguageType): LanguageType {
+    // Rust async uses impl Future, but for signatures we often just use the inner
+    return new LanguageType(`impl Future<Output = ${innerType.name}>`, 'async { todo!() }');
+  }
+
+  result(okType: LanguageType, errType: string | LanguageType = 'crate::Error'): LanguageType {
+    const errName = typeof errType === 'string' ? errType : errType.name;
+    return new LanguageType(`Result<${okType.name}, ${errName}>`, 'Ok(Default::default())');
+  }
+
+  // Entity type factory
+  entity(name: string): LanguageType {
+    return new LanguageType(name, `// Entity: ${name}\n    Default::default()`, false, true);
+  }
+
+  // Map TypeScript type to Rust type
+  fromTsType(tsType: string, isCollection: boolean): LanguageType {
+    const baseType = (() => {
+      switch (tsType.toLowerCase()) {
+        case 'string':
+          return this.string;
+        case 'number':
+          return this.number;
+        case 'boolean':
+        case 'bool':
+          return this.boolean;
+        case 'void':
+          return this.void;
+        default:
+          // Complex type / entity
+          return this.entity(tsType);
+      }
+    })();
+
+    return isCollection ? this.array(baseType) : baseType;
+  }
+}
+
+// ============================================================================
+// Rust-Specific Transform Enhancer
+// ============================================================================
+
+/**
+ * Custom enhancer adding Rust-specific metadata.
+ * 
+ * - Adds rsReturnType, implName (snake_case)
+ * - Generates service access preamble for Mutex/Option wrappers
+ */
+const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (methods) => {
+  return methods.map((method) => {
+    // Get link metadata for service access
+    const link = (method as any).link;
+    const preamble = buildServiceAccessPreamble(link);
+
+    return {
+      ...method,
+      rsReturnType: method.returnTypeDef.name,
+      implName: toSnakeCase(method.implName || method.name),
+      serviceAccessPreamble: preamble,
+    } as RustMethod;
+  });
+};
+
+/**
+ * Build Rust service access preamble based on link metadata.
+ * 
+ * Handles wrapper patterns for struct fields:
+ * - Mutex<Option<T>>: lock mutex, then access Option
+ * - Option<Mutex<T>>: access Option, then lock Mutex
+ * - Option<T>: optional services
+ * - Mutex<T>: mutex-wrapped services
+ */
+function buildServiceAccessPreamble(link: { fieldName: string; wrappers?: string[] } | undefined): string[] {
+  if (!link) {
+    return ['let __service = foundframe;'];
+  }
+
+  const fieldName = link.fieldName;
+  const wrappers = link.wrappers || [];
+
+  // Determine wrapper order: decorators apply bottom-to-top
+  const mutexIndex = wrappers.indexOf('Mutex');
+  const optionIndex = wrappers.indexOf('Option');
+  const mutexIsOuter = mutexIndex > optionIndex;
+
+  if (wrappers.includes('Mutex') && wrappers.includes('Option')) {
+    if (mutexIsOuter) {
+      // Mutex<Option<T>> - lock first, then access Option
+      return [
+        `let __field = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`,
+        `let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`,
+      ];
+    } else {
+      // Option<Mutex<T>> - access Option, then lock
+      return [
+        `let __field = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`,
+        `let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`,
+      ];
+    }
+  }
+
+  if (wrappers.includes('Option')) {
+    return [`let __service = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`];
+  }
+
+  if (wrappers.includes('Mutex')) {
+    return [`let mut __service = service.${fieldName}.lock().map_err(|_| "${fieldName} mutex poisoned")?;`];
+  }
+
+  return [`let __service = service.${fieldName};`];
+}
+
+// ============================================================================
+// Language Definition
+// ============================================================================
+
 /**
  * Rust language definition.
  *
- * Self-registers on module load. This is the single source of truth
- * for Rust configuration in spire-loom.
+ * Self-registers on module load. Uses the new classes-as-config architecture:
+ * - TypeFactory provides rich type metadata
+ * - Rendering config defines code formatting
+ * - Transform is auto-generated from these primitives
+ * - Custom enhancer adds Rust-specific metadata
  */
-export const rustLanguage = declareLanguage<BobbinRustMethod>({
+export const rustLanguage = declareLanguage<RustParam, LanguageType>({
   name: 'rust',
 
   codeGen: {
     fileExtensions: ['.rs.ejs', '.jni.rs.ejs'],
-    transform: transformForRust,
-    typeMappings: [
-      { tsType: 'string', targetType: 'String' },
-      { tsType: 'number', targetType: 'i64' },
-      { tsType: 'boolean', targetType: 'bool' },
-      { tsType: 'bool', targetType: 'bool' }
-    ],
-    getStubReturn: (returnType, isCollection) => {
-      if (returnType === 'bool') return 'false';
-      if (returnType === 'String') return 'String::new()';
-      if (returnType.startsWith('Vec<')) return 'Vec::new()';
-      if (returnType.startsWith('i') || returnType.startsWith('u')) return '0';
-      if (returnType === '()') return '()';
-      return `// Entity type: ${returnType}\n    Default::default()`;
-    }
+    
+    // Type factory defines how TS types map to Rust
+    types: new RustTypeFactory(),
+    
+    // Rendering config defines code formatting
+    rendering: {
+      formatParamName: toSnakeCase,
+      functionSignature: (method) => {
+        const params = method.params.map(p => `${p.formattedName}: ${p.langType}`).join(', ');
+        return `fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
+      },
+      asyncFunctionSignature: (method) => {
+        const params = method.params.map(p => `${p.formattedName}: ${p.langType}`).join(', ');
+        return `async fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
+      },
+    },
+    
+    // Custom enhancer adds Rust-specific metadata
+    enhancers: [rustEnhancer],
   },
 
   warp: {
@@ -446,5 +630,3 @@ export const rustLanguage = declareLanguage<BobbinRustMethod>({
     exposeBaseFactory: true
   }
 });
-
-// Type mappings are automatically registered by declareLanguage()

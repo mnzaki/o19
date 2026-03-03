@@ -578,15 +578,6 @@ export interface ClassModifications {
 // Kotlin File Hookup (.kt files)
 // ============================================================================
 
-/** @deprecated Use MethodModifications instead */
-export type KotlinMethodModifications = MethodModifications;
-
-/** @deprecated Use ClassModifications instead */
-export type KotlinClassModifications = ClassModifications;
-
-/** Method modification entry type */
-export type KotlinMethodModificationEntry = KotlinMethodModifications;
-
 export interface KotlinHookup extends BaseHookup {
   path: `${string}.kt`;
   

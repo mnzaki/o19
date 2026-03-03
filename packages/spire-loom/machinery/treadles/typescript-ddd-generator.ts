@@ -8,7 +8,7 @@
 
 import { TypescriptSpiraler } from '../../warp/spiral/spiralers/typescript/index.js';
 import { TsCore } from '../../warp/spiral/index.js';
-import { defineTreadle, generateFromTreadle, type OutputSpec } from '../treadle-kit/declarative.js';
+import { declareTreadle, generateFromTreadle, type OutputSpec } from '../treadle-kit/declarative.js';
 import type { ManagementMethods } from '../heddles/types.js';
 import { camelCase } from '../treadle-kit/index.js';
 
@@ -16,7 +16,7 @@ import { camelCase } from '../treadle-kit/index.js';
 // Treadle Definition
 // ============================================================================
 
-export const typescriptDDDTreadle = defineTreadle({
+export const typescriptDDDTreadle = declareTreadle({
   // When does this run?
   matches: [{ current: 'TypescriptSpiraler.ddd', previous: 'TsCore' }],
 

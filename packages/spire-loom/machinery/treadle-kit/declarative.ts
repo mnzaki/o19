@@ -4,14 +4,17 @@
  * Define treadles declaratively instead of writing generator functions by hand.
  * Built on top of the core kit.
  *
+ * Pulled inward from self-declarer.ts - treadles declare themselves
+ * in the 'weave' scope (weaving run).
+ *
  * > *"Describe what you want, not how to do it."*
  *
  * @example
  * ```typescript
- * import { defineTreadle, generateFromTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+ * import { declareTreadle, generateFromTreadle } from '@o19/spire-loom/machinery/treadle-kit';
  * import { addManagementPrefix } from '@o19/spire-loom/machinery/sley';
  *
- * const myTreadle = defineTreadle({
+ * const myTreadle = declareTreadle({
  *   matches: [{ current: 'MySpiraler', previous: 'RustCore' }],
  *   methods: {
  *     filter: 'platform',
@@ -30,6 +33,7 @@
  * ```
  */
 
+import { declare } from '../self-declarer.js';
 import type {
   SpiralNode,
   GeneratedFile,
@@ -172,33 +176,49 @@ export interface TreadleDefinition {
 }
 
 // ============================================================================
-// Definition Function
+// Treadle Declarer - 'weave' scope
 // ============================================================================
 
 /**
- * Define a treadle declaratively.
+ * Declare a treadle.
  *
- * Validates the definition at creation time and returns a TreadleDefinition
- * that can be used with `generateFromTreadle()`.
+ * Creates a declarer in 'weave' scope (weaving run lifetime).
+ *
+ * Call this at module load time in machinery/treadles/{name}.ts.
+ * The treadle becomes available in the 'weave' scope registry.
+ *
+ * @example
+ * ```typescript
+ * // machinery/treadles/my-treadle.ts
+ * export const myTreadle = declareTreadle({
+ *   name: 'my-treadle',
+ *   matches: [{ current: 'AndroidSpiraler', previous: 'RustCore' }],
+ *   methods: { filter: 'platform', pipeline: [] },
+ *   outputs: [{ template: '...', path: '...', language: 'kotlin' }]
+ * });
+ * ```
  */
-export function defineTreadle(definition: TreadleDefinition): TreadleDefinition {
-  // Matrix treadles (with matches) need match validation
-  // Tieup treadles (without matches) are invoked directly
-  if (definition.matches && definition.matches.length > 0) {
-    for (const match of definition.matches) {
-      if (!match.current || !match.previous) {
-        throw new Error('Match pattern must have both current and previous');
+export const declareTreadle = declare<TreadleDefinition, TreadleDefinition>({
+  name: 'treadle',
+  scope: 'weave',
+  validate: (def) => {
+    // Matrix treadles (with matches) need match validation
+    if (def.matches && def.matches.length > 0) {
+      for (const match of def.matches) {
+        if (!match.current || !match.previous) {
+          throw new Error('Match pattern must have both current and previous');
+        }
       }
     }
-  }
-  if (!definition.methods) {
-    throw new Error('TreadleDefinition must have methods configuration');
-  }
-  if (!definition.outputs?.length) {
-    throw new Error('TreadleDefinition must have at least one output');
-  }
-  return definition;
-}
+    if (!def.methods) {
+      throw new Error('TreadleDefinition must have methods configuration');
+    }
+    if (!def.outputs?.length) {
+      throw new Error('TreadleDefinition must have at least one output');
+    }
+  },
+  declare: (def) => def
+});
 
 // ============================================================================
 // Generation Function

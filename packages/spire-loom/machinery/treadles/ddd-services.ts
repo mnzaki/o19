@@ -18,7 +18,7 @@
 
 import {
   camelCase,
-  defineTreadle,
+  declareTreadle,
   generateFromTreadle,
   type OutputSpec
 } from '../treadle-kit/index.js';
@@ -28,7 +28,7 @@ import type { ManagementMethods } from '../heddles/index.js';
 // Treadle Definition
 // ============================================================================
 
-export const dddServicesTreadle = defineTreadle({
+export const dddServicesTreadle = declareTreadle({
   name: 'ddd-services',
 
   // Tieup treadle - no matches needed

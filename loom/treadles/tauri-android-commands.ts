@@ -18,7 +18,7 @@
  */
 
 import {
-  defineTreadle,
+  declareTreadle,
   generateFromTreadle,
   addAidlTypesToMethods
 } from '@o19/spire-loom/machinery/treadle-kit';
@@ -28,7 +28,7 @@ import { addManagementPrefix } from '@o19/spire-loom/machinery/sley';
 // Treadle Definition
 // ============================================================================
 
-export const tauriAndroidCommandsTreadle = defineTreadle({
+export const tauriAndroidCommandsTreadle = declareTreadle({
   name: 'tauri-android-commands',
 
   // Tieup treadle - no matches needed, invoked directly via .tieup()

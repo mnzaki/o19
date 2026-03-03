@@ -69,14 +69,14 @@ export class <%= service.serviceName %> implements <%= service.portName %> {
   // ============================================================================
 <%_ for (const method of readMethods) { _%>
 
-  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%
-  if (method.params.length > 1) { %> data: { <%- method.params %> } <% } else { %>
-    <%- method.params %>
-  <% } %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
-    return this.readAdaptor.<%= getCrudMethodName(method, entityPascal, entityCamel) %>(
-  <% if (method.params.length > 1) { %> data <% } else { %>
-    <%= method.params.map(p => p.name).join(', ') %>
-   <% } %>);
+  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%- method.params.listWithOptionality %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
+<%_ if (method.params.length === 0) { _%>
+    return this.readAdaptor.<%= getCrudMethodName(method, entityPascal, entityCamel) %>();
+<%_ } else if (method.params.length === 1) { _%>
+    return this.readAdaptor.<%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%- method.params.names %>);
+<%_ } else { _%>
+    return this.readAdaptor.<%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%- method.params.invocation %>);
+<%_ } _%>
   }
 <%_ } _%>
 
@@ -85,11 +85,8 @@ export class <%= service.serviceName %> implements <%= service.portName %> {
   // ============================================================================
 <%_ for (const method of writeMethods) { _%>
 
-  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(data: { <%-
-    method.params
-  %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
-    return this.writeAdaptor.<%= getCrudMethodName(method, entityPascal,
-    entityCamel) %>(data /*<%= method.params.map(p => p.name).join(', ') %>*/);
+  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(data: { <%- method.params.list %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
+    return this.writeAdaptor.<%= getCrudMethodName(method, entityPascal, entityCamel) %>(data);
   }
 <%_ } _%>
 
@@ -97,11 +94,14 @@ export class <%= service.serviceName %> implements <%= service.portName %> {
   // Delete Operations (via Tauri)
   // ============================================================================
 <%_ for (const method of deleteMethods) { _%>
-  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%-
-    method.params
-  %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
-    return this.writeAdaptor.<%= getCrudMethodName(method, entityPascal,
-    entityCamel) %>(<%= method.params.map(p => p.name).join(', ') %>);
+  async <%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%- method.params.listWithOptionality %>): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
+<%_ if (method.params.length === 0) { _%>
+    return this.writeAdaptor.<%= getCrudMethodName(method, entityPascal, entityCamel) %>();
+<%_ } else if (method.params.length === 1) { _%>
+    return this.writeAdaptor.<%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%- method.params.names %>);
+<%_ } else { _%>
+    return this.writeAdaptor.<%= getCrudMethodName(method, entityPascal, entityCamel) %>(<%- method.params.invocation %>);
+<%_ } _%>
   }
 <%_ } _%>
 
@@ -110,7 +110,7 @@ export class <%= service.serviceName %> implements <%= service.portName %> {
   // ============================================================================
 <%_ for (const method of passthroughMethods) { _%>
 
-  async <%= method.camelName %>(data: { <%- method.params %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
+  async <%= method.camelName %>(data: { <%- method.params.list %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
     // Passthrough method - implement based on domain logic
     throw new Error('<%= method.name %> not implemented');
   }

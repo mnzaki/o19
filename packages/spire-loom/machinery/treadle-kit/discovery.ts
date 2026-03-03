@@ -110,7 +110,7 @@ async function loadTreadleFromFile(
   const module = await import(moduleUrl);
 
   // Look for treadle definition in exports
-  // Supports: export default defineTreadle(...) or export const myTreadle = defineTreadle(...)
+  // Supports: export default declareTreadle(...) or export const myTreadle = declareTreadle(...)
   let definition: TreadleDefinition | undefined;
   let contributes: SpiralerContribution | undefined;
 
@@ -244,26 +244,6 @@ export async function createMatrix(workspaceRoot?: string): Promise<GeneratorMat
   }
 
   return buildMatrixFromTreadles(allTreadles);
-}
-
-// ============================================================================
-// Legacy Exports (deprecated, for compatibility)
-// ============================================================================
-
-/**
- * @deprecated Use `createMatrix()` instead
- */
-export async function createMatrixWithDiscovery(workspaceRoot: string): Promise<GeneratorMatrix> {
-  return createMatrix(workspaceRoot);
-}
-
-/**
- * @deprecated Built-in treadles are now auto-discovered. Use `createMatrix()` instead.
- */
-export function createDefaultMatrix(): GeneratorMatrix {
-  console.warn('[DEPRECATED] createDefaultMatrix() is deprecated. Use createMatrix() instead.');
-  // Return empty matrix - built-in treadles will be discovered
-  return new GeneratorMatrix();
 }
 
 // ============================================================================
