@@ -13,7 +13,7 @@ import {
   declareLanguage,
   LanguageType,
   type TypeFactory,
-  type LanguageParam,
+  type LanguageParam
 } from '../machinery/reed/language/index.js';
 import { camelCase } from '../machinery/stringing.js';
 
@@ -72,12 +72,12 @@ class KotlinTypeFactory implements TypeFactory<KotlinParam, LanguageType> {
     // Handle TypeScript array syntax: T[] -> List<T>
     let normalizedType = tsType.trim();
     let isArraySyntax = false;
-    
+
     if (normalizedType.endsWith('[]')) {
       normalizedType = normalizedType.slice(0, -2).trim();
       isArraySyntax = true;
     }
-    
+
     // Final collection flag is true if either passed in or detected from syntax
     const finalIsCollection = isCollection || isArraySyntax;
 
@@ -120,46 +120,47 @@ class KotlinTypeFactory implements TypeFactory<KotlinParam, LanguageType> {
  */
 export const kotlinLanguage = declareLanguage<KotlinParam, LanguageType>({
   name: 'kotlin',
+  extensions: ['.kt', '.kts'],
+  conventions: {
+    naming: {
+      function: 'camelCase',
+      type: 'PascalCase',
+      variable: 'camelCase',
+      const: 'SCREAMING_SNAKE',
+      module: 'snake_case'
+    }
+  },
 
   codeGen: {
-    fileExtensions: ['.kt.ejs', '.kts.ejs'],
-    
     // Type factory defines how TS types map to Kotlin
     types: new KotlinTypeFactory(),
-    
+
     // Rendering config defines code formatting
     rendering: {
       formatParamName: camelCase,
       functionSignature: (method) => {
-        const params = method.params.map(p => 
-          `${p.name}: ${p.langType}${p.optional ? '?' : ''}`
-        ).join(', ');
+        const params = method.params
+          .map((p) => `${p.name}: ${p.langType}${p.optional ? '?' : ''}`)
+          .join(', ');
         return `fun ${method.camelName}(${params}): ${method.returnTypeDef.name}`;
       },
       asyncFunctionSignature: (method) => {
-        const params = method.params.map(p => 
-          `${p.name}: ${p.langType}${p.optional ? '?' : ''}`
-        ).join(', ');
+        const params = method.params
+          .map((p) => `${p.name}: ${p.langType}${p.optional ? '?' : ''}`)
+          .join(', ');
         return `suspend fun ${method.camelName}(${params}): ${method.returnTypeDef.name}`;
       },
       renderDefinition: (method, opts) => {
         // Kotlin typically doesn't use visibility keywords in interfaces
-        const params = method.params.map(p => 
-          `${p.name}: ${p.langType}${p.optional ? '?' : ''}`
-        ).join(', ');
+        const params = method.params
+          .map((p) => `${p.name}: ${p.langType}${p.optional ? '?' : ''}`)
+          .join(', ');
         return `fun ${method.camelName}(${params}): ${method.returnTypeDef.name}`;
-      },
-      naming: {
-        function: 'camel',
-        type: 'pascal',
-        variable: 'camel',
-        const: 'screaming_snake',
-        module: 'snake'
       }
-    },
-    
+    }
+
     // No enhancers needed — defaults are sufficient!
-  },
+  }
 
   // No WARP config yet - Kotlin is code-generation-only for now
 });

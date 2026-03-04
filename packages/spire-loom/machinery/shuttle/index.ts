@@ -47,21 +47,3 @@ export type * from './block-registry.js';
 
 export * as markers from './markers.js';
 export type * from './markers.js';
-
-// ============================================================================
-// Template Generation (from bobbin/mejs)
-// ============================================================================
-
-export {
-  mejs,
-  preprocessTemplate,
-  render,
-  renderFile,
-  generate,
-  inline,
-  processTemplate,
-  postprocessOutput,
-  type RenderOptions,
-  type RenderFileOptions,
-  type GenerateOptions
-} from '../bobbin/mejs.js';

@@ -16,15 +16,12 @@
  */
 
 // ============================================================================
-// Private Imports (implementation details)
+// Public API: re-exported
 // ============================================================================
 
-import {
-  generateCode as _generateCode,
-  generateBatch as _generateBatch,
-  renderTemplate as _renderTemplate,
-  detectLanguage as _detectLanguage,
-} from './code-printer.js';
+export { generateCode, generateBatch, renderTemplate, detectLanguage } from './code-printer.js';
+
+export * as mejs from './mejs.js';
 
 // ============================================================================
 // Public API: Types (re-exported)
@@ -32,34 +29,9 @@ import {
 
 export type {
   MethodLink,
-  RawMethod,
   TransformedMethod,
   Language,
   GenerateOptions,
   GenerationTask,
-  RenderTemplateOptions,
+  RenderTemplateOptions
 } from './code-printer.js';
-
-// ============================================================================
-// Public API: Functions
-// ============================================================================
-
-/**
- * Generate code from a template with full options.
- */
-export const generateCode = _generateCode;
-
-/**
- * Generate multiple files in a batch.
- */
-export const generateBatch = _generateBatch;
-
-/**
- * Render a template with data.
- */
-export const renderTemplate = _renderTemplate;
-
-/**
- * Detect language from template filename.
- */
-export const detectLanguage = _detectLanguage;

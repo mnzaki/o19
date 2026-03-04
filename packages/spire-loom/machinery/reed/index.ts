@@ -6,6 +6,8 @@
  * before weaving begins.
  */
 
+export { type TransformEnhancer } from './transform-pipeline.js';
+
 export {
   collectManagements,
   filterByReach,
@@ -15,7 +17,7 @@ export {
   type ManagementMetadata,
   type MethodMetadata,
   type CrudOperation,
-  type ReachLevel,
+  type ReachLevel
 } from './management-collector.js';
 
 export {
@@ -24,21 +26,21 @@ export {
   type ParsedSchema,
   type TableDef,
   type ColumnDef,
-  type QueryDef,
+  type QueryDef
 } from './drizzle-parser.js';
 
 export {
   collectQueriesFromDirectory,
   collectQueriesFromFile,
   type CollectedQuery,
-  type QueryCollectionResult,
+  type QueryCollectionResult
 } from './query-collector.js';
 
 export {
   detectWorkspace,
   loadWarp,
   getSuggestedPackageFilter,
-  type WorkspaceInfo,
+  type WorkspaceInfo
 } from './workspace-discovery.js';
 
 // Re-export EntityFieldMetadata from warp for machinery use
@@ -53,11 +55,8 @@ export {
   type ClassMetadataCollector,
   type CollectorConfig,
   type PredicateFn,
-  type ExtractorFn,
+  type ExtractorFn
 } from './class-metadata-collector.js';
 
 // Entity field collection (uses shared collector pattern)
-export {
-  collectEntityFields,
-  getEntityFields,
-} from './entity-field-collector.js';
+export { collectEntityFields, getEntityFields } from './entity-field-collector.js';

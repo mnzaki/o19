@@ -18,6 +18,7 @@ import { declare } from '../../self-declarer.js';
 import {
   languages as languageRegistry,
   getLanguageExtensionKey,
+  type LanguageDefinition
 } from '../language/index.js';
 
 // ============================================================================
@@ -34,7 +35,7 @@ export interface EnhancementConfig<
   Raw,
   LanguageEnhanced,
   View,
-  Enhanced extends EnhancedContainer,
+  Enhanced extends EnhancedContainer
 > {
   /** Unique name for this enhancement kind ('method', 'entity', etc.) */
   name: string;
@@ -51,7 +52,7 @@ export interface EnhancementConfig<
    */
   createContainer(
     raw: Raw,
-    enhancements: Map<string, { item: LanguageEnhanced; lang: any }>,
+    enhancements: Map<string, { item: LanguageEnhanced; lang: LanguageDefinition }>,
     defaultLangKey: string
   ): Enhanced;
 }
@@ -74,7 +75,7 @@ export interface EnhancementSystem<
   Raw,
   LanguageEnhanced,
   View,
-  Enhanced extends EnhancedContainer,
+  Enhanced extends EnhancedContainer
 > {
   /** Enhance a single raw item for a specific language */
   enhance(raw: Raw, language: string): LanguageEnhanced;
@@ -120,11 +121,11 @@ export interface EnhancementSystem<
  * const enhanced = methodEnhancement.enhanceAll(methods, ['rust', 'typescript']);
  * ```
  */
-export const declareEnhancement = declare<
+const declareEnhancementImpl = declare<
   // The declaration result type (a function with methods attached)
   <Raw, LanguageEnhanced, View, Enhanced extends EnhancedContainer>(
     config: EnhancementConfig<Raw, LanguageEnhanced, View, Enhanced>
-  ) => EnhancementSystem<Raw, LanguageEnhanced, View, Enhanced>,
+  ) => LanguageEnhanced,
   // The config type
   EnhancementConfig<any, any, any, any>
 >({
@@ -142,9 +143,7 @@ export const declareEnhancement = declare<
       throw new Error(`[enhancement] '${config.name}' must have a createView function`);
     }
     if (typeof config.createContainer !== 'function') {
-      throw new Error(
-        `[enhancement] '${config.name}' must have a createContainer function`
-      );
+      throw new Error(`[enhancement] '${config.name}' must have a createContainer function`);
     }
   },
 
@@ -152,8 +151,14 @@ export const declareEnhancement = declare<
     // Create the enhancement system with batch operations attached
     const system = Object.assign(
       // Direct call enhances single item
-      (raw: any, language: string) => config.enhance(raw, language),
+      <Raw, LanguageEnhanced, View, Enhanced extends EnhancedContainer>(
+        raw: any,
+        language: string
+      ) => config.enhance(raw, language),
       {
+        // Reference to original config
+        config,
+
         // Create language view
         createView: config.createView,
 
@@ -167,10 +172,7 @@ export const declareEnhancement = declare<
 
           return raws.map((raw) => {
             // Enhance for each language
-            const enhancements = new Map<
-              string,
-              { item: any; lang: any }
-            >();
+            const enhancements = new Map<string, { item: any; lang: any }>();
 
             for (const langName of languages) {
               const langKey = getLanguageExtensionKey(langName);
@@ -183,13 +185,16 @@ export const declareEnhancement = declare<
 
             return config.createContainer(raw, enhancements, defaultLangKey);
           });
-        },
-
-        // Reference to original config
-        config,
+        }
       }
     );
 
     return system;
-  },
+  }
 });
+
+export function declareEnhancement<Raw, LanguageEnhanced, View, Enhanced extends EnhancedContainer>(
+  config: EnhancementConfig<Raw, LanguageEnhanced, View, Enhanced>
+) {
+  return declareEnhancementImpl(config);
+}

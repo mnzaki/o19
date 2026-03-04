@@ -15,56 +15,35 @@ import { declare, getScopeRegistry } from '../../self-declarer.js';
 import type { ExternalLayer } from '../../../warp/imprint.js';
 import type { CoreRing, Spiraler, SpiralRing } from '../../../warp/spiral/pattern.js';
 import {
-  type LanguageParam,
-  type LanguageMethod,
-  type TypeFactory,
   type TransformConfig,
   createTransform,
   type TransformEnhancer
 } from '../transform-pipeline.js';
 
 // Import LanguageType class (not just type) for runtime use
-import { LanguageType, type BaseParam } from './types.js';
+import { LanguageType, type BaseParam, type LanguageParam, type TypeFactory } from './types.js';
+import { camelCase, pascalCase, toSnakeCase } from '../../stringing.js';
 import type { MethodLink } from '../../bobbin/index.js';
 
 // ============================================================================
-// Re-exports
+// Language Identity
 // ============================================================================
 
-export { LanguageType } from './types.js';
-
-export {
-  // Types
-  type BaseParam,
-  type LanguageParam,
-  type LanguageMethod,
-  type TypeFactory,
-  type TransformContext,
-  type TransformEnhancer,
-  type TransformConfig,
-
-  // Functions
-  deriveCrudMethodName,
-  createTransform,
-
-  // Built-in enhancers
-  baseTypeMappingEnhancer,
-  namingEnhancer,
-  crudEnhancer,
-  templateHelperEnhancer,
-  DEFAULT_ENHANCERS
-} from '../transform-pipeline.js';
-
-export {
-  // Template helpers
-  ParamCollection,
-  SignatureHelper,
-  CrudNameRenderer,
-  StubReturnRenderer,
-  TypeDefRenderer,
-  type ParamRenderConfig,
-  type SignatureRenderConfig
-} from './template-helpers.js';
+/* NOTE: the unused type parameters are so that LanguageDeclarationInput can
+ * properly pass types through so that type inference works correctly for the
+ * fields in codeGen.rendering
+ */
+export interface LanguageIdentity<
+  _P extends LanguageParam = LanguageParam,
+  _T extends LanguageType = LanguageType
+> {
+  /** Language name (e.g., 'typescript', 'rust', 'kotlin') */
+  name: string;
+  /** Parent language to inherit from (e.g., 'c_family') */
+  extends?: string;
+  /** File extensions associated with this language */
+  extensions: string[];
+}
 
 // ============================================================================
 // Naming Conventions
@@ -197,27 +176,99 @@ export class RawMethod {
  * For templates, use LanguageView (from enhanced/methods.ts) which provides
  * idiomatic naming via conventions.
  */
-export interface LanguageMethod<
+export class LanguageMethod<
   P extends LanguageParam = LanguageParam,
   T extends LanguageType = LanguageType
 > extends RawMethod {
-  /** camelCase name */
-  camelName: string;
-  /** PascalCase name */
-  pascalName: string;
-  /** snake_case name */
-  snakeName: string;
+  withNewName(name: string): LanguageMethod<P, T> {
+    // 1. Create new object with same prototype chain
+    const clone = Object.create(Object.getPrototypeOf(this)) as LanguageMethod<P, T>;
 
-  /** 
+    // 2. Copy all own property descriptors from original
+    for (const key of Object.getOwnPropertyNames(this)) {
+      const descriptor = Object.getOwnPropertyDescriptor(this, key);
+      if (descriptor) {
+        Object.defineProperty(clone, key, descriptor);
+      }
+    }
+
+    // 3. Override name-based properties
+    //    name is readonly but we can redefine it since it's configurable
+    Object.defineProperty(clone, 'name', {
+      value: name,
+      writable: false,
+      enumerable: true,
+      configurable: true
+    });
+
+    // 4. Recalculate naming variants based on new name
+    Object.defineProperty(clone, 'camelName', {
+      value: camelCase(name),
+      writable: true,
+      enumerable: true,
+      configurable: true
+    });
+
+    Object.defineProperty(clone, 'pascalName', {
+      value: pascalCase(name),
+      writable: true,
+      enumerable: true,
+      configurable: true
+    });
+
+    Object.defineProperty(clone, 'snakeName', {
+      value: toSnakeCase(name),
+      writable: true,
+      enumerable: true,
+      configurable: true
+    });
+
+    return clone;
+  }
+
+  cloneWith(
+    overrides: Partial<Omit<LanguageMethod<P, T>, 'name' | 'camelName' | 'pascalName' | 'snakeName'>>
+  ): LanguageMethod<P, T> {
+    const clone = Object.create(Object.getPrototypeOf(this)) as LanguageMethod<P, T>;
+
+    // Copy all own properties
+    for (const key of Object.getOwnPropertyNames(this)) {
+      const descriptor = Object.getOwnPropertyDescriptor(this, key);
+      if (descriptor) {
+        Object.defineProperty(clone, key, descriptor);
+      }
+    }
+
+    // Apply overrides (excluding name-related properties which should use withNewName)
+    for (const [key, value] of Object.entries(overrides)) {
+      Object.defineProperty(clone, key, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true
+      });
+    }
+
+    return clone;
+  }
+
+  /** camelCase name */
+  camelName!: string;
+  /** PascalCase name */
+  pascalName!: string;
+  /** snake_case name */
+  snakeName!: string;
+
+  /**
    * Parameters with language-specific enhancements.
    * Overrides RawMethod.params to include langType and formattedName.
    */
-  params: P[];
+  declare params: P[];
 
   /** Return type definition with full metadata */
-  returnTypeDef: T;
+  returnTypeDef!: T;
   /** Stub return value for mock implementations */
-  stubReturn: string;
+  stubReturn!: string;
 }
 // ============================================================================
 // Language Rendering Configuration
@@ -226,20 +277,23 @@ export interface LanguageMethod<
 /**
  * Configuration for rendering language-specific code constructs.
  */
-export interface LanguageRenderingConfig {
+export interface LanguageRenderingConfig<
+  P extends LanguageParam = LanguageParam,
+  T extends LanguageType = LanguageType
+> {
   /** Format a parameter name (e.g., snake_case, camelCase) */
   formatParamName: (name: string) => string;
 
   /** Generate function signature */
-  functionSignature: (method: LanguageMethod) => string;
+  functionSignature: (method: LanguageMethod<P, T>) => string;
 
   /** Generate async function signature (optional) */
-  asyncFunctionSignature?: (method: LanguageMethod) => string;
+  asyncFunctionSignature?: (method: LanguageMethod<P, T>) => string;
 
   /** Render full function definition with variant options (optional) */
   renderDefinition?: (
-    method: LanguageMethod, 
-    options: { 
+    method: LanguageMethod<P, T>,
+    options: {
       public?: boolean;
       private?: boolean;
       protected?: boolean;
@@ -248,8 +302,11 @@ export interface LanguageRenderingConfig {
     }
   ) => string;
 
-  /** Naming conventions for the language */
-  naming: NamingConventions;
+  /**
+   * Render parameters wrapped in an object (optional).
+   * Used by withObjectParams() for DDD service/port patterns.
+   */
+  renderObjectWrappedParams?: (method: LanguageMethod<P, T>, objectParamName: string) => string;
 }
 
 // ============================================================================
@@ -263,17 +320,15 @@ export interface LanguageCodeGenConfig<
   P extends LanguageParam = LanguageParam,
   T extends LanguageType = LanguageType
 > {
-  /** File extension patterns for auto-detection (e.g., '.rs.ejs', '.kt.ejs') */
-  fileExtensions: string[];
-
   /** Type factory for generating language-specific types */
   types: TypeFactory<P, T>;
 
   /** Rendering configuration for code generation */
-  rendering: LanguageRenderingConfig;
+  rendering: LanguageRenderingConfig<P, T>;
 
   /** Optional custom transform enhancers */
-  enhancers?: TransformEnhancer<LanguageMethod<P, T>, P, LanguageMethod<P, T>>[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  enhancers?: TransformEnhancer<any, any, any>[];
 
   /**
    * Optional custom transform function.
@@ -294,8 +349,12 @@ export interface LanguageWarpConfig {
   /** ExternalLayer subclass for this language */
   externalLayerClass: new () => ExternalLayer;
 
-  /** Field decorator functions (e.g., { Mutex, Option, i64 }) */
-  fieldDecorators: Record<string, PropertyDecorator>;
+  /**
+   * Field decorator functions (e.g., { Mutex, Option, i64 }).
+   * Supports both legacy and TC39 decorator signatures.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  fieldDecorators: Record<string, any>;
 
   /** Class decorator function (e.g., Struct) - can be direct or factory */
   classDecorator: ClassDecorator | ((options?: any) => ClassDecorator);
@@ -305,7 +364,8 @@ export interface LanguageWarpConfig {
     /** The CoreRing subclass (e.g., RustCore) */
     coreClass: new (...args: any[]) => CoreRing<any, any, any>;
     /** Factory to create core instance */
-    createCore: (layer?: ExternalLayer) => CoreRing<any, any, any>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    createCore: (layer?: any) => CoreRing<any, any, any>;
   };
 
   /**
@@ -334,12 +394,14 @@ export interface LanguageWarpConfig {
 export interface LanguageDefinition<
   P extends LanguageParam = LanguageParam,
   T extends LanguageType = LanguageType
-> {
-  /** Language identifier (e.g., 'rust', 'typescript') */
-  name: string;
-
+> extends LanguageIdentity<P, T> {
   /** Code generation configuration */
   codeGen: LanguageCodeGenConfig<P, T>;
+
+  conventions: {
+    /** Naming conventions for the language */
+    naming: NamingConventions;
+  };
 
   /**
    * WARP integration configuration.
@@ -382,8 +444,8 @@ export interface TypeMapping {
  * // warp/rust.ts
  * export const rustLanguage = declareLanguage<RustParam, RustType>({
  *   name: 'rust',
+ *   extensions: ['.rs', '.jni.rs'],
  *   codeGen: {
- *     fileExtensions: ['.rs.ejs', '.jni.rs.ejs'],
  *     types: new RustTypeFactory(),
  *     rendering: {
  *       formatParamName: toSnakeCase,
@@ -401,8 +463,8 @@ export const declareLanguageImperatively = declare<LanguageDefinition, LanguageD
     if (!def.name) {
       throw new Error('[language] Language definition must have a name');
     }
-    if (!def.codeGen?.fileExtensions?.length) {
-      throw new Error(`[language] Language '${def.name}' must have fileExtensions for detection`);
+    if (!def.extensions?.length) {
+      throw new Error(`[language] Language '${def.name}' must have extensions for detection`);
     }
     if (!def.codeGen?.types && !def.codeGen?.transform) {
       throw new Error(
@@ -467,15 +529,22 @@ export class LanguageRegistry {
 
   /**
    * Find language by file extension.
-   * Matches against registered language fileExtensions.
+   * Matches against registered language extensions.
+   * Handles template files with .mejs extension (e.g., .rs.mejs matches .rs)
    */
   detectByExtension(filename: string): LanguageDefinition | undefined {
     const basename = filename.toLowerCase();
 
     for (const [, lang] of getScopeRegistry('warp').entries()) {
-      if (!lang.codeGen?.fileExtensions) continue;
-      for (const ext of lang.codeGen.fileExtensions) {
-        if (basename.endsWith(ext.toLowerCase())) {
+      if (!lang.extensions) continue;
+      for (const ext of lang.extensions) {
+        const extLower = ext.toLowerCase();
+        // Match the registered extension exactly
+        if (basename.endsWith(extLower)) {
+          return lang as LanguageDefinition;
+        }
+        // Match template extension: .rs.mejs or .rs.ejs against registered .rs
+        if (basename.endsWith(`${extLower}.mejs`) || basename.endsWith(`${extLower}.ejs`)) {
           return lang as LanguageDefinition;
         }
       }
@@ -510,7 +579,7 @@ export const languages = new LanguageRegistry();
 /**
  * Get the extension key for a language.
  *
- * Extracts from the first fileExtension (e.g., '.rs.ejs' → 'rs').
+ * Extracts from the first fileExtension (e.g., '.rs.mejs' → 'rs').
  * This is used as the property key for language views (method.rs, method.ts).
  *
  * @param language - Language identifier
@@ -518,11 +587,11 @@ export const languages = new LanguageRegistry();
  */
 export function getLanguageExtensionKey(language: string): string {
   const lang = languages.get(language);
-  if (!lang?.codeGen?.fileExtensions?.length) {
+  if (!lang?.extensions?.length) {
     return language;
   }
 
-  const ext = lang.codeGen.fileExtensions[0];
-  const match = ext.match(/\.([^.]+)(\.ejs)?$/);
+  const ext = lang.extensions[0];
+  const match = ext.match(/\.([^.]+)(\.mejs)?$/);
   return match?.[1] || language;
 }

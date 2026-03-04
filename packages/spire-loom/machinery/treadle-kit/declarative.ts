@@ -22,7 +22,7 @@
  *   },
  *   outputs: [
  *     {
- *       template: 'my-platform/service.ts.ejs',
+ *       template: 'my-platform/service.ts.mejs',
  *       path: '{packageDir}/spire/service.ts',
  *       language: 'typescript'
  *     }
@@ -40,14 +40,13 @@ import type {
   GeneratorContext,
   GeneratorFunction
 } from '../heddles/index.js';
-import type { RawMethod } from '../bobbin/index.js';
 import type { MgmtMethod } from '../sley/index.js';
 import { createTreadleKit } from './kit.js';
 import { resolveSpecs, resolveSpecsWithCondition, type SpecOrFn } from './spec-resolver.js';
 import type { hookup } from '../shuttle/index.js';
 import * as path from 'node:path';
-import * as fs from 'node:fs';
 import { markers } from '../shuttle/index.js';
+import type { RawMethod } from '../reed/language/index.js';
 
 // ============================================================================
 // Types
@@ -124,7 +123,7 @@ export interface TreadleDefinition {
    */
   matches?: MatchPattern[];
   methods: MethodConfig;
-  
+
   /**
    * Language enhancement configuration.
    * - string: Single language (default for all methods)
@@ -132,7 +131,7 @@ export interface TreadleDefinition {
    * - undefined: Auto-detect per output from template filename
    */
   language?: string | string[];
-  
+
   /** Output files to generate (into spire/). Accepts specs or functions. */
   outputs: OutputSpecOrFn[];
   /**
@@ -147,7 +146,9 @@ export interface TreadleDefinition {
    * Type is inferred from path. Runs after patches.
    * Accepts specs or functions.
    */
-  hookups?: Array<SpecOrFn<hookup.HookupSpec, GeneratorContext>> | SpecOrFn<hookup.HookupSpec, GeneratorContext>;
+  hookups?:
+    | Array<SpecOrFn<hookup.HookupSpec, GeneratorContext>>
+    | SpecOrFn<hookup.HookupSpec, GeneratorContext>;
 
   /**
    * Configuration schema for tieup treadles.
@@ -303,7 +304,7 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
         ? definition.language
         : [definition.language];
       kit.language.add(...langs);
-      
+
       // Update data with enhanced methods
       data.methods = context.methods?.all || finalMethods;
     }

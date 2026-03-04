@@ -2,11 +2,11 @@
  * Hookup Manager
  *
  * High-level integration utilities for spire-generated code.
- * 
+ *
  * This module provides:
  * - Rust crate module hookup (adding spire module declaration)
  * - Re-exports from specialized managers
- * 
+ *
  * For framework-specific hookups, use:
  * - tauri-manager.ts for Tauri plugins
  * - cargo-toml-manager.ts for Cargo.toml modifications
@@ -17,36 +17,38 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+export * from './hookups/types.js';
+
 /**
  * Hookup generated Rust code into a Cargo crate.
  * Creates/modifies lib.rs to include the generated spire module using #[path].
- * 
+ *
  * This creates a module declaration like:
  *   #[path = "../spire/src/lib.rs"]
  *   pub mod spire;
- * 
+ *
  * Which allows the spire/ directory to live as a sibling to src/.
  */
 export function hookupRustCrate(cratePath: string, spireModuleName: string = 'spire'): boolean {
   const srcDir = path.join(cratePath, 'src');
   const libRsPath = path.join(srcDir, 'lib.rs');
   const mainRsPath = path.join(srcDir, 'main.rs');
-  
+
   const entryPath = fs.existsSync(libRsPath) ? libRsPath : mainRsPath;
-  
+
   if (!fs.existsSync(entryPath)) {
     throw new Error(`No lib.rs or main.rs found in ${srcDir}`);
   }
-  
+
   const spireModPattern = new RegExp(`pub\\s+mod\\s+${spireModuleName}\\s*;`);
   const content = fs.readFileSync(entryPath, 'utf-8');
   if (spireModPattern.test(content)) {
     return false;
   }
-  
+
   const spireInclude = `#[path = "../spire/src/lib.rs"]\npub mod ${spireModuleName};`;
   fs.writeFileSync(entryPath, content + '\n' + spireInclude + '\n', 'utf-8');
-  
+
   return true;
 }
 
@@ -103,7 +105,7 @@ export function writeEventCallbackAidl(
 
   files.push({
     path: callbackPath,
-    content: callbackContent,
+    content: callbackContent
   });
 }
 
@@ -128,11 +130,11 @@ export function configureAndroidManifest(
   ensureXmlBlock(manifestPath, {
     ForegroundServicePermission: {
       content: `<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />`,
-      parent: 'permissions',
+      parent: 'permissions'
     },
     ForegroundServiceDataSyncPermission: {
       content: `<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />`,
-      parent: 'permissions',
+      parent: 'permissions'
     },
     BindRadiclePermission: {
       content: `<permission
@@ -140,7 +142,7 @@ export function configureAndroidManifest(
         android:label="Bind to ${config.coreNamePascal} Radicle Service"
         android:protectionLevel="signature|normal" />
       <uses-permission android:name="${bindPermissionName}" />`,
-      parent: 'permissions',
+      parent: 'permissions'
     },
     RadicleService: {
       content: `<service
@@ -154,8 +156,8 @@ export function configureAndroidManifest(
                 <action android:name="${config.packageName}.${config.interfaceName}" />
             </intent-filter>
         </service>`,
-      parent: 'application',
-    },
+      parent: 'application'
+    }
   });
 }
 
@@ -173,7 +175,7 @@ export function configureGradleBuild(config: GradleConfig): void {
   configureAndroidGradle(gradlePath, {
     spireDir: './spire',
     hasCargoToml: true,
-    taskName: config.taskName,
+    taskName: config.taskName
   });
 }
 
@@ -192,10 +194,7 @@ export interface AndroidHookupData {
 /**
  * Find core name for Gradle task naming from plan.
  */
-export function findCoreNameForTask(
-  context: GeneratorContext,
-  currentRing: unknown
-): string {
+export function findCoreNameForTask(context: GeneratorContext, currentRing: unknown): string {
   const spiralOutNodes = context.plan.nodesByType.get('SpiralOut') ?? [];
 
   for (const node of spiralOutNodes) {
@@ -218,7 +217,7 @@ export async function executeAndroidHookup(
   data: AndroidHookupData
 ): Promise<void> {
   const workspaceRoot = context.workspaceRoot ?? process.cwd();
-  
+
   // Fix: If packageDir is already absolute, use it directly
   // Don't try to join it with workspaceRoot
   const resolvedPackageDir = path.isAbsolute(data.packageDir)
@@ -231,7 +230,7 @@ export async function executeAndroidHookup(
     coreNamePascal: data.coreNamePascal,
     packageName: data.packageName,
     serviceName: data.serviceName,
-    interfaceName: data.interfaceName,
+    interfaceName: data.interfaceName
   });
 
   // 2. IEventCallback AIDL
@@ -239,13 +238,13 @@ export async function executeAndroidHookup(
     coreName: data.coreName,
     coreNamePascal: data.coreNamePascal,
     packageName: data.packageName,
-    packagePath: data.packagePath,
+    packagePath: data.packagePath
   });
 
   // 3. Gradle configuration
   const coreName = findCoreNameForTask(context, data.currentRing);
   configureGradleBuild({
     resolvedPackageDir,
-    taskName: `buildRust${coreName}`,
+    taskName: `buildRust${coreName}`
   });
 }

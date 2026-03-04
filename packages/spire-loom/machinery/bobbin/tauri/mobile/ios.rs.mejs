@@ -50,7 +50,7 @@ impl<R: Runtime> <%= platformTraitName %> for IosPlatform<R> {
   fn <%= method.functionName %>(
     &self,
     <%- method.rs.params.list %>
-  ) -> Result<<%- method.rs.returnType %>> {
+  ) -> <%- method.returnType %> {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 

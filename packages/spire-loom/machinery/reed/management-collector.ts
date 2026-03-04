@@ -32,7 +32,6 @@ import {
   getMethodTags,
   getLinkTarget,
   getEntities,
-  type CrudMetadata,
   type LinkMetadata,
   type EntityMetadata,
   Management

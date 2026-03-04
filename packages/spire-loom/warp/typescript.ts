@@ -206,7 +206,7 @@ import {
   declareLanguage,
   LanguageType,
   type TypeFactory,
-  type LanguageParam,
+  type LanguageParam
 } from '../machinery/reed/language/index.js';
 import { camelCase } from '../machinery/stringing.js';
 import { TsCore, tsCore } from './spiral/typescript.js';
@@ -230,7 +230,7 @@ interface TypeScriptParam extends LanguageParam {
 
 /**
  * Type factory for TypeScript code generation.
- * 
+ *
  * TypeScript types map 1:1 with TypeScript types (no transformation needed),
  * but we still define them explicitly for consistency with the architecture.
  */
@@ -270,12 +270,12 @@ class TypeScriptTypeFactory implements TypeFactory<TypeScriptParam, LanguageType
     // Handle TypeScript array syntax: T[]
     let normalizedType = tsType.trim();
     let isArraySyntax = false;
-    
+
     if (normalizedType.endsWith('[]')) {
       normalizedType = normalizedType.slice(0, -2).trim();
       isArraySyntax = true;
     }
-    
+
     // Final collection flag is true if either passed in or detected from syntax
     const finalIsCollection = isCollection || isArraySyntax;
 
@@ -314,44 +314,46 @@ class TypeScriptTypeFactory implements TypeFactory<TypeScriptParam, LanguageType
  */
 export const typescriptLanguage = declareLanguage<TypeScriptParam, LanguageType>({
   name: 'typescript',
+  extensions: ['.ts', '.tsx'],
+
+  conventions: {
+    naming: {
+      function: 'camelCase',
+      type: 'PascalCase',
+      variable: 'camelCase',
+      const: 'SCREAMING_SNAKE',
+      module: 'camelCase'
+    }
+  },
 
   codeGen: {
-    fileExtensions: ['.ts.ejs', '.tsx.ejs'],
-    
     // Type factory defines how types map (identity for TypeScript)
     types: new TypeScriptTypeFactory(),
-    
+
     // Rendering config defines code formatting
     rendering: {
       formatParamName: camelCase,
       functionSignature: (method) => {
-        const params = method.params.map(p => 
-          `${p.name}${p.optional ? '?' : ''}: ${p.langType}`
-        ).join(', ');
+        const params = method.params
+          .map((p) => `${p.name}${p.optional ? '?' : ''}: ${p.langType}`)
+          .join(', ');
         return `${method.camelName}(${params}): ${method.returnTypeDef.name}`;
       },
       asyncFunctionSignature: (method) => {
-        const params = method.params.map(p => 
-          `${p.name}${p.optional ? '?' : ''}: ${p.langType}`
-        ).join(', ');
+        const params = method.params
+          .map((p) => `${p.name}${p.optional ? '?' : ''}: ${p.langType}`)
+          .join(', ');
         return `async ${method.camelName}(${params}): Promise<${method.returnTypeDef.name}>`;
       },
       renderDefinition: (method, opts) => {
         const export_ = opts.public ? 'export ' : '';
-        const params = method.params.map(p => 
-          `${p.name}${p.optional ? '?' : ''}: ${p.langType}`
-        ).join(', ');
+        const params = method.params
+          .map((p) => `${p.name}${p.optional ? '?' : ''}: ${p.langType}`)
+          .join(', ');
         return `${export_}function ${method.camelName}(${params}): ${method.returnTypeDef.name}`;
-      },
-      naming: {
-        function: 'camel',
-        type: 'pascal',
-        variable: 'camel',
-        const: 'screaming_snake',
-        module: 'camel'
       }
-    },
-    
+    }
+
     // No custom enhancers needed for TypeScript - defaults are sufficient
   },
 

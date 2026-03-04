@@ -59,7 +59,7 @@ impl<R: Runtime> <%= platformTraitName %> for AndroidPlatform<R> {
   fn <%= method.functionName %>(
     &self,
     <%- method.rs.params.list %>
-  ) -> Result<<%- method.rs.returnType %>> {
+  ) -> <%- method.returnType %> {
     // TODO: Call into <%= coreName %>-android service via JNI
     Err(Error::Other("Android not implemented".into()))
   }

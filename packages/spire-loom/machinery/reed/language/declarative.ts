@@ -17,7 +17,7 @@ import type {
   NamingConventions,
   NamingCase,
   LanguageMethod,
-  TransformEnhancer
+  LanguageIdentity
 } from './imperative.js';
 import { DEFAULT_NAMING_CONVENTIONS } from './imperative.js';
 import { LanguageType } from './types.js';
@@ -198,19 +198,8 @@ export interface CompositionTemplates {
   interfaceDefinition: CompositionTemplate;
   enumDefinition: CompositionTemplate;
   importStatement: CompositionTemplate;
-}
-
-// ============================================================================
-// Language Identity
-// ============================================================================
-
-export interface LanguageIdentity {
-  /** Language name (e.g., 'typescript', 'rust', 'kotlin') */
-  name: string;
-  /** Parent language to inherit from (e.g., 'c_family') */
-  extends?: string;
-  /** File extensions associated with this language */
-  extensions: string[];
+  /** Template for wrapping parameters in an object (e.g., `data: { name: string }`) */
+  objectWrappedParams: CompositionTemplate;
 }
 
 // ============================================================================
@@ -223,10 +212,7 @@ export interface LanguageIdentity {
  * This is what users write. It describes the language structure
  * without specifying how to generate code.
  */
-export interface LanguageDeclaration {
-  /** Language identity and inheritance */
-  identity: LanguageIdentity;
-
+export interface LanguageDeclaration extends LanguageIdentity {
   /** Naming conventions for the language */
   conventions: {
     naming: NamingConventions;
@@ -253,22 +239,13 @@ export interface LanguageDeclaration {
   enhancers?: TransformEnhancer[];
 }
 
-/**
- * Input for declaring a language. Allows partial declarations
- * when extending an existing language.
- */
-export interface LanguageDeclarationInput {
-  identity: LanguageIdentity;
-  conventions?: Partial<LanguageDeclaration['conventions']>;
-  syntax?: Partial<LanguageDeclaration['syntax']>;
-}
-
 // ============================================================================
 // Template Rendering (Runtime)
 // ============================================================================
 
 import ejs from 'ejs';
 import { preprocessTemplate } from '../../bobbin/mejs.js';
+import type { TransformEnhancer } from '../transform-pipeline.js';
 
 /**
  * Renders a template with data at runtime.
@@ -480,7 +457,6 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
   };
 
   const rendering: LanguageRenderingConfig = {
-    naming,
     // Parameters use parameter naming convention (falls back to variable, then snake)
     formatParamName: (name: string) =>
       formatName(name, naming.parameter ?? naming.variable ?? 'snake_case'),
@@ -614,14 +590,31 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
       };
 
       return renderTemplate(composition.functionDefinition.source, context);
+    },
+
+    renderObjectWrappedParams: (method: LanguageMethod, objectParamName: string) => {
+      // Build inner param list (the object type contents)
+      const innerParamList = method.params
+        .map((p: LanguageParam) => {
+          const optMarker = p.optional ? '?' : '';
+          return `${p.formattedName}${optMarker}: ${p.langType}`;
+        })
+        .join(', ');
+
+      const context = {
+        ...languageContext,
+        objectParamName,
+        innerParamList,
+        params: method.params
+      };
+
+      return renderTemplate(composition.objectWrappedParams.source, context);
     }
   };
 
   // Build code generation config
   const codeGen: LanguageCodeGenConfig<LanguageParam, LanguageType> = {
-    fileExtensions: declaration.identity.extensions.map((ext) =>
-      ext.startsWith('.') ? `${ext}.ejs` : `.${ext}.ejs`
-    ),
+    fileExtensions: declaration.extensions.map((ext) => (ext.startsWith('.') ? ext : `.${ext}`)),
     types,
     rendering
   };
@@ -630,7 +623,7 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
   // Note: warp config must be provided by the caller as it requires
   // runtime classes (ExternalLayer, CoreRing, Spiraler)
   return {
-    name: declaration.identity.name,
+    name: declaration.name,
     codeGen
   };
 }
@@ -640,10 +633,8 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
 // ============================================================================
 
 export const commonLanguageDeclaration: LanguageDeclaration = {
-  identity: {
-    name: 'common',
-    extensions: []
-  },
+  name: 'common',
+  extensions: [],
   conventions: {
     naming: {
       function: 'snake_case',
@@ -875,6 +866,10 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
       importStatement: {
         source: 'import {{importSpec}} from {{modulePath}};',
         whitespace: 'trim'
+      },
+      objectWrappedParams: {
+        source: '{{objectParamName}}: { {{innerParamList}} }',
+        whitespace: 'trim'
       }
     }
   }
@@ -886,11 +881,9 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
  */
 export const cFamilyLanguageDeclaration: LanguageDeclaration = {
   ...commonLanguageDeclaration,
-  identity: {
-    name: 'c_family',
-    extends: 'common',
-    extensions: ['.c', '.cpp', '.h', '.hpp', '.cs', '.java', '.rs', '.ts', '.kt', '.swift']
-  },
+  name: 'c_family',
+  extends: 'common',
+  extensions: ['.c', '.cpp', '.h', '.hpp', '.cs', '.java', '.rs', '.ts', '.kt', '.swift'],
   conventions: {
     naming: {
       ...commonLanguageDeclaration.conventions.naming

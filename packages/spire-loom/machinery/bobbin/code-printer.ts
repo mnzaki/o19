@@ -17,7 +17,6 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mejs } from './mejs.js';
 import type { GeneratedFile } from '../heddles/index.js';
-import { camelCase } from '../stringing.js';
 
 // ============================================================================
 // Built-in Templates
@@ -39,6 +38,9 @@ import '../../warp/kotlin.js';
 
 // Import the language registry and RawMethod
 import { languages, RawMethod } from '../reed/language/index.js';
+
+// Import method enhancement system for language views
+import { enhanceMethods, type EnhancedMethod } from '../reed/enhanced/methods.js';
 
 // ============================================================================
 // Types
@@ -72,11 +74,11 @@ export type Language = 'kotlin' | 'rust' | 'rust_jni' | 'aidl' | 'typescript' | 
 /**
  * Detect target language from template filename using double extension pattern.
  *
- * Pattern: {name}.{transform}.{ext}.ejs
- * - service.kt.ejs → kotlin
- * - jni_bridge.jni.rs.ejs → rust_jni
- * - platform.rs.ejs → rust
- * - interface.aidl.ejs → aidl
+ * Pattern: {name}.{transform}.{ext}.mejs
+ * - service.kt.mejs → kotlin
+ * - jni_bridge.jni.rs.mejs → rust_jni
+ * - platform.rs.mejs → rust
+ * - interface.aidl.mejs → aidl
  *
  * Uses the language registry for detection.
  *
@@ -133,7 +135,7 @@ export interface GenerateOptions {
  *
  * @example
  * await generateCode({
- *   template: 'android/service.kt.ejs',
+ *   template: 'android/service.kt.mejs',
  *   outputPath: '.../FoundframeService.kt',
  *   data: { serviceName: 'FoundframeService' },
  *   methods: rawMethods,  // Auto-transformed for Kotlin
@@ -158,29 +160,77 @@ function resolveTemplatePath(
   workspaceRoot?: string,
   packagePath?: string
 ): string {
-  // If absolute, use as-is
+  // If absolute, use as-is (but normalize extension)
   if (path.isAbsolute(template)) {
-    return template;
+    return ensureMejsExtension(template);
   }
+
+  // Try .mejs first, then fall back to .ejs for backward compatibility
+  const tryExtensions = [ensureMejsExtension(template), ensureEjsExtension(template)];
 
   // Check workspace first if provided
   if (workspaceRoot) {
-    const workspaceTemplatePath = path.join(workspaceRoot, 'loom', 'bobbin', template);
-    if (fs.existsSync(workspaceTemplatePath)) {
-      return workspaceTemplatePath;
+    for (const templateWithExt of tryExtensions) {
+      const workspaceTemplatePath = path.join(workspaceRoot, 'loom', 'bobbin', templateWithExt);
+      if (fs.existsSync(workspaceTemplatePath)) {
+        return workspaceTemplatePath;
+      }
     }
   }
 
   // Check package templates if provided
   if (workspaceRoot && packagePath) {
-    const packageTemplatePath = path.join(workspaceRoot, packagePath, 'loom', 'bobbin', template);
-    if (fs.existsSync(packageTemplatePath)) {
-      return packageTemplatePath;
+    for (const templateWithExt of tryExtensions) {
+      const packageTemplatePath = path.join(
+        workspaceRoot,
+        packagePath,
+        'loom',
+        'bobbin',
+        templateWithExt
+      );
+      if (fs.existsSync(packageTemplatePath)) {
+        return packageTemplatePath;
+      }
     }
   }
 
-  // Fall back to builtin templates
-  return path.join(getBuiltinTemplateDir(), template);
+  // Fall back to builtin templates (.mejs preferred)
+  for (const templateWithExt of tryExtensions) {
+    const builtinPath = path.join(getBuiltinTemplateDir(), templateWithExt);
+    if (fs.existsSync(builtinPath)) {
+      return builtinPath;
+    }
+  }
+
+  // Return .mejs path even if not found (will fail gracefully later)
+  return path.join(getBuiltinTemplateDir(), tryExtensions[0]);
+}
+
+/**
+ * Ensure template path has .mejs extension
+ * Handles paths that already have .ejs or .mejs
+ */
+function ensureMejsExtension(templatePath: string): string {
+  if (templatePath.endsWith('.mejs')) {
+    return templatePath;
+  }
+  if (templatePath.endsWith('.ejs')) {
+    return templatePath.slice(0, -4) + '.mejs';
+  }
+  return `${templatePath}.mejs`;
+}
+
+/**
+ * Ensure template path has .ejs extension (for backward compatibility)
+ */
+function ensureEjsExtension(templatePath: string): string {
+  if (templatePath.endsWith('.ejs')) {
+    return templatePath;
+  }
+  if (templatePath.endsWith('.mejs')) {
+    return templatePath.slice(0, -5) + '.ejs';
+  }
+  return `${templatePath}.ejs`;
 }
 
 export async function generateCode(options: GenerateOptions): Promise<GeneratedFile> {
@@ -194,22 +244,23 @@ export async function generateCode(options: GenerateOptions): Promise<GeneratedF
   // Detect language from template filename (double extension pattern)
   const language = detectLanguage(templatePath);
 
-  // Transform methods if provided and language is known
-  let transformedMethods: unknown[] | undefined;
+  // Prepare methods for template - enhance if needed
+  let templateMethods: unknown[] | undefined = options.methods;
+
   if (options.methods && language !== 'unknown') {
-    transformedMethods = transformMethods(options.methods, language);
+    templateMethods = prepareMethodsForTemplate(options.methods, language);
   }
 
-  // Build final data with transformed methods
+  // Build final data with prepared methods
   const data = {
     ...options.data,
-    methods: transformedMethods ?? options.data.methods
+    methods: templateMethods ?? options.data.methods
   };
 
   // Render template
   let content = await mejs.renderFile({
     templatePath,
-    data,
+    data
   });
 
   // Add header comment based on output file extension
@@ -302,70 +353,20 @@ ${overrideInstructions}
 }
 
 /**
- * Transform methods for the target language.
- * 
- * Uses the language registry to find the appropriate transform function.
- * Languages must be imported before this is called to register themselves.
- * 
- * @throws Error if language is not registered or has no transform
+ * Prepare enhanced methods for templates.
+ *
+ * If methods are already EnhancedMethods, use them directly.
+ * Otherwise, enhance them with the detected language.
  */
-function transformMethods(methods: RawMethod[], language: Language): RawMethod[] {
-  for (const method of methods) {
-    if (typeof method.name !== 'string' || method.name.length === 0) {
-      throw new Error(
-        `Method missing valid name during transform for ${language}: ${JSON.stringify(method)}. ` +
-        `All methods must have a non-empty string name.`
-      );
-    }
-    // Only add camelName if not already present (idempotent transform)
-    if (!('camelName' in method)) {
-      (method as any).camelName = camelCase(method.name);
-    }
+function prepareMethodsForTemplate(methods: RawMethod[], language: Language): EnhancedMethod[] {
+  // Check if methods are already EnhancedMethods (have _default property)
+  if (methods.length > 0 && '_default' in (methods[0] as any)) {
+    // Methods are already EnhancedMethods - use directly
+    return methods as unknown[] as EnhancedMethod[];
   }
 
-  // Use language registry for transforms
-  const lang = languages.get(language);
-  
-  if (!lang?.codeGen?.transform) {
-    throw new Error(
-      `Language '${language}' not registered or has no transform. ` +
-      `Make sure to import the language definition (e.g., 'import "@o19/spire-loom/warp/rust"').` +
-      `Registered languages: ${languages.getAll().map(l => l.name).join(', ') || '(none)'}`
-    );
-  }
-  
-  const transformedMethods = lang.codeGen.transform(methods);
-
-  // Attach hasTag helper to each method for template use
-  for (const method of transformedMethods) {
-    if (!('hasTag' in method)) {
-      (method as any).hasTag = function(tag: string): boolean {
-        return this.tags?.includes(tag) ?? false;
-      };
-    }
-  }
-
-  // Attach filter/map helpers that preserve transformation
-  transformedMethods.filter = function (
-    filter: (method: RawMethod, index: number, array: RawMethod[]) => boolean
-  ): RawMethod[] {
-    return transformMethods(Array.prototype.filter.call(this, filter), language);
-  };
-
-  // @ts-ignore
-  transformedMethods.map = function <U = RawMethod>(
-    callback: (method: RawMethod, index: number, array: RawMethod[]) => U
-  ): U[] {
-    const mapped = Array.prototype.map.call(this, callback);
-    // Only re-transform if results are still method-like objects
-    // This allows mapping to other types (strings, etc.) without errors
-    if (mapped.length > 0 && typeof mapped[0] === 'object' && mapped[0] !== null && 'name' in mapped[0]) {
-      return transformMethods(mapped as RawMethod[], language) as U[];
-    }
-    return mapped;
-  };
-
-  return transformedMethods;
+  // Methods are raw - enhance them with the detected language
+  return enhanceMethods(methods, [language]);
 }
 
 // ============================================================================
@@ -429,5 +430,3 @@ export async function renderTemplate(options: RenderTemplateOptions): Promise<st
     data: options.data
   });
 }
-
-

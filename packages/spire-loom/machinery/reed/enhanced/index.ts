@@ -17,7 +17,7 @@ export type {
   // Enhancement system types
   EnhancementConfig,
   EnhancedContainer,
-  EnhancementSystem,
+  EnhancementSystem
 } from './enhancement.js';
 
 export type {
@@ -25,7 +25,7 @@ export type {
   ParamView,
   ParamViews,
   LanguageView,
-  EnhancedMethod,
+  EnhancedMethod
 } from './methods.js';
 
 export type {
@@ -36,7 +36,7 @@ export type {
   RawEntity,
   RawEntityField,
   LanguageEntity,
-  LanguageEntityField,
+  LanguageEntityField
 } from './entities.js';
 
 // ============================================================================
@@ -54,8 +54,7 @@ export {
   enhanceMethods,
   createLanguageView,
   createEnhancedMethod,
-  isEnhanced,
-  methodEnhancement,
+  isEnhanced
 } from './methods.js';
 
 // ============================================================================
@@ -67,5 +66,5 @@ export {
   enhanceEntities,
   createEntityLanguageView,
   createEnhancedEntity,
-  entityEnhancement,
+  entityEnhancement
 } from './entities.js';

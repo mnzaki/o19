@@ -65,7 +65,7 @@ export function createMockTreadle(config: MockTreadleConfig): TreadleDefinition 
     outputs: (ctx) => {
       // Generate output specs for each mock file
       return (config.files ?? []).map(file => ({
-        template: 'mock/template.ejs',
+        template: 'mock/template.mejs',
         path: file.path,
         language: 'rust' as const
       }));
@@ -91,7 +91,7 @@ export const mockTreadles = {
     name: `rust-${name}`,
     methods: { filter: 'core', pipeline: [] },
     outputs: [{
-      template: 'mock/rust-file.ejs',
+      template: 'mock/rust-file.mejs',
       path: `src/${name}.rs`,
       language: 'rust'
     }],
@@ -108,7 +108,7 @@ export const mockTreadles = {
     name: `ts-${name}`,
     methods: { filter: 'front', pipeline: [] },
     outputs: [{
-      template: 'mock/ts-file.ejs',
+      template: 'mock/ts-file.mejs',
       path: `${name}.ts`,
       language: 'typescript'
     }],
@@ -137,7 +137,7 @@ export const mockTreadles = {
     name: 'echo-config',
     methods: { filter: 'core', pipeline: [] },
     outputs: [{
-      template: 'mock/echo.ejs',
+      template: 'mock/echo.mejs',
       path: 'config.echo.json',
       language: 'rust'
     }],

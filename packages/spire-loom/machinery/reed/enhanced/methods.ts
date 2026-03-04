@@ -15,20 +15,13 @@
 import { languages as languageRegistry, getLanguageExtensionKey } from '../language/index.js';
 import type {
   LanguageDefinition,
-  NamingConventions
-} from '../language/imperative.js';
-import type {
   LanguageMethod,
-  LanguageParam,
-  LanguageType,
+  NamingConventions,
   RawMethod
-} from '../language/types.js';
-import {
-  pascalCase,
-  camelCase,
-  toSnakeCase
-} from '../../stringing.js';
-import { declareEnhancement, type EnhancementSystem } from './enhancement.js';
+} from '../language/imperative.js';
+import type { LanguageParam } from '../language/types.js';
+import { pascalCase, camelCase, toSnakeCase } from '../../stringing.js';
+import { declareEnhancement } from './enhancement.js';
 
 // ============================================================================
 // Method Enhancement
@@ -42,15 +35,17 @@ import { declareEnhancement, type EnhancementSystem } from './enhancement.js';
  * @returns Language-enhanced method
  * @throws Error if language not registered or has no transform
  */
-export function enhanceMethod(
-  method: RawMethod,
-  language: string
-): LanguageMethod {
+export function enhanceMethod(method: RawMethod, language: string): LanguageMethod {
   const lang = languageRegistry.get(language);
   if (!lang?.codeGen?.transform) {
     throw new Error(
       `Language '${language}' not registered or has no transform. ` +
-        `Registered languages: ${languageRegistry.getAll().map((l) => l.name).join(', ') || '(none)'}`
+        `Registered languages: ${
+          languageRegistry
+            .getAll()
+            .map((l) => l.name)
+            .join(', ') || '(none)'
+        }`
     );
   }
 
@@ -106,7 +101,23 @@ export interface ParamViews extends Array<ParamView> {
 export interface VariantView {
   /** Function signature with variants applied */
   readonly signature: string;
-  
+
+  /**
+   * Returns the signature for EJS compatibility.
+   * Enables: <%= method.crudDefinition.async %>
+   */
+  toString(): string;
+
+  /**
+   * Wrap parameters in an object parameter.
+   * Returns a new VariantView with object-wrapped params.
+   *
+   * @example
+   * method.crudDefinition.withObjectParams('data').async
+   * // → "async create(data: { name: string }): Promise<Bookmark>"
+   */
+  withObjectParams(objectParamName: string): VariantView;
+
   // Chainable variants - each returns a new VariantView with combined modifiers
   readonly async?: VariantView;
   readonly pub?: VariantView;
@@ -119,7 +130,13 @@ export interface VariantView {
   readonly mut?: VariantView;
   readonly ref?: VariantView;
   // Additional variants can be added dynamically
-  [variant: string]: VariantView | string | undefined;
+  // Allow function properties like toString() that return string
+  [variant: string]:
+    | VariantView
+    | string
+    | (() => string)
+    | ((name: string) => VariantView)
+    | undefined;
 }
 
 /**
@@ -175,6 +192,10 @@ export interface LanguageView {
   readonly static: VariantView;
   readonly unsafe: VariantView;
 
+  // CRUD definition - uses crudName instead of method.name
+  // Example: method.crudDefinition.async.signature → "async create(data: CreateBookmark): Promise<Bookmark>"
+  readonly crudDefinition: VariantView;
+
   // Language-specific extras (dynamic)
   [key: string]: unknown;
 }
@@ -187,17 +208,17 @@ function applyNamingConvention(
   convention: NamingConventions[keyof NamingConventions] | null | undefined
 ): string {
   if (!convention) return name;
-  
+
   switch (convention) {
-    case 'snake':
+    case 'snake_case':
       return toSnakeCase(name);
-    case 'camel':
+    case 'camelCase':
       return camelCase(name);
-    case 'pascal':
+    case 'PascalCase':
       return pascalCase(name);
-    case 'screaming_snake':
+    case 'SCREAMING_SNAKE':
       return toSnakeCase(name).toUpperCase();
-    case 'kebab':
+    case 'kebab-case':
       return toSnakeCase(name).replace(/_/g, '-');
     default:
       return name;
@@ -220,7 +241,7 @@ export function createLanguageView(
   const view = {} as LanguageView;
 
   // Get naming convention from language declaration
-  const naming = lang.codeGen.rendering.naming;
+  const naming = lang.conventions.naming;
 
   // Store references
   Object.defineProperty(view, '_language', {
@@ -336,36 +357,45 @@ export function createLanguageView(
       // Legacy helper properties for template compatibility
       Object.defineProperty(paramViews, 'list', {
         get() {
-          return method.params.map((p: LanguageParam) => 
-            `${applyNamingConvention(p.name, naming.variable)}: ${p.langType}`
-          ).join(', ');
+          return method.params
+            .map(
+              (p: LanguageParam) =>
+                `${applyNamingConvention(p.name, naming.variable)}: ${p.langType}`
+            )
+            .join(', ');
         },
         enumerable: false
       });
 
       Object.defineProperty(paramViews, 'listWithOptionality', {
         get() {
-          return method.params.map((p: LanguageParam) => 
-            `${applyNamingConvention(p.name, naming.variable)}${p.optional ? '?' : ''}: ${p.langType}`
-          ).join(', ');
+          return method.params
+            .map(
+              (p: LanguageParam) =>
+                `${applyNamingConvention(p.name, naming.variable)}${p.optional ? '?' : ''}: ${p.langType}`
+            )
+            .join(', ');
         },
         enumerable: false
       });
 
       Object.defineProperty(paramViews, 'names', {
         get() {
-          return method.params.map((p: LanguageParam) => 
-            applyNamingConvention(p.name, naming.variable)
-          ).join(', ');
+          return method.params
+            .map((p: LanguageParam) => applyNamingConvention(p.name, naming.variable))
+            .join(', ');
         },
         enumerable: false
       });
 
       Object.defineProperty(paramViews, 'invocation', {
         get() {
-          return method.params.map((p: LanguageParam) => 
-            `${applyNamingConvention(p.name, naming.variable)}: ${applyNamingConvention(p.name, naming.variable)}`
-          ).join(', ');
+          return method.params
+            .map(
+              (p: LanguageParam) =>
+                `${applyNamingConvention(p.name, naming.variable)}: ${applyNamingConvention(p.name, naming.variable)}`
+            )
+            .join(', ');
         },
         enumerable: false
       });
@@ -402,10 +432,33 @@ export function createLanguageView(
    * Create a variant view with accumulated modifiers.
    * Calls into lang.codeGen.rendering functions generated by compileToExecutive.
    * Max 3 levels of nesting (e.g., view.pub.static.async).
+   *
+   * @param variants - Array of variant names (async, pub, etc.)
+   * @param depth - Current nesting depth (max 3)
+   * @param nameOverride - Optional name to use instead of method.name (for crudDefinition)
+   * @param objectParamName - Optional name to wrap params in an object
    */
-  function createVariantView(variants: string[], depth: number = 1): VariantView {
+  function createVariantView(
+    variants: string[],
+    depth: number = 1,
+    nameOverride?: string,
+    objectParamName?: string
+  ): VariantView {
     const variantView = {} as VariantView;
     const rendering = lang.codeGen.rendering;
+    const naming = lang.conventions.naming;
+
+    let effectiveMethod = nameOverride ? method.withNewName(nameOverride) : method;
+
+    // If objectParamName specified, wrap params in an object
+    if (objectParamName) {
+      if (!rendering.renderObjectWrappedParams) {
+        throw new Error(
+          `Language '${lang.name}' does not support object-wrapped parameters. ` +
+            `Define 'composition.objectWrappedParams' in the language declaration.`
+        );
+      }
+    }
 
     // Signature getter - uses appropriate rendering function based on variants
     Object.defineProperty(variantView, 'signature', {
@@ -416,10 +469,31 @@ export function createLanguageView(
         const isProtected = variants.includes('protected');
         const isStatic = variants.includes('static');
 
+        // Build object-wrapped params if specified
+        const paramList = objectParamName
+          ? rendering.renderObjectWrappedParams!(effectiveMethod, objectParamName)
+          : effectiveMethod.params
+              .map((p: LanguageParam) => `${p.formattedName}: ${p.langType}`)
+              .join(', ');
+
         // Priority: visibility/static modifiers use renderDefinition if available
         if (isPublic || isPrivate || isProtected || isStatic) {
           if (rendering.renderDefinition) {
-            return rendering.renderDefinition(method, { 
+            // Create a synthetic method with the wrapped param list for renderDefinition
+            const syntheticMethod = objectParamName
+              ? effectiveMethod.cloneWith({
+                  params: [
+                    {
+                      name: objectParamName,
+                      type: paramList.replace(/^[^:]+: /, ''),
+                      langType: paramList.replace(/^[^:]+: /, ''),
+                      formattedName: objectParamName,
+                      optional: false
+                    } as LanguageParam
+                  ]
+                })
+              : effectiveMethod;
+            return rendering.renderDefinition(syntheticMethod, {
               public: isPublic,
               private: isPrivate,
               protected: isProtected,
@@ -431,18 +505,54 @@ export function createLanguageView(
 
         // Async variant uses asyncFunctionSignature
         if (isAsync && rendering.asyncFunctionSignature) {
-          return rendering.asyncFunctionSignature(method);
+          if (objectParamName) {
+            // For async with object params, manually construct since asyncFunctionSignature
+            // doesn't support object wrapping directly
+            const baseSignature = rendering.functionSignature(effectiveMethod);
+            // Replace the params in the signature with wrapped version
+            const originalParams = effectiveMethod.params
+              .map((p: LanguageParam) => `${p.formattedName}: ${p.langType}`)
+              .join(', ');
+            return baseSignature.replace(originalParams, paramList);
+          }
+          return rendering.asyncFunctionSignature(effectiveMethod);
         }
 
-        // Fall back to base signature
-        return rendering.functionSignature(method);
+        // Fall back to base signature with wrapped params
+        const baseSignature = rendering.functionSignature(effectiveMethod);
+        if (objectParamName) {
+          const originalParams = effectiveMethod.params
+            .map((p: LanguageParam) => `${p.formattedName}: ${p.langType}`)
+            .join(', ');
+          return baseSignature.replace(originalParams, paramList);
+        }
+        return baseSignature;
       },
       enumerable: true
     });
 
+    // toString for EJS compatibility
+    Object.defineProperty(variantView, 'toString', {
+      value: function () {
+        return this.signature;
+      },
+      enumerable: false
+    });
+
     // Chainable variant accessors - max 3 levels
     if (depth < 3) {
-      const variantNames = ['async', 'pub', 'public', 'private', 'protected', 'static', 'unsafe', 'const', 'mut', 'ref'];
+      const variantNames = [
+        'async',
+        'pub',
+        'public',
+        'private',
+        'protected',
+        'static',
+        'unsafe',
+        'const',
+        'mut',
+        'ref'
+      ];
       for (const variantName of variantNames) {
         Object.defineProperty(variantView, variantName, {
           get() {
@@ -450,18 +560,40 @@ export function createLanguageView(
             if (variants.includes(variantName)) {
               return variantView;
             }
-            return createVariantView([...variants, variantName], depth + 1);
+            return createVariantView(
+              [...variants, variantName],
+              depth + 1,
+              nameOverride,
+              objectParamName
+            );
           },
           enumerable: true
         });
       }
     }
 
+    // withObjectParams - wrap params in an object
+    Object.defineProperty(variantView, 'withObjectParams', {
+      value: (newObjectParamName: string) => {
+        return createVariantView(variants, depth, nameOverride, newObjectParamName);
+      },
+      enumerable: true
+    });
+
     return variantView;
   }
 
   // Attach base variant accessors to LanguageView
-  const baseVariants = ['async', 'pub', 'public', 'private', 'protected', 'static', 'unsafe', 'const'];
+  const baseVariants = [
+    'async',
+    'pub',
+    'public',
+    'private',
+    'protected',
+    'static',
+    'unsafe',
+    'const'
+  ];
   for (const variantName of baseVariants) {
     Object.defineProperty(view, variantName, {
       get() {
@@ -471,14 +603,28 @@ export function createLanguageView(
     });
   }
 
+  // CRUD definition - variant view that uses crudName instead of method.name
+  Object.defineProperty(view, 'crudDefinition', {
+    get() {
+      // Get the crudName from the method (set by CRUD pipeline)
+      const crudName = (method as any).crudName;
+      if (!crudName) {
+        // Fallback to regular name if no crudName
+        return createVariantView([]);
+      }
+      return createVariantView([], 1, crudName);
+    },
+    enumerable: true
+  });
+
   // Copy any extra properties from custom enhancers
-  for (const [key, value] of Object.entries(method)) {
+  for (const key of Object.keys(method)) {
     if (key.startsWith('_')) continue;
     if (key in view) continue;
 
     Object.defineProperty(view, key, {
       get() {
-        return (method as Record<string, unknown>)[key];
+        return (method as unknown as Record<string, unknown>)[key];
       },
       enumerable: true
     });
@@ -521,6 +667,10 @@ export interface EnhancedMethod extends RawMethod {
   readonly snakeName: string;
   readonly stubReturn: string;
   readonly params: ParamViews;
+  readonly crudDefinition: VariantView;
+
+  // Helper methods
+  hasTag(tag: string): boolean;
 
   // Language views by extension key
   readonly rs?: LanguageView;
@@ -538,16 +688,16 @@ export interface EnhancedMethod extends RawMethod {
  */
 export function createEnhancedMethod(
   raw: RawMethod,
-  enhancements: Map<string, { method: LanguageMethod; lang: LanguageDefinition }>,
+  enhancements: Map<string, { item: LanguageMethod; lang: LanguageDefinition }>,
   defaultLangKey: string
 ): EnhancedMethod {
   // Start with raw method properties
   const container = { ...raw } as EnhancedMethod;
 
   // Create views for each language
-  for (const [langKey, { method, lang }] of enhancements) {
-    const view = createLanguageView(method, lang, langKey);
-    (container as Record<string, unknown>)[langKey] = view;
+  for (const [langKey, { item, lang }] of enhancements) {
+    const view = createLanguageView(item, lang, langKey);
+    (container as unknown as Record<string, unknown>)[langKey] = view;
   }
 
   // Store metadata
@@ -587,6 +737,17 @@ export function createEnhancedMethod(
   createDelegator('snakeName');
   createDelegator('stubReturn');
   createDelegator('params');
+  createDelegator('crudDefinition');
+
+  // Attach hasTag helper
+  if (!('hasTag' in container)) {
+    Object.defineProperty(container, 'hasTag', {
+      value: function (tag: string): boolean {
+        return this.tags?.includes(tag) ?? false;
+      },
+      enumerable: false
+    });
+  }
 
   return container;
 }
@@ -609,7 +770,7 @@ export function enhanceMethods(
 
   return methods.map((raw) => {
     // Enhance for each language
-    const enhancements = new Map<string, { method: LanguageMethod; lang: LanguageDefinition }>();
+    const enhancements = new Map<string, { item: LanguageMethod; lang: LanguageDefinition }>();
 
     for (const langName of languages) {
       const langKey = getLanguageExtensionKey(langName);
@@ -617,7 +778,7 @@ export function enhanceMethods(
       if (!langDef) continue;
 
       const enhanced = enhanceMethod(raw, langName);
-      enhancements.set(langKey, { method: enhanced, lang: langDef });
+      enhancements.set(langKey, { item: enhanced, lang: langDef });
     }
 
     return createEnhancedMethod(raw, enhancements, defaultLangKey);
@@ -650,19 +811,10 @@ export function isEnhanced(method: RawMethod | EnhancedMethod): method is Enhanc
  * const enhanced = methodEnhancement.enhanceAll(methods, ['rust', 'typescript']);
  * ```
  */
-export const methodEnhancement: EnhancementSystem<
-  RawMethod,
-  LanguageMethod,
-  LanguageView,
-  EnhancedMethod
-> = declareEnhancement({
+export const methodEnhancement = declareEnhancement({
   name: 'method',
   enhance: enhanceMethod,
   createView: createLanguageView,
   createContainer: (raw, enhancements, defaultLangKey) =>
-    createEnhancedMethod(
-      raw,
-      enhancements as Map<string, { method: LanguageMethod; lang: LanguageDefinition }>,
-      defaultLangKey
-    ),
+    createEnhancedMethod(raw, enhancements, defaultLangKey)
 });

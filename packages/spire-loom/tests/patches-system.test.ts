@@ -48,7 +48,7 @@ describe('Patches System', () => {
         type: 'ensureBlock',
         targetFile: 'Cargo.toml',
         marker: 'spire-deps',
-        template: 'test.ejs',
+        template: 'test.mejs',
         language: 'toml',
       };
 
@@ -61,7 +61,7 @@ describe('Patches System', () => {
         type: 'ensureBlock',
         targetFile: 'src/lib.rs',
         marker: 'module-decl',
-        template: 'mod.ejs',
+        template: 'mod.mejs',
         language: 'rust',
         position: {
           after: 'pub mod prelude;',
@@ -77,13 +77,13 @@ describe('Patches System', () => {
       const treadle = declareTreadle({
         matches: [{ current: 'TestSpiraler', previous: 'RustCore' }],
         methods: { filter: 'core', pipeline: [] },
-        outputs: [{ template: 'test.ejs', path: 'test.rs', language: 'rust' }],
+        outputs: [{ template: 'test.mejs', path: 'test.rs', language: 'rust' }],
         patches: [
           {
             type: 'ensureBlock',
             targetFile: 'Cargo.toml',
             marker: 'spire-deps',
-            template: 'cargo/deps.ejs',
+            template: 'cargo/deps.mejs',
             language: 'toml',
           },
         ],
@@ -94,7 +94,7 @@ describe('Patches System', () => {
       expect(patch.type).toBe('ensureBlock');
       expect(patch.targetFile).toBe('Cargo.toml');
       expect(patch.marker).toBe('spire-deps');
-      expect(patch.template).toBe('cargo/deps.ejs');
+      expect(patch.template).toBe('cargo/deps.mejs');
       expect(patch.language).toBe('toml');
     });
 
@@ -102,7 +102,7 @@ describe('Patches System', () => {
       const treadle = declareTreadle({
         matches: [{ current: 'TestSpiraler', previous: 'RustCore' }],
         methods: { filter: 'core', pipeline: [] },
-        outputs: [{ template: 'test.ejs', path: 'test.rs', language: 'rust' }],
+        outputs: [{ template: 'test.mejs', path: 'test.rs', language: 'rust' }],
         patches: [
           (ctx) => {
             if (ctx.packagePath.includes('mobile')) {
@@ -110,7 +110,7 @@ describe('Patches System', () => {
                 type: 'ensureBlock',
                 targetFile: 'Cargo.toml',
                 marker: 'mobile-deps',
-                template: 'mobile/deps.ejs',
+                template: 'mobile/deps.mejs',
                 language: 'toml',
               };
             }
@@ -126,20 +126,20 @@ describe('Patches System', () => {
       const treadle = declareTreadle({
         matches: [{ current: 'TestSpiraler', previous: 'RustCore' }],
         methods: { filter: 'core', pipeline: [] },
-        outputs: [{ template: 'test.ejs', path: 'test.rs', language: 'rust' }],
+        outputs: [{ template: 'test.mejs', path: 'test.rs', language: 'rust' }],
         patches: [
           {
             type: 'ensureBlock',
             targetFile: 'Cargo.toml',
             marker: 'spire-deps',
-            template: 'deps.ejs',
+            template: 'deps.mejs',
             language: 'toml',
           },
           {
             type: 'ensureBlock',
             targetFile: 'src/lib.rs',
             marker: 'spire-mod',
-            template: 'mod.ejs',
+            template: 'mod.mejs',
             language: 'rust',
           },
         ],
@@ -159,7 +159,7 @@ describe('Patches System', () => {
         name: 'testTreadle',
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
-        outputs: [{ template: 'tauri/README.md.ejs', path: 'README.md', language: 'rust' }],
+        outputs: [{ template: 'tauri/README.md.mejs', path: 'README.md', language: 'rust' }],
         data: { 
           coreNamePascal: 'TestCore',
           pluginName: 'test-plugin',
@@ -170,7 +170,7 @@ describe('Patches System', () => {
             type: 'ensureBlock',
             targetFile: 'Cargo.toml',
             marker: 'test-block',
-            template: 'tauri/README.md.ejs',  // Use a real template
+            template: 'tauri/README.md.mejs',  // Use a real template
             language: 'toml',
             position: { after: '[dependencies]' },
           },
@@ -198,13 +198,13 @@ describe('Patches System', () => {
         name: 'androidService',
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
-        outputs: [{ template: 'dummy.ejs', path: 'dummy.rs', language: 'rust' }],
+        outputs: [{ template: 'dummy.mejs', path: 'dummy.rs', language: 'rust' }],
         patches: [
           {
             type: 'ensureBlock',
             targetFile: 'test.toml',
             marker: 'spire-deps',
-            template: 'test.ejs',
+            template: 'test.mejs',
             language: 'toml',
           },
         ],
@@ -227,7 +227,7 @@ describe('Patches System', () => {
         name: 'testTreadle',
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
-        outputs: [{ template: 'tauri/README.md.ejs', path: 'README.md', language: 'rust' }],
+        outputs: [{ template: 'tauri/README.md.mejs', path: 'README.md', language: 'rust' }],
         data: { 
           coreNamePascal: 'TestCore',
           pluginName: 'test-plugin',
@@ -241,7 +241,7 @@ describe('Patches System', () => {
               type: 'ensureBlock',
               targetFile: 'Cargo.toml',
               marker: 'dynamic',
-              template: 'tauri/README.md.ejs',  // Use real template
+              template: 'tauri/README.md.mejs',  // Use real template
               language: 'toml',
             };
           },
@@ -271,14 +271,14 @@ describe('Patches System', () => {
       const treadle = declareTreadle({
         matches: [{ current: 'Test', previous: 'Core' }],
         methods: { filter: 'core', pipeline: [] },
-        outputs: [{ template: 'dummy.ejs', path: 'dummy.rs', language: 'rust' }],
+        outputs: [{ template: 'dummy.mejs', path: 'dummy.rs', language: 'rust' }],
         patches: [
           () => undefined,
           {
             type: 'ensureBlock',
             targetFile: 'test.txt',
             marker: 'static',
-            template: 'static.ejs',
+            template: 'static.mejs',
             language: 'rust',
           },
         ],
@@ -302,7 +302,7 @@ describe('Patches System', () => {
         methods: { filter: 'core', pipeline: [] },
         outputs: [
           {
-            template: 'gen.ejs',
+            template: 'gen.mejs',
             path: 'generated.rs',
             language: 'rust',
           },
@@ -312,7 +312,7 @@ describe('Patches System', () => {
             type: 'ensureBlock',
             targetFile: 'existing.toml',
             marker: 'patch',
-            template: 'patch.ejs',
+            template: 'patch.mejs',
             language: 'toml',
           },
         ],
@@ -340,13 +340,13 @@ describe('Patches System', () => {
           (ctx) => {
             if (ctx.packagePath.includes('mobile')) {
               return {
-                template: 'mobile.ejs',
+                template: 'mobile.mejs',
                 path: 'mobile.rs',
                 language: 'rust',
               };
             }
             return {
-              template: 'desktop.ejs',
+              template: 'desktop.mejs',
               path: 'desktop.rs',
               language: 'rust',
             };
@@ -364,7 +364,7 @@ describe('Patches System', () => {
         outputs: [
           () => undefined,
           {
-            template: 'always.ejs',
+            template: 'always.mejs',
             path: 'always.rs',
             language: 'rust',
           },

@@ -67,7 +67,7 @@ export const dddServicesTreadle = declareTreadle({
 
         // Port interface - methods come from context via generateCode transform
         outputs.push({
-          template: 'ddd/port.ts.ejs',
+          template: 'ddd/port.ts.mejs',
           path: `src/ports/${entityCamel}.port.ts`,
           language: 'typescript',
           context: { service }
@@ -75,7 +75,7 @@ export const dddServicesTreadle = declareTreadle({
 
         // Service implementation
         outputs.push({
-          template: 'ddd/service.ts.ejs',
+          template: 'ddd/service.ts.mejs',
           path: `src/services/${entityCamel}.service.ts`,
           language: 'typescript',
           context: { service }
@@ -83,7 +83,7 @@ export const dddServicesTreadle = declareTreadle({
       }
 
       outputs.push({
-        template: 'ddd/services-index.ts.ejs',
+        template: 'ddd/services-index.ts.mejs',
         path: 'src/services/index.ts',
         language: 'typescript',
         context: { services }

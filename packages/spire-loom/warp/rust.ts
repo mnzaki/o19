@@ -342,7 +342,7 @@ function createRustStructClass<T extends new (...args: any[]) => any>(OriginalCl
  * A Rust method signature (for use in method metadata).
  * Pure metadata - no implementation.
  */
-export class RustMethod {
+export class RustMethodSignature {
   constructor(
     public params: RustDataType[],
     public returnType: RustDataType | RustExternalLayer
@@ -395,13 +395,13 @@ import {
   LanguageType,
   type TypeFactory,
   type LanguageParam,
-  type TransformEnhancer,
   type LanguageMethod
 } from '../machinery/reed/language/index.js';
 import { toSnakeCase } from '../machinery/stringing.js';
 import { RustCore, rustCore } from './spiral/rust.js';
 import { RustAndroidSpiraler } from './spiral/spiralers/rust/index.js';
 import { DesktopSpiraler } from './spiral/spiralers/desktop.js';
+import type { TransformEnhancer } from '../machinery/reed/index.js';
 
 // ============================================================================
 // Rust-Specific Types
@@ -421,12 +421,8 @@ interface RustParam extends LanguageParam {
  * Rust method with language-specific metadata.
  */
 interface RustMethod extends LanguageMethod<RustParam> {
-  /** Rust return type (possibly wrapped in Result) */
-  rsReturnType: string;
   /** Inner return type (without Result wrapper) for use in Result<innerReturnType, Error> */
   innerReturnType: string;
-  /** snake_case implementation name for calling */
-  implName: string;
   /** Service access preamble for error handling */
   serviceAccessPreamble: string[];
 }
@@ -519,8 +515,6 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
  *
  * - Adds implName (snake_case)
  * - Generates service access preamble for Mutex/Option wrappers
- *
- * Note: rsReturnType removed - use method.returnType (delegates to returnTypeDef.name)
  */
 const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (methods) => {
   return methods.map((method) => {
@@ -542,9 +536,7 @@ const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (meth
  * Wraps return types in Result<T, crate::Error> for methods tagged with 'rust:result'.
  * This is applied after base type mapping so the returnTypeDef is already set.
  */
-const resultWrappingEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (
-  methods
-) => {
+const resultWrappingEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (methods) => {
   return methods.map((method) => {
     // Check if method has the rust:result tag
     if (method.hasTag?.('rust:result')) {
@@ -555,8 +547,8 @@ const resultWrappingEnhancer: TransformEnhancer<RustMethod, RustParam, RustMetho
           ...method,
           returnTypeDef: {
             ...method.returnTypeDef,
-            name: `Result<${innerType}, crate::Error>`,
-          },
+            name: `Result<${innerType}, crate::Error>`
+          }
         } as RustMethod;
       }
     }
@@ -632,12 +624,24 @@ function buildServiceAccessPreamble(
  * - Transform is auto-generated from these primitives
  * - Custom enhancer adds Rust-specific metadata
  */
-export const rustLanguage = declareLanguage({
+export const rustLanguage = declareLanguage<RustParam, LanguageType>({
   name: 'rust',
+  extensions: ['.rs', '.jni.rs'],
+  conventions: {
+    naming: {
+      function: 'snake_case',
+      type: 'PascalCase',
+      variable: 'snake_case',
+      const: 'SCREAMING_SNAKE',
+      module: 'snake_case',
+      field: 'snake_case',
+      method: 'snake_case',
+      parameter: 'snake_case',
+      generic: 'PascalCase'
+    }
+  },
 
   codeGen: {
-    fileExtensions: ['.rs.ejs', '.jni.rs.ejs'],
-
     // Type factory defines how TS types map to Rust
     types: new RustTypeFactory(),
 
@@ -656,13 +660,6 @@ export const rustLanguage = declareLanguage({
         const pub = opts.public ? 'pub ' : '';
         const params = method.params.map((p) => `${p.formattedName}: ${p.langType}`).join(', ');
         return `${pub}fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
-      },
-      naming: {
-        function: 'snake',
-        type: 'pascal',
-        variable: 'snake',
-        const: 'screaming_snake',
-        module: 'snake'
       }
     },
 
@@ -685,7 +682,7 @@ export const rustLanguage = declareLanguage({
     classDecorator: Struct,
     core: {
       coreClass: RustCore,
-      createCore: (layer) => rustCore(layer || new RustExternalLayer())
+      createCore: (layer: RustExternalLayer) => rustCore(layer || new RustExternalLayer())
     },
     spiralers: {
       android: RustAndroidSpiraler,

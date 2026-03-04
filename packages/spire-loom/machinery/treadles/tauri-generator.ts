@@ -82,17 +82,17 @@ export const tauriPluginTreadle = declareTreadle({
   },
 
   outputs: [
-    { template: 'tauri/README.md.ejs', path: 'README.md', language: 'rust' },
-    { template: 'tauri/error.rs.ejs', path: 'src/error.rs', language: 'rust' },
-    { template: 'tauri/models.rs.ejs', path: 'src/models.rs', language: 'rust' },
-    { template: 'tauri/platform.rs.ejs', path: 'src/platform.rs', language: 'rust' },
-    { template: 'tauri/commands.rs.ejs', path: 'src/commands.rs', language: 'rust' },
-    { template: 'tauri/extension.rs.ejs', path: 'src/extension.rs', language: 'rust' },
-    { template: 'tauri/lib.rs.ejs', path: 'src/lib.rs', language: 'rust' },
-    { template: 'tauri/desktop.rs.ejs', path: 'src/desktop.rs', language: 'rust' },
-    { template: 'tauri/mobile/mod.rs.ejs', path: 'src/mobile/mod.rs', language: 'rust' },
-    { template: 'tauri/mobile/android.rs.ejs', path: 'src/mobile/android.rs', language: 'rust' },
-    { template: 'tauri/mobile/ios.rs.ejs', path: 'src/mobile/ios.rs', language: 'rust' }
+    { template: 'tauri/README.md.mejs', path: 'README.md', language: 'rust' },
+    { template: 'tauri/error.rs.mejs', path: 'src/error.rs', language: 'rust' },
+    { template: 'tauri/models.rs.mejs', path: 'src/models.rs', language: 'rust' },
+    { template: 'tauri/platform.rs.mejs', path: 'src/platform.rs', language: 'rust' },
+    { template: 'tauri/commands.rs.mejs', path: 'src/commands.rs', language: 'rust' },
+    { template: 'tauri/extension.rs.mejs', path: 'src/extension.rs', language: 'rust' },
+    { template: 'tauri/lib.rs.mejs', path: 'src/lib.rs', language: 'rust' },
+    { template: 'tauri/desktop.rs.mejs', path: 'src/desktop.rs', language: 'rust' },
+    { template: 'tauri/mobile/mod.rs.mejs', path: 'src/mobile/mod.rs', language: 'rust' },
+    { template: 'tauri/mobile/android.rs.mejs', path: 'src/mobile/android.rs', language: 'rust' },
+    { template: 'tauri/mobile/ios.rs.mejs', path: 'src/mobile/ios.rs', language: 'rust' }
   ],
 
   hookups: (ctx) => {

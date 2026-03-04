@@ -130,18 +130,18 @@ export const androidServiceTreadle = declareTreadle({
   // prepends 'spire/' to isolate generated code from package source.
   outputs: [
     {
-      template: 'android/service.kt.ejs',
+      template: 'android/service.kt.mejs',
       path: 'android/java/{packagePath}/service/{serviceName}.kt',
       language: 'kotlin'
     },
     // AIDL generation enabled - generates interface for NDK aidl tool
     {
-      template: 'android/aidl_interface.aidl.ejs',
+      template: 'android/aidl_interface.aidl.mejs',
       path: 'android/aidl/{packagePath}/{interfaceName}.aidl',
       language: 'aidl'
     },
     {
-      template: 'android/jni_bridge.jni.rs.ejs',
+      template: 'android/jni_bridge.jni.rs.mejs',
       path: 'src/lib.rs',
       language: 'rust_jni'
     }

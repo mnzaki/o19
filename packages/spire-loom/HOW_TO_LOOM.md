@@ -866,7 +866,54 @@ ctx.entities?.withFields(['id', 'what', 'guiltLevel']);
 
 ## Templates
 
-EJS templates. Override builtins in `loom/bobbin/`:
+Spire-loom uses **MEJS** (Moustacheod-EJS) - a moustacheod-style syntax that compiles to EJS.
+
+### MEJS Syntax
+
+MEJS (Moustacheod-EJS) provides cleaner syntax for control flow while maintaining full template power:
+
+**Output (unescaped by default for code generation):**
+```ejs
+{{ variableName }}           → Prints value: <%- variableName %>
+{{ method.signature }}       → Prints method signature
+{{ entity.tableName }}       → Prints entity table name
+```
+
+**Control Flow (simplified, no braces needed):**
+```ejs
+{% if condition %}           → <% if (condition) { %>
+  content
+{% endif %}                  → <% } %>
+
+{% for item in items %}      → <% for (const item of items) { %>
+  {{ item.name }}
+{% endfor %}                 → <% } %>
+
+{% if x %}                   → <% if (x) { %>
+  ...
+{% elif y %}                 → <% } else if (y) { %>
+  ...
+{% else %}                   → <% } else { %>
+  ...
+{% endif %}                  → <% } %>
+```
+
+**Raw JavaScript (for complex logic):**
+```mejs
+{%+ if (complex.condition && something.else) { %}
+  // Use {%+ %} when you need JavaScript braces (the + preserves raw code blocks)
+{%+ } %}
+```
+
+**Whitespace Control:**
+```ejs
+{{_ expr _}}    → Trim whitespace both sides
+{_ expr }       → Trim trailing whitespace
+```
+
+### Template Files
+
+Override builtins in `loom/bobbin/`:
 
 ```
 loom/bobbin/

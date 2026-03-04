@@ -345,7 +345,7 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
 /**
  * Detect language from template filename.
  *
- * @param template - Template filename (e.g., 'commands.rs.ejs')
+ * @param template - Template filename (e.g., 'commands.rs.mejs')
  * @returns Language identifier or 'unknown'
  */
 function detectLanguageFromTemplate(template: string): string | undefined {

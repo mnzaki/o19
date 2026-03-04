@@ -75,7 +75,7 @@ export const typescriptDDDTreadle = declareTreadle({
       }));
       const outputs: OutputSpec[] = [];
       outputs.push({
-        template: 'typescript/ports.ts.ejs',
+        template: 'typescript/ports.ts.mejs',
         path: 'src/ports/index.ts',
         language: 'typescript',
         context: { services }

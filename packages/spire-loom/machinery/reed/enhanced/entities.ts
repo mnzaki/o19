@@ -14,9 +14,8 @@
 
 import { languages as languageRegistry, getLanguageExtensionKey } from '../language/index.js';
 import type { LanguageDefinition, NamingConventions } from '../language/imperative.js';
-import type { LanguageType } from '../language/types.js';
 import { pascalCase, camelCase, toSnakeCase } from '../../stringing.js';
-import { declareEnhancement, type EnhancementSystem } from './enhancement.js';
+import { declareEnhancement } from './enhancement.js';
 
 // ============================================================================
 // Entity Types
@@ -211,17 +210,17 @@ function applyNamingConvention(
   convention: NamingConventions[keyof NamingConventions] | null | undefined
 ): string {
   if (!convention) return name;
-  
+
   switch (convention) {
-    case 'snake':
+    case 'snake_case':
       return toSnakeCase(name);
-    case 'camel':
+    case 'camelCase':
       return camelCase(name);
-    case 'pascal':
+    case 'PascalCase':
       return pascalCase(name);
-    case 'screaming_snake':
+    case 'SCREAMING_SNAKE':
       return toSnakeCase(name).toUpperCase();
-    case 'kebab':
+    case 'kebab-case':
       return toSnakeCase(name).replace(/_/g, '-');
     default:
       return name;
@@ -253,20 +252,22 @@ function pluralize(name: string): string {
  * @param language - Language identifier (e.g., 'rust', 'typescript')
  * @returns Language-enhanced entity
  */
-export function enhanceEntity(
-  entity: RawEntity,
-  language: string
-): LanguageEntity {
+export function enhanceEntity(entity: RawEntity, language: string): LanguageEntity {
   const lang = languageRegistry.get(language);
   if (!lang?.codeGen?.types) {
     throw new Error(
       `Language '${language}' not registered or has no types. ` +
-        `Registered languages: ${languageRegistry.getAll().map((l) => l.name).join(', ') || '(none)'}`
+        `Registered languages: ${
+          languageRegistry
+            .getAll()
+            .map((l) => l.name)
+            .join(', ') || '(none)'
+        }`
     );
   }
 
   const types = lang.codeGen.types;
-  const naming = lang.codeGen.rendering.naming;
+  const naming = lang.conventions.naming;
 
   // Enhance fields with language-specific types
   const fields: LanguageEntityField[] = entity.fields.map((field) => {
@@ -292,14 +293,16 @@ export function enhanceEntity(
       ...field,
       langType,
       sqlType,
-      columnName: toSnakeCase(field.name),
+      columnName: toSnakeCase(field.name)
     };
   });
 
   // Identify special fields
   const primaryField = fields.find((f) => f.isPrimary);
   const insertFields = fields.filter((f) => f.forInsert !== false && !f.isUpdatedAt);
-  const updateFields = fields.filter((f) => f.forUpdate !== false && !f.isPrimary && !f.isCreatedAt);
+  const updateFields = fields.filter(
+    (f) => f.forUpdate !== false && !f.isPrimary && !f.isCreatedAt
+  );
 
   return {
     name: entity.name,
@@ -308,7 +311,7 @@ export function enhanceEntity(
     fields,
     primaryField,
     insertFields,
-    updateFields,
+    updateFields
   };
 }
 
@@ -332,23 +335,23 @@ export function createEntityLanguageView(
   langKey: string
 ): EntityLanguageView {
   const view = {} as EntityLanguageView;
-  const naming = lang.codeGen.rendering.naming;
+  const naming = lang.conventions.naming;
 
   // Store references
   Object.defineProperty(view, '_language', {
     value: lang,
     writable: false,
-    enumerable: false,
+    enumerable: false
   });
   Object.defineProperty(view, '_raw', {
     value: entity,
     writable: false,
-    enumerable: false,
+    enumerable: false
   });
   Object.defineProperty(view, '_naming', {
     value: naming,
     writable: false,
-    enumerable: false,
+    enumerable: false
   });
 
   // Entity naming
@@ -356,28 +359,28 @@ export function createEntityLanguageView(
     get() {
       return entity.typeName;
     },
-    enumerable: true,
+    enumerable: true
   });
 
   Object.defineProperty(view, 'tableName', {
     get() {
       return entity.tableName;
     },
-    enumerable: true,
+    enumerable: true
   });
 
   Object.defineProperty(view, 'variableName', {
     get() {
       return applyNamingConvention(entity.name, naming.variable);
     },
-    enumerable: true,
+    enumerable: true
   });
 
   Object.defineProperty(view, 'moduleName', {
     get() {
       return applyNamingConvention(entity.name, naming.module);
     },
-    enumerable: true,
+    enumerable: true
   });
 
   // Raw names
@@ -385,21 +388,21 @@ export function createEntityLanguageView(
     get() {
       return camelCase(entity.name);
     },
-    enumerable: true,
+    enumerable: true
   });
 
   Object.defineProperty(view, 'pascalName', {
     get() {
       return pascalCase(entity.name);
     },
-    enumerable: true,
+    enumerable: true
   });
 
   Object.defineProperty(view, 'snakeName', {
     get() {
       return toSnakeCase(entity.name);
     },
-    enumerable: true,
+    enumerable: true
   });
 
   // Fields
@@ -433,35 +436,35 @@ export function createEntityLanguageView(
     },
     get isUpdatedAt() {
       return field.isUpdatedAt ?? false;
-    },
+    }
   });
 
   Object.defineProperty(view, 'fields', {
     get() {
       return entity.fields.map(createFieldView);
     },
-    enumerable: true,
+    enumerable: true
   });
 
   Object.defineProperty(view, 'primaryField', {
     get() {
       return entity.primaryField ? createFieldView(entity.primaryField) : undefined;
     },
-    enumerable: true,
+    enumerable: true
   });
 
   Object.defineProperty(view, 'insertFields', {
     get() {
       return entity.insertFields.map(createFieldView);
     },
-    enumerable: true,
+    enumerable: true
   });
 
   Object.defineProperty(view, 'updateFields', {
     get() {
       return entity.updateFields.map(createFieldView);
     },
-    enumerable: true,
+    enumerable: true
   });
 
   // Code generation helpers
@@ -474,17 +477,20 @@ export function createEntityLanguageView(
         .join('\n');
       return `${entity.typeName} {\n${fields}\n}`;
     },
-    enumerable: true,
+    enumerable: true
   });
 
   Object.defineProperty(view, 'tableDefinition', {
     get() {
       const columns = entity.fields
-        .map((f) => `  ${f.columnName} ${f.sqlType}${f.isPrimary ? ' PRIMARY KEY' : ''}${f.nullable ? '' : ' NOT NULL'},`)
+        .map(
+          (f) =>
+            `  ${f.columnName} ${f.sqlType}${f.isPrimary ? ' PRIMARY KEY' : ''}${f.nullable ? '' : ' NOT NULL'},`
+        )
         .join('\n');
       return `CREATE TABLE ${entity.tableName} (\n${columns}\n);`;
     },
-    enumerable: true,
+    enumerable: true
   });
 
   return view;
@@ -504,29 +510,29 @@ export function createEntityLanguageView(
  */
 export function createEnhancedEntity(
   raw: RawEntity,
-  enhancements: Map<string, { entity: LanguageEntity; lang: LanguageDefinition }>,
+  enhancements: Map<string, { item: LanguageEntity; lang: LanguageDefinition }>,
   defaultLangKey: string
 ): EnhancedEntity {
   // Start with raw entity properties
   const container = { ...raw } as EnhancedEntity;
 
   // Create views for each language
-  for (const [langKey, { entity, lang }] of enhancements) {
-    const view = createEntityLanguageView(entity, lang, langKey);
-    (container as Record<string, unknown>)[langKey] = view;
+  for (const [langKey, { item, lang }] of enhancements) {
+    const view = createEntityLanguageView(item, lang, langKey);
+    (container as unknown as Record<string, unknown>)[langKey] = view;
   }
 
   // Store metadata
   Object.defineProperty(container, '_default', {
     value: defaultLangKey,
     writable: false,
-    enumerable: false,
+    enumerable: false
   });
 
   Object.defineProperty(container, '_languages', {
     value: Array.from(enhancements.keys()),
     writable: false,
-    enumerable: false,
+    enumerable: false
   });
 
   // Create delegating getters
@@ -536,7 +542,7 @@ export function createEnhancedEntity(
         const view = (this as Record<string, EntityLanguageView>)[this._default];
         return view?.[prop];
       },
-      enumerable: true,
+      enumerable: true
     });
   };
 
@@ -579,7 +585,7 @@ export function enhanceEntities(
 
   return entities.map((raw) => {
     // Enhance for each language
-    const enhancements = new Map<string, { entity: LanguageEntity; lang: LanguageDefinition }>();
+    const enhancements = new Map<string, { item: LanguageEntity; lang: LanguageDefinition }>();
 
     for (const langName of languages) {
       const langKey = getLanguageExtensionKey(langName);
@@ -587,7 +593,7 @@ export function enhanceEntities(
       if (!langDef) continue;
 
       const enhanced = enhanceEntity(raw, langName);
-      enhancements.set(langKey, { entity: enhanced, lang: langDef });
+      enhancements.set(langKey, { item: enhanced, lang: langDef });
     }
 
     return createEnhancedEntity(raw, enhancements, defaultLangKey);
@@ -613,19 +619,10 @@ export function enhanceEntities(
  * const enhanced = entityEnhancement.enhanceAll(entities, ['rust', 'typescript']);
  * ```
  */
-export const entityEnhancement: EnhancementSystem<
-  RawEntity,
-  LanguageEntity,
-  EntityLanguageView,
-  EnhancedEntity
-> = declareEnhancement({
+export const entityEnhancement = declareEnhancement({
   name: 'entity',
   enhance: enhanceEntity,
   createView: createEntityLanguageView,
   createContainer: (raw, enhancements, defaultLangKey) =>
-    createEnhancedEntity(
-      raw,
-      enhancements as Map<string, { entity: LanguageEntity; lang: LanguageDefinition }>,
-      defaultLangKey
-    ),
+    createEnhancedEntity(raw, enhancements, defaultLangKey)
 });

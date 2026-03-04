@@ -99,7 +99,7 @@ export const tauriAdaptorTreadle = declareTreadle({
         const entityPascal = pascalCase(entity.name);
 
         outputs.push({
-          template: 'tauri/commands.ts.ejs',
+          template: 'tauri/commands.ts.mejs',
           path: `ts/commands/${entityCamel}.commands.ts`,
           language: 'typescript',
           context: {
@@ -118,7 +118,7 @@ export const tauriAdaptorTreadle = declareTreadle({
       for (const service of services) {
         const entityCamel = camelCase(service.entityName);
         outputs.push({
-          template: 'tauri/adaptor.ts.ejs',
+          template: 'tauri/adaptor.ts.mejs',
           path: `ts/adaptors/${entityCamel}.adaptor.ts`,
           language: 'typescript',
           context: { service, pluginName: config.pluginName }
@@ -127,7 +127,7 @@ export const tauriAdaptorTreadle = declareTreadle({
 
       // Commands index file
       outputs.push({
-        template: 'tauri/commands-index.ts.ejs',
+        template: 'tauri/commands-index.ts.mejs',
         path: 'ts/commands/index.ts',
         language: 'typescript',
         context: {
@@ -142,7 +142,7 @@ export const tauriAdaptorTreadle = declareTreadle({
 
       // Main adaptor index
       outputs.push({
-        template: 'tauri/adaptors-index.ts.ejs',
+        template: 'tauri/adaptors-index.ts.mejs',
         path: 'ts/adaptors/index.ts',
         language: 'typescript',
         context: {

@@ -15,6 +15,6 @@ use crate::Result;
 pub trait <%= management.name %>: Send + Sync {
 <% methods.forEach(method => { %>
   /// <%= method.description || method.functionName %>
-  fn <%= method.functionName %>(&self, <%- method.rs.params.list %>) -> Result<<%- method.rs.returnType %>>;
+  fn <%= method.functionName %>(&self, <%- method.rs.params.list %>) -> <%- method.returnType %>;
 <% }); %>
 }

@@ -12,8 +12,8 @@
  * @example
  * ```typescript
  * const outputs: Array<SpecOrFn<OutputSpec, GeneratorContext>> = [
- *   { template: 'foo.ts.ejs', path: 'foo.ts', language: 'typescript' },
- *   (ctx) => ctx.methods.has('admin') ? { template: 'admin.ts.ejs', ... } : undefined,
+ *   { template: 'foo.ts.mejs', path: 'foo.ts', language: 'typescript' },
+ *   (ctx) => ctx.methods.has('admin') ? { template: 'admin.ts.mejs', ... } : undefined,
  *   (ctx) => [{ ... }, { ... }] // return array
  * ];
  *

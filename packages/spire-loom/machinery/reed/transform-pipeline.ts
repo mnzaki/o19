@@ -10,29 +10,9 @@
  * @module machinery/reed/transform-pipeline
  */
 
-import {
-  pascalCase,
-  camelCase,
-  toSnakeCase,
-} from '../stringing.js';
-import {
-  type RawMethod,
-  type BaseParam,
-  type LanguageMethod,
-  type LanguageParam,
-  type LanguageType,
-  type TypeFactory,
-} from './language/types.js';
-import { deriveCrudMethodName } from '../../warp/crud-derivation.js';
-import {
-  ParamCollection,
-  SignatureHelper,
-  CrudNameRenderer,
-  StubReturnRenderer,
-  TypeDefRenderer,
-  type ParamRenderConfig,
-  type SignatureRenderConfig,
-} from './language/template-helpers.js';
+import { pascalCase, camelCase, toSnakeCase } from '../stringing.js';
+import { type LanguageParam, type LanguageType, type TypeFactory } from './language/types.js';
+import type { LanguageMethod, RawMethod } from './language/index.js';
 
 // ============================================================================
 // Transform Context
@@ -51,10 +31,6 @@ export interface TransformContext<
   language: string;
   /** Type factory for generating language-specific types */
   types: TypeFactory<P, T>;
-  /** Parameter rendering configuration */
-  paramConfig: ParamRenderConfig;
-  /** Signature rendering configuration */
-  signatureConfig: SignatureRenderConfig;
 }
 
 // ============================================================================
@@ -82,55 +58,19 @@ export type TransformEnhancer<
 // ============================================================================
 
 /**
- * Base type mapping enhancer.
- *
- * Maps TypeScript types to language-specific types using the TypeFactory.
- * Adds langType to params and returnTypeDef to methods.
- */
-export const baseTypeMappingEnhancer: TransformEnhancer<
-  RawMethod,
-  LanguageParam,
-  LanguageMethod
-> = (methods, context) => {
-  return methods.map((method) => {
-    // Map return type
-    const returnTypeDef = context.types.fromTsType(
-      method.returnType,
-      method.isCollection
-    );
-
-    // Map params
-    const params = method.params.map((p) => ({
-      ...p,
-      langType: context.types.fromTsType(p.type, false).name,
-      formattedName: context.paramConfig.formatParamName(p.name),
-    }));
-
-    return {
-      ...method,
-      params: params as LanguageParam[],
-      returnTypeDef,
-      stubReturn: returnTypeDef.stubReturn,
-    } as LanguageMethod;
-  });
-};
-
-/**
  * Naming enhancer.
  *
  * Adds camelCase, PascalCase, and snake_case name variants.
  */
-export const namingEnhancer: TransformEnhancer<
-  LanguageMethod,
-  LanguageParam,
-  LanguageMethod
-> = (methods) => {
+export const namingEnhancer: TransformEnhancer<RawMethod, LanguageParam, LanguageMethod> = (
+  methods
+) => {
   return methods.map((method) => ({
     ...method,
     camelName: camelCase(method.name),
     pascalName: pascalCase(method.name),
-    snakeName: toSnakeCase(method.name),
-  }));
+    snakeName: toSnakeCase(method.name)
+  })) as LanguageMethod[];
 };
 
 /**
@@ -139,40 +79,13 @@ export const namingEnhancer: TransformEnhancer<
  * Copies crudName from raw method (added by CRUD pipeline).
  * The CRUD pipeline runs before language enhancement.
  */
-export const crudEnhancer: TransformEnhancer<
-  LanguageMethod,
-  LanguageParam,
-  LanguageMethod
-> = (methods) => {
+export const crudEnhancer: TransformEnhancer<RawMethod, LanguageParam, LanguageMethod> = (
+  methods
+) => {
   return methods.map((method) => ({
     ...method,
-    crudName: (method as RawMethod).crudName || ''
-  }));
-};
-
-/**
- * Template helper enhancer.
- *
- * Adds ParamCollection, SignatureHelper, and other template helpers.
- */
-export const templateHelperEnhancer: TransformEnhancer<
-  LanguageMethod,
-  LanguageParam,
-  LanguageMethod
-> = (methods, context) => {
-  return methods.map((method) => ({
-    ...method,
-    // Param collection with renderers
-    params: new ParamCollection(method.params, context.paramConfig),
-    // Signature helper
-    signature: new SignatureHelper(method, context.signatureConfig),
-    // CRUD name renderer
-    crudRenderer: new CrudNameRenderer(method.crudName),
-    // Stub return renderer
-    stubRenderer: new StubReturnRenderer(method.stubReturn),
-    // Type definition renderer
-    typeRenderer: new TypeDefRenderer(method.returnTypeDef),
-  }));
+    crudName: method.crudName || ''
+  })) as LanguageMethod[];
 };
 
 // ============================================================================
@@ -184,15 +97,10 @@ export const templateHelperEnhancer: TransformEnhancer<
  *
  * Applied to all languages unless overridden.
  */
-export const DEFAULT_ENHANCERS: TransformEnhancer<
-  RawMethod,
-  LanguageParam,
-  LanguageMethod
->[] = [
-  baseTypeMappingEnhancer,
+export const DEFAULT_ENHANCERS: TransformEnhancer<RawMethod, LanguageParam, LanguageMethod>[] = [
   namingEnhancer,
-  crudEnhancer,
-  templateHelperEnhancer,
+  crudEnhancer
+  // Note: templateHelperEnhancer removed - template helpers now provided by Method Enhancement system
 ];
 
 // ============================================================================
@@ -237,57 +145,16 @@ export function createTransform<
     ? [...DEFAULT_ENHANCERS, ...config.customEnhancers]
     : DEFAULT_ENHANCERS;
 
-  // Build transform context
-  const paramConfig: ParamRenderConfig = {
-    formatParamName: config.formatParamName,
-    typeKey: `${config.language}Type`,
-  };
-
-  const signatureConfig: SignatureRenderConfig<LanguageMethod<P, T>> = {
-    functionSignature: config.functionSignature,
-    asyncFunctionSignature: config.asyncFunctionSignature,
-  };
-
   const context: TransformContext<P, T> = {
     language: config.language,
-    types: config.types,
-    paramConfig,
-    signatureConfig,
+    types: config.types
   };
 
   // Return transform function
   return (methods: RawMethod[]) => {
-    return enhancers.reduce(
-      (acc, enhancer) => enhancer(acc, context),
+    return enhancers.reduce<LanguageMethod<P, T>[]>(
+      (acc, enhancer) => enhancer(acc as any, context) as LanguageMethod<P, T>[],
       methods as LanguageMethod<P, T>[]
     );
   };
 }
-
-// ============================================================================
-// Re-exports
-// ============================================================================
-
-export {
-  ParamCollection,
-  SignatureHelper,
-  CrudNameRenderer,
-  StubReturnRenderer,
-  TypeDefRenderer,
-  type ParamRenderConfig,
-  type SignatureRenderConfig,
-} from './language/template-helpers.js';
-
-// Export LanguageType class (runtime value)
-export { LanguageType } from './language/types.js';
-
-export type {
-  RawMethod,
-  BaseParam,
-  LanguageMethod,
-  LanguageParam,
-  TypeFactory,
-} from './language/types.js';
-
-// Re-export from crud-derivation for backwards compat during transition
-export { deriveCrudMethodName } from '../../warp/crud-derivation.js';

@@ -29,26 +29,17 @@ export type {
   CompositionTemplate,
   CompositionTemplates,
   LanguageIdentity,
-  LanguageDeclaration,
-  LanguageDeclarationInput
+  LanguageDeclaration
 } from './declarative.js';
 
 export type {
   // Layer 2: Executive types
-  BaseParam,
-  LanguageParam,
   LanguageMethod,
-  TypeFactory,
-  TransformContext,
-  TransformEnhancer,
-  TransformConfig,
   LanguageDefinition,
   NamingConventions,
   NamingCase,
   CoreConvention,
-  LanguageRenderingConfig,
-  ParamRenderConfig,
-  SignatureRenderConfig
+  LanguageRenderingConfig
 } from './imperative.js';
 
 // ============================================================================
@@ -66,13 +57,14 @@ export {
 
 export {
   // Layer 2: Runtime classes and registry
-  LanguageType,
   RawMethod,
   languages,
   LanguageRegistry,
   getLanguageExtensionKey,
-  declareLanguageImperatively as declareLanguageBase
+  declareLanguageImperatively
 } from './imperative.js';
+
+export { LanguageType, type TypeFactory, type LanguageParam } from './types.js';
 
 // ============================================================================
 // Public API: Unified declareLanguage
@@ -80,16 +72,31 @@ export {
 
 import type { LanguageDeclaration } from './declarative.js';
 import { compileToExecutive } from './declarative.js';
-import type { LanguageDefinition } from './imperative.js';
+import type { LanguageDefinition, LanguageIdentity, NamingConventions } from './imperative.js';
 import { declareLanguageImperatively } from './imperative.js';
 import deepmerge from 'deepmerge';
+import type { LanguageParam, LanguageType } from './types.js';
 
+export type RecursivePartial<T> = {
+  [P in keyof T]?: T[P] extends object ? RecursivePartial<T[P]> : T[P];
+};
+/**
+ * Input for declaring a language. Allows partial declarations
+ * when extending an existing language.
+ */
+export type LanguageDeclarationInput<
+  P extends LanguageParam,
+  T extends LanguageType
+> = LanguageIdentity<P, T> &
+  Partial<Omit<LanguageDefinition<P, T>, 'conventions'>> &
+  RecursivePartial<LanguageDeclaration>;
 /**
  * Declare a language.
  *
- * This is the main entry point. It accepts either:
+ * This is the main entry point. It accepts a mixed object of:
  * 1. A declarative LanguageDeclaration (Layer 1) - compiles to executive
- * 2. An executive LanguageDefinitionConfig (Layer 2) - uses directly
+ * 2. An executive LanguageDefinition (Layer 2) - overrides anything that comes
+ * out of the compiled declarative config
  *
  * The declarative config is deeply merged with the compiled executive config,
  * allowing you to override specific fields while keeping the generated ones.
@@ -112,21 +119,21 @@ import deepmerge from 'deepmerge';
  * });
  * ```
  */
-export function declareLanguage<T extends LanguageDeclaration = LanguageDeclaration>(
-  input: T
+export function declareLanguage<P extends LanguageParam, T extends LanguageType>(
+  input: LanguageDeclarationInput<P, T>
 ): LanguageDefinition {
   let executiveConfig: LanguageDefinition;
 
   // Check if this is a declarative (Layer 1) or executive (Layer 2) input
   if ('identity' in input && 'syntax' in input) {
     // Layer 1: Compile declarative to executive
-    const compiledConfig = compileToExecutive(input);
+    const compiledConfig = compileToExecutive(input as LanguageDeclaration);
 
     // Deep merge: input overrides compiled config
     executiveConfig = deepmerge(compiledConfig, input);
 
     // Ensure name is set from identity
-    executiveConfig.name = input.identity.name;
+    executiveConfig.name = input.identity!.name;
   } else {
     // Layer 2: Use executive config directly
     executiveConfig = input as LanguageDefinition;

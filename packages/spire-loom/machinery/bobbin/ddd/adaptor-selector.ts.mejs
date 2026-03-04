@@ -1,10 +1,10 @@
-<%
+{%
 /**
  * Adaptor Selector Template
  * Manual composition file - one place to wire up adaptors
  */
 const services = locals.services;
--%>
+%}
 /**
  * Adaptor Selector
  * 
@@ -19,19 +19,19 @@ const services = locals.services;
  * @manual-update Add domain-specific logic here
  */
 
-<%_ for (const service of services) { _%>
-import { <%= service.serviceName %> } from './services/<%= service.entityName.toLowerCase() %>.service.js';
-import type { <%= service.portName %> } from './ports/<%= service.entityName.toLowerCase() %>.port.js';
-import { <%= service.entityName %>TauriAdaptor } from './adaptors/<%= service.entityName.toLowerCase() %>.adaptor.js';
-<%_ } _%>
+{% for service in services %}
+import { {{ service.serviceName }} } from './services/{{ h.snakeCase(service.entityName) }}.service.js';
+import type { {{ service.portName }} } from './ports/{{ h.snakeCase(service.entityName) }}.port.js';
+import { {{ service.entityName }}TauriAdaptor } from './adaptors/{{ h.snakeCase(service.entityName) }}.adaptor.js';
+{% endfor %}
 
 /**
  * Container for all domain services
  */
 export interface Services {
-<%_ for (const service of services) { _%>
-  <%= service.entityName.toLowerCase() %>: <%= service.portName %>;
-<%_ } _%>
+{% for service in services %}
+  {{ h.snakeCase(service.entityName) }}: {{ service.portName }};
+{% endfor %}
 }
 
 /**
@@ -42,17 +42,17 @@ export interface Services {
 export function createServices(
   _invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>
 ): Services {
-<%_ for (const service of services) { _%>
-  const <%= service.entityName.toLowerCase() %>Adaptor = new <%= service.entityName %>TauriAdaptor();
-<%_ } _%>
+{% for service in services %}
+  const {{ h.snakeCase(service.entityName) }}Adaptor = new {{ service.entityName }}TauriAdaptor();
+{% endfor %}
 
   return {
-<%_ for (const service of services) { _%>
-    <%= service.entityName.toLowerCase() %>: new <%= service.serviceName %>(
-      <%= service.entityName.toLowerCase() %>Adaptor,
-      <%= service.entityName.toLowerCase() %>Adaptor
+{% for service in services %}
+    {{ h.snakeCase(service.entityName) }}: new {{ service.serviceName }}(
+      {{ h.snakeCase(service.entityName) }}Adaptor,
+      {{ h.snakeCase(service.entityName) }}Adaptor
     ),
-<%_ } _%>
+{% endfor %}
   };
 }
 

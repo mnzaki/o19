@@ -12,7 +12,7 @@
  *   path: '{packageDir}/src/db.rs',
  *   language: 'rust',
  *   markers: { start: '// SPIRE-LOOM:db-setup', end: '// /SPIRE-LOOM:db-setup' },
- *   template: 'rust/db_setup.rs.ejs',
+ *   template: 'rust/db_setup.rs.mejs',
  *   context: { entities },  // Optional per-hookup data
  *   position: { after: 'use sqlx::', before: 'fn main' }
  * }]
@@ -238,10 +238,10 @@ function parseTomlArrayItems(arrayContent: string): string[] {
 
 /**
  * Derive a marker name from template path.
- * E.g., "rust/db_setup.rs.ejs" -> "db-setup"
+ * E.g., "rust/db_setup.rs.mejs" -> "db-setup"
  */
 function deriveMarkerName(template: string): string {
-  const basename = path.basename(template, '.ejs');
+  const basename = path.basename(template, '.mejs');
   // Remove file extension
   const withoutExt = basename.replace(/\.(rs|ts|js|kt)$/i, '');
   // Convert to kebab-case

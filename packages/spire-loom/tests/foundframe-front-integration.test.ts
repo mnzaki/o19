@@ -73,7 +73,7 @@ describe('Foundframe-Front Integration', () => {
         
         // Generate one output per entity
         return entities.map(entity => ({
-          template: 'kysely/adaptor.ts.ejs',
+          template: 'kysely/adaptor.ts.mejs',
           path: `src/adaptors/gen/${entity.toLowerCase()}.adaptor.gen.ts`,
           language: 'typescript' as const
         }));
