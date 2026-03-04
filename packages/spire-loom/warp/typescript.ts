@@ -207,7 +207,7 @@ import {
   LanguageType,
   type TypeFactory,
   type LanguageParam,
-} from '../machinery/reed/language.js';
+} from '../machinery/reed/language/index.js';
 import { camelCase } from '../machinery/stringing.js';
 import { TsCore, tsCore } from './spiral/typescript.js';
 import { TypescriptSpiraler } from './spiral/spiralers/typescript/index.js';

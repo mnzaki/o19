@@ -15,25 +15,26 @@ import {
   declare,
   getScopeRegistry,
   type Scope
-} from '../self-declarer.js';
-import type { RawMethod } from '../bobbin/code-generator.js';
+} from '../../self-declarer.js';
+import type { RawMethod } from '../../bobbin/code-generator.js';
 import type { ExternalLayer } from '../../warp/imprint.js';
 import type { CoreRing, Spiraler, SpiralRing } from '../../warp/spiral/pattern.js';
 import {
-  type LanguageType,
   type LanguageParam,
   type LanguageMethod,
   type TypeFactory,
   type TransformConfig,
   createTransform,
-} from './transform-pipeline.js';
+} from '../transform-pipeline.js';
+
+// Import LanguageType class (not just type) for runtime use
+import { LanguageType } from './types.js';
 
 // ============================================================================
 // Re-exports
 // ============================================================================
 
-// Re-export LanguageType class (not type)
-export { LanguageType } from './language-types.js';
+export { LanguageType } from './types.js';
 
 export {
   // Types
@@ -55,7 +56,7 @@ export {
   crudEnhancer,
   templateHelperEnhancer,
   DEFAULT_ENHANCERS,
-} from './transform-pipeline.js';
+} from '../transform-pipeline.js';
 
 export {
   // Template helpers
@@ -66,7 +67,7 @@ export {
   TypeDefRenderer,
   type ParamRenderConfig,
   type SignatureRenderConfig,
-} from '../bobbin/template-helpers.js';
+} from '../../bobbin/template-helpers.js';
 
 // ============================================================================
 // Type Re-exports from language-types (for convenience)
@@ -75,7 +76,7 @@ export {
 export type {
   CrudOperation,
   MethodLink,
-} from './language-types.js';
+} from './types.js';
 
 // ============================================================================
 // Naming Conventions
@@ -231,7 +232,7 @@ export interface LanguageDefinition<
 export type {
   TransformEnhancer,
   TransformContext,
-} from './transform-pipeline.js';
+} from '../transform-pipeline.js';
 
 // ============================================================================
 // Type Mapping Integration

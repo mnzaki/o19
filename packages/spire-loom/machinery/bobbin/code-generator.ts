@@ -26,7 +26,7 @@ import '../../warp/typescript.js';
 import '../../warp/kotlin.js';
 
 // Import the language registry
-import { languages } from '../reed/language.js';
+import { languages } from '../reed/language/index.js';
 
 // ============================================================================
 // Types

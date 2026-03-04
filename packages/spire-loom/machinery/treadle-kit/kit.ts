@@ -39,7 +39,7 @@ import {
   type EnhancedMethod,
   type LanguageView
 } from '../reed/enhancement.js';
-import { getLanguageExtensionKey, languages } from '../reed/language.js';
+import { getLanguageExtensionKey, languages } from '../reed/language/index.js';
 
 /**
  * Create a treadle kit for building generators.

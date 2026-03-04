@@ -22,7 +22,7 @@ import {
   type LanguageParam,
   type LanguageType,
   type TypeFactory,
-} from './language-types.js';
+} from './language/types.js';
 import { deriveCrudMethodName } from '../../warp/crud-derivation.js';
 import {
   ParamCollection,
@@ -278,14 +278,16 @@ export {
   type SignatureRenderConfig,
 } from '../bobbin/template-helpers.js';
 
-export {
-  type RawMethod,
-  type BaseParam,
-  type LanguageMethod,
-  type LanguageParam,
-  type LanguageType,
-  type TypeFactory,
-} from './language-types.js';
+// Export LanguageType class (runtime value)
+export { LanguageType } from './language/types.js';
+
+export type {
+  RawMethod,
+  BaseParam,
+  LanguageMethod,
+  LanguageParam,
+  TypeFactory,
+} from './language/types.js';
 
 // Re-export from crud-derivation for backwards compat during transition
 export { deriveCrudMethodName } from '../../warp/crud-derivation.js';

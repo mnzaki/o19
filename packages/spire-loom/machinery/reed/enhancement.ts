@@ -11,7 +11,7 @@
  * @module machinery/reed/enhancement
  */
 
-import { languages as languageRegistry, getLanguageExtensionKey } from './language.js';
+import { languages as languageRegistry, getLanguageExtensionKey } from './language/index.js';
 import type {
   LanguageDefinition,
   NamingConventionConfig
@@ -21,7 +21,7 @@ import type {
   LanguageParam,
   LanguageType,
   RawMethod
-} from './language-types.js';
+} from './language/types.js';
 import {
   pascalCase,
   camelCase,

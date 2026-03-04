@@ -397,7 +397,7 @@ import {
   type LanguageParam,
   type TransformEnhancer,
   type LanguageMethod,
-} from '../machinery/reed/language.js';
+} from '../machinery/reed/language/index.js';
 import { toSnakeCase } from '../machinery/stringing.js';
 import { RustCore, rustCore } from './spiral/rust.js';
 import { RustAndroidSpiraler } from './spiral/spiralers/rust/index.js';

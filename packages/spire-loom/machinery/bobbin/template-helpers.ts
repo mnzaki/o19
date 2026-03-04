@@ -21,7 +21,7 @@ import type {
   LanguageParam,
   LanguageMethod,
   LanguageType,
-} from '../reed/language-types.js';
+} from '../reed/language/types.js';
 
 // ============================================================================
 // ParamCollection — Container for parameter renderers
