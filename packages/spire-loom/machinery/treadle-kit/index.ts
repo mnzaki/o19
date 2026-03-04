@@ -51,7 +51,6 @@ export {
   type MatchPattern,
   type OutputSpec,
   type PatchSpec,
-  type HookupConfig,
   type TreadleDefinition,
   type OutputSpecOrFn,
   type PatchSpecOrFn,

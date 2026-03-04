@@ -8,8 +8,8 @@
  * - Plugin setup code
  */
 
-import { test, describe } from 'node:test';
-import * as assert from 'node:assert';
+import { test, describe } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -52,9 +52,9 @@ describe('rust-module: module declarations', () => {
 
     const result = await applyRustModuleHookup(filePath, hookup, createMockContext());
 
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('mod spire;'));
+    expect(content.includes('mod spire;')).toBe(true);
   });
 
   test('adds pub mod declaration', async () => {
@@ -67,8 +67,8 @@ describe('rust-module: module declarations', () => {
     await applyRustModuleHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    assert.ok(content.includes('mod existing;'));
-    assert.ok(content.includes('pub mod spire;'));
+    expect(content.includes('mod existing;')).toBe(true);
+    expect(content.includes('pub mod spire;')).toBe(true);
   });
 
   test('adds module with path attribute', async () => {
@@ -81,8 +81,8 @@ describe('rust-module: module declarations', () => {
     await applyRustModuleHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    assert.ok(content.includes('#[path = "src/spire.rs"]'));
-    assert.ok(content.includes('pub mod spire;'));
+    expect(content.includes('#[path = "src/spire.rs"]')).toBe(true);
+    expect(content.includes('pub mod spire;')).toBe(true);
   });
 
   test('skips existing modules', async () => {
@@ -93,7 +93,7 @@ describe('rust-module: module declarations', () => {
     };
 
     const result = await applyRustModuleHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'skipped');
+    expect(result.status).toBe('skipped');
   });
 
   test('handles multiple module declarations', async () => {
@@ -106,9 +106,9 @@ describe('rust-module: module declarations', () => {
     await applyRustModuleHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    assert.ok(content.includes('mod spire;'));
-    assert.ok(content.includes('pub mod commands;'));
-    assert.ok(content.includes('mod utils;'));
+    expect(content.includes('mod spire;')).toBe(true);
+    expect(content.includes('pub mod commands;')).toBe(true);
+    expect(content.includes('mod utils;')).toBe(true);
   });
 });
 
@@ -127,8 +127,8 @@ describe('rust-module: use statements', () => {
     await applyRustModuleHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    assert.ok(content.includes('use std::fs::File;'));
-    assert.ok(content.includes('use crate::spire::commands;'));
+    expect(content.includes('use std::fs::File;')).toBe(true);
+    expect(content.includes('use crate::spire::commands;')).toBe(true);
   });
 
   test('adds use statement after attributes', async () => {
@@ -142,7 +142,7 @@ describe('rust-module: use statements', () => {
     const content = fs.readFileSync(filePath, 'utf-8');
 
     assert.ok(content.includes('#![feature(test)]'));
-    assert.ok(content.includes('use tauri::command;'));
+    expect(content.includes('use tauri::command;')).toBe(true);
   });
 
   test('skips existing use statements', async () => {
@@ -153,7 +153,7 @@ describe('rust-module: use statements', () => {
     };
 
     const result = await applyRustModuleHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'skipped');
+    expect(result.status).toBe('skipped');
   });
 });
 
@@ -179,9 +179,9 @@ fn main() {
     await applyRustModuleHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    assert.ok(content.includes('tauri::generate_handler!['));
-    assert.ok(content.includes('my_spire_cmd'));
-    assert.ok(content.includes('existing_cmd'));
+    expect(content.includes('tauri::generate_handler![')).toBe(true);
+    expect(content.includes('my_spire_cmd')).toBe(true);
+    expect(content.includes('existing_cmd')).toBe(true);
   });
 
   test('handles empty generate_handler', async () => {
@@ -200,8 +200,8 @@ fn main() {
     await applyRustModuleHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    assert.ok(content.includes('cmd1'));
-    assert.ok(content.includes('cmd2'));
+    expect(content.includes('cmd1')).toBe(true);
+    expect(content.includes('cmd2')).toBe(true);
   });
 
   test('skips existing commands', async () => {
@@ -218,7 +218,7 @@ tauri::generate_handler![existing_cmd]
     // The important thing is no duplicate command
     const content = fs.readFileSync(filePath, 'utf-8');
     const matches = content.match(/existing_cmd/g);
-    assert.strictEqual(matches?.length, 1);
+    expect(matches?.length).toBe(1);
   });
 });
 
@@ -252,23 +252,23 @@ fn main() {
     };
 
     const result = await applyRustModuleHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
 
     const content = fs.readFileSync(filePath, 'utf-8');
     
     // Module declarations
-    assert.ok(content.includes('mod spire;'));
-    assert.ok(content.includes('pub mod commands;'));
+    expect(content.includes('mod spire;')).toBe(true);
+    expect(content.includes('pub mod commands;')).toBe(true);
     
     // Use statements
-    assert.ok(content.includes('use crate::spire::api;'));
-    assert.ok(content.includes('use crate::commands::*;'));
-    assert.ok(content.includes('use tauri::Manager;'));
+    expect(content.includes('use crate::spire::api;')).toBe(true);
+    expect(content.includes('use crate::commands::*;')).toBe(true);
+    expect(content.includes('use tauri::Manager;')).toBe(true);
     
     // Tauri commands
-    assert.ok(content.includes('spire_ping'));
-    assert.ok(content.includes('spire_get_state'));
-    assert.ok(content.includes('greet'));
+    expect(content.includes('spire_ping')).toBe(true);
+    expect(content.includes('spire_get_state')).toBe(true);
+    expect(content.includes('greet')).toBe(true);
   });
 });
 
@@ -285,7 +285,7 @@ describe('rust-module: error handling', () => {
 
     const result = await applyRustModuleHookup('/non/existent/file.rs', hookup, createMockContext());
 
-    assert.strictEqual(result.status, 'error');
-    assert.ok(result.message?.includes('File not found'));
+    expect(result.status).toBe('error');
+    expect(result.message?.includes('File not found')).toBe(true);
   });
 });

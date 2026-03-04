@@ -63,10 +63,13 @@ export interface MethodConfig {
   pipeline: Array<(methods: MgmtMethod[]) => MgmtMethod[]>;
 }
 
+/**
+ * Output specification for file generation.
+ * Language is auto-detected from template filename extension.
+ */
 export interface OutputSpec {
   template: string;
   path: string;
-  language: 'kotlin' | 'rust' | 'rust_jni' | 'aidl' | 'typescript';
   condition?: (context: GeneratorContext) => boolean;
   /**
    * Per-output context data merged with main data for this output only.
@@ -112,16 +115,6 @@ export type OutputSpecOrFn =
   | OutputSpec
   | ((context: GeneratorContext) => OutputSpec | OutputSpec[] | undefined);
 
-export interface HookupConfig {
-  type: 'rust-crate' | 'tauri-plugin' | 'npm-package' | 'android-gradle' | 'custom';
-  config?: Record<string, unknown>;
-  customHookup?: (
-    context: GeneratorContext,
-    files: GeneratedFile[],
-    data: Record<string, unknown>
-  ) => Promise<void> | void;
-}
-
 export interface TreadleDefinition {
   /** Treadle name (auto-populated during loading) */
   name?: string;
@@ -131,6 +124,15 @@ export interface TreadleDefinition {
    */
   matches?: MatchPattern[];
   methods: MethodConfig;
+  
+  /**
+   * Language enhancement configuration.
+   * - string: Single language (default for all methods)
+   * - string[]: Multiple languages, first is default
+   * - undefined: Auto-detect per output from template filename
+   */
+  language?: string | string[];
+  
   /** Output files to generate (into spire/). Accepts specs or functions. */
   outputs: OutputSpecOrFn[];
   /**
@@ -146,12 +148,6 @@ export interface TreadleDefinition {
    * Accepts specs or functions.
    */
   hookups?: Array<SpecOrFn<HookupSpec, GeneratorContext>> | SpecOrFn<HookupSpec, GeneratorContext>;
-
-  /**
-   * Legacy hookup config (deprecated).
-   * @deprecated Use hookups array instead
-   */
-  hookup?: HookupConfig;
 
   /**
    * Configuration schema for tieup treadles.
@@ -301,12 +297,23 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
     // Resolve output specs (handle functions returning single OR array)
     const resolvedOutputs = resolveSpecs(definition.outputs, context);
 
+    // Apply declared language enhancement (if specified)
+    if (definition.language) {
+      const langs = Array.isArray(definition.language)
+        ? definition.language
+        : [definition.language];
+      kit.language.add(...langs);
+      
+      // Update data with enhanced methods
+      data.methods = context.methods?.all || finalMethods;
+    }
+
     // Phase 1: Generate files using the kit (into spire/)
+    // Language is auto-detected from template filename
     const files = await kit.generateFiles(
       resolvedOutputs.map((o) => ({
         template: o.template,
         path: o.path,
-        language: o.language,
         condition: o.condition,
         context: o.context
       })),
@@ -341,17 +348,6 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
             console.log(`[HOOKUP] ${result.type}: ${result.status} - ${result.message}`);
           }
         }
-      }
-    }
-
-    // 3b: Legacy hookup config (backward compatibility)
-    if (definition.hookup) {
-      if (definition.hookup.type === 'custom' && definition.hookup.customHookup) {
-        await definition.hookup.customHookup(context, files, data);
-      } else if (definition.hookup.type !== 'custom') {
-        console.log(
-          `[DECLARATIVE] ${definition.hookup.type} hookup not yet implemented. Use customHookup or declarative hookups.`
-        );
       }
     }
 

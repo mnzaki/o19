@@ -5,8 +5,8 @@
  * Patches enable idempotent file modifications using marker-based blocks.
  */
 
-import { describe, it, beforeEach, afterEach } from 'node:test';
-import * as assert from 'node:assert';
+import { describe, it, beforeEach, afterEach } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -52,8 +52,8 @@ describe('Patches System', () => {
         language: 'toml',
       };
 
-      assert.strictEqual(patch.type, 'ensureBlock');
-      assert.strictEqual(patch.marker, 'spire-deps');
+      expect(patch.type).toBe('ensureBlock');
+      expect(patch.marker).toBe('spire-deps');
     });
 
     it('should accept patches with position options', () => {
@@ -68,7 +68,7 @@ describe('Patches System', () => {
         },
       };
 
-      assert.strictEqual(patch.position?.after, 'pub mod prelude;');
+      expect(patch.position?.after).toBe('pub mod prelude;');
     });
   });
 
@@ -89,13 +89,13 @@ describe('Patches System', () => {
         ],
       });
 
-      assert.strictEqual(treadle.patches.length, 1);
+      expect(treadle.patches.length).toBe(1);
       const patch = treadle.patches![0];
-      assert.strictEqual(patch.type, 'ensureBlock');
-      assert.strictEqual(patch.targetFile, 'Cargo.toml');
-      assert.strictEqual(patch.marker, 'spire-deps');
-      assert.strictEqual(patch.template, 'cargo/deps.ejs');
-      assert.strictEqual(patch.language, 'toml');
+      expect(patch.type).toBe('ensureBlock');
+      expect(patch.targetFile).toBe('Cargo.toml');
+      expect(patch.marker).toBe('spire-deps');
+      expect(patch.template).toBe('cargo/deps.ejs');
+      expect(patch.language).toBe('toml');
     });
 
     it('should define a treadle with function-based patches', () => {
@@ -119,7 +119,7 @@ describe('Patches System', () => {
         ],
       });
 
-      assert.strictEqual(typeof treadle.patches![0], 'function');
+      expect(typeof treadle.patches![0]).toBe('function');
     });
 
     it('should allow multiple patches', () => {
@@ -145,7 +145,7 @@ describe('Patches System', () => {
         ],
       });
 
-      assert.strictEqual(treadle.patches.length, 2);
+      expect(treadle.patches.length).toBe(2);
     });
   });
 
@@ -187,10 +187,10 @@ describe('Patches System', () => {
       );
 
       // Verify the file still exists and was modified
-      assert.ok(fs.existsSync(cargoPath));
+      expect(fs.existsSync(cargoPath)).toBe(true);
       const content = fs.readFileSync(cargoPath, 'utf-8');
       // The patch should have added a block with markers
-      assert.ok(content.includes('SPIRE-LOOM:TESTTREADLE:TEST-BLOCK'));
+      expect(content.includes('SPIRE-LOOM:TESTTREADLE:TEST-BLOCK')).toBe(true);
     });
 
     it('should use treadle name as marker scope', () => {
@@ -211,11 +211,11 @@ describe('Patches System', () => {
       });
 
       // Verify the treadle name is set (used as marker scope)
-      assert.strictEqual(treadle.name, 'androidService');
+      expect(treadle.name).toBe('androidService');
 
       // Create markers to verify scope
       const markers = createMarkers('toml', 'androidService', 'spire-deps');
-      assert.ok(markers.start.includes('SPIRE-LOOM:ANDROIDSERVICE:SPIRE-DEPS'));
+      expect(markers.start.includes('SPIRE-LOOM:ANDROIDSERVICE:SPIRE-DEPS')).toBe(true);
     });
   });
 
@@ -236,7 +236,7 @@ describe('Patches System', () => {
         patches: [
           (ctx) => {
             called = true;
-            assert.strictEqual(ctx.packageDir, packageDir);
+            expect(ctx.packageDir).toBe(packageDir);
             return {
               type: 'ensureBlock',
               targetFile: 'Cargo.toml',
@@ -260,11 +260,11 @@ describe('Patches System', () => {
         context
       );
 
-      assert.strictEqual(called, true);
+      expect(called).toBe(true);
       
       // Verify patch was applied
       const content = fs.readFileSync(cargoPath, 'utf-8');
-      assert.ok(content.includes('SPIRE-LOOM:TESTTREADLE:DYNAMIC'));
+      expect(content.includes('SPIRE-LOOM:TESTTREADLE:DYNAMIC')).toBe(true);
     });
 
     it('should skip undefined patches from functions', () => {
@@ -284,7 +284,7 @@ describe('Patches System', () => {
         ],
       });
 
-      assert.strictEqual(treadle.patches.length, 2);
+      expect(treadle.patches.length).toBe(2);
     });
   });
 
@@ -325,9 +325,9 @@ describe('Patches System', () => {
       });
 
       // Verify all phases are defined
-      assert.strictEqual(treadle.outputs.length, 1);
-      assert.strictEqual(treadle.patches.length, 1);
-      assert.ok(treadle.hookup !== undefined);
+      expect(treadle.outputs.length).toBe(1);
+      expect(treadle.patches.length).toBe(1);
+      expect(treadle.hookup !== undefined).toBe(true);
     });
   });
 
@@ -354,7 +354,7 @@ describe('Patches System', () => {
         ],
       });
 
-      assert.strictEqual(typeof treadle.outputs[0], 'function');
+      expect(typeof treadle.outputs[0]).toBe('function');
     });
 
     it('should filter out undefined outputs from functions', () => {
@@ -371,7 +371,7 @@ describe('Patches System', () => {
         ],
       });
 
-      assert.strictEqual(treadle.outputs.length, 2);
+      expect(treadle.outputs.length).toBe(2);
     });
   });
 });
@@ -379,18 +379,18 @@ describe('Patches System', () => {
 describe('Marker Integration', () => {
   it('should create correct markers for each language', () => {
     const rustMarkers = createMarkers('rust', 'myTreadle', 'myBlock');
-    assert.strictEqual(rustMarkers.start, '/* SPIRE-LOOM:MYTREADLE:MYBLOCK */');
-    assert.strictEqual(rustMarkers.end, '/* /SPIRE-LOOM:MYTREADLE:MYBLOCK */');
+    expect(rustMarkers.start).toBe('/* SPIRE-LOOM:MYTREADLE:MYBLOCK */');
+    expect(rustMarkers.end).toBe('/* /SPIRE-LOOM:MYTREADLE:MYBLOCK */');
 
     const tomlMarkers = createMarkers('toml', 'myTreadle', 'myBlock');
-    assert.strictEqual(tomlMarkers.start, '# SPIRE-LOOM:MYTREADLE:MYBLOCK');
-    assert.strictEqual(tomlMarkers.end, '# /SPIRE-LOOM:MYTREADLE:MYBLOCK');
+    expect(tomlMarkers.start).toBe('# SPIRE-LOOM:MYTREADLE:MYBLOCK');
+    expect(tomlMarkers.end).toBe('# /SPIRE-LOOM:MYTREADLE:MYBLOCK');
 
     const gradleMarkers = createMarkers('gradle', 'myTreadle', 'myBlock');
-    assert.ok(gradleMarkers.start.includes('SPIRE-LOOM:MYTREADLE:MYBLOCK'));
+    expect(gradleMarkers.start.includes('SPIRE-LOOM:MYTREADLE:MYBLOCK')).toBe(true);
 
     const xmlMarkers = createMarkers('xml', 'myTreadle', 'myBlock');
-    assert.strictEqual(xmlMarkers.start, '<!-- SPIRE-LOOM:MYTREADLE:MYBLOCK -->');
+    expect(xmlMarkers.start).toBe('<!-- SPIRE-LOOM:MYTREADLE:MYBLOCK -->');
   });
 
   it('should detect existing blocks', () => {
@@ -401,13 +401,13 @@ content here
 /* /SPIRE-LOOM:TEST:BLOCK */
 `;
 
-    assert.ok(hasBlock(content, markers));
+    expect(hasBlock(content, markers)).toBe(true);
   });
 
   it('should not detect non-existent blocks', () => {
     const markers = createMarkers('rust', 'test', 'block');
     const content = 'some random content without markers';
 
-    assert.ok(!hasBlock(content, markers));
+    expect(!hasBlock(content, markers)).toBe(true);
   });
 });

@@ -12,8 +12,8 @@
  *             when given an absolute path.
  */
 
-import { test, describe } from 'node:test';
-import * as assert from 'node:assert';
+import { test, describe } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -66,13 +66,13 @@ describe('path isolation', () => {
       });
       
       // Verify manifest was written to correct location
-      assert.ok(fs.existsSync(manifestPath), 'AndroidManifest.xml should exist');
+      expect(fs.existsSync(manifestPath), 'AndroidManifest.xml should exist').toBe(true);
       const content = fs.readFileSync(manifestPath, 'utf-8');
-      assert.ok(content.includes('FOREGROUND_SERVICE'), 'Should contain service permissions');
+      expect(content.includes('FOREGROUND_SERVICE'), 'Should contain service permissions').toBe(true);
       
       // CRITICAL: Check no "home" directory was created
       const badHomePath = path.join(root, 'home');
-      assert.ok(!fs.existsSync(badHomePath), 'Should NOT create home/ subdirectory');
+      expect(!fs.existsSync(badHomePath), 'Should NOT create home/ subdirectory').toBe(true);
       
     } finally {
       cleanup();
@@ -100,7 +100,7 @@ describe('path isolation', () => {
       
       // CRITICAL: Check no "home" directory was created
       const badHomePath = path.join(root, 'home');
-      assert.ok(!fs.existsSync(badHomePath), 'Should NOT create home/ subdirectory');
+      expect(!fs.existsSync(badHomePath), 'Should NOT create home/ subdirectory').toBe(true);
       
     } finally {
       cleanup();
@@ -122,13 +122,13 @@ describe('path isolation', () => {
       });
       
       // Verify file was added to files array
-      assert.strictEqual(files.length, 1, 'Should add one file');
+      expect(files.length).toBe(1, 'Should add one file');
       
       const aidlFile = files[0];
-      assert.ok(aidlFile.path.includes('IEventCallback.aidl'), 'Should be AIDL file');
+      expect(aidlFile.path.includes('IEventCallback.aidl'), 'Should be AIDL file').toBe(true);
       
       // The path should be absolute and within crateDir
-      assert.ok(path.isAbsolute(aidlFile.path), 'Path should be absolute');
+      expect(path.isAbsolute(aidlFile.path), 'Path should be absolute').toBe(true);
       assert.ok(aidlFile.path.startsWith(crateDir), 
         `Path ${aidlFile.path} should start with crateDir ${crateDir}`);
       
@@ -171,7 +171,7 @@ describe('weaver path isolation', () => {
     const spirePath = path.join('spire', relativePath);
     const fullPath = path.join(packageDir, spirePath);
     
-    assert.strictEqual(fullPath, '/workspace/crates/test/spire/src/test.rs');
+    expect(fullPath).toBe('/workspace/crates/test/spire/src/test.rs');
   });
   
   test('weaver isolation is bypassed for absolute paths', () => {
@@ -182,7 +182,7 @@ describe('weaver path isolation', () => {
     // Current weaver behavior (lines 398-399 in weaver.ts):
     // if (path.isAbsolute(file.path)) { fullPath = file.path; }
     
-    assert.ok(path.isAbsolute(absolutePath));
+    expect(path.isAbsolute(absolutePath)).toBe(true);
     // The file would be written to the absolute path directly, bypassing spire/
   });
 });

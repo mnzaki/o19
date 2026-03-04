@@ -5,8 +5,8 @@
  * This catches issues like missing exports, import errors, etc.
  */
 
-import { describe, it, before, after } from 'node:test';
-import assert from 'node:assert';
+import { describe, it, beforeAll, afterAll } from 'vitest';
+import { expect } from 'vitest';
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
@@ -17,7 +17,7 @@ describe('CLI Integration', () => {
   let tempDir: string;
   let originalCwd: string;
 
-  before(() => {
+  beforeAll(() => {
     // Create a minimal test workspace
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'spire-loom-test-'));
 
@@ -51,7 +51,7 @@ export default {
     originalCwd = process.cwd();
   });
 
-  after(() => {
+  afterAll(() => {
     // Cleanup
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -84,7 +84,7 @@ export default {
     // Should report that tsx is missing (peer dependency check)
     // This is expected behavior - the CLI needs tsx to run TypeScript
     if (stderr.includes('tsx') && stderr.includes('peer dependency')) {
-      assert.strictEqual(exitCode, 1, 'Should exit with code 1 when tsx is missing');
+      expect(exitCode).toBe(1, 'Should exit with code 1 when tsx is missing');
       return;
     }
 
@@ -99,10 +99,7 @@ export default {
     }
 
     // Exit code should be 0 or 1
-    assert.ok(
-      exitCode === 0 || exitCode === 1,
-      `CLI exited with unexpected code ${exitCode}. stderr: ${stderr}`
-    );
+    expect(exitCode === 0 || exitCode === 1).toBe(true);
   });
 
   /**
@@ -180,7 +177,7 @@ describe('CLI Integration - o19 Workspace', () => {
     }
 
     // If we get here, the CLI either succeeded or failed gracefully
-    assert.ok(exitCode === 0 || exitCode === 1, `CLI exited with unexpected code ${exitCode}`);
+    expect(exitCode === 0 || exitCode === 1, `CLI exited with unexpected code ${exitCode}`).toBe(true);
   });
 
   it('should report meaningful error for missing exports instead of crashing', async () => {
@@ -213,7 +210,7 @@ describe('CLI Integration - o19 Workspace', () => {
     }
 
     // If we get here, the CLI either succeeded or failed gracefully
-    assert.ok(exitCode === 0 || exitCode === 1, `CLI exited with unexpected code ${exitCode}`);
+    expect(exitCode === 0 || exitCode === 1, `CLI exited with unexpected code ${exitCode}`).toBe(true);
   });
 
   it('should not crash when run from a subdirectory (e.g., foundframe-tauri)', async () => {
@@ -247,7 +244,7 @@ describe('CLI Integration - o19 Workspace', () => {
     }
 
     // Should succeed (exit 0) or fail gracefully
-    assert.ok(exitCode === 0 || exitCode === 1, `CLI exited with unexpected code ${exitCode}`);
+    expect(exitCode === 0 || exitCode === 1, `CLI exited with unexpected code ${exitCode}`).toBe(true);
   });
 
   function runCLIInO19(

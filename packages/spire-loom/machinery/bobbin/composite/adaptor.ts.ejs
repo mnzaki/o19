@@ -42,12 +42,12 @@ export class <%= managementName %>CompositeAdaptor implements <%= portName %> {
   /**
    * <%= method.operation.toUpperCase() %> operation - routed to <%= readAdaptorName %>
    */
-  async <%= method.name %>(
+  async <%= method.functionName %>(
 <% method.params.forEach((param, i) => { %>
     <%= param.name %>: <%= param.type %><% if (i < method.params.length - 1) { %>,<% } %>
 <% }); %>
   ): <%= method.returnType %> {
-    return this.readAdaptor.<%= method.name %>(
+    return this.readAdaptor.<%= method.functionName %>(
 <% method.params.forEach((param, i) => { %>
       <%= param.name %><% if (i < method.params.length - 1) { %>,<% } %>
 <% }); %>
@@ -69,12 +69,12 @@ export class <%= managementName %>CompositeAdaptor implements <%= portName %> {
    * 4. SQLite index updated
    * 5. Result returned through full circle
    */
-  async <%= method.name %>(
+  async <%= method.functionName %>(
 <% method.params.forEach((param, i) => { %>
     <%= param.name %>: <%= param.type %><% if (i < method.params.length - 1) { %>,<% } %>
 <% }); %>
   ): <%= method.returnType %> {
-    return this.writeAdaptor.<%= method.name %>(
+    return this.writeAdaptor.<%= method.functionName %>(
 <% method.params.forEach((param, i) => { %>
       <%= param.name %><% if (i < method.params.length - 1) { %>,<% } %>
 <% }); %>

@@ -421,8 +421,10 @@ interface RustParam extends LanguageParam {
  * Rust method with language-specific metadata.
  */
 interface RustMethod extends LanguageMethod<RustParam> {
-  /** Rust return type */
+  /** Rust return type (possibly wrapped in Result) */
   rsReturnType: string;
+  /** Inner return type (without Result wrapper) for use in Result<innerReturnType, Error> */
+  innerReturnType: string;
   /** snake_case implementation name for calling */
   implName: string;
   /** Service access preamble for error handling */
@@ -472,8 +474,20 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
 
   // Map TypeScript type to Rust type
   fromTsType(tsType: string, isCollection: boolean): LanguageType {
+    // Handle TypeScript array syntax: T[] -> Vec<T>
+    let normalizedType = tsType.trim();
+    let isArraySyntax = false;
+    
+    if (normalizedType.endsWith('[]')) {
+      normalizedType = normalizedType.slice(0, -2).trim();
+      isArraySyntax = true;
+    }
+    
+    // Final collection flag is true if either passed in or detected from syntax
+    const finalIsCollection = isCollection || isArraySyntax;
+
     const baseType = (() => {
-      switch (tsType.toLowerCase()) {
+      switch (normalizedType.toLowerCase()) {
         case 'string':
           return this.string;
         case 'number':
@@ -483,13 +497,16 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
           return this.boolean;
         case 'void':
           return this.void;
+        case 'date':
+          // Date is typically represented as i64 (timestamp) or String in Rust
+          return new LanguageType('String', 'String::new()', true);
         default:
           // Complex type / entity
-          return this.entity(tsType);
+          return this.entity(normalizedType);
       }
     })();
 
-    return isCollection ? this.array(baseType) : baseType;
+    return finalIsCollection ? this.array(baseType) : baseType;
   }
 }
 
@@ -500,8 +517,10 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
 /**
  * Custom enhancer adding Rust-specific metadata.
  * 
- * - Adds rsReturnType, implName (snake_case)
+ * - Adds implName (snake_case)
  * - Generates service access preamble for Mutex/Option wrappers
+ * 
+ * Note: rsReturnType removed - use method.returnType (delegates to returnTypeDef.name)
  */
 const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (methods) => {
   return methods.map((method) => {
@@ -511,7 +530,6 @@ const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (meth
 
     return {
       ...method,
-      rsReturnType: method.returnTypeDef.name,
       implName: toSnakeCase(method.implName || method.name),
       serviceAccessPreamble: preamble,
     } as RustMethod;
@@ -600,6 +618,18 @@ export const rustLanguage = declareLanguage<RustParam, LanguageType>({
         const params = method.params.map(p => `${p.formattedName}: ${p.langType}`).join(', ');
         return `async fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
       },
+      renderDefinition: (method, opts) => {
+        const pub = opts.public ? 'pub ' : '';
+        const params = method.params.map(p => `${p.formattedName}: ${p.langType}`).join(', ');
+        return `${pub}fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
+      },
+      naming: {
+        function: 'snake',
+        type: 'pascal',
+        variable: 'snake',
+        const: 'screaming_snake',
+        module: 'snake'
+      }
     },
     
     // Custom enhancer adds Rust-specific metadata

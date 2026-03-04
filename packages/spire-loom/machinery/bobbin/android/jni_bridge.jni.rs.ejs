@@ -142,9 +142,9 @@ where
 }
 
 <% methods.forEach(function(method) { -%>
-/// <%- method.description || method.name %>
+/// <%- method.description || method.rs.functionName %>
 /// 
-/// JNI Signature: <%= method.pascalName %>(long handle<% method.params.forEach(function(p) { %>, <%= p.jniType %><% }); %>) -> <%= method.jniReturnType %>
+/// JNI Signature: <%= method.rs.typeName %>(long handle<% method.rs.params.forEach(function(p) { %>, <%= p.jniType %><% }); %>) -> <%= method.jniReturnType %>
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -152,15 +152,15 @@ where
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_<%- jniPackagePath %>_service_<%- serviceName %>_native<%- method.pascalName %>(
+pub extern "C" fn Java_<%- jniPackagePath %>_service_<%- serviceName %>_native<%- method.rs.typeName %>(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
-    <%- method.params.list %>
+    <%- method.rs.params.list %>
 ) -> <%- method.jniReturnType %> {
-    <% if (method.params.length > 0) { -%>
+    <% if (method.rs.params.length > 0) { -%>
     // Convert JNI parameters to Rust types
-    <% method.params.forEach(function(param) { -%>
+    <% method.rs.params.forEach(function(param) { -%>
     <%- param.conversion %>
     <% }); -%>
     <% } -%>
@@ -171,13 +171,13 @@ pub extern "C" fn Java_<%- jniPackagePath %>_service_<%- serviceName %>_native<%
         <% method.serviceAccessPreamble.forEach(function(line) { -%>
         <%- line %>
         <% }); -%>
-        Ok(__service.<%= method.implName %>(<%- method.params.names %>))
+        Ok(__service.<%= method.rs.functionName %>(<%- method.rs.params.names %>))
     }) {
         Ok(result) => {
             <%- method.returnConversion %>
         }
         Err(e) => {
-            log::error!("[<%= serviceName %>] <%= method.name %> failed: {}", e);
+            log::error!("[<%= serviceName %>] <%= method.rs.functionName %> failed: {}", e);
             <%- method.errorValue %>
         }
     }

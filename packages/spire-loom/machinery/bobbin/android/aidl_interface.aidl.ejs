@@ -25,16 +25,16 @@ package <%- packageName %>;
 interface <%- interfaceName %> {
 <% methods.forEach(function(method) { %>
     /**
-     * <%- method.description || method.name %>
+     * <%- method.description || method.kt.functionName %>
 <% method.params.forEach(function(param) { -%>
      * @param <%- param.name %> <%- param.description || param.name %>
 <% }); -%>
-     * @return <%- method.returnDescription || method.aidlReturnType || method.returnType %>
+     * @return <%- method.returnDescription || method.aidlReturnType || method.kt.returnType %>
      * @throws RemoteException if IPC fails
      */
-    <%- method.aidlReturnType || method.returnType %> <%- method.name %>(<%-
+    <%- method.aidlReturnType || method.kt.returnType %> <%- method.kt.functionName %>(<%-
       method.params.map(function(p) {
-        return (p.direction || 'in') + ' ' + (p.aidlType || p.type) + ' ' + p.name;
+        return (p.direction || 'in') + ' ' + (p.aidlType || p.kt?.type || p.type) + ' ' + (p.kt?.variableName || p.name);
       }).join(', ')
     %>);
 <% }); %>

@@ -16,9 +16,10 @@
     "build": "tsc",
     "lint": "eslint .",
     "check-types": "tsc --noEmit",
-    "test": "node --test-force-exit --test --import=tsx tests/*.test.ts",
-    "test:xml": "node --test --import=tsx tests/xml-block-manager.test.ts",
-    "test:gradle": "node --test --import=tsx tests/gradle-manager.test.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:xml": "vitest run tests/xml-block-manager.test.ts",
+    "test:gradle": "vitest run tests/gradle-manager.test.ts"
   },
   "dependencies": {
     "ejs": "^3.1.9",
@@ -37,7 +38,8 @@
     "@repo/typescript-config": "workspace:*",
     "@types/ejs": "^3.1.5",
     "@types/node": "^25.3.0",
-    "@types/react": "^18.3.18"
+    "@types/react": "^18.3.18",
+    "vitest": "^3.2.0"
   },
   "exports": {
     ".": {

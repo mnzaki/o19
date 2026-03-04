@@ -112,7 +112,7 @@ export class <%= service.serviceName %> implements <%= service.portName %> {
 
   async <%= method.camelName %>(data: { <%- method.params.list %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>> {
     // Passthrough method - implement based on domain logic
-    throw new Error('<%= method.name %> not implemented');
+    throw new Error('<%= method.functionName %> not implemented');
   }
 <%_ } _%>
 }

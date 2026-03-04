@@ -32,11 +32,11 @@ pub trait <%= platformTraitName %>: Send + Sync {
   fn shutdown(&self) -> Result<()>;
 
 <% methods.forEach(function(method) { -%>
-  /// <%- method.description || method.name %>
-  fn <%= method.name %>(
+  /// <%- method.description || method.functionName %>
+  fn <%= method.functionName %>(
     &self,
-    <%- method.params.list %>
-  ) -> <%- method.useResult ? `Result<${method.innerReturnType}>` : method.rsReturnType %>;
+    <%- method.rs.params.list %>
+  ) -> <%- method.useResult ? `Result<${method.rs.returnType}>` : method.returnType %>;
 
 <% }); -%>
 }

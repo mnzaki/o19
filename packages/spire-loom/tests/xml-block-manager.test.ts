@@ -4,8 +4,8 @@
  * Run with: npx tsx --test tests/xml-block-manager.test.ts
  */
 
-import { describe, it, beforeEach, afterEach } from 'node:test';
-import * as assert from 'node:assert';
+import { describe, it, beforeEach, afterEach } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,13 +44,13 @@ describe('xml-block-manager', () => {
       }
     });
 
-    assert.deepStrictEqual(result.added, ['TestPermission']);
-    assert.deepStrictEqual(result.removed, []);
-    assert.deepStrictEqual(result.updated, []);
+    expect(result.added).toEqual(['TestPermission']);
+    expect(result.removed).toEqual([]);
+    expect(result.updated).toEqual([]);
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(content.includes('SPIRE-LOOM:XML:TESTPERMISSION'))
-    assert.ok(content.includes('android.permission.TEST'));
+    expect(content.includes('SPIRE-LOOM:XML:TESTPERMISSION')).toBe(true)
+    expect(content.includes('android.permission.TEST')).toBe(true);
   });
 
   it('adds multiple blocks', () => {
@@ -76,10 +76,10 @@ describe('xml-block-manager', () => {
       }
     });
 
-    assert.strictEqual(result.added.length, 3);
-    assert.ok(result.added.includes('Perm1'));
-    assert.ok(result.added.includes('Perm2'));
-    assert.ok(result.added.includes('Service1'));
+    expect(result.added.length).toBe(3);
+    expect(result.added.includes('Perm1')).toBe(true);
+    expect(result.added.includes('Perm2')).toBe(true);
+    expect(result.added.includes('Service1')).toBe(true);
   });
 
   it('is idempotent - no changes on second run', () => {
@@ -107,9 +107,9 @@ describe('xml-block-manager', () => {
       }
     });
 
-    assert.deepStrictEqual(result.added, []);
-    assert.deepStrictEqual(result.removed, []);
-    assert.deepStrictEqual(result.updated, []);
+    expect(result.added).toEqual([]);
+    expect(result.removed).toEqual([]);
+    expect(result.updated).toEqual([]);
   });
 
   it('updates content when changed', () => {
@@ -137,10 +137,10 @@ describe('xml-block-manager', () => {
       }
     });
 
-    assert.deepStrictEqual(result.updated, ['TestService']);
+    expect(result.updated).toEqual(['TestService']);
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(content.includes('android:exported="false"'));
+    expect(content.includes('android:exported="false"')).toBe(true);
   });
 
   it('respects manual override - does not add marked version', () => {
@@ -167,12 +167,12 @@ describe('xml-block-manager', () => {
       }
     });
 
-    assert.deepStrictEqual(result.added, []);
+    expect(result.added).toEqual([]);
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(!content.includes('SPIRE-LOOM:XML:BINDJOBPERMISSION'));
-    assert.ok(!content.includes('SPIRE-LOOM:XML:RADICLESERVICE'));
-    assert.ok(content.includes('android:exported="false"'));
+    expect(!content.includes('SPIRE-LOOM:XML:BINDJOBPERMISSION')).toBe(true);
+    expect(!content.includes('SPIRE-LOOM:XML:RADICLESERVICE')).toBe(true);
+    expect(content.includes('android:exported="false"')).toBe(true);
   });
 
   it('removes blocks not in current call', () => {
@@ -206,12 +206,12 @@ describe('xml-block-manager', () => {
     const cleanup = cleanupAllBlocks();
     
     // Cleanup result should show OLDPERMISSION was removed
-    assert.ok(cleanup.blocksRemoved > 0, 'Should have removed orphaned blocks');
+    expect(cleanup.blocksRemoved > 0, 'Should have removed orphaned blocks').toBe(true);
     assert.ok(cleanup.details.some(d => d.removed.includes('OLDPERMISSION')), 'Should have removed OLDPERMISSION');
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(!content.includes('android.permission.OLD'));
-    assert.ok(content.includes('android.permission.KEEP'));
+    expect(!content.includes('android.permission.OLD')).toBe(true);
+    expect(content.includes('android.permission.KEEP')).toBe(true);
   });
 
   it('creates file if not exists', () => {
@@ -224,12 +224,12 @@ describe('xml-block-manager', () => {
       }
     });
 
-    assert.ok(fs.existsSync(manifestPath));
-    assert.deepStrictEqual(result.added, ['TestPermission']);
+    expect(fs.existsSync(manifestPath)).toBe(true);
+    expect(result.added).toEqual(['TestPermission']);
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(content.includes('<?xml version="1.0" encoding="utf-8"?>'));
-    assert.ok(content.includes('<manifest'));
+    expect(content.includes('<?xml version="1.0" encoding="utf-8"?>')).toBe(true);
+    expect(content.includes('<manifest')).toBe(true);
   });
 
   it('handles multiple permissions with same tag', () => {
@@ -253,11 +253,11 @@ describe('xml-block-manager', () => {
       }
     });
 
-    assert.strictEqual(result.added.length, 2);
+    expect(result.added.length).toBe(2);
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(content.includes('android.permission.PERM_1'));
-    assert.ok(content.includes('android.permission.PERM_2'));
+    expect(content.includes('android.permission.PERM_1')).toBe(true);
+    expect(content.includes('android.permission.PERM_2')).toBe(true);
   });
 
   it('handles self-closing application tag', () => {
@@ -275,11 +275,11 @@ describe('xml-block-manager', () => {
       }
     });
 
-    assert.deepStrictEqual(result.added, ['TestService']);
+    expect(result.added).toEqual(['TestService']);
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(content.includes('<service'));
-    assert.ok(content.includes('</application>'));
+    expect(content.includes('<service')).toBe(true);
+    expect(content.includes('</application>')).toBe(true);
   });
 
   it('custom key attributes work', () => {
@@ -300,10 +300,10 @@ describe('xml-block-manager', () => {
       }
     });
 
-    assert.deepStrictEqual(result.added, []);
+    expect(result.added).toEqual([]);
     
     const content = fs.readFileSync(manifestPath, 'utf-8');
-    assert.ok(content.includes('android:value="old"'));
-    assert.ok(!content.includes('SPIRE-LOOM:XML:METADATA'));
+    expect(content.includes('android:value="old"')).toBe(true);
+    expect(!content.includes('SPIRE-LOOM:XML:METADATA')).toBe(true);
   });
 });

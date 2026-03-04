@@ -10,8 +10,8 @@
  * causing duplicates in default.toml.
  */
 
-import { test, describe } from 'node:test';
-import * as assert from 'node:assert';
+import { test, describe } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -90,23 +90,23 @@ permissions = [
     
     // Apply first hookup
     const result1 = await applyFileBlockHookup(tomlPath, generatorHookup, ctx);
-    assert.strictEqual(result1.status, 'applied');
+    expect(result1.status).toBe('applied');
     
     // Apply second hookup (this is where duplication happens)
     const result2 = await applyFileBlockHookup(tomlPath, adaptorHookup, ctx);
-    assert.strictEqual(result2.status, 'applied');
+    expect(result2.status).toBe('applied');
 
     // Read final content
     const content = fs.readFileSync(tomlPath, 'utf-8');
     
     // Check that we have BOTH naming conventions (the bug)
     // In a fixed implementation, we should only have one convention
-    assert.ok(content.includes('allow-bookmark-add-bookmark'), 'Should have prefixed version');
-    assert.ok(content.includes('allow-add-bookmark'), 'BUG: Also has non-prefixed version');
+    expect(content.includes('allow-bookmark-add-bookmark'), 'Should have prefixed version').toBe(true);
+    expect(content.includes('allow-add-bookmark'), 'BUG: Also has non-prefixed version').toBe(true);
     
     // Count occurrences - there should be no exact duplicates
     const matches = content.match(/"allow-add-bookmark"/g);
-    assert.strictEqual(matches?.length, 1, 'Should only have one "allow-add-bookmark" entry');
+    expect(matches?.length).toBe(1, 'Should only have one "allow-add-bookmark" entry');
     
     // Cleanup
     await fs.promises.rm(tmpDir, { recursive: true });
@@ -133,11 +133,11 @@ permissions = []
     
     // First application
     const result1 = await applyFileBlockHookup(tomlPath, hookup, ctx);
-    assert.strictEqual(result1.status, 'applied');
+    expect(result1.status).toBe('applied');
     
     // Second application with same items should be skipped
     const result2 = await applyFileBlockHookup(tomlPath, hookup, ctx);
-    assert.strictEqual(result2.status, 'skipped');
+    expect(result2.status).toBe('skipped');
 
     // Cleanup
     await fs.promises.rm(tmpDir, { recursive: true });
@@ -179,8 +179,7 @@ permissions = []
     console.log('Old Adaptor (wrong):', oldAdaptorPermissions);
     
     // They SHOULD be different because they come from different method sources
-    assert.notDeepStrictEqual(generatorPermissions, oldAdaptorPermissions, 
-      'Different method sources produce different permission IDs');
+    expect(generatorPermissions).not.toEqual(oldAdaptorPermissions);
     
     // After the fix: only tauri-generator generates permissions,
     // so no duplicates exist in default.toml
@@ -202,6 +201,6 @@ describe('method collection from context', () => {
     // 3. Not one of each
     
     // For now, this is a placeholder documenting the expected behavior
-    assert.ok(true, 'Method collection should be consistent');
+    expect(true, 'Method collection should be consistent').toBe(true);
   });
 });

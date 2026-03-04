@@ -2,8 +2,8 @@
  * Tests for gradle-manager with real-world build.gradle
  */
 
-import { describe, it, beforeEach, afterEach } from 'node:test';
-import * as assert from 'node:assert';
+import { describe, it, beforeEach, afterEach } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -162,21 +162,21 @@ tasks.register('buildRust', Exec) {
 preBuild.dependsOn buildRust
 `, { after: 'android {' });
 
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
     
     // Check the block was added (markers use UPPERCASE format: SPIRE-LOOM:BLOCK:<ID>)
-    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:RUSTBUILD'), 'Should have start marker');
-    assert.ok(content.includes('// /SPIRE-LOOM:BLOCK:RUSTBUILD'), 'Should have end marker');
+    expect(content.includes('// SPIRE-LOOM:BLOCK:RUSTBUILD'), 'Should have start marker').toBe(true);
+    expect(content.includes('// /SPIRE-LOOM:BLOCK:RUSTBUILD'), 'Should have end marker').toBe(true);
     assert.ok(content.includes('tasks.register(\'buildRust\''), 'Should have task registration');
-    assert.ok(content.includes('preBuild.dependsOn buildRust'), 'Should have dependency');
+    expect(content.includes('preBuild.dependsOn buildRust'), 'Should have dependency').toBe(true);
     
     // Check original content is preserved
-    assert.ok(content.includes("namespace 'ty.circulari.o19'"), 'Should preserve namespace');
-    assert.ok(content.includes('compileSdk 34'), 'Should preserve compileSdk');
-    assert.ok(content.includes('dependencies {'), 'Should preserve dependencies');
-    assert.ok(content.includes('// Rust/Cargo integration'), 'Should preserve comments');
+    expect(content.includes("namespace 'ty.circulari.o19'"), 'Should preserve namespace').toBe(true);
+    expect(content.includes('compileSdk 34'), 'Should preserve compileSdk').toBe(true);
+    expect(content.includes('dependencies {'), 'Should preserve dependencies').toBe(true);
+    expect(content.includes('// Rust/Cargo integration'), 'Should preserve comments').toBe(true);
   });
 
   it('adds source set to existing android block', () => {
@@ -190,15 +190,15 @@ preBuild.dependsOn buildRust
       manifest: './spire/android/AndroidManifest.xml',
     });
 
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
     
     // Check new source set paths are added (using srcDir to append)
-    assert.ok(content.includes("java.srcDir './spire/android/java'"), 'Should have java srcDir');
-    assert.ok(content.includes("aidl.srcDir './spire/android/aidl'"), 'Should have aidl srcDir');
-    assert.ok(content.includes("jniLibs.srcDir './spire/android/jniLibs'"), 'Should have jniLibs');
-    assert.ok(content.includes("manifest.srcFile './spire/android/AndroidManifest.xml'"), 'Should have manifest');
+    expect(content.includes("java.srcDir './spire/android/java'"), 'Should have java srcDir').toBe(true);
+    expect(content.includes("aidl.srcDir './spire/android/aidl'"), 'Should have aidl srcDir').toBe(true);
+    expect(content.includes("jniLibs.srcDir './spire/android/jniLibs'"), 'Should have jniLibs').toBe(true);
+    expect(content.includes("manifest.srcFile './spire/android/AndroidManifest.xml'"), 'Should have manifest').toBe(true);
     
     // Source set block is now appended at end of file (safer than trying to nest)
   });
@@ -212,14 +212,14 @@ preBuild.dependsOn buildRust
     const content = fs.readFileSync(gradlePath, 'utf-8');
     
     // Check block comments are preserved
-    assert.ok(content.includes('/**'), 'Should preserve Javadoc comment start');
-    assert.ok(content.includes(' * o19-android'), 'Should preserve Javadoc content');
-    assert.ok(content.includes(' */'), 'Should preserve Javadoc end');
+    expect(content.includes('/**'), 'Should preserve Javadoc comment start').toBe(true);
+    expect(content.includes(' * o19-android'), 'Should preserve Javadoc content').toBe(true);
+    expect(content.includes(' */'), 'Should preserve Javadoc end').toBe(true);
     
     // Check inline comments are preserved
-    assert.ok(content.includes('// Only include 64-bit ABIs'), 'Should preserve inline comments');
-    assert.ok(content.includes('// CameraX'), 'Should preserve section comments');
-    assert.ok(content.includes('// Rust/Cargo integration'), 'Should preserve Rust comments');
+    expect(content.includes('// Only include 64-bit ABIs'), 'Should preserve inline comments').toBe(true);
+    expect(content.includes('// CameraX'), 'Should preserve section comments').toBe(true);
+    expect(content.includes('// Rust/Cargo integration'), 'Should preserve Rust comments').toBe(true);
   });
 
   it('idempotent - no duplicate blocks on second run', () => {
@@ -230,12 +230,12 @@ preBuild.dependsOn buildRust
     clearGradleBlockRegistry();
     const result = ensureGradleBlock(gradlePath, 'RustBuild', '// content');
 
-    assert.strictEqual(result, false, 'Should not modify on second run');
+    expect(result).toBe(false, 'Should not modify on second run');
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
     
     // Count occurrences of the marker (UPPERCASE format: SPIRE-LOOM:BLOCK:RUSTBUILD)
     const matches = content.match(/SPIRE-LOOM:BLOCK:RUSTBUILD/g);
-    assert.strictEqual(matches?.length, 2, 'Should have exactly one start and one end marker');
+    expect(matches?.length).toBe(2, 'Should have exactly one start and one end marker');
   });
 });

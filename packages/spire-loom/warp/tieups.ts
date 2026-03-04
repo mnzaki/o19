@@ -31,11 +31,6 @@ import type { TreadleDefinition } from '../machinery/treadle-kit/declarative.js'
 export type TieupTreadle = GeneratorFunction | TreadleDefinition;
 
 /**
- * @deprecated Use TieupTreadle instead. Old CustomTreadle API is no longer supported.
- */
-export type CustomTreadle = never;
-
-/**
  * A treadle entry with its own warpData.
  */
 export interface TreadleEntry {

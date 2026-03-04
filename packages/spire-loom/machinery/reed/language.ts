@@ -39,7 +39,6 @@ export {
   // Types
   type BaseParam,
   type LanguageParam,
-  type BaseMethod,
   type LanguageMethod,
   type TypeFactory,
   type TransformContext,
@@ -79,6 +78,33 @@ export type {
 } from './language-types.js';
 
 // ============================================================================
+// Naming Conventions
+// ============================================================================
+
+/**
+ * Naming convention configuration for a language.
+ *
+ * Each language declares its conventions for:
+ * - functions/methods
+ * - types/classes
+ * - variables
+ * - constants
+ * - modules/files
+ */
+export interface NamingConventionConfig {
+  /** Function/method naming */
+  function: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
+  /** Type/class naming */
+  type: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
+  /** Variable naming */
+  variable: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
+  /** Constant naming */
+  const: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
+  /** Module/file naming */
+  module: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
+}
+
+// ============================================================================
 // Language Rendering Configuration
 // ============================================================================
 
@@ -88,12 +114,18 @@ export type {
 export interface LanguageRenderingConfig {
   /** Format a parameter name (e.g., snake_case, camelCase) */
   formatParamName: (name: string) => string;
-  
+
   /** Generate function signature */
   functionSignature: (method: LanguageMethod) => string;
-  
+
   /** Generate async function signature (optional) */
   asyncFunctionSignature?: (method: LanguageMethod) => string;
+
+  /** Render full function definition (optional) */
+  renderDefinition?: (method: LanguageMethod, options: { public?: boolean }) => string;
+
+  /** Naming conventions for the language */
+  naming: NamingConventionConfig;
 }
 
 // ============================================================================
@@ -229,15 +261,10 @@ async function registerLanguageTypeMappings(
     const { registerTypeMapping } = await import('../bobbin/type-mappings.js');
 
     for (const mapping of mappings) {
+      // Only update this language's field - merge with existing CORE_MAPPINGS
       registerTypeMapping({
         tsType: mapping.tsType,
-        [langName]: mapping.targetType,
-        // Fallbacks for other languages
-        kotlin: mapping.targetType,
-        jni: mapping.targetType,
-        rust: mapping.targetType,
-        tauri: mapping.targetType,
-        sql: 'TEXT' // Default SQL fallback
+        [langName]: mapping.targetType
       });
     }
   } catch (error) {
@@ -414,3 +441,27 @@ export class LanguageRegistry {
 
 /** Global language registry instance */
 export const languages = new LanguageRegistry();
+
+// ============================================================================
+// Language Extension Key Utility
+// ============================================================================
+
+/**
+ * Get the extension key for a language.
+ *
+ * Extracts from the first fileExtension (e.g., '.rs.ejs' → 'rs').
+ * This is used as the property key for language views (method.rs, method.ts).
+ *
+ * @param language - Language identifier
+ * @returns Extension key (rs, ts, kt) or language name if not found
+ */
+export function getLanguageExtensionKey(language: string): string {
+  const lang = languages.get(language);
+  if (!lang?.codeGen?.fileExtensions?.length) {
+    return language;
+  }
+
+  const ext = lang.codeGen.fileExtensions[0];
+  const match = ext.match(/\.([^.]+)(\.ejs)?$/);
+  return match?.[1] || language;
+}

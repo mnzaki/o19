@@ -4,8 +4,8 @@
  * Verifies APP-011: Query builder is iterable (can use in for...of loops)
  */
 
-import { test, describe } from 'node:test';
-import * as assert from 'node:assert';
+import { test, describe } from 'vitest';
+import { expect } from 'vitest';
 import { createQueryAPI, BoundQueryImpl } from '../machinery/sley/query.js';
 
 describe('query builder iterator', () => {
@@ -24,15 +24,15 @@ describe('query builder iterator', () => {
       names.push(method.name);
     }
     
-    assert.deepStrictEqual(names, ['addBookmark', 'getBookmark', 'listBookmarks', 'deleteBookmark']);
+    expect(names).toEqual(['addBookmark', 'getBookmark', 'listBookmarks', 'deleteBookmark']);
   });
 
   test('can spread query.methods into array', () => {
     const query = createQueryAPI(mockMethods);
     const methods = [...query.methods];
     
-    assert.strictEqual(methods.length, 4);
-    assert.strictEqual(methods[0].name, 'addBookmark');
+    expect(methods.length).toBe(4);
+    expect(methods[0].name).toBe('addBookmark');
   });
 
   test('can iterate over filtered query', () => {
@@ -43,7 +43,7 @@ describe('query builder iterator', () => {
       creates.push(method.name);
     }
     
-    assert.deepStrictEqual(creates, ['addBookmark']);
+    expect(creates).toEqual(['addBookmark']);
   });
 
   test('can iterate over chained filters', () => {
@@ -54,14 +54,14 @@ describe('query builder iterator', () => {
       bookmarkMethods.push(method.name);
     }
     
-    assert.deepStrictEqual(bookmarkMethods, ['getBookmark', 'listBookmarks']);
+    expect(bookmarkMethods).toEqual(['getBookmark', 'listBookmarks']);
   });
 
   test('can use Array.from on query', () => {
     const query = createQueryAPI(mockMethods);
     const methods = Array.from(query.methods);
     
-    assert.strictEqual(methods.length, 4);
+    expect(methods.length).toBe(4);
   });
 
   test('iteration respects current filters', () => {
@@ -73,7 +73,7 @@ describe('query builder iterator', () => {
       names.push(method.name);
     }
     
-    assert.deepStrictEqual(names, ['addBookmark']);
+    expect(names).toEqual(['addBookmark']);
   });
 
   test('pre-filtered entry points are iterable', () => {
@@ -84,7 +84,7 @@ describe('query builder iterator', () => {
       reads.push(method.name);
     }
     
-    assert.deepStrictEqual(reads, ['getBookmark']);
+    expect(reads).toEqual(['getBookmark']);
   });
 
   test('empty query is iterable (no results)', () => {
@@ -95,6 +95,6 @@ describe('query builder iterator', () => {
       count++;
     }
     
-    assert.strictEqual(count, 0);
+    expect(count).toBe(0);
   });
 });

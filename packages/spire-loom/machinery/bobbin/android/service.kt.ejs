@@ -55,10 +55,10 @@ class <%- serviceName %> : Service() {
     private external fun nativeStopService(handle: Long)
     
 <% methods.forEach(function(method) { -%>
-    /** <%- method.description || method.name %> */
-    private external fun native<%- method.pascalName %>(
-        handle: Long<% if (method.params.length > 0) { %>, <%- method.params.list %><% } %>
-    ): <%- method.ktReturnType %>
+    /** <%- method.description || method.kt.functionName %> */
+    private external fun native<%- method.kt.typeName %>(
+        handle: Long<% if (method.params.length > 0) { %>, <%- method.kt.params.list %><% } %>
+    ): <%- method.kt.returnType %>
     
 <% }); -%>
     
@@ -75,11 +75,11 @@ class <%- serviceName %> : Service() {
         <% methods.forEach(function(method) { -%>
         
         @Throws(RemoteException::class)
-        override fun <%= method.name %>(<%- method.params.list %>): <%- method.ktReturnType %> {
+        override fun <%= method.kt.functionName %>(<%- method.kt.params.list %>): <%- method.kt.returnType %> {
             check(nativeHandle != 0L) { 
                 "Service not initialized - ensure service is started before binding" 
             }
-            return native<%- method.pascalName %>(nativeHandle<% if (method.params.length > 0) { %>, <%- method.params.names %><% } %>)
+            return native<%- method.kt.typeName %>(nativeHandle<% if (method.params.length > 0) { %>, <%- method.kt.params.names %><% } %>)
         }
         <% }); -%>
     }

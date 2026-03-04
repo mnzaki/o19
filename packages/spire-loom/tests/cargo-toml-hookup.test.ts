@@ -9,8 +9,8 @@
  * - Workspace dependencies support
  */
 
-import { test, describe } from 'node:test';
-import * as assert from 'node:assert';
+import { test, describe } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -56,10 +56,10 @@ version = "0.1.0"
 
     const result = await applyCargoTomlHookup(filePath, hookup, createMockContext());
 
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('[dependencies]'));
-    assert.ok(content.includes('serde = "1.0"'));
+    expect(content.includes('[dependencies]')).toBe(true);
+    expect(content.includes('serde = "1.0"')).toBe(true);
   });
 
   test('adds dependency with path', async () => {
@@ -76,8 +76,8 @@ version = "0.1.0"
 
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('[dependencies.o19-foundframe]'));
-    assert.ok(content.includes('path = "../foundframe"'));
+    expect(content.includes('[dependencies.o19-foundframe]')).toBe(true);
+    expect(content.includes('path = "../foundframe"')).toBe(true);
   });
 
   test('adds dependency with features', async () => {
@@ -97,9 +97,9 @@ version = "0.1.0"
 
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('[dependencies.tauri]'));
-    assert.ok(content.includes('version = "2"'));
-    assert.ok(content.includes('features = ["test", "isolation"]'));
+    expect(content.includes('[dependencies.tauri]')).toBe(true);
+    expect(content.includes('version = "2"')).toBe(true);
+    expect(content.includes('features = ["test", "isolation"]')).toBe(true);
   });
 
   test('adds git dependency', async () => {
@@ -119,9 +119,9 @@ version = "0.1.0"
 
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('[dependencies.some-lib]'));
-    assert.ok(content.includes('git = "https://github.com/user/repo.git"'));
-    assert.ok(content.includes('branch = "main"'));
+    expect(content.includes('[dependencies.some-lib]')).toBe(true);
+    expect(content.includes('git = "https://github.com/user/repo.git"')).toBe(true);
+    expect(content.includes('branch = "main"')).toBe(true);
   });
 
   test('skips existing dependency', async () => {
@@ -138,7 +138,7 @@ serde = "1.0"
     };
 
     const result = await applyCargoTomlHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'skipped');
+    expect(result.status).toBe('skipped');
   });
 
   test('adds multiple dependencies', async () => {
@@ -158,9 +158,9 @@ version = "0.1.0"
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
     
-    assert.ok(content.includes('serde = "1.0"'));
-    assert.ok(content.includes('[dependencies.tokio]'));
-    assert.ok(content.includes('[dependencies.local-crate]'));
+    expect(content.includes('serde = "1.0"')).toBe(true);
+    expect(content.includes('[dependencies.tokio]')).toBe(true);
+    expect(content.includes('[dependencies.local-crate]')).toBe(true);
   });
 });
 
@@ -181,8 +181,8 @@ version = "0.1.0"
 
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('[dev-dependencies]'));
-    assert.ok(content.includes('tokio-test = "0.4"'));
+    expect(content.includes('[dev-dependencies]')).toBe(true);
+    expect(content.includes('tokio-test = "0.4"')).toBe(true);
   });
 
   test('adds dev and build dependencies together', async () => {
@@ -199,10 +199,10 @@ version = "0.1.0"
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
     
-    assert.ok(content.includes('[dev-dependencies]'));
-    assert.ok(content.includes('criterion = "0.5"'));
-    assert.ok(content.includes('[build-dependencies]'));
-    assert.ok(content.includes('cc = "1.0"'));
+    expect(content.includes('[dev-dependencies]')).toBe(true);
+    expect(content.includes('criterion = "0.5"')).toBe(true);
+    expect(content.includes('[build-dependencies]')).toBe(true);
+    expect(content.includes('cc = "1.0"')).toBe(true);
   });
 });
 
@@ -225,8 +225,8 @@ version = "0.1.0"
 
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('[features]'));
-    assert.ok(content.includes('spire = ["o19-foundframe/spire"]'));
+    expect(content.includes('[features]')).toBe(true);
+    expect(content.includes('spire = ["o19-foundframe/spire"]')).toBe(true);
   });
 
   test('adds multiple features', async () => {
@@ -246,9 +246,9 @@ version = "0.1.0"
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
     
-    assert.ok(content.includes('default = ["std"]'));
-    assert.ok(content.includes('std = []'));
-    assert.ok(content.includes('spire = ["o19-foundframe/spire", "tauri"]'));
+    expect(content.includes('default = ["std"]')).toBe(true);
+    expect(content.includes('std = []')).toBe(true);
+    expect(content.includes('spire = ["o19-foundframe/spire", "tauri"]')).toBe(true);
   });
 
   test('skips existing feature', async () => {
@@ -265,7 +265,7 @@ default = ["std"]
     };
 
     const result = await applyCargoTomlHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'skipped');
+    expect(result.status).toBe('skipped');
   });
 });
 
@@ -288,8 +288,8 @@ version = "0.1.0"
 
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('[lib]'));
-    assert.ok(content.includes('crate-type = ["staticlib", "cdylib", "rlib"]'));
+    expect(content.includes('[lib]')).toBe(true);
+    expect(content.includes('crate-type = ["staticlib", "cdylib", "rlib"]')).toBe(true);
   });
 
   test('adds lib with name and path', async () => {
@@ -308,9 +308,9 @@ version = "0.1.0"
 
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('name = "my_lib"'));
-    assert.ok(content.includes('path = "src/lib.rs"'));
-    assert.ok(content.includes('crate-type = ["cdylib"]'));
+    expect(content.includes('name = "my_lib"')).toBe(true);
+    expect(content.includes('path = "src/lib.rs"')).toBe(true);
+    expect(content.includes('crate-type = ["cdylib"]')).toBe(true);
   });
 
   test('updates existing [lib] section', async () => {
@@ -330,8 +330,8 @@ name = "old_name"
 
     await applyCargoTomlHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('name = "old_name"'));
-    assert.ok(content.includes('crate-type = ["staticlib"]'));
+    expect(content.includes('name = "old_name"')).toBe(true);
+    expect(content.includes('crate-type = ["staticlib"]')).toBe(true);
   });
 });
 
@@ -368,29 +368,29 @@ edition = "2021"
     };
 
     const result = await applyCargoTomlHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
 
     const content = fs.readFileSync(filePath, 'utf-8');
     
     // Package info preserved
-    assert.ok(content.includes('name = "foundframe-tauri"'));
+    expect(content.includes('name = "foundframe-tauri"')).toBe(true);
     
     // Dependencies
-    assert.ok(content.includes('[dependencies.tauri]'));
-    assert.ok(content.includes('version = "2"'));
-    assert.ok(content.includes('serde = "1.0"'));
+    expect(content.includes('[dependencies.tauri]')).toBe(true);
+    expect(content.includes('version = "2"')).toBe(true);
+    expect(content.includes('serde = "1.0"')).toBe(true);
     
     // Dev dependencies
-    assert.ok(content.includes('[dev-dependencies]'));
-    assert.ok(content.includes('tokio-test = "0.4"'));
+    expect(content.includes('[dev-dependencies]')).toBe(true);
+    expect(content.includes('tokio-test = "0.4"')).toBe(true);
     
     // Features
-    assert.ok(content.includes('[features]'));
-    assert.ok(content.includes('spire = ["o19-foundframe/spire"]'));
+    expect(content.includes('[features]')).toBe(true);
+    expect(content.includes('spire = ["o19-foundframe/spire"]')).toBe(true);
     
     // Lib config
-    assert.ok(content.includes('[lib]'));
-    assert.ok(content.includes('crate-type = ["staticlib", "cdylib", "rlib"]'));
+    expect(content.includes('[lib]')).toBe(true);
+    expect(content.includes('crate-type = ["staticlib", "cdylib", "rlib"]')).toBe(true);
   });
 
   test('preserves existing content structure', async () => {
@@ -414,12 +414,12 @@ default = ["std"]
     const content = fs.readFileSync(filePath, 'utf-8');
     
     // Original content preserved
-    assert.ok(content.includes('serde = "1.0"'));
-    assert.ok(content.includes('default = ["std"]'));
+    expect(content.includes('serde = "1.0"')).toBe(true);
+    expect(content.includes('default = ["std"]')).toBe(true);
     
     // New content added
-    assert.ok(content.includes('tokio = "1"'));
-    assert.ok(content.includes('spire = ["std"]'));
+    expect(content.includes('tokio = "1"')).toBe(true);
+    expect(content.includes('spire = ["std"]')).toBe(true);
   });
 });
 
@@ -436,7 +436,7 @@ describe('cargo-toml: error handling', () => {
 
     const result = await applyCargoTomlHookup('/non/existent/Cargo.toml', hookup, createMockContext());
 
-    assert.strictEqual(result.status, 'error');
-    assert.ok(result.message?.includes('File not found'));
+    expect(result.status).toBe('error');
+    expect(result.message?.includes('File not found')).toBe(true);
   });
 });

@@ -267,6 +267,9 @@ export function getSerializationStrategy(tsType: string): 'json' | 'direct' {
  *   tauri: 'string'
  * });
  */
-export function registerTypeMapping(mapping: TypeMapping): void {
-  TYPE_MAP.set(mapping.tsType.toLowerCase(), mapping);
+export function registerTypeMapping(mapping: Partial<TypeMapping> & { tsType: string }): void {
+  const key = mapping.tsType.toLowerCase();
+  const existing = TYPE_MAP.get(key);
+  // Merge with existing mapping, or use mapping as base if no existing
+  TYPE_MAP.set(key, { ...(existing ?? {}), ...mapping } as TypeMapping);
 }

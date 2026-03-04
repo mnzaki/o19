@@ -158,26 +158,6 @@ export const delete_ = createCrudDecorator('delete');
 export const list = createCrudDecorator('list');
 
 // ============================================================================
-// Legacy crud() function (for backward compatibility)
-// ============================================================================
-
-/**
- * Mark a method with a CRUD operation.
- *
- * @deprecated Use individual decorators like @loom.crud.create, @loom.crud.read
- *
- * @example
- *   @loom.crud('create')
- *   addBookmark(url: string): void { ... }
- */
-export function crud(
-  operation: CrudOperation,
-  options?: Omit<CrudMetadata, 'operation'>
-): (_target: any, context: ClassMethodDecoratorContext) => any {
-  return createCrudDecorator(operation)(options);
-}
-
-// ============================================================================
 // CRUD Filtering Utilities
 // ============================================================================
 

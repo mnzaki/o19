@@ -5,8 +5,8 @@
  * using the spire-loom test kit.
  */
 
-import { describe, it } from 'node:test';
-import * as assert from 'node:assert';
+import { describe, it } from 'vitest';
+import { expect } from 'vitest';
 import { typescript, rust, spiral } from '../warp/index.js';
 import { getTieups } from '../warp/tieups.js';
 import type { TreadleDefinition } from '../machinery/treadle-kit/declarative.js';
@@ -21,8 +21,8 @@ describe('Foundframe-Front Integration', () => {
     class Foundframe {}
 
     const foundframe = spiral(Foundframe);
-    assert.ok(foundframe.android, 'should have android spiraler');
-    assert.ok(foundframe.desktop, 'should have desktop spiraler');
+    expect(foundframe.android, 'should have android spiraler').toBeTruthy();
+    expect(foundframe.desktop, 'should have desktop spiraler').toBeTruthy();
 
     // 2. Create platform rings
     const android = foundframe.android.foregroundService();
@@ -37,12 +37,12 @@ describe('Foundframe-Front Integration', () => {
         }
       }
     });
-    assert.ok(tauri.typescript, 'should have typescript spiraler from plugin');
+    expect(tauri.typescript, 'should have typescript spiraler from plugin').toBeTruthy();
 
     // 4. Create TypeScript DDD from Tauri plugin
     const front = tauri.typescript.ddd();
-    assert.ok(front.typescript, 'should have typescript spiraler for adaptors');
-    assert.ok(front.tauri, 'should have tauri spiraler for apps');
+    expect(front.typescript, 'should have typescript spiraler for adaptors').toBeTruthy();
+    expect(front.tauri, 'should have tauri spiraler for apps').toBeTruthy();
 
     console.log('Spiral chain created successfully:');
     console.log('  foundframe -> android/desktop -> tauri -> front');
@@ -53,8 +53,8 @@ describe('Foundframe-Front Integration', () => {
     class DB {}
 
     const prisma = spiral(DB);
-    assert.ok(prisma.typescript, 'should have typescript spiraler');
-    assert.equal((prisma as any).inner.metadata?.language, 'typescript');
+    expect(prisma.typescript, 'should have typescript spiraler').toBeTruthy();
+    expect((prisma as any).inner.metadata?.language).toBe('typescript');
   });
 
   it('should replicate the WARP.ts setup with tieups using TreadleDefinition', () => {
@@ -119,15 +119,15 @@ describe('Foundframe-Front Integration', () => {
 
     // 4. Check tieups are attached to front
     const tieups = getTieups(front);
-    assert.equal(tieups.length, 1, 'front should have one tieup');
+    expect(tieups.length).toBe(1, 'front should have one tieup');
 
     // 5. Verify the treadle in the tieup is a TreadleDefinition
     const treadleEntry = tieups[0].config.treadles[0];
-    assert.ok(treadleEntry, 'should have a treadle entry');
-    assert.ok(treadleEntry.treadle, 'should have a treadle');
-    assert.ok('methods' in treadleEntry.treadle, 'treadle should be TreadleDefinition (has methods)');
-    assert.ok('outputs' in treadleEntry.treadle, 'treadle should be TreadleDefinition (has outputs)');
-    assert.deepStrictEqual(treadleEntry.warpData?.entities, ['Bookmark', 'Media'], 'should have correct warpData');
+    expect(treadleEntry, 'should have a treadle entry').toBeTruthy();
+    expect(treadleEntry.treadle, 'should have a treadle').toBeTruthy();
+    expect('methods' in treadleEntry.treadle, 'treadle should be TreadleDefinition (has methods)').toBeTruthy();
+    expect('outputs' in treadleEntry.treadle, 'treadle should be TreadleDefinition (has outputs)').toBeTruthy();
+    expect(treadleEntry.warpData?.entities).toEqual(['Bookmark', 'Media'], 'should have correct warpData');
 
     console.log('Tieup setup successful with TreadleDefinition!');
     console.log('  Treadle name:', (treadleEntry.treadle as TreadleDefinition).name);
@@ -137,12 +137,12 @@ describe('Foundframe-Front Integration', () => {
     // Use the new mockTreadles factory that returns TreadleDefinitions
     const rustTreadle = mockTreadles.rustFile('Bookmark', 'pub struct Bookmark { id: i64 }');
     
-    assert.ok('methods' in rustTreadle, 'should be TreadleDefinition');
-    assert.ok('outputs' in rustTreadle, 'should have outputs');
-    assert.equal(rustTreadle.name, 'rust-Bookmark');
+    expect('methods' in rustTreadle, 'should be TreadleDefinition').toBeTruthy();
+    expect('outputs' in rustTreadle, 'should have outputs').toBeTruthy();
+    expect(rustTreadle.name).toBe('rust-Bookmark');
     
     // Verify outputs is an array
-    assert.ok(Array.isArray(rustTreadle.outputs), 'outputs should be an array');
+    expect(Array.isArray(rustTreadle.outputs), 'outputs should be an array').toBeTruthy();
     
     console.log('Test kit mock treadle works with TreadleDefinition!');
   });

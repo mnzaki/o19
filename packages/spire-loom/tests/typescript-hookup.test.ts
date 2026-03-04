@@ -7,8 +7,8 @@
  * - Import statements
  */
 
-import { test, describe } from 'node:test';
-import * as assert from 'node:assert';
+import { test, describe } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -51,9 +51,9 @@ describe('typescript: star exports', () => {
 
     const result = await applyTypeScriptHookup(filePath, hookup, createMockContext());
 
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("export * from '../spire/src/index.js';"));
+    expect(content.includes("export * from '../spire/src/index.js';")).toBe(true);
   });
 
   test('adds star export as string line', async () => {
@@ -65,7 +65,7 @@ describe('typescript: star exports', () => {
 
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("export * from '../spire/src/index.js';"));
+    expect(content.includes("export * from '../spire/src/index.js';")).toBe(true);
   });
 
   test('adds multiple star exports', async () => {
@@ -82,9 +82,9 @@ describe('typescript: star exports', () => {
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    assert.ok(content.includes("export * from '../spire/src/ports/index.js';"));
-    assert.ok(content.includes("export * from '../spire/src/services/index.js';"));
-    assert.ok(content.includes("export * from '../spire/src/types.gen.js';"));
+    expect(content.includes("export * from '../spire/src/ports/index.js';")).toBe(true);
+    expect(content.includes("export * from '../spire/src/services/index.js';")).toBe(true);
+    expect(content.includes("export * from '../spire/src/types.gen.js';")).toBe(true);
   });
 
   test('skips existing star export', async () => {
@@ -95,7 +95,7 @@ describe('typescript: star exports', () => {
     };
 
     const result = await applyTypeScriptHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'skipped');
+    expect(result.status).toBe('skipped');
   });
 
   test('adds after existing exports', async () => {
@@ -108,8 +108,8 @@ describe('typescript: star exports', () => {
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    assert.ok(content.includes("export * from './existing.js';"));
-    assert.ok(content.includes("export * from '../spire/src/index.js';"));
+    expect(content.includes("export * from './existing.js';")).toBe(true);
+    expect(content.includes("export * from '../spire/src/index.js';")).toBe(true);
   });
 });
 
@@ -127,7 +127,7 @@ describe('typescript: named re-exports', () => {
 
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("export { Bookmark, Tag } from '../spire/src/types.js';"));
+    expect(content.includes("export { Bookmark, Tag } from '../spire/src/types.js';")).toBe(true);
   });
 
   test('adds named re-export as string line', async () => {
@@ -139,7 +139,7 @@ describe('typescript: named re-exports', () => {
 
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("export { X, Y } from '../spire.js';"));
+    expect(content.includes("export { X, Y } from '../spire.js';")).toBe(true);
   });
 
   test('skips existing named re-export', async () => {
@@ -150,7 +150,7 @@ describe('typescript: named re-exports', () => {
     };
 
     const result = await applyTypeScriptHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'skipped');
+    expect(result.status).toBe('skipped');
   });
 });
 
@@ -172,13 +172,13 @@ describe('typescript: mixed exports', () => {
     };
 
     const result = await applyTypeScriptHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
 
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("export * from '../spire/src/ports/index.js';"));
-    assert.ok(content.includes("export * from '../spire/src/services/index.js';"));
-    assert.ok(content.includes("export * from '../spire/src/adaptors/index.js';"));
-    assert.ok(content.includes("export * from '../spire/src/types.gen.js';"));
+    expect(content.includes("export * from '../spire/src/ports/index.js';")).toBe(true);
+    expect(content.includes("export * from '../spire/src/services/index.js';")).toBe(true);
+    expect(content.includes("export * from '../spire/src/adaptors/index.js';")).toBe(true);
+    expect(content.includes("export * from '../spire/src/types.gen.js';")).toBe(true);
   });
 
   test('foundframe-front style spire integration', async () => {
@@ -198,7 +198,7 @@ describe('typescript: mixed exports', () => {
 
     // Should have all 4 star exports
     const starExports = content.match(/export \* from/g);
-    assert.strictEqual(starExports?.length, 4);
+    expect(starExports?.length).toBe(4);
   });
 });
 
@@ -216,7 +216,7 @@ describe('typescript: imports', () => {
 
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("import './polyfills.js';"));
+    expect(content.includes("import './polyfills.js';")).toBe(true);
   });
 
   test('adds named import', async () => {
@@ -228,7 +228,7 @@ describe('typescript: imports', () => {
 
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("import { BookmarkService } from '../spire.js';"));
+    expect(content.includes("import { BookmarkService } from '../spire.js';")).toBe(true);
   });
 
   test('adds default import', async () => {
@@ -240,7 +240,7 @@ describe('typescript: imports', () => {
 
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("import ApiClient from '../api.js';"));
+    expect(content.includes("import ApiClient from '../api.js';")).toBe(true);
   });
 
   test('adds namespace import', async () => {
@@ -252,7 +252,7 @@ describe('typescript: imports', () => {
 
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("import * as Utils from '../utils.js';"));
+    expect(content.includes("import * as Utils from '../utils.js';")).toBe(true);
   });
 
   test('adds type-only import', async () => {
@@ -264,7 +264,7 @@ describe('typescript: imports', () => {
 
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("import type { Config } from '../types.js';"));
+    expect(content.includes("import type { Config } from '../types.js';")).toBe(true);
   });
 
   test('adds import after existing imports', async () => {
@@ -277,8 +277,8 @@ describe('typescript: imports', () => {
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
 
-    assert.ok(content.includes("import { existing } from './existing.js';"));
-    assert.ok(content.includes("import { newThing } from '../spire.js';"));
+    expect(content.includes("import { existing } from './existing.js';")).toBe(true);
+    expect(content.includes("import { newThing } from '../spire.js';")).toBe(true);
   });
 
   test('skips existing import', async () => {
@@ -289,7 +289,7 @@ describe('typescript: imports', () => {
     };
 
     const result = await applyTypeScriptHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'skipped');
+    expect(result.status).toBe('skipped');
   });
 
   test('adds import as string line', async () => {
@@ -301,7 +301,7 @@ describe('typescript: imports', () => {
 
     await applyTypeScriptHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("import { X } from '../spire.js';"));
+    expect(content.includes("import { X } from '../spire.js';")).toBe(true);
   });
 });
 
@@ -325,17 +325,17 @@ describe('typescript: full integration', () => {
     };
 
     const result = await applyTypeScriptHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
 
     const content = fs.readFileSync(filePath, 'utf-8');
     
     // Imports
-    assert.ok(content.includes("import './init.js';"));
-    assert.ok(content.includes("import type { AppConfig } from '../spire/src/types.gen.js';"));
+    expect(content.includes("import './init.js';")).toBe(true);
+    expect(content.includes("import type { AppConfig } from '../spire/src/types.gen.js';")).toBe(true);
     
     // Exports
-    assert.ok(content.includes("export * from '../spire/src/ports/index.js';"));
-    assert.ok(content.includes("export * from '../spire/src/services/index.js';"));
+    expect(content.includes("export * from '../spire/src/ports/index.js';")).toBe(true);
+    expect(content.includes("export * from '../spire/src/services/index.js';")).toBe(true);
   });
 
   test('handles index.js file extension', async () => {
@@ -346,10 +346,10 @@ describe('typescript: full integration', () => {
     };
 
     const result = await applyTypeScriptHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
 
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("export * from '../spire/index.js';"));
+    expect(content.includes("export * from '../spire/index.js';")).toBe(true);
   });
 });
 
@@ -366,7 +366,7 @@ describe('typescript: error handling', () => {
 
     const result = await applyTypeScriptHookup('/non/existent/index.ts', hookup, createMockContext());
 
-    assert.strictEqual(result.status, 'error');
-    assert.ok(result.message?.includes('File not found'));
+    expect(result.status).toBe('error');
+    expect(result.message?.includes('File not found')).toBe(true);
   });
 });

@@ -17,24 +17,24 @@ export class Tauri<%= managementName %>Adaptor extends <%= extendsClass %> imple
 <%# CRUD Methods -%>
 <% crudMethods.forEach(function(method) { -%>
   /**
-   * <%= method.description || method.jsName %>
+   * <%= method.description || method.functionName %>
    */
-  async <%= method.jsName %>(<%- method.params.listWithOptionality %>): Promise<<%= method.returnType %>> {
+  async <%= method.functionName %>(<%- method.params.listWithOptionality %>): Promise<<%= method.returnType %>> {
 <% if (method.crudOperation === 'create') { -%>
-    const id = await invoke<<%= method.invokeReturnType || 'number' %>>('<%= method.name %>', {
+    const id = await invoke<<%= method.invokeReturnType || 'number' %>>('<%= method.functionName %>', {
       <%= method.dataTransform %>,
     });
     return this.getById(id);
 <% } else if (method.dataTransform) { -%>
-    const result = await invoke<<%= method.returnType %>>('<%= method.name %>', {
+    const result = await invoke<<%= method.returnType %>>('<%= method.functionName %>', {
       <%= method.dataTransform %>,
     });
     return result;
 <% } else { -%>
 <% if (method.returnType !== 'void') { -%>
-    return invoke<<%= method.returnType %>>('<%= method.name %>', <%- method.params.invocation %>);
+    return invoke<<%= method.returnType %>>('<%= method.functionName %>', <%- method.params.invocation %>);
 <% } else { -%>
-    await invoke<void>('<%= method.name %>', <%- method.params.invocation %>);
+    await invoke<void>('<%= method.functionName %>', <%- method.params.invocation %>);
 <% } -%>
 <% } -%>
   }
@@ -43,13 +43,13 @@ export class Tauri<%= managementName %>Adaptor extends <%= extendsClass %> imple
 <%# Passthrough Methods -%>
 <% passthroughMethods.forEach(function(method) { -%>
   /**
-   * <%= method.description || method.jsName %>
+   * <%= method.description || method.functionName %>
    */
-  async <%= method.jsName %>(<%- method.params.listWithOptionality %>): Promise<<%= method.returnType %>> {
+  async <%= method.functionName %>(<%- method.params.listWithOptionality %>): Promise<<%= method.returnType %>> {
 <% if (method.returnType !== 'void') { -%>
-    return invoke<<%= method.returnType %>>('<%= method.name %>', <%- method.params.invocation %>);
+    return invoke<<%= method.returnType %>>('<%= method.functionName %>', <%- method.params.invocation %>);
 <% } else { -%>
-    await invoke<void>('<%= method.name %>', <%- method.params.invocation %>);
+    await invoke<void>('<%= method.functionName %>', <%- method.params.invocation %>);
 <% } -%>
   }
 

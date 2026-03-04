@@ -1,5 +1,13 @@
 # The Refinery 🏭
 
+NOTE: this is underconstruction and IS NOT currently hooked up into the system.
+DO NOT USE
+
+
+
+
+
+
 > *"Prisma's essence, distilled to pure SQL."*
 
 These bobbins contain the templates for the **TypeScript Prisma Compactor** — a staged metaprogramming harness that:

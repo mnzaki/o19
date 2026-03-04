@@ -267,8 +267,20 @@ class TypeScriptTypeFactory implements TypeFactory<TypeScriptParam, LanguageType
 
   // Map TypeScript type to TypeScript type (identity mapping)
   fromTsType(tsType: string, isCollection: boolean): LanguageType {
+    // Handle TypeScript array syntax: T[]
+    let normalizedType = tsType.trim();
+    let isArraySyntax = false;
+    
+    if (normalizedType.endsWith('[]')) {
+      normalizedType = normalizedType.slice(0, -2).trim();
+      isArraySyntax = true;
+    }
+    
+    // Final collection flag is true if either passed in or detected from syntax
+    const finalIsCollection = isCollection || isArraySyntax;
+
     const baseType = (() => {
-      switch (tsType.toLowerCase()) {
+      switch (normalizedType.toLowerCase()) {
         case 'string':
           return this.string;
         case 'number':
@@ -280,11 +292,11 @@ class TypeScriptTypeFactory implements TypeFactory<TypeScriptParam, LanguageType
           return this.void;
         default:
           // Complex type / entity
-          return this.entity(tsType);
+          return this.entity(normalizedType);
       }
     })();
 
-    return isCollection ? this.array(baseType) : baseType;
+    return finalIsCollection ? this.array(baseType) : baseType;
   }
 }
 
@@ -324,6 +336,20 @@ export const typescriptLanguage = declareLanguage<TypeScriptParam, LanguageType>
         ).join(', ');
         return `async ${method.camelName}(${params}): Promise<${method.returnTypeDef.name}>`;
       },
+      renderDefinition: (method, opts) => {
+        const export_ = opts.public ? 'export ' : '';
+        const params = method.params.map(p => 
+          `${p.name}${p.optional ? '?' : ''}: ${p.langType}`
+        ).join(', ');
+        return `${export_}function ${method.camelName}(${params}): ${method.returnTypeDef.name}`;
+      },
+      naming: {
+        function: 'camel',
+        type: 'pascal',
+        variable: 'camel',
+        const: 'screaming_snake',
+        module: 'camel'
+      }
     },
     
     // No custom enhancers needed for TypeScript - defaults are sufficient

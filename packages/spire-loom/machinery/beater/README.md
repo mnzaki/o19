@@ -1,3 +1,13 @@
+ * NOTE: this is underconstruction and IS NOT currently hooked up into the system.
+DO NOT Use
+
+The `machinery/beater` and associated bobbins
+`machinery/bobbin/{compactor/composite/kysely}` are underconstruction and are NOT currently hooked up into the system.
+
+
+
+
+
 # The Beater ⚒️
 
 > *"After the shuttle passes, the weft must be packed tight."*

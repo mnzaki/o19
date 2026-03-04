@@ -14,7 +14,7 @@ use crate::Result;
 /// - iOS: Not implemented (stub)
 pub trait <%= management.name %>: Send + Sync {
 <% methods.forEach(method => { %>
-  /// <%= method.description || method.name %>
-  fn <%= h.snakeCase(method.name) %>(&self, <%= method.params.map(p => `${p.name}: ${h.tsToRustType(p.type)}`).join(', ') %>) -> Result<<%= h.tsToRustType(method.returnType) %>>;
+  /// <%= method.description || method.functionName %>
+  fn <%= method.functionName %>(&self, <%- method.rs.params.list %>) -> Result<<%- method.rs.returnType %>>;
 <% }); %>
 }

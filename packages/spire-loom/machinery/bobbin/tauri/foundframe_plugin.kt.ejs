@@ -21,7 +21,7 @@ import <%- packageName %>.service.<%- serviceClient %>
  *
  * Commands:
 <% methods.filter(function(m) { return m.crudOperation === 'create' || m.crudOperation === 'update'; }).forEach(function(method) { -%>
- * - <%- method.snakeName || method.name.replace(/([A-Z])/g, '_$1').toLowerCase() %>: <%- method.description || method.name %>
+ * - <%- method.snakeName || method.kt.functionName %>: <%- method.description || method.kt.functionName %>
 <% }); -%>
  */
 @TauriPlugin
@@ -111,24 +111,24 @@ const commandMethods = methods.filter(function(m) {
 });
 
 commandMethods.forEach(function(method) {
-    const argsClassName = method.pascalName + 'Args';
-    const commandName = method.snakeName || method.name.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+    const argsClassName = method.kt.typeName + 'Args';
+    const commandName = method.snakeName || method.kt.functionName;
 %>
     // -------------------------------------------------------------------------
-    // <%- method.name %> - <%- method.crudOperation %>
+    // <%- method.kt.functionName %> - <%- method.crudOperation %>
     // -------------------------------------------------------------------------
     
     @InvokeArg
     class <%- argsClassName %> {
 <% method.params.forEach(function(param) { -%>
-        lateinit var <%- param.name %>: <%- param.aidlType || param.type %>
+        lateinit var <%- param.kt?.variableName || param.name %>: <%- param.aidlType || param.kt?.type || param.type %>
 <% }); -%>
     }
     
     /**
-     * <%- method.description || method.name %>
+     * <%- method.description || method.kt.functionName %>
 <% method.params.forEach(function(param) { -%>
-     * @param <%- param.name %> <%- param.description || param.name %>
+     * @param <%- param.kt?.variableName || param.name %> <%- param.description || param.name %>
 <% }); -%>
 <% if (method.crudOperation === 'delete') { -%>
      * @return success boolean
@@ -141,8 +141,8 @@ commandMethods.forEach(function(method) {
         try {
             val args = invoke.parseArgs(<%- argsClassName %>::class.java)
             
-            val result = client.<%- method.name %>(<%-
-                method.params.map(function(p) { return 'args.' + p.name; }).join(', ')
+            val result = client.<%- method.kt.functionName %>(<%-
+                method.params.map(function(p) { return 'args.' + (p.kt?.variableName || p.name); }).join(', ')
             %>)
             
             val response = JSObject()
@@ -154,10 +154,10 @@ commandMethods.forEach(function(method) {
             invoke.resolve(response)
             
         } catch (e: IllegalStateException) {
-            Log.e(TAG, "<%- method.name %> failed: not connected", e)
+            Log.e(TAG, "<%- method.kt.functionName %> failed: not connected", e)
             invoke.reject("Service not connected. Ensure the service is running.")
         } catch (e: Exception) {
-            Log.e(TAG, "<%- method.name %> failed: ${e.message}", e)
+            Log.e(TAG, "<%- method.kt.functionName %> failed: ${e.message}", e)
             invoke.reject(e.message ?: "Unknown error")
         }
     }

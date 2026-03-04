@@ -85,7 +85,7 @@ export interface <%= entityPascal %>WritePort {
 export interface <%= service.portName %> extends <%= entityPascal %>ReadPort, <%= entityPascal %>WritePort {
 <%_ for (const method of passthroughMethods) { _%>
   /**
-   * <%= method.description || method.name %>
+   * <%= method.description || method.functionName %>
    */
   <%= getCrudMethodName(method, entityPascal, entityCamelName) %>(data: { <%- method.params.list %> }): Promise<<%- method.returnType.replace(/\[\]$/, '') %><%= method.isCollection ? '[]' : '' %>>;
 <%_ } _%>

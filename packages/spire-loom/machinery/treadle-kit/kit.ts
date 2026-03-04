@@ -2,6 +2,12 @@
  * Treadle Kit - Kit Implementation 🧰
  *
  * The main TreadleKit factory and implementation.
+ *
+ * Provides:
+ * - Method collection and filtering
+ * - CRUD classification pipeline
+ * - Language enhancement with idiomatic views
+ * - File generation with auto-enhancement
  */
 
 import * as path from 'node:path';
@@ -26,6 +32,14 @@ import type { MethodConfig, TreadleKit } from './types.js';
 import { toRawMethod, buildContextMethods } from './context-methods.js';
 import { buildContextEntities } from './context-entities.js';
 import { createQueryAPI } from '../sley/query.js';
+import { applyCrudPipeline } from '../sley/crud-pipeline.js';
+import {
+  enhanceMethods,
+  isEnhanced,
+  type EnhancedMethod,
+  type LanguageView
+} from '../reed/enhancement.js';
+import { getLanguageExtensionKey, languages } from '../reed/language.js';
 
 /**
  * Create a treadle kit for building generators.
@@ -33,6 +47,8 @@ import { createQueryAPI } from '../sley/query.js';
  * The kit provides a unified interface for:
  * - Validating spiral node types
  * - Collecting and transforming methods
+ * - CRUD classification
+ * - Language enhancement with idiomatic views
  * - Building template data
  * - Generating files from templates
  * - Running hookups for external file configuration
@@ -42,7 +58,6 @@ import { createQueryAPI } from '../sley/query.js';
  */
 export function createTreadleKit(context: GeneratorContext): TreadleKit {
   // EAGER: Collect entities immediately when kit is created
-  // This ensures context.entities is always available, not just after collectMethods()
   const allEntities: EntityMetadata[] = [];
   for (const mgmt of context.plan.managements) {
     if (mgmt.entities) {
@@ -51,7 +66,12 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
   }
   context.entities = buildContextEntities(allEntities);
 
-  return {
+  // Store raw methods snapshot for incremental enhancement
+  let rawMethodsSnapshot: RawMethod[] = [];
+  let crudApplied = false;
+  let enhancedLanguages: string[] = [];
+
+  const kit = {
     context,
     plan: context.plan,
 
@@ -68,6 +88,100 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
         return false;
       }
       return true;
+    },
+
+    crud: {
+      /**
+       * Apply CRUD classification to methods.
+       *
+       * Derives crudName from tags like 'crud:create'.
+       * Runs automatically before language enhancement if not already applied.
+       */
+      apply(): void {
+        if (crudApplied) return;
+
+        const current = context.methods?.all || [];
+        const withCrud = applyCrudPipeline(current as RawMethod[]);
+        context.methods = buildContextMethods(withCrud);
+        crudApplied = true;
+      },
+
+      get isApplied(): boolean {
+        return crudApplied;
+      }
+    },
+
+    language: {
+      /**
+       * Enhance methods with specified languages.
+       *
+       * First language becomes the default for getters like `method.returnType`.
+       * Can be called incrementally to add more languages.
+       *
+       * @param langs - Language identifiers (e.g., 'rust', 'typescript')
+       */
+      add(...langs: string[]): void {
+        if (langs.length === 0) return;
+
+        // Auto-apply CRUD before language enhancement
+        if (!crudApplied) {
+          kit.crud.apply();
+        }
+
+        const currentMethods = context.methods?.all || [];
+
+        // Get current enhancement state
+        const currentLangs = isEnhanced(currentMethods[0])
+          ? (currentMethods[0] as EnhancedMethod)._languages || []
+          : [];
+
+        // Store raw on first call
+        if (rawMethodsSnapshot.length === 0) {
+          rawMethodsSnapshot = isEnhanced(currentMethods[0])
+            ? (currentMethods[0] as EnhancedMethod)._raw || [...currentMethods]
+            : [...currentMethods];
+        }
+
+        // Filter duplicates
+        const newLangs = langs.filter((l) => !currentLangs.includes(getLanguageExtensionKey(l)));
+        if (newLangs.length === 0 && currentLangs.length > 0) return;
+
+        // All languages
+        const allLangs = [...currentLangs, ...newLangs.map(getLanguageExtensionKey)];
+        enhancedLanguages = allLangs;
+
+        // Enhance from raw
+        const enhanced = enhanceMethods(
+          rawMethodsSnapshot,
+          [...currentLangs.map((k) => {
+            // Find language name from extension key
+            const lang = languages.getAll().find((l) => getLanguageExtensionKey(l.name) === k);
+            return lang?.name || k;
+          }), ...langs],
+          allLangs[0] // First is default
+        );
+
+        // Store metadata
+        enhanced.forEach((m) => {
+          Object.defineProperty(m, '_raw', {
+            value: rawMethodsSnapshot,
+            writable: false,
+            enumerable: false
+          });
+        });
+
+        // Update context
+        context.methods = buildContextMethods(enhanced);
+      },
+
+      get isEnhanced(): boolean {
+        const m = context.methods?.all;
+        return m && m.length > 0 && isEnhanced(m[0]);
+      },
+
+      get languages(): string[] {
+        return [...enhancedLanguages];
+      }
     },
 
     collectMethods(config): RawMethod[] {
@@ -108,14 +222,16 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       // Convert to RawMethod
       const rawMethods = processedMethods.map((m) => toRawMethod(m));
 
+      // Store raw snapshot
+      rawMethodsSnapshot = [...rawMethods];
+      crudApplied = false;
+      enhancedLanguages = [];
+
       // Build and attach method helpers to context (classic API)
       context.methods = buildContextMethods(rawMethods);
 
       // Build and attach query API (new chainable API)
       context.query = createQueryAPI(rawMethods);
-
-      // NOTE: Entities are collected eagerly when kit is created (line 45-52)
-      // context.entities is already available
 
       return rawMethods;
     },
@@ -124,7 +240,7 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       return dataFn(context, current, previous);
     },
 
-    async generateFiles(outputs, data, methods): Promise<GeneratedFile[]> {
+    async generateFiles(outputs, data, _methods): Promise<GeneratedFile[]> {
       const files: GeneratedFile[] = [];
 
       for (const output of outputs) {
@@ -141,15 +257,33 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
           return match;
         });
 
+        // Detect language from template filename
+        const detectedLang = detectLanguageFromTemplate(output.template);
+
+        // Auto-enhance if needed for this output's language
+        if (detectedLang && detectedLang !== 'unknown') {
+          const langKey = getLanguageExtensionKey(detectedLang);
+          if (!kit.language.isEnhanced) {
+            kit.language.add(detectedLang);
+          } else if (!enhancedLanguages.includes(langKey)) {
+            kit.language.add(detectedLang);
+          }
+        }
+
+        // Use enhanced methods from context
+        const enhancedMethods = context.methods.all;
+
         // Merge per-output context with main data (context takes precedence)
-        const mergedData = output.context ? { ...data, ...output.context } : data;
+        const mergedData = output.context
+          ? { ...data, ...output.context, methods: enhancedMethods }
+          : { ...data, methods: enhancedMethods };
 
         // Generate the file (workspace → package → builtin templates)
         const file = await generateCode({
           template: output.template,
           outputPath,
           data: mergedData,
-          methods,
+          methods: enhancedMethods,
           workspaceRoot: context.workspaceRoot,
           packagePath: context.packagePath
         });
@@ -162,10 +296,8 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
 
     hookup: {
       async android(data): Promise<void> {
-        // Create a minimal files array for the hookup to potentially add to
         const files: GeneratedFile[] = [];
         await executeAndroidHookup(context, files, data);
-        // Note: The files array isn't returned here - this is for side effects
       },
 
       rustCrate(_packageDir: string, _moduleName: string): void {
@@ -177,6 +309,30 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       }
     }
   };
+
+  return kit;
+}
+
+/**
+ * Detect language from template filename.
+ *
+ * @param template - Template filename (e.g., 'commands.rs.ejs')
+ * @returns Language identifier or 'unknown'
+ */
+function detectLanguageFromTemplate(template: string): string | undefined {
+  const basename = template.toLowerCase();
+
+  // Check against registered language file extensions
+  for (const lang of languages.getAll()) {
+    if (!lang.codeGen?.fileExtensions) continue;
+    for (const ext of lang.codeGen.fileExtensions) {
+      if (basename.endsWith(ext.toLowerCase())) {
+        return lang.name;
+      }
+    }
+  }
+
+  return undefined;
 }
 
 // Re-export hookup utilities for convenience
@@ -187,3 +343,6 @@ export {
   executeAndroidHookup,
   type AndroidHookupData
 } from '../shuttle/hookup-manager.js';
+
+// Re-export enhancement types for treadle authors
+export type { LanguageView, EnhancedMethod } from '../reed/enhancement.js';

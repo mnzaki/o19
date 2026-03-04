@@ -580,23 +580,15 @@ export const weaveGuiltRegistry = declareTreadle({
     pipeline: [addManagementPrefix()]
   },
 
-  // Generate files
+  // Language enhancement (optional - auto-detected from template filenames)
+  // First language is default for method.functionName, method.returnType, etc.
+  language: ['rust', 'typescript', 'kotlin'],
+  
+  // Generate files (language auto-detected from .rs.ejs, .ts.ejs, .kt.ejs)
   outputs: [
-    { 
-      template: 'guilt/registry.ts.ejs', 
-      path: 'src/guilt/registry.ts', 
-      language: 'typescript' 
-    },
-    { 
-      template: 'guilt/accumulator.rs.ejs', 
-      path: 'src/guilt/accumulator.rs', 
-      language: 'rust' 
-    },
-    { 
-      template: 'guilt/broadcast.kt.ejs', 
-      path: 'src/guilt/broadcast.kt', 
-      language: 'kotlin' 
-    }
+    { template: 'guilt/registry.ts.ejs', path: 'src/guilt/registry.ts' },
+    { template: 'guilt/accumulator.rs.ejs', path: 'src/guilt/accumulator.rs' },
+    { template: 'guilt/broadcast.kt.ejs', path: 'src/guilt/broadcast.kt' }
   ],
 
   // Hookups: modify existing files
@@ -892,10 +884,15 @@ Lookup: `loom/bobbin/` → `machinery/bobbin/`
 
 ### Template Data
 
+Templates receive data with **language-enhanced methods**:
+
 ```ejs
 export class <%= entity.pascal %>GuiltService {
   <% methods.forEach(m => { -%>
-  async <%= m.name %>(): Promise<<%= m.returnType %>> {
+  // m.functionName uses language convention automatically
+  // TypeScript template → camelCase, Rust template → snake_case
+  async <%= m.functionName %>(): Promise<<%= m.returnType %>> {
+    // m.returnType is language-specific: "Bookmark[]" for TS, "Vec<Bookmark>" for Rust
     // Grandma would say: "<%= m.grandmaQuote || 'Bless your heart' %>"
     <%= m.stubReturn %>
   }
@@ -910,17 +907,42 @@ export class <%= entity.pascal %>GuiltService {
 <% }) -%>
 ```
 
+**Language Detection:** Language is auto-detected from template filename:
+- `commands.rs.ejs` → Rust enhancement
+- `service.kt.ejs` → Kotlin enhancement  
+- `api.ts.ejs` → TypeScript enhancement
+
 ### Method Helpers
+
+Templates receive **EnhancedMethod** objects with idiomatic naming:
 
 ```ejs
 <% methods.forEach(m => { -%>
-  fn <%= m.name %>() -> <%= m.rsReturnType %> {
+  // Idiomatic naming: functionName uses language convention
+  // Rust: snake_case, TypeScript: camelCase, Kotlin: camelCase
+  fn <%= m.functionName %>() -> <%= m.returnType %> {
+    // m.returnType: language-specific type (Vec<Bookmark>, Bookmark[], etc.)
     // m.stubReturn: 'String::new()', 'Vec::new()', 'Default::default()'
-    // Generate guilt entry
     <%= m.stubReturn %>
   }
 <% }) -%>
 ```
+
+**Key Properties:**
+- `m.functionName` - Idiomatic function name (snake_case for Rust, camelCase for TS)
+- `m.typeName` - Type name (PascalCase)
+- `m.returnType` - Language-specific return type
+- `m.params.list` - Parameter list with types: `"id: i64, name: String"`
+- `m.params.names` - Parameter names only: `"id, name"`
+
+**Cross-Language Access:**
+```ejs
+// In Rust template, access TypeScript representation:
+// <%= m.ts.returnType %> → "Bookmark[]"
+// <%= m.ts.functionName %> → "addBookmark"
+```
+
+**Full API Reference:** See [TEMPLATE_API.md](./TEMPLATE_API.md)
 
 ---
 

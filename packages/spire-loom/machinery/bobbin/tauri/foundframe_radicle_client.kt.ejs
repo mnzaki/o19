@@ -147,23 +147,23 @@ class <%- serviceClient %>(private val context: Context) {
 <% methods.forEach(function(method) { -%>
     
     /**
-     * <%- method.description || method.name %>
+     * <%- method.description || method.kt.functionName %>
      *
 <% method.params.forEach(function(param) { -%>
-     * @param <%- param.name %> <%- param.description || param.name %>
+     * @param <%- param.kt?.variableName || param.name %> <%- param.description || param.name %>
 <% }); -%>
-     * @return <%- method.returnDescription || method.returnType %>
+     * @return <%- method.returnDescription || method.kt.returnType %>
      * @throws IllegalStateException if not connected
      * @throws RemoteException if IPC fails
      */
     @Throws(RemoteException::class)
-    fun <%- method.name %>(<%-
+    fun <%- method.kt.functionName %>(<%-
       method.params.map(function(p) {
-        return p.name + ': ' + (p.aidlType || p.type);
+        return (p.kt?.variableName || p.name) + ': ' + (p.aidlType || p.kt?.type || p.type);
       }).join(', ')
-    %>): <%- method.aidlReturnType || method.returnType %> {
+    %>): <%- method.aidlReturnType || method.kt.returnType %> {
         val s = service ?: throw IllegalStateException("Not connected to service. Call connect() first.")
-        return s.<%- method.name %>(<%- method.params.map(function(p) { return p.name; }).join(', ') %>)
+        return s.<%- method.kt.functionName %>(<%- method.params.map(function(p) { return p.kt?.variableName || p.name; }).join(', ') %>)
     }
 <% }); %>
 }

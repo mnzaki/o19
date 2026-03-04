@@ -354,7 +354,10 @@ function transformMethods(methods: RawMethod[], language: Language): RawMethod[]
         `All methods must have a non-empty string name.`
       );
     }
-    method.camelName = camelCase(method.name);
+    // Only add camelName if not already present (idempotent transform)
+    if (!('camelName' in method)) {
+      (method as any).camelName = camelCase(method.name);
+    }
   }
 
   // Use language registry for transforms

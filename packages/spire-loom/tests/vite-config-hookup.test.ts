@@ -8,8 +8,8 @@
  * - Server configuration
  */
 
-import { test, describe } from 'node:test';
-import * as assert from 'node:assert';
+import { test, describe } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -61,10 +61,10 @@ export default defineConfig({
 
     const result = await applyViteConfigHookup(filePath, hookup, createMockContext());
 
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('rollupOptions'));
-    assert.ok(content.includes("input: './src/test-entry.ts'"));
+    expect(content.includes('rollupOptions')).toBe(true);
+    expect(content.includes("input: './src/test-entry.ts'")).toBe(true);
   });
 
   test('adds multi-entry input', async () => {
@@ -86,10 +86,10 @@ export default defineConfig({});
 
     await applyViteConfigHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('main:'));
-    assert.ok(content.includes("'./src/main.ts'"));
-    assert.ok(content.includes('test:'));
-    assert.ok(content.includes("'./src/test-entry.ts'"));
+    expect(content.includes('main:')).toBe(true);
+    expect(content.includes("'./src/main.ts'")).toBe(true);
+    expect(content.includes('test:')).toBe(true);
+    expect(content.includes("'./src/test-entry.ts'")).toBe(true);
   });
 
   test('circularity test harness config', async () => {
@@ -116,7 +116,7 @@ export default defineConfig({
     // Should preserve existing plugins
     assert.ok(content.includes('sveltekit()'));
     // Should add rollupOptions
-    assert.ok(content.includes('rollupOptions'));
+    expect(content.includes('rollupOptions')).toBe(true);
   });
 });
 
@@ -142,10 +142,10 @@ export default defineConfig({
 
     const result = await applyViteConfigHookup(filePath, hookup, createMockContext());
 
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('define:'));
-    assert.ok(content.includes('import.meta.env.CIRCULARITY_TEST'));
+    expect(content.includes('define:')).toBe(true);
+    expect(content.includes('import.meta.env.CIRCULARITY_TEST')).toBe(true);
     assert.ok(content.includes('JSON.stringify(true)'));
   });
 
@@ -168,8 +168,8 @@ export default defineConfig({
     await applyViteConfigHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
     
-    assert.ok(content.includes('import.meta.env.EXISTING'));
-    assert.ok(content.includes('import.meta.env.NEW'));
+    expect(content.includes('import.meta.env.EXISTING')).toBe(true);
+    expect(content.includes('import.meta.env.NEW')).toBe(true);
   });
 
   test('skips existing define', async () => {
@@ -193,7 +193,7 @@ export default defineConfig({
     const content = fs.readFileSync(filePath, 'utf-8');
     // Should not have duplicate entries
     const matches = content.match(/import\.meta\.env\.EXISTING/g);
-    assert.strictEqual(matches?.length, 1);
+    expect(matches?.length).toBe(1);
   });
 });
 
@@ -235,7 +235,7 @@ export default defineConfig({});
 
     await applyViteConfigHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('plugins:'));
+    expect(content.includes('plugins:')).toBe(true);
     assert.ok(content.includes('testPlugin()'));
   });
 });
@@ -257,8 +257,8 @@ export default defineConfig({});
 
     await applyViteConfigHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('server:'));
-    assert.ok(content.includes('port: 3000'));
+    expect(content.includes('server:')).toBe(true);
+    expect(content.includes('port: 3000')).toBe(true);
   });
 
   test('adds server host', async () => {
@@ -273,7 +273,7 @@ export default defineConfig({});
 
     await applyViteConfigHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('host: true'));
+    expect(content.includes('host: true')).toBe(true);
   });
 
   test('adds server host string', async () => {
@@ -288,7 +288,7 @@ export default defineConfig({});
 
     await applyViteConfigHookup(filePath, hookup, createMockContext());
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes("host: '0.0.0.0'"));
+    expect(content.includes("host: '0.0.0.0'")).toBe(true);
   });
 
   test('updates existing server config', async () => {
@@ -309,9 +309,9 @@ export default defineConfig({
     const content = fs.readFileSync(filePath, 'utf-8');
     
     // Should update port
-    assert.ok(content.includes('port: 3000'));
+    expect(content.includes('port: 3000')).toBe(true);
     // Should add host
-    assert.ok(content.includes('host: true'));
+    expect(content.includes('host: true')).toBe(true);
   });
 });
 
@@ -343,16 +343,16 @@ export default defineConfig({
     };
 
     const result = await applyViteConfigHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
 
     const content = fs.readFileSync(filePath, 'utf-8');
     
     // Original plugin preserved
     assert.ok(content.includes('sveltekit()'));
     // Build config added
-    assert.ok(content.includes('rollupOptions'));
+    expect(content.includes('rollupOptions')).toBe(true);
     // Define added
-    assert.ok(content.includes('CIRCULARITY_TEST'));
+    expect(content.includes('CIRCULARITY_TEST')).toBe(true);
   });
 
   test('handles vite.config.js', async () => {
@@ -366,10 +366,10 @@ export default defineConfig({
     };
 
     const result = await applyViteConfigHookup(filePath, hookup, createMockContext());
-    assert.strictEqual(result.status, 'applied');
+    expect(result.status).toBe('applied');
 
     const content = fs.readFileSync(filePath, 'utf-8');
-    assert.ok(content.includes('port: 4000'));
+    expect(content.includes('port: 4000')).toBe(true);
   });
 });
 
@@ -386,7 +386,7 @@ describe('vite-config: error handling', () => {
 
     const result = await applyViteConfigHookup('/non/existent/vite.config.ts', hookup, createMockContext());
 
-    assert.strictEqual(result.status, 'error');
-    assert.ok(result.message?.includes('File not found'));
+    expect(result.status).toBe('error');
+    expect(result.message?.includes('File not found')).toBe(true);
   });
 });

@@ -2,8 +2,8 @@
  * Tests for gradle-manager.ts
  */
 
-import { describe, it, beforeEach, afterEach } from 'node:test';
-import * as assert from 'node:assert';
+import { describe, it, beforeEach, afterEach } from 'vitest';
+import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,12 +39,12 @@ android {
 }
 `);
 
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:TESTBLOCK'));
-    assert.ok(content.includes('// /SPIRE-LOOM:BLOCK:TESTBLOCK'));
-    assert.ok(content.includes('compileSdk 34'));
+    expect(content.includes('// SPIRE-LOOM:BLOCK:TESTBLOCK')).toBe(true);
+    expect(content.includes('// /SPIRE-LOOM:BLOCK:TESTBLOCK')).toBe(true);
+    expect(content.includes('compileSdk 34')).toBe(true);
   });
 
   it('adds block after specific marker', () => {
@@ -61,8 +61,8 @@ tasks.register('buildRust') {
 `, { after: 'plugins {' });
 
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:RUSTTASK'));
-    assert.ok(content.includes('tasks.register'));
+    expect(content.includes('// SPIRE-LOOM:BLOCK:RUSTTASK')).toBe(true);
+    expect(content.includes('tasks.register')).toBe(true);
   });
 
   it('is idempotent - no change on second run', () => {
@@ -73,7 +73,7 @@ tasks.register('buildRust') {
     clearGradleBlockRegistry();
     const result = ensureGradleBlock(gradlePath, 'TestBlock', 'content1');
 
-    assert.strictEqual(result, false);
+    expect(result).toBe(false);
   });
 
   it('updates block when content changes', () => {
@@ -84,11 +84,11 @@ tasks.register('buildRust') {
     clearGradleBlockRegistry();
     const result = ensureGradleBlock(gradlePath, 'TestBlock', 'version2');
 
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('version2'));
-    assert.ok(!content.includes('version1'));
+    expect(content.includes('version2')).toBe(true);
+    expect(!content.includes('version1')).toBe(true);
   });
 
   it('removes block completely', () => {
@@ -105,13 +105,13 @@ android {
 
     const result = ensureGradleBlockRemoved(gradlePath, 'TestBlock');
 
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(!content.includes('spire-loom:TestBlock'));
-    assert.ok(!content.includes('test {'));
-    assert.ok(content.includes('plugins {'));
-    assert.ok(content.includes('android {'));
+    expect(!content.includes('spire-loom:TestBlock')).toBe(true);
+    expect(!content.includes('test {')).toBe(true);
+    expect(content.includes('plugins {')).toBe(true);
+    expect(content.includes('android {')).toBe(true);
   });
 
   it('creates source set configuration from scratch', () => {
@@ -123,14 +123,14 @@ android {
       aidl: ['./src/main/aidl'],
     });
 
-    assert.strictEqual(result, true);
+    expect(result).toBe(true);
     
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('android {'));
-    assert.ok(content.includes('sourceSets {'));
-    assert.ok(content.includes('main {'));
-    assert.ok(content.includes("java.srcDir './src/main/java'"));
-    assert.ok(content.includes("aidl.srcDir './src/main/aidl'"));
+    expect(content.includes('android {')).toBe(true);
+    expect(content.includes('sourceSets {')).toBe(true);
+    expect(content.includes('main {')).toBe(true);
+    expect(content.includes("java.srcDir './src/main/java'")).toBe(true);
+    expect(content.includes("aidl.srcDir './src/main/aidl'")).toBe(true);
   });
 
   it('source set with all options', () => {
@@ -148,13 +148,13 @@ android {
     });
 
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes("java.srcDir './spire/android/java'"));
-    assert.ok(content.includes("kotlin.srcDir './spire/android/kotlin'"));
-    assert.ok(content.includes("res.srcDir './spire/android/res'"));
-    assert.ok(content.includes("aidl.srcDir './spire/android/aidl'"));
-    assert.ok(content.includes("jniLibs.srcDir './spire/android/jniLibs'"));
-    assert.ok(content.includes("assets.srcDir './spire/android/assets'"));
-    assert.ok(content.includes("manifest.srcFile './spire/android/AndroidManifest.xml'"));
+    expect(content.includes("java.srcDir './spire/android/java'")).toBe(true);
+    expect(content.includes("kotlin.srcDir './spire/android/kotlin'")).toBe(true);
+    expect(content.includes("res.srcDir './spire/android/res'")).toBe(true);
+    expect(content.includes("aidl.srcDir './spire/android/aidl'")).toBe(true);
+    expect(content.includes("jniLibs.srcDir './spire/android/jniLibs'")).toBe(true);
+    expect(content.includes("assets.srcDir './spire/android/assets'")).toBe(true);
+    expect(content.includes("manifest.srcFile './spire/android/AndroidManifest.xml'")).toBe(true);
   });
 
   it('preserves existing gradle content', () => {
@@ -176,9 +176,9 @@ android {
 `);
 
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes("namespace 'ty.circulari.test'"));
-    assert.ok(content.includes('compileSdk 34'));
-    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:NEWBLOCK'));
+    expect(content.includes("namespace 'ty.circulari.test'")).toBe(true);
+    expect(content.includes('compileSdk 34')).toBe(true);
+    expect(content.includes('// SPIRE-LOOM:BLOCK:NEWBLOCK')).toBe(true);
   });
 
   it('handles multiple blocks in same file', () => {
@@ -189,12 +189,12 @@ android {
     ensureGradleBlock(gradlePath, 'Block2', '// Block 2 content');
 
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:BLOCK1'));
-    assert.ok(content.includes('// Block 1 content'));
-    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:BLOCK2'));
-    assert.ok(content.includes('// Block 2 content'));
-    assert.ok(content.includes('// /SPIRE-LOOM:BLOCK:BLOCK1'));
-    assert.ok(content.includes('// /SPIRE-LOOM:BLOCK:BLOCK2'));
+    expect(content.includes('// SPIRE-LOOM:BLOCK:BLOCK1')).toBe(true);
+    expect(content.includes('// Block 1 content')).toBe(true);
+    expect(content.includes('// SPIRE-LOOM:BLOCK:BLOCK2')).toBe(true);
+    expect(content.includes('// Block 2 content')).toBe(true);
+    expect(content.includes('// /SPIRE-LOOM:BLOCK:BLOCK1')).toBe(true);
+    expect(content.includes('// /SPIRE-LOOM:BLOCK:BLOCK2')).toBe(true);
   });
 
   it('creates file if not exists', () => {
@@ -202,8 +202,8 @@ android {
 
     ensureGradleBlock(gradlePath, 'TestBlock', '// Test content');
 
-    assert.ok(fs.existsSync(gradlePath));
+    expect(fs.existsSync(gradlePath)).toBe(true);
     const content = fs.readFileSync(gradlePath, 'utf-8');
-    assert.ok(content.includes('// SPIRE-LOOM:BLOCK:TESTBLOCK'));
+    expect(content.includes('// SPIRE-LOOM:BLOCK:TESTBLOCK')).toBe(true);
   });
 });
