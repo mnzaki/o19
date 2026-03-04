@@ -222,12 +222,12 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
   }
 }
 
-// 2. Optional custom enhancer
-const rustEnhancer: TransformEnhancer<RustMethod, RustParam> = (methods) => {
+// 2. Optional custom enhancer (adds Rust-specific metadata)
+const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (methods) => {
   return methods.map(m => ({
     ...m,
-    rsReturnType: m.returnTypeDef.name,
     implName: toSnakeCase(m.implName || m.name),
+    serviceAccessPreamble: buildServiceAccessPreamble((m as any).link),
   }));
 };
 

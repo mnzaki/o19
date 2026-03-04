@@ -30,7 +30,6 @@
  */
 
 import { toSnakeCase } from '../machinery/stringing.js';
-import { mapToRustType, mapToSqlType } from '../machinery/bobbin/type-mappings.js';
 
 // ============================================================================
 // Options Interfaces
@@ -42,13 +41,9 @@ import { mapToRustType, mapToSqlType } from '../machinery/bobbin/type-mappings.j
 export interface BaseOptions<T = any> {
   /** Whether the field is nullable */
   nullable?: boolean;
-  /** Override the Rust type mapping */
-  rustType?: string;
-  /** Override the SQL type mapping */
-  sqlType?: string;
   /** Override the column name (default: snake_case of property name) */
   columnName?: string;
-  /** Default value for Rust Default impl */
+  /** Default value for Default impl */
   default?: T | (() => T);
 
   // Internal flags (set by specialized factories)
@@ -133,26 +128,7 @@ export class Field<T> {
   // Computed Properties (for template use)
   // ========================================================================
 
-  /**
-   * Rust type (mapped from TypeScript type).
-   */
-  get rustType(): string {
-    return this.options.rustType ?? mapToRustType(this.tsType);
-  }
 
-  /**
-   * SQL type (mapped from TypeScript type).
-   */
-  get sqlType(): string {
-    // Handle string length → VARCHAR vs TEXT
-    if (this.tsType === 'string' && 'length' in this.options) {
-      const length = (this.options as StringOptions).length;
-      if (length) {
-        return `VARCHAR(${length})`;
-      }
-    }
-    return this.options.sqlType ?? mapToSqlType(this.tsType);
-  }
 
   /**
    * SQL column name (snake_case of property name).
@@ -227,8 +203,6 @@ export class PrimaryKeyField extends Field<number> {
   constructor(options: IdOptions = {}) {
     super('number', {
       isPrimary: true,
-      rustType: 'i64',
-      sqlType: 'INTEGER',
       nullable: false,
       ...options
     });
@@ -243,8 +217,6 @@ export class PrimaryKeyField extends Field<number> {
 export class TimestampField extends Field<number> {
   constructor(isCreated: boolean, options: TimestampOptions = {}) {
     super('number', {
-      rustType: 'i64',
-      sqlType: 'INTEGER',
       nullable: false,
       isCreatedAt: isCreated,
       isUpdatedAt: !isCreated,
@@ -280,7 +252,7 @@ export const field = {
    *
    * @example
    * id = crud.field.id()
-   * // rustType: 'i64', sqlType: 'INTEGER', forInsert: false
+   * // forInsert: false
    */
   id(options: IdOptions = {}): PrimaryKeyField {
     return new PrimaryKeyField(options);
@@ -304,14 +276,13 @@ export const field = {
   },
 
   /**
-   * Text field (alias for string with TEXT type).
+   * Text field (alias for string).
    *
    * @example
    * notes = crud.field.text()
-   * // sqlType: 'TEXT'
    */
   text(options: Omit<StringOptions, 'length'> = {}): Field<string> {
-    return new Field<string>('string', { sqlType: 'TEXT', ...options });
+    return new Field<string>('string', options);
   },
 
   /**
@@ -319,7 +290,6 @@ export const field = {
    *
    * @example
    * count = crud.field.int()
-   * // rustType: 'i64', sqlType: 'INTEGER'
    */
   int(options: NumberOptions = {}): Field<number> {
     return new Field<number>('number', options);
@@ -330,7 +300,6 @@ export const field = {
    *
    * @example
    * isActive = crud.field.bool()
-   * // rustType: 'bool', sqlType: 'INTEGER' (SQLite has no native bool)
    */
   bool(options: BaseOptions<boolean> = {}): Field<boolean> {
     return new Field<boolean>('boolean', options);
@@ -343,14 +312,9 @@ export const field = {
    *
    * @example
    * timestamp = crud.field.timestamp()
-   * // rustType: 'i64', sqlType: 'INTEGER'
    */
   timestamp(options: TimestampOptions = {}): Field<number> {
-    return new Field<number>('number', {
-      rustType: 'i64',
-      sqlType: 'INTEGER',
-      ...options
-    });
+    return new Field<number>('number', options);
   },
 
   /**
@@ -384,28 +348,18 @@ export const field = {
    *
    * @example
    * metadata = crud.field.json<BookmarkMeta>()
-   * // sqlType: 'JSON' (or 'JSONB' for PostgreSQL)
-   *
-   * metadata = crud.field.json({ sqlType: 'JSONB' })
-   * // sqlType: 'JSONB'
    */
   json<T = unknown>(options: BaseOptions<T> = {}): Field<T> {
-    return new Field<T>('object', {
-      sqlType: 'JSON',
-      ...options
-    });
+    return new Field<T>('object', options);
   },
 
   /**
    * Custom field (escape hatch).
    *
-   * Use this when you need full control over type mappings.
+   * Use this when you need a custom TypeScript type.
    *
    * @example
-   * uuid = crud.field.custom<string>('string', {
-   *   rustType: 'Uuid',
-   *   sqlType: 'UUID'
-   * })
+   * uuid = crud.field.custom<string>('string')
    */
   custom<T>(tsType: string, options: FieldOptions<T> = {}): Field<T> {
     return new Field<T>(tsType, options);
@@ -444,8 +398,9 @@ export function isTimestampField(value: unknown): value is TimestampField {
 /**
  * Extract field metadata for storage in EntityMetadata.
  *
- * This converts a Field instance to the serializable metadata format
- * that templates receive.
+ * This converts a Field instance to the serializable metadata format.
+ * Only TypeScript types and metadata flags are stored.
+ * Language-specific types are resolved at enhancement time.
  *
  * @param field - The field to extract metadata from
  * @returns Serializable field metadata
@@ -453,8 +408,6 @@ export function isTimestampField(value: unknown): value is TimestampField {
 export function extractFieldMetadata(field: Field<unknown>): {
   name: string;
   tsType: string;
-  rustType: string;
-  sqlType: string;
   columnName: string;
   nullable: boolean;
   isPrimary: boolean;
@@ -466,8 +419,6 @@ export function extractFieldMetadata(field: Field<unknown>): {
   return {
     name: field.name,
     tsType: field.tsType,
-    rustType: field.rustType,
-    sqlType: field.sqlType,
     columnName: field.columnName,
     nullable: field.nullable,
     isPrimary: field.isPrimary,

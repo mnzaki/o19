@@ -840,10 +840,476 @@ Composition templates use **preprocessed EJS** syntax:
 | `{% for item in items %}` | For-of loop |
 | `{% endfor %}` | End for block |
 
-The preprocessor (in `machinery/shuttle/template-preprocessor.ts`) converts this readable syntax to standard EJS before rendering.
+The mejs system (in `machinery/bobbin/mejs.ts`) converts this readable syntax to standard EJS before rendering.
 
 **Two-stage processing**:
 1. If a `{% %}` block contains `{` or `}` → treated as raw JavaScript (pass-through)
 2. Otherwise → simplified syntax transformation applied
 
 This lets you write clean `{% if isExport %}export{% endif %}` while still supporting raw `{% if (x) { %}` when needed.
+
+---
+
+## Open Questions & Future Work
+
+### 1. Stub Return Values
+
+**Status**: Partially implemented via `LanguageType.stubReturn`
+
+**Insight**: Instead of hardcoding stub values, declare `knownValues` for types:
+
+```typescript
+types: {
+  boolean: { 
+    template: 'bool',
+    knownValues: ['true', 'false']  // First value used as stub
+  },
+  optional: { 
+    template: 'Option<{{T}}>',
+    knownValues: ['None'] 
+  }
+}
+```
+
+The `stubReturn` helper simply picks `knownValues[0]`. This also enables:
+- IDE autocomplete suggestions
+- Test case generation
+- Documentation examples
+
+### 2. WARP Configuration
+
+**Status**: ✅ **Answered** - Keep in executive layer
+
+WARP configuration requires runtime JavaScript classes:
+- `externalLayerClass` - for field decorators
+- `core.coreClass` / `core.createCore` - for ring navigation  
+- `spiralers` - for type-safe navigation
+- `fieldDecorators` - entity field type decorators
+
+**Decision**: WARP config stays in the executive layer. Languages are declared with a hybrid approach:
+
+```typescript
+declareLanguage({
+  // Layer 1: Declarative (what the language IS)
+  identity: { name: 'rust', extensions: ['.rs'] },
+  syntax: { keywords: {...}, types: {...} },
+  
+  // Layer 2: Executive (how it integrates with WARP)
+  warp: {
+    externalLayerClass: RustExternalLayer,
+    core: { coreClass: RustCore, createCore: ... },
+    spiralers: { android: RustAndroidSpiraler },
+    fieldDecorators: { Mutex, Option }
+  }
+});
+```
+
+The compiler output merges with the input, so WARP config passes through untouched.
+
+### 3. Custom Enhancers
+
+**Status**: ✅ **Answered** - Keep in executive layer
+
+Custom transform enhancers require runtime function logic.
+
+**Decision**: Enhancers stay in executive layer. Use hybrid declaration:
+
+```typescript
+declareLanguage({
+  // Layer 1: Declarative
+  identity: { name: 'myLang', ... },
+  syntax: { ... },
+  
+  // Layer 2: Executive (custom logic)
+  codeGen: {
+    enhancers: [myCustomEnhancer]
+  }
+});
+```
+
+The declarative compiler generates the base transform, then your custom enhancers are appended to the pipeline.
+
+### 4. Template System
+
+**Status**: Implemented in `machinery/bobbin/mejs.ts`
+
+Templates use **EJS with a preprocessor** for cleaner syntax:
+
+```handlebars
+// Preprocessor input
+{% if isExport %}export {% endif %}function {{name}}() { }
+
+// Compiled to EJS
+<%_ if (isExport) { _%>export <%_ } _%>function <%- name %>() { }
+```
+
+**Preprocessor features**:
+- `{{ expr }}` → `<%- expr %>` (unescaped output)
+- `{% if x %}` → `<%_ if (x) { _%>` (control flow)
+- `{%+` preserves whitespace (vs trim by default)
+- `{h expr }` → HTML escaped output
+
+Two-stage processing:
+1. Detect `{` or `}` in block → raw JavaScript (pass-through)
+2. Otherwise → simplified syntax transformation
+
+**Template Context**:
+
+When executive functions render templates, they provide a rich context:
+
+```typescript
+const context = {
+  // Language context (available in all templates)
+  naming: { function: 'snake', type: 'pascal', ... },
+  blocks: { open: '{', close: '}', ... },
+  keywords: { function: 'fn', ... },
+  formatName: (name, convention) => ...,
+  
+  // Method context (specific to the method being rendered)
+  method: {
+    name: 'addBookmark',
+    snakeName: 'add_bookmark',
+    camelName: 'addBookmark',
+    pascalName: 'AddBookmark',
+    params: [...],
+    paramList: 'url: String, title: String',
+    returnType: 'Bookmark',
+    isAsync: false,
+    isPublic: true,
+    isStatic: false,
+  },
+  
+  // Convenience accessors at top level
+  name: 'addBookmark',
+  snakeName: 'add_bookmark',
+  ...
+};
+```
+
+This allows templates like:
+```handlebars
+{% if method.isPublic %}pub {% endif %}fn {{method.snakeName}}({{method.paramList}}) -> {{method.returnType}}
+```
+
+**Template Context**:
+
+When executive functions render templates, they provide a rich context:
+
+```typescript
+const context = {
+  // Language context (available in all templates)
+  naming: { function: 'snake', type: 'pascal', ... },
+  blocks: { open: '{', close: '}', ... },
+  keywords: { function: 'fn', ... },
+  formatName: (name, convention) => ...,
+  
+  // Method context (specific to the method being rendered)
+  method: {
+    name: 'addBookmark',
+    snakeName: 'add_bookmark',
+    camelName: 'addBookmark',
+    pascalName: 'AddBookmark',
+    params: [...],
+    paramList: 'url: String, title: String',
+    returnType: 'Bookmark',
+    isAsync: false,
+    isPublic: true,
+    isStatic: false,
+  },
+  
+  // Convenience accessors at top level
+  name: 'addBookmark',
+  snakeName: 'add_bookmark',
+  ...
+};
+```
+
+This allows templates like:
+```handlebars
+{% if method.isPublic %}pub {% endif %}fn {{method.snakeName}}({{method.paramList}}) -> {{method.returnType}}
+```
+
+### 5. Language-Specific Param Types
+
+**Status**: ✅ **Answered** - Standardize on `langType`
+
+**Decision**: All languages use `langType` as the standard property key.
+
+```typescript
+// All languages use the same key
+interface LanguageParam {
+  name: string;
+  type: string;      // TypeScript type
+  langType: string;  // Target language type (was rsType, tsType, ktType...)
+  formattedName: string;
+  optional?: boolean;
+}
+```
+
+The executive layer's transform pipeline maps `langType` to the appropriate value based on the target language. This simplifies the declarative schema and makes param handling uniform across languages.
+
+### 6. Optionality Syntax
+
+**Status**: ✅ **Answered** - Dual template pattern
+
+Different contexts (params, properties, types) have different optionality syntax.
+
+**Decision**: Use `whenOptional` / `whenRequired` template pairs:
+
+```typescript
+syntax: {
+  composition: {
+    // Function parameters
+    parameter: {
+      whenRequired: '{{name}}: {{type}}',
+      whenOptional: '{{name}}?: {{type}}',  // TypeScript
+      // whenOptional: '{{name}}: {{type}}?', // Kotlin
+      whitespace: 'trim'
+    },
+    
+    // Type definitions (properties)
+    property: {
+      whenRequired: '{{name}}: {{type}}',
+      whenOptional: '{{name}}?: {{type}} | null',
+      whitespace: 'trim'
+    },
+    
+    // Standalone type (for type aliases)
+    optionalType: {
+      template: '{{type}} | null',  // TypeScript
+      // template: 'Option<{{type}}>', // Rust
+      whitespace: 'trim'
+    }
+  }
+}
+```
+
+The compiler selects the appropriate template based on the `optional` flag in the param/property metadata.
+
+### 7. Import Management
+
+**Status**: ⏸️ **Deferred** - Handle manually in templates for now
+
+Type constructors have `importPath`/`requiresImport` but no automatic system.
+
+**Decision**: Not required for generated code. Handle manually in templates:
+
+```handlebars
+// At top of template
+use std::collections::HashMap;
+use crate::{{entityName}};
+
+// Generated code uses fully qualified names or assumes imports exist
+```
+
+**Future enhancement** (when needed):
+- Import tracking during type resolution
+- Automatic import collection
+- Configurable import ordering (std, external, internal)
+
+### 8. Advanced Type Constructors
+
+**Status**: ✅ **Answered** - Use template functions
+
+**Decision**: Use template functions for variable-arity constructors.
+
+```typescript
+types: {
+  // Fixed arity - template string
+  optional: {
+    strategy: 'wrapper',
+    template: '{{T}} | null'
+  },
+  
+  // Variable arity - template function
+  union: {
+    strategy: 'union',
+    template: (items: string[]) => items.join(' | ')
+  },
+  
+  intersection: {
+    strategy: 'intersection', 
+    template: (items: string[]) => items.join(' & ')
+  },
+  
+  // Multiple type parameters
+  result: {
+    strategy: 'wrapper',
+    template: (ok: string, err: string) => `Result<${ok}, ${err}>`
+  },
+  
+  record: {
+    strategy: 'wrapper',
+    template: (key: string, value: string) => `Record<${key}, ${value}>`
+  }
+}
+```
+
+**Type Constructor Declaration**:
+
+```typescript
+interface TypeConstructorDeclaration {
+  strategy: 'wrapper' | 'suffix' | 'prefix' | 'union' | 'intersection' | 'function' | 'tuple';
+  /** Template string for fixed arity, function for variable arity */
+  template: string | ((...args: string[]) => string);
+  importPath: string | null;
+  requiresImport: boolean;
+}
+```
+
+**Compilation**: The compiler detects if `template` is a function and calls it with resolved type names, or uses string replacement for template strings.
+
+---
+
+## Template System Reference
+
+**Location**: `machinery/bobbin/mejs.ts`
+
+**Delimiter Mapping**:
+
+| Custom Syntax | EJS Output | Meaning |
+|--------------|------------|---------|
+| `{{ expr }}` | `<%- expr %>` | Unescaped output |
+| `{h expr }` | `<%= expr %>` | HTML escaped output |
+| `{_ expr }` | `<%- expr _%>` | Trim trailing whitespace |
+| `{% code %}` | `<% code _%>` | Execute code, trim trailing |
+| `{%+ code %}` | `<% code %>` | Execute code, preserve whitespace |
+
+**Control Flow Simplification**:
+
+| Simplified | EJS |
+|------------|-----|
+| `{% if x %}` | `<%_ if (x) { _%>` |
+| `{% elif x %}` | `<%_ } else if (x) { _%>` |
+| `{% else %}` | `<%_ } else { _%>` |
+| `{% endif %}` | `<%_ } _%>` |
+| `{% for x in xs %}` | `<%_ for (const x of xs) { _%>` |
+| `{% endfor %}` | `<%_ } _%>` |
+
+**Usage**:
+
+```typescript
+import { mejs } from './mejs.js';
+
+// Preprocess only (advanced use)
+const ejsTemplate = mejs.preprocess('{% if x %}{{ y }}{% endif %}');
+// → '<%_ if (x) { _%><%- y %><%_ } _%>'
+
+// Render a template string
+const output = await mejs.render({
+  template: '{% if show %}Hello {{ name }}!{% endif %}',
+  data: { show: true, name: 'World' }
+});
+// → 'Hello World!'
+
+// Full pipeline (render + postprocess)
+const processed = await mejs.process(
+  '{% if show %}Hello {{ name }}!{% endif %}',
+  { show: true, name: 'World' }
+);
+// → 'Hello World!'
+
+// Render from file
+const fileOutput = await mejs.renderFile({
+  templatePath: './template.rs.ejs',
+  data: { name: 'World' }
+});
+
+// Generate file
+await mejs.generate({
+  templatePath: './template.rs.ejs',
+  data: { name: 'World' },
+  outputPath: './output.rs'
+});
+```
+
+---
+
+## Architecture Decision Summary
+
+| Question | Decision | Implementation |
+|----------|----------|----------------|
+| 1. Stub Return Values | Use `knownValues: ['true', 'false']` | First value = stub, rest = autocomplete/docs |
+| 2. WARP Configuration | Keep in executive layer | Hybrid: declarative schema + executive WARP classes |
+| 3. Custom Enhancers | Keep in executive layer | Pass as `codeGen.enhancers` override |
+| 4. Template System | MEJS (Moustache-EJS) | `machinery/bobbin/mejs.ts` |
+| 5. Language-Specific Params | Standardize on `langType` | All languages use `langType` property |
+| 6. Optionality Syntax | Dual template pattern | `whenOptional` / `whenRequired` templates |
+| 7. Import Management | Deferred | Handle manually in templates for now |
+| 8. Advanced Type Constructors | Template functions | `(items: string[]) => items.join(' \| ')` |
+
+### Two-Layer Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  LAYER 1: DECLARATIVE (What the language IS)                │
+│  ─────────────────────────────────────────────              │
+│  • identity: name, extensions, inheritance                  │
+│  • conventions: naming rules                                │
+│  • syntax: keywords, types, blocks, templates               │
+│                                                             │
+│  Example: declareLanguage({ identity: ..., syntax: ... })   │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ compileToExecutive()
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│  LAYER 2: EXECUTIVE (How to generate code)                  │
+│  ────────────────────────────────────────────               │
+│  • codeGen.types: TypeFactory (from constructors)           │
+│  • codeGen.rendering: Template renderers (EJS)             │
+│  • codeGen.enhancers: Custom transform logic               │
+│  • warp: Runtime classes (ExternalLayer, Spiralers)        │
+│                                                             │
+│  Output: declareLanguage({ name, codeGen, warp })          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Template Rendering Flow
+
+```
+Template (Declarative)        Runtime (Executive)
+─────────────────────         ───────────────────
+"{% if isExport %}export      async functionSignature(method) {
+ {% endif %}fn {{name}}"         // 1. Build context
+                                 const context = {
+                                   language: { naming, blocks, ... },
+                                   method: { name, snakeName, params, ... }
+                                 };
+                                 
+                                 // 2. Preprocess → EJS
+                                 const ejsTemplate = preprocessTemplate(
+                                   "{% if isExport %}export {% endif %}fn {{name}}"
+                                 );
+                                 // → "<%_ if (isExport) { _%>export <%_ } _%>fn <%- name %>"
+                                 
+                                 // 3. Render with EJS
+                                 return ejs.render(ejsTemplate, context);
+                               }
+```
+
+### Usage Pattern
+
+```typescript
+// Pure declarative (layer 1 only)
+declareLanguage({
+  identity: { name: 'myLang', extensions: ['.my'] },
+  conventions: { naming: { function: 'snake', ... } },
+  syntax: { keywords: {...}, types: {...}, ... }
+});
+
+// Hybrid (layer 1 + layer 2 overrides)
+declareLanguage({
+  // Layer 1: Declarative schema
+  identity: { name: 'rust', extensions: ['.rs'] },
+  syntax: { ... },
+  
+  // Layer 2: Executive overrides
+  codeGen: {
+    enhancers: [myCustomEnhancer]  // Custom logic
+  },
+  warp: {
+    externalLayerClass: RustExternalLayer,  // Runtime classes
+    spiralers: { android: RustAndroidSpiraler }
+  }
+});
+```

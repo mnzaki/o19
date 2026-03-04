@@ -11,17 +11,17 @@
 
 /**
  * Field metadata as stored in EntityMetadata.
- * This is the interface that templates expect.
+ * 
+ * Only TypeScript types are stored here. Language-specific types
+ * (rust, sql, etc.) are resolved at enhancement time via the
+ * enhancement system. Templates should use entity.rs.fields[i].type
+ * for language-specific types.
  */
 export interface EntityFieldMetadata {
   /** Property name (camelCase) */
   name: string;
-  /** TypeScript type */
+  /** TypeScript type (source of truth) */
   tsType: string;
-  /** Rust type (mapped) */
-  rustType: string;
-  /** SQL type (mapped) */
-  sqlType: string;
   /** SQL column name (snake_case) */
   columnName: string;
   /** Whether field is nullable */
@@ -250,12 +250,19 @@ export function buildUpdateStatement(
 
 /**
  * Build a CREATE TABLE column definition.
+ * 
+ * Note: This requires the SQL type to be provided. Use entity.rs.fields[i].sqlType
+ * from the enhancement system, or use entity.rs.tableDefinition for the full statement.
  *
- * @param field - Field metadata
+ * @param field - Field metadata with sqlType
+ * @param sqlType - The SQL type for this column
  * @returns Column definition like "col_name TEXT NOT NULL"
  */
-export function buildColumnDefinition(field: EntityFieldMetadata): string {
-  const parts = [field.columnName, field.sqlType];
+export function buildColumnDefinition(
+  field: EntityFieldMetadata,
+  sqlType: string
+): string {
+  const parts = [field.columnName, sqlType];
 
   if (!field.nullable) {
     parts.push('NOT NULL');
@@ -270,15 +277,21 @@ export function buildColumnDefinition(field: EntityFieldMetadata): string {
 
 /**
  * Build a complete CREATE TABLE statement.
+ * 
+ * Note: Use entity.rs.tableDefinition from the enhancement system
+ * for language-aware table generation. This helper requires you to
+ * provide SQL types via the getSqlType callback.
  *
  * @param tableName - The table name
  * @param fields - All fields
+ * @param getSqlType - Function to get SQL type for each field
  * @returns Complete CREATE TABLE statement
  */
 export function buildCreateTableStatement(
   tableName: string,
-  fields: EntityFieldMetadata[]
+  fields: EntityFieldMetadata[],
+  getSqlType: (tsType: string) => string
 ): string {
-  const columns = fields.map(buildColumnDefinition).join(',\n  ');
+  const columns = fields.map(f => buildColumnDefinition(f, getSqlType(f.tsType))).join(',\n  ');
   return `CREATE TABLE IF NOT EXISTS ${tableName} (\n  ${columns}\n)`;
 }

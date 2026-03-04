@@ -26,8 +26,7 @@ import {
 } from './heddles/index.js';
 import { createMatrix } from './treadles/index.js';
 import { collectManagements, type ManagementMetadata } from './reed/index.js';
-import { ensureFile } from './shuttle/file-system-operations.js';
-import { startGeneration, cleanupAllBlocks } from './shuttle/block-registry.js';
+import { fileSystem, blockRegistry } from './shuttle/index.js';
 //import { getRefinements } from '../warp/refine/decorator.js';
 //import type { RefinementResult } from '../warp/refine/types.js';
 import {
@@ -156,7 +155,7 @@ export class Weaver {
    */
   async weave(config?: WeaverConfig): Promise<WeavingResult> {
     // Start a new generation for block tracking
-    startGeneration();
+    blockRegistry.startGeneration();
 
     const errors: Error[] = [];
     let filesGenerated = 0;
@@ -297,7 +296,7 @@ Package filter: "${config.packageFilter}"`);
     // TODO: Implement beater formatting
 
     // Phase 4: Cleanup orphaned blocks
-    const cleanup = cleanupAllBlocks();
+    const cleanup = blockRegistry.cleanupAllBlocks();
     if (config?.verbose && cleanup.blocksRemoved > 0) {
       console.log(
         `\nCleanup: removed ${cleanup.blocksRemoved} orphaned blocks from ${cleanup.filesProcessed} files`
@@ -404,7 +403,7 @@ Package filter: "${config.packageFilter}"`);
       }
 
       try {
-        ensureFile(fullPath, file.content);
+        fileSystem.ensureFile(fullPath, file.content);
         written++;
         if (config?.verbose) {
           console.log(`    ✓ ${file.path} → ${fullPath}`);

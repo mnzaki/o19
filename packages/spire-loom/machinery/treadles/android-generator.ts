@@ -22,7 +22,8 @@ import {
   addAidlTypesToMethods
 } from '../treadle-kit/index.js';
 import { buildCrateNaming } from '../stringing.js';
-import { executeAndroidHookup, type AndroidHookupData } from '../shuttle/hookup-manager.js';
+import { hookup } from '../shuttle/index.js';
+import type { hookup as HookupTypes } from '../shuttle/index.js';
 import { declareTreadle, generateFromTreadle } from './index.js';
 import type { GeneratorContext } from '../heddles/index.js';
 import type { RawMethod } from '../bobbin/index.js';
@@ -150,7 +151,7 @@ export const androidServiceTreadle = declareTreadle({
   hookup: {
     type: 'custom',
     async customHookup(context, files, data) {
-      await executeAndroidHookup(context, files, {
+      await hookup.executeAndroidHookup(context, files, {
         workspaceRoot: context.workspaceRoot ?? process.cwd(),
         packageDir: context.packageDir,
         coreName: data.coreName as string,

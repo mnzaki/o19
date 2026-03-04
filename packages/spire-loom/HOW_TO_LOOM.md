@@ -912,34 +912,105 @@ export class <%= entity.pascal %>GuiltService {
 - `service.kt.ejs` → Kotlin enhancement  
 - `api.ts.ejs` → TypeScript enhancement
 
-### Method Helpers
+### Enhanced Methods
 
-Templates receive **EnhancedMethod** objects with idiomatic naming:
+Templates receive **EnhancedMethod** objects with language views and variant accessors:
 
 ```ejs
 <% methods.forEach(m => { -%>
-  // Idiomatic naming: functionName uses language convention
-  // Rust: snake_case, TypeScript: camelCase, Kotlin: camelCase
+  // Base method uses template's language convention automatically
+  // commands.rs.ejs → snake_case, api.ts.ejs → camelCase
   fn <%= m.functionName %>() -> <%= m.returnType %> {
-    // m.returnType: language-specific type (Vec<Bookmark>, Bookmark[], etc.)
-    // m.stubReturn: 'String::new()', 'Vec::new()', 'Default::default()'
     <%= m.stubReturn %>
   }
+  
+  // Variant accessors for function modifiers (max 3 levels)
+  // <%= m.async.signature %> → "async fn foo()"
+  // <%= m.pub.async.signature %> → "pub async fn foo()"
+  // <%= m.public.static.signature %> → "public static foo()"
 <% }) -%>
 ```
 
 **Key Properties:**
-- `m.functionName` - Idiomatic function name (snake_case for Rust, camelCase for TS)
-- `m.typeName` - Type name (PascalCase)
-- `m.returnType` - Language-specific return type
-- `m.params.list` - Parameter list with types: `"id: i64, name: String"`
-- `m.params.names` - Parameter names only: `"id, name"`
+| Property | Example | Description |
+|----------|---------|-------------|
+| `m.functionName` | `add_bookmark` / `addBookmark` | Idiomatic function name |
+| `m.typeName` | `AddBookmark` | PascalCase type name |
+| `m.returnType` | `Vec<Bookmark>` / `Bookmark[]` | Language-specific return type |
+| `m.stubReturn` | `Vec::new()` / `[]` | Default return for mocks |
+| `m.signature` | `fn add_bookmark()` | Full function signature |
+| `m.params.list` | `id: i64, name: String` | Parameter list with types |
+| `m.params.names` | `id, name` | Parameter names only |
+| `m.hasTag('rust:result')` | `true` / `false` | Check method tags |
+| `m.crudOperation` | `'create'` / `'read'` | CRUD operation type |
+
+**Variant Accessors (chainable):**
+```ejs
+// Base: <%= m.signature %>
+// Async: <%= m.async.signature %>
+// Public: <%= m.pub.signature %>
+// Public Async: <%= m.pub.async.signature %>
+// Available: async, pub, public, private, protected, static, unsafe, const
+```
 
 **Cross-Language Access:**
 ```ejs
 // In Rust template, access TypeScript representation:
-// <%= m.ts.returnType %> → "Bookmark[]"
-// <%= m.ts.functionName %> → "addBookmark"
+<%= m.ts.functionName %>     // "addBookmark"
+<%= m.ts.returnType %>       // "Bookmark[]"
+<%= m.kt.functionName %>     // "addBookmark"
+<%= m.rs.functionName %>     // "add_bookmark"
+```
+
+### Enhanced Entities
+
+Templates receive **EnhancedEntity** objects with field views:
+
+```ejs
+<% entities.forEach(e => { -%>
+  // Entity uses template's language convention
+  pub struct <%= e.typeName %> {
+    <% e.fields.forEach(f => { -%>
+    pub <%= f.name %>: <%= f.type %>,
+    <% }) -%>
+  }
+  
+  // Table name (snake_case plural)
+  // <%= e.tableName %> → "regret_entries"
+<% }) -%>
+```
+
+**Key Properties:**
+| Property | Example | Description |
+|----------|---------|-------------|
+| `e.typeName` | `RegretEntry` | PascalCase struct/class name |
+| `e.tableName` | `regret_entries` | snake_case plural table name |
+| `e.variableName` | `regretEntry` | camelCase variable name |
+| `e.fields` | Array | All fields with language types |
+| `e.primaryField` | Field | Primary key field |
+| `e.insertFields` | Array | Fields for INSERT (excludes auto-generated) |
+| `e.updateFields` | Array | Fields for UPDATE (excludes PK, auto-generated) |
+| `e.structDefinition` | String | Complete struct/class definition |
+| `e.tableDefinition` | String | SQL CREATE TABLE statement |
+
+**Field Properties:**
+```ejs
+<% entity.fields.forEach(f => { -%>
+  <%= f.name %>           // Field name
+  <%= f.type %>           // Language-specific type
+  <%= f.tsType %>         // TypeScript type
+  <%= f.sqlType %>        // SQL type (TEXT, INTEGER, etc.)
+  <%= f.columnName %>     // snake_case column name
+  <%= f.nullable %>       // Boolean
+  <%= f.isPrimary %>      // Boolean
+<% }) -%>
+```
+
+**Cross-Language Access:**
+```ejs
+<%= entity.ts.typeName %>     // "RegretEntry"
+<%= entity.rs.typeName %>     // "RegretEntry"
+<%= entity.kt.typeName %>     // "RegretEntry"
 ```
 
 **Full API Reference:** See [TEMPLATE_API.md](./TEMPLATE_API.md)

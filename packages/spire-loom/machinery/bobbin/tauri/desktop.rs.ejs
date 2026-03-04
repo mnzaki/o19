@@ -84,7 +84,7 @@ impl<R: Runtime> <%= platformTraitName %> for DesktopPlatform<R> {
   fn <%= method.functionName %>(
     &self,
     <%- method.rs.params.list %>
-  ) -> <%- method.useResult ? `Result<${method.rs.returnType}>` : method.returnType %> {
+  ) -> <%- method.returnType %> {
 <%# 
   Foundframe-specific access patterns:
   - thestream operations use with_thestream(|stream| ...)
@@ -92,7 +92,7 @@ impl<R: Runtime> <%= platformTraitName %> for DesktopPlatform<R> {
 -%>
 <% if (method.link && method.link.fieldName === 'thestream') { -%>
     // Access via TheStream trait
-<% if (method.useResult) { -%>
+<% if (method.hasTag('rust:result')) { -%>
     foundframe.with_thestream(|stream| {
       stream.<%= method.rs.functionName %>(<%- method.rs.params.names %>)
         .map_err(|e| Error::Other(e.to_string()))
@@ -105,7 +105,7 @@ impl<R: Runtime> <%= platformTraitName %> for DesktopPlatform<R> {
 <% } -%>
 <% } else if (method.link && method.link.fieldName === 'device_manager') { -%>
     // Access via DeviceManager
-<% if (method.useResult) { -%>
+<% if (method.hasTag('rust:result')) { -%>
     foundframe.with_device_manager(|dm| {
       dm.<%= method.rs.functionName %>(<%- method.rs.params.names %>)
         .map_err(|e| Error::Other(e.to_string()))
@@ -118,7 +118,7 @@ impl<R: Runtime> <%= platformTraitName %> for DesktopPlatform<R> {
 <% } -%>
 <% } else { -%>
     // Direct access (no field link)
-<% if (method.useResult) { -%>
+<% if (method.hasTag('rust:result')) { -%>
 <% method.serviceAccessPreamble.forEach(function(line) { -%>
     <%- line %>;
 <% }); -%>

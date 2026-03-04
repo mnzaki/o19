@@ -1,44 +1,65 @@
 /**
  * The Bobbin 🧵
- * 
+ *
  * Thread storage, transformation rules, and code generation.
- * 
+ *
  * The bobbin holds what becomes code:
- * - Templates (EJS)
- * - Type mappings (TS → Kotlin/Rust/AIDL)
- * - Transform rules (Management → Language-specific)
- * - High-level generation API
+ * - Templates (MEJS/EJS)
+ * - Code printing and generation
+ *
+ * Note: Type mappings and Android/Gradle helpers have moved:
+ * - Type mappings → enhancement system (use entity.rs.fields[i].type)
+ * - Android helpers → shuttle/hookup-manager.ts
+ * - Gradle blocks → shuttle/gradle-blocks.ts
+ *
+ * @module machinery/bobbin
  */
 
-// Type mappings: TS → Platform types
-export {
-  getTypeMapping,
-  mapToKotlinType,
-  mapToJniType,
-  mapToRustType,
-  mapToTauriType,
-  generateJniToRustConversion,
-  generateRustToJniConversion,
-  getJniErrorValue,
-  isPrimitiveType,
-  getSerializationStrategy,
-  registerTypeMapping,
-  type TypeMapping,
-} from './type-mappings.js';
+// ============================================================================
+// Private Imports (implementation details)
+// ============================================================================
 
-// Code generation: high-level API for treadles
-export {
-  generateCode,
-  generateBatch,
-  renderTemplate,
-  detectLanguage,
-  type RawMethod,
-  type TransformedMethod,
-  type Language,
-  type GenerateOptions,
-  type GenerationTask,
-  type RenderTemplateOptions,
-} from './code-generator.js';
+import {
+  generateCode as _generateCode,
+  generateBatch as _generateBatch,
+  renderTemplate as _renderTemplate,
+  detectLanguage as _detectLanguage,
+} from './code-printer.js';
 
-// Gradle blocks: pre-wound configuration
-export { getRustBuildBlock } from './gradle-blocks.js';
+// ============================================================================
+// Public API: Types (re-exported)
+// ============================================================================
+
+export type {
+  MethodLink,
+  RawMethod,
+  TransformedMethod,
+  Language,
+  GenerateOptions,
+  GenerationTask,
+  RenderTemplateOptions,
+} from './code-printer.js';
+
+// ============================================================================
+// Public API: Functions
+// ============================================================================
+
+/**
+ * Generate code from a template with full options.
+ */
+export const generateCode = _generateCode;
+
+/**
+ * Generate multiple files in a batch.
+ */
+export const generateBatch = _generateBatch;
+
+/**
+ * Render a template with data.
+ */
+export const renderTemplate = _renderTemplate;
+
+/**
+ * Detect language from template filename.
+ */
+export const detectLanguage = _detectLanguage;

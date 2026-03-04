@@ -44,10 +44,10 @@ import type { RawMethod } from '../bobbin/index.js';
 import type { MgmtMethod } from '../sley/index.js';
 import { createTreadleKit } from './kit.js';
 import { resolveSpecs, resolveSpecsWithCondition, type SpecOrFn } from './spec-resolver.js';
-import type { HookupSpec } from '../shuttle/hookups/types.js';
+import type { hookup } from '../shuttle/index.js';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { createMarkers, ensureFileBlock, type MarkerPair } from '../shuttle/markers.js';
+import { markers } from '../shuttle/index.js';
 
 // ============================================================================
 // Types
@@ -147,7 +147,7 @@ export interface TreadleDefinition {
    * Type is inferred from path. Runs after patches.
    * Accepts specs or functions.
    */
-  hookups?: Array<SpecOrFn<HookupSpec, GeneratorContext>> | SpecOrFn<HookupSpec, GeneratorContext>;
+  hookups?: Array<SpecOrFn<hookup.HookupSpec, GeneratorContext>> | SpecOrFn<hookup.HookupSpec, GeneratorContext>;
 
   /**
    * Configuration schema for tieup treadles.
@@ -399,10 +399,10 @@ async function applyPatches(
     });
 
     // Create markers using treadle name as scope
-    const markers = createMarkers(patch.language, treadleName, patch.marker);
+    const markerPair = markers.createMarkers(patch.language, treadleName, patch.marker);
 
     // Apply the patch
-    ensureFileBlock(targetPath, markers, blockContent.content, {
+    markers.ensureFileBlock(targetPath, markerPair, blockContent.content, {
       insertAfter: patch.position?.after,
       insertBefore: patch.position?.before
     });

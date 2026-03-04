@@ -21,7 +21,7 @@ import {
   configureAndroidManifest, 
   configureGradleBuild
 } from '../machinery/shuttle/hookup-manager.js';
-import { writeEventCallbackAidl } from '../machinery/bobbin/android.js';
+import { writeEventCallbackAidl } from '../machinery/shuttle/hookup-manager.js';
 import type { GeneratedFile } from '../machinery/heddles/types.js';
 
 // Helper to create temp workspace structure

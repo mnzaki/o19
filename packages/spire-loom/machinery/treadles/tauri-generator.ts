@@ -6,7 +6,7 @@
 
 import * as path from 'node:path';
 import type { SpiralNode, GeneratorContext } from '../heddles/index.js';
-import type { HookupSpec } from '../shuttle/hookups/types.js';
+import type { hookup } from '../shuttle/index.js';
 import {
   declareTreadle,
   generateFromTreadle,
@@ -14,8 +14,7 @@ import {
 } from '../treadle-kit/index.js';
 import { TauriSpiraler } from '../../warp/spiral/spiralers/tauri.js';
 import { RustCore } from '../../warp/spiral/index.js';
-import { hookupRustCrate, hookupTauriPlugin } from '../shuttle/hookup-manager.js';
-import { configureSpireCargo } from '../shuttle/cargo-toml-manager.js';
+import { hookup, cargoToml } from '../shuttle/index.js';
 import { addManagementPrefix } from '../sley/index.js';
 import { buildCrateNaming } from '../stringing.js';
 
@@ -150,7 +149,7 @@ export const tauriPluginTreadle = declareTreadle({
           items: permissions
         }
       }
-    ] as HookupSpec[];
+    ] as hookup.HookupSpec[];
   }
 });
 
@@ -180,13 +179,13 @@ export async function generateTauriPlugin(
   const coreName = coreMetadata.packageName || 'foundframe';
   const packageDir = context.packageDir;
 
-  const hooked = hookupRustCrate(packageDir, 'spire');
+  const hooked = hookup.hookupRustCrate(packageDir, 'spire');
   if (hooked) {
     console.log(`  ✓ Hooked up spire module to lib.rs`);
   }
 
   const libRsPath = path.join(packageDir, 'src', 'lib.rs');
-  const hookupResult = hookupTauriPlugin({
+  const hookupResult = hookup.hookupTauriPlugin({
     libRsPath,
     spireModuleName: 'spire',
     coreName,
@@ -198,7 +197,7 @@ export async function generateTauriPlugin(
     console.log(`  ✓ Hooked up to src/lib.rs: ${hookupResult.changes.join(', ')}`);
   }
 
-  const cargoResult = configureSpireCargo({
+  const cargoResult = cargoToml.configureSpireCargo({
     cratePath: packageDir,
     moduleName: 'spire'
   });

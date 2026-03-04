@@ -14,11 +14,6 @@ import { RUST_STRUCT_CONFIG, RUST_WRAPPERS, type RustStructOptions } from '../..
  */
 export interface EnrichedMethodMetadata extends MethodMetadata {
   /**
-   * Whether methods return Result<T, E> for error handling.
-   * Computed from the linked struct's @rust.Struct({ useResult: true }) config.
-   */
-  useResult?: boolean;
-  /**
    * Wrapper types for the linked field (e.g., ['Mutex', 'Option']).
    * Computed from the linked struct field's decorators.
    */
@@ -52,7 +47,7 @@ export function enrichManagementMethods(managements: ManagementMetadata[]): Mana
 
     // Get struct config for useResult
     const structConfig: RustStructOptions | undefined = structClass?.[RUST_STRUCT_CONFIG];
-    const useResult = structConfig?.useResult ?? false;
+    const shouldAddResultTag = structConfig?.useResult ?? false;
 
     // Get field wrappers from struct metadata
     // The structClass.__rustFields is a Map<string, { [RUST_WRAPPERS]: string[] }>
@@ -66,9 +61,12 @@ export function enrichManagementMethods(managements: ManagementMetadata[]): Mana
     // Enrich each method with computed metadata
     const enrichedMethods: EnrichedMethodMetadata[] = mgmt.methods.map((method) => ({
       ...method,
-      useResult,
       wrappers,
-      fieldName: link.fieldName
+      fieldName: link.fieldName,
+      // Add 'rust:result' tag if struct has useResult: true
+      tags: shouldAddResultTag 
+        ? [...(method.tags || []), 'rust:result']
+        : method.tags
     }));
 
     return {

@@ -15,7 +15,7 @@ use tauri::{AppHandle, Manager, Runtime};
 pub(crate) async fn <%= method.functionName %><R: Runtime>(
   app: AppHandle<R>,
   <%- method.params.list %>
-) -> <%- method.useResult ? `Result<${method.rs.returnType}, crate::Error>` : method.returnType %> {
+) -> <%- method.returnType %> {
   app.<%= platformMethodName %>().<%= method.functionName %>(<%- method.params.names %>)
 }
 

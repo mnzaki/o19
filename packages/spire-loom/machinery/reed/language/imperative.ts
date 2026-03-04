@@ -11,24 +11,21 @@
  * @module machinery/reed/language
  */
 
-import {
-  declare,
-  getScopeRegistry,
-  type Scope
-} from '../../self-declarer.js';
-import type { RawMethod } from '../../bobbin/code-generator.js';
-import type { ExternalLayer } from '../../warp/imprint.js';
-import type { CoreRing, Spiraler, SpiralRing } from '../../warp/spiral/pattern.js';
+import { declare, getScopeRegistry } from '../../self-declarer.js';
+import type { ExternalLayer } from '../../../warp/imprint.js';
+import type { CoreRing, Spiraler, SpiralRing } from '../../../warp/spiral/pattern.js';
 import {
   type LanguageParam,
   type LanguageMethod,
   type TypeFactory,
   type TransformConfig,
   createTransform,
+  type TransformEnhancer
 } from '../transform-pipeline.js';
 
 // Import LanguageType class (not just type) for runtime use
-import { LanguageType } from './types.js';
+import { LanguageType, type BaseParam } from './types.js';
+import type { MethodLink } from '../../bobbin/index.js';
 
 // ============================================================================
 // Re-exports
@@ -45,17 +42,17 @@ export {
   type TransformContext,
   type TransformEnhancer,
   type TransformConfig,
-  
+
   // Functions
   deriveCrudMethodName,
   createTransform,
-  
+
   // Built-in enhancers
   baseTypeMappingEnhancer,
   namingEnhancer,
   crudEnhancer,
   templateHelperEnhancer,
-  DEFAULT_ENHANCERS,
+  DEFAULT_ENHANCERS
 } from '../transform-pipeline.js';
 
 export {
@@ -66,45 +63,162 @@ export {
   StubReturnRenderer,
   TypeDefRenderer,
   type ParamRenderConfig,
-  type SignatureRenderConfig,
-} from '../../bobbin/template-helpers.js';
-
-// ============================================================================
-// Type Re-exports from language-types (for convenience)
-// ============================================================================
-
-export type {
-  CrudOperation,
-  MethodLink,
-} from './types.js';
+  type SignatureRenderConfig
+} from './template-helpers.js';
 
 // ============================================================================
 // Naming Conventions
 // ============================================================================
 
+export type NamingCase =
+  | 'snake_case'
+  | 'camelCase'
+  | 'PascalCase'
+  | 'SCREAMING_SNAKE'
+  | 'kebab-case';
+
+export type CoreConvention =
+  | 'function'
+  | 'type'
+  | 'variable'
+  | 'const'
+  | 'module'
+  | 'field'
+  | 'method'
+  | 'parameter'
+  | 'generic';
+
+export type NamingConventions = {
+  [K in CoreConvention]: NamingCase | null;
+} & Record<string, NamingCase | null>;
+
 /**
- * Naming convention configuration for a language.
- *
- * Each language declares its conventions for:
- * - functions/methods
- * - types/classes
- * - variables
- * - constants
- * - modules/files
+ * Default naming conventions.
+ * Merged with user-provided conventions to fill in missing values.
  */
-export interface NamingConventionConfig {
-  /** Function/method naming */
-  function: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
-  /** Type/class naming */
-  type: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
-  /** Variable naming */
-  variable: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
-  /** Constant naming */
-  const: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
-  /** Module/file naming */
-  module: 'snake' | 'camel' | 'pascal' | 'screaming_snake';
+export const DEFAULT_NAMING_CONVENTIONS: Required<NamingConventions> = {
+  function: 'snake_case',
+  type: 'PascalCase',
+  variable: 'snake_case',
+  const: 'SCREAMING_SNAKE',
+  module: 'snake_case',
+  field: 'snake_case',
+  method: 'snake_case',
+  parameter: 'snake_case',
+  generic: 'PascalCase'
+};
+
+// ============================================================================
+// Method Types
+// ============================================================================
+
+/**
+ * Raw method — core data class, no language enhancement.
+ *
+ * This is what comes from Management metadata collection.
+ * Language enhancement happens separately via the enhancement system.
+ *
+ * CRUD classification is stored in tags (e.g., 'crud:create'), not as
+ * a direct property. Use getCrudNameFromTags() to derive crudName.
+ *
+ * @example
+ * ```typescript
+ * const raw = new RawMethod(
+ *   'bookmark_addBookmark',
+ *   'addBookmark',
+ *   'addBookmark',
+ *   'void',
+ *   false,
+ *   [{ name: 'url', type: 'string' }],
+ *   'Add a bookmark',
+ *   undefined,
+ *   ['crud:create'],
+ *   'BookmarkMgmt'
+ * );
+ * ```
+ */
+export class RawMethod {
+  constructor(
+    /** Bind-point name with management prefix (e.g., 'bookmark_add_bookmark') */
+    public readonly name: string,
+    /** Original implementation name (e.g., 'add_bookmark') */
+    public readonly implName: string,
+    /** JavaScript/TypeScript camelCase name (from WARP) */
+    public readonly jsName: string | undefined,
+    /** TypeScript return type */
+    public readonly returnType: string,
+    /** Whether return is a collection */
+    public readonly isCollection: boolean,
+    /** Method parameters */
+    public readonly params: BaseParam[],
+    /** JSDoc description */
+    public readonly description: string | undefined,
+    /** Link metadata for routing to struct fields */
+    public readonly link: MethodLink | undefined,
+    /** Tags from decorators (e.g., 'crud:create', 'auth:required') */
+    public readonly tags: string[] | undefined,
+    /** Management class this method belongs to */
+    public readonly managementName: string | undefined,
+    /** CRUD method name (added by CRUD pipeline, derived from tags) */
+    public crudName?: string
+  ) {}
+
+  /**
+   * Check if this method has a specific tag.
+   */
+  hasTag(tag: string): boolean {
+    return this.tags?.includes(tag) ?? false;
+  }
+
+  /**
+   * Get CRUD operation from tags (e.g., 'create', 'read').
+   */
+  getCrudOperation(): string | undefined {
+    return this.tags?.find((t) => t.startsWith('crud:'))?.replace('crud:', '');
+  }
+
+  /**
+   * CRUD operation type (create, read, update, delete, list).
+   * Convenience getter that calls getCrudOperation().
+   */
+  get crudOperation(): string | undefined {
+    return this.getCrudOperation();
+  }
 }
 
+/**
+ * Language-specific method extends raw with:
+ * - Naming variants (camelName, pascalName, snakeName)
+ * - Type definition (returnTypeDef)
+ * - Stub return value
+ * - Template helpers (params, signature)
+ *
+ * This is the internal representation after language enhancement.
+ * For templates, use LanguageView (from enhanced/methods.ts) which provides
+ * idiomatic naming via conventions.
+ */
+export interface LanguageMethod<
+  P extends LanguageParam = LanguageParam,
+  T extends LanguageType = LanguageType
+> extends RawMethod {
+  /** camelCase name */
+  camelName: string;
+  /** PascalCase name */
+  pascalName: string;
+  /** snake_case name */
+  snakeName: string;
+
+  /** 
+   * Parameters with language-specific enhancements.
+   * Overrides RawMethod.params to include langType and formattedName.
+   */
+  params: P[];
+
+  /** Return type definition with full metadata */
+  returnTypeDef: T;
+  /** Stub return value for mock implementations */
+  stubReturn: string;
+}
 // ============================================================================
 // Language Rendering Configuration
 // ============================================================================
@@ -122,11 +236,20 @@ export interface LanguageRenderingConfig {
   /** Generate async function signature (optional) */
   asyncFunctionSignature?: (method: LanguageMethod) => string;
 
-  /** Render full function definition (optional) */
-  renderDefinition?: (method: LanguageMethod, options: { public?: boolean }) => string;
+  /** Render full function definition with variant options (optional) */
+  renderDefinition?: (
+    method: LanguageMethod, 
+    options: { 
+      public?: boolean;
+      private?: boolean;
+      protected?: boolean;
+      static?: boolean;
+      async?: boolean;
+    }
+  ) => string;
 
   /** Naming conventions for the language */
-  naming: NamingConventionConfig;
+  naming: NamingConventions;
 }
 
 // ============================================================================
@@ -142,17 +265,17 @@ export interface LanguageCodeGenConfig<
 > {
   /** File extension patterns for auto-detection (e.g., '.rs.ejs', '.kt.ejs') */
   fileExtensions: string[];
-  
+
   /** Type factory for generating language-specific types */
   types: TypeFactory<P, T>;
-  
+
   /** Rendering configuration for code generation */
   rendering: LanguageRenderingConfig;
-  
+
   /** Optional custom transform enhancers */
   enhancers?: TransformEnhancer<LanguageMethod<P, T>, P, LanguageMethod<P, T>>[];
-  
-  /** 
+
+  /**
    * Optional custom transform function.
    * If provided, takes precedence over auto-generated transform from types + rendering.
    * Use this for advanced use cases that can't be expressed via the declarative config.
@@ -204,7 +327,7 @@ export interface LanguageWarpConfig {
  *
  * Languages self-register by calling declareLanguage() at module load time.
  * This enables dynamic language discovery without central configuration.
- * 
+ *
  * @template P Parameter type extending LanguageParam
  * @template T Type definition extending LanguageType
  */
@@ -218,21 +341,12 @@ export interface LanguageDefinition<
   /** Code generation configuration */
   codeGen: LanguageCodeGenConfig<P, T>;
 
-  /** 
+  /**
    * WARP integration configuration.
    * Optional for code-generation-only languages.
    */
   warp?: LanguageWarpConfig;
 }
-
-// ============================================================================
-// Transform Enhancer Type (re-export with proper naming)
-// ============================================================================
-
-export type {
-  TransformEnhancer,
-  TransformContext,
-} from '../transform-pipeline.js';
 
 // ============================================================================
 // Type Mapping Integration
@@ -244,33 +358,6 @@ export type {
 export interface TypeMapping {
   tsType: string;
   targetType: string;
-}
-
-/**
- * Register type mappings from a language definition with the central type mapper.
- *
- * This is called automatically by declareLanguage.
- *
- * @param langName - Language identifier
- * @param mappings - Type mappings to register
- */
-async function registerLanguageTypeMappings(
-  langName: string,
-  mappings: TypeMapping[]
-): Promise<void> {
-  try {
-    const { registerTypeMapping } = await import('../bobbin/type-mappings.js');
-
-    for (const mapping of mappings) {
-      // Only update this language's field - merge with existing CORE_MAPPINGS
-      registerTypeMapping({
-        tsType: mapping.tsType,
-        [langName]: mapping.targetType
-      });
-    }
-  } catch (error) {
-    console.warn('[language] Could not register type mappings:', error);
-  }
 }
 
 // ============================================================================
@@ -307,7 +394,7 @@ async function registerLanguageTypeMappings(
  * });
  * ```
  */
-export const declareLanguage = declare<LanguageDefinition, LanguageDefinition>({
+export const declareLanguageImperatively = declare<LanguageDefinition, LanguageDefinition>({
   name: 'language',
   scope: 'warp',
   validate: (def) => {
@@ -315,9 +402,7 @@ export const declareLanguage = declare<LanguageDefinition, LanguageDefinition>({
       throw new Error('[language] Language definition must have a name');
     }
     if (!def.codeGen?.fileExtensions?.length) {
-      throw new Error(
-        `[language] Language '${def.name}' must have fileExtensions for detection`
-      );
+      throw new Error(`[language] Language '${def.name}' must have fileExtensions for detection`);
     }
     if (!def.codeGen?.types && !def.codeGen?.transform) {
       throw new Error(
@@ -330,9 +415,7 @@ export const declareLanguage = declare<LanguageDefinition, LanguageDefinition>({
         throw new Error(`[language] Language '${def.name}' has warp config but no coreClass`);
       }
       if (!def.warp.spiralers || Object.keys(def.warp.spiralers).length === 0) {
-        throw new Error(
-          `[language] Language '${def.name}' has warp config but no spiralers`
-        );
+        throw new Error(`[language] Language '${def.name}' has warp config but no spiralers`);
       }
     }
   },
@@ -345,38 +428,15 @@ export const declareLanguage = declare<LanguageDefinition, LanguageDefinition>({
         formatParamName: def.codeGen.rendering.formatParamName,
         functionSignature: def.codeGen.rendering.functionSignature,
         asyncFunctionSignature: def.codeGen.rendering.asyncFunctionSignature,
-        customEnhancers: def.codeGen.enhancers as TransformEnhancer<LanguageMethod, LanguageParam, LanguageMethod>[],
+        customEnhancers: def.codeGen.enhancers as TransformEnhancer<
+          LanguageMethod,
+          LanguageParam,
+          LanguageMethod
+        >[]
       };
-      
+
       // Generate and attach transform
       (def.codeGen as any).transform = createTransform(transformConfig);
-      
-      // Also expose type mappings for backward compat with type-mappings.ts
-      // Extract primitive mappings from TypeFactory
-      const types = def.codeGen.types as any;
-      const typeMappings: TypeMapping[] = [];
-      
-      if (types.boolean) {
-        typeMappings.push({ tsType: 'boolean', targetType: types.boolean.name });
-        typeMappings.push({ tsType: 'bool', targetType: types.boolean.name });
-      }
-      if (types.string) {
-        typeMappings.push({ tsType: 'string', targetType: types.string.name });
-      }
-      if (types.number) {
-        typeMappings.push({ tsType: 'number', targetType: types.number.name });
-      }
-      
-      (def.codeGen as any).typeMappings = typeMappings;
-    }
-    
-    // Register type mappings asynchronously (fire-and-forget, non-blocking)
-    if (def.codeGen.typeMappings?.length) {
-      queueMicrotask(() => {
-        registerLanguageTypeMappings(def.name, def.codeGen.typeMappings!).catch(
-          (err) => console.warn('[language] Failed to register type mappings:', err)
-        );
-      });
     }
 
     // Return the definition synchronously

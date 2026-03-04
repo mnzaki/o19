@@ -4,100 +4,91 @@
  * Low-level utilities for building treadles.
  * This is the foundation that both declarative and imperative treadles build upon.
  *
+ * This module provides the public API. Implementation details are in sibling modules.
+ *
  * > *"The weaver's kit holds all the tools of the craft."*
+ *
+ * @module machinery/treadle-kit
  */
 
 // ============================================================================
-// Core Types
-// ============================================================================
-
-export {
-  type MethodConfig,
-  type TreadleKit,
-} from './types.js';
-
-// ============================================================================
-// Context Methods
+// Public API: Context Methods (re-exported)
 // ============================================================================
 
 export {
   toRawMethod,
   buildMethodLink,
   extractManagementFromBindPoint,
-  buildContextMethods,
+  buildContextMethods
 } from './context-methods.js';
 
 // ============================================================================
-// Kit Implementation
+// Public API: Kit (re-exported)
 // ============================================================================
 
-export {
-  createTreadleKit,
-  // Hookup utilities (re-exported for convenience)
-  configureAndroidManifest,
-  findCoreNameForTask,
-  configureGradleBuild,
-  executeAndroidHookup,
-  type AndroidHookupData,
-} from './kit.js';
+export { createTreadleKit } from './kit.js';
+
+export type { TreadleKit, MethodConfig } from './types.js';
 
 // ============================================================================
-// Declarative API
+// Public API: Shuttle Integration (re-exported for convenience)
 // ============================================================================
 
-export {
-  declareTreadle,
-  generateFromTreadle,
-  type MatchPattern,
-  type OutputSpec,
-  type PatchSpec,
-  type TreadleDefinition,
-  type OutputSpecOrFn,
-  type PatchSpecOrFn,
+export { hookup } from '../shuttle/index.js';
+export type { hookup as HookupTypes } from '../shuttle/index.js';
+
+// ============================================================================
+// Public API: Declarative API (re-exported)
+// ============================================================================
+
+export { declareTreadle, generateFromTreadle } from './declarative.js';
+
+export type {
+  MatchPattern,
+  OutputSpec,
+  PatchSpec,
+  TreadleDefinition,
+  OutputSpecOrFn,
+  PatchSpecOrFn
 } from './declarative.js';
 
 // ============================================================================
-// Stringing (pattern mapping utilities) - re-exported for convenience
+// Public API: Stringing (re-exported for convenience)
 // ============================================================================
 
 export {
-  // Case conversions
   pascalCase,
   camelCase,
   toSnakeCase,
   toSnakeCaseFull,
-  // Naming
-  type ServiceNaming,
-  type AndroidPackageData,
   buildServiceNaming,
   buildAndroidPackageData,
-  // Wrapper naming
-  type WrapperNaming,
   buildWrapperNaming,
   buildAndroidServiceNaming,
   buildTauriPluginNaming,
-  // AIDL type mapping
   mapToAidlType,
   addAidlTypesToParams,
-  addAidlTypesToMethods,
-  type AidlParam,
-  type AidlMethod,
+  addAidlTypesToMethods
+} from '../stringing.js';
+
+export type {
+  ServiceNaming,
+  AndroidPackageData,
+  WrapperNaming,
+  AidlParam,
+  AidlMethod
 } from '../stringing.js';
 
 // ============================================================================
-// Query Builder - re-exported for convenience (APP-009)
+// Public API: Query Builder (re-exported for convenience)
 // ============================================================================
 
-export {
-  createQueryAPI,
-  type BoundQuery,
-  type QueryAPI,
-  type MethodQueryAPI,
-  type CrudOperation,
-} from '../sley/query.js';
+export { createQueryAPI } from '../sley/query.js';
+
+export type { BoundQuery, QueryAPI, MethodQueryAPI, CrudOperation } from '../sley/query.js';
 
 // ============================================================================
-// Entity Helpers - Computed SQL metadata for code generation (APP-013)
+// Public API: Entity Helpers (re-exported)
 // ============================================================================
 
 export {
@@ -112,15 +103,19 @@ export {
   buildSelectStatement,
   buildUpdateStatement,
   buildColumnDefinition,
-  buildCreateTableStatement,
-  type EntityFieldMetadata,
-  type ComputedEntityHelpers,
+  buildCreateTableStatement
 } from './computed-entity-helpers.js';
 
+export type { EntityFieldMetadata, ComputedEntityHelpers } from './computed-entity-helpers.js';
+
 // ============================================================================
-// Context Entities - Entity helpers for generator context (APP-013)
+// Public API: Context Entities (re-exported)
 // ============================================================================
 
-export {
-  buildContextEntities,
-} from './context-entities.js';
+export { buildContextEntities } from './context-entities.js';
+
+// ============================================================================
+// Public API: Enhancement Types (re-exported for treadle authors)
+// ============================================================================
+
+export type { LanguageView, EnhancedMethod } from '../reed/enhanced/index.js';

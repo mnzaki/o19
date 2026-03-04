@@ -487,6 +487,184 @@ The complete pattern:
 
 ---
 
+## Module Organization and Barrel Files
+
+Each directory under `machinery/` and `warp/` is an independent module with a clear public contract defined in its `index.ts`. We use two patterns:
+
+### Pattern 1: The Façade (for complex modules)
+
+**When to use**: When the module has complex internal architecture that should be hidden from consumers.
+
+**Location**: `machinery/{module}/index.ts`
+
+**Rules**:
+1. **Simple functions only** - Each exported function should be 33-40 lines maximum
+2. **Delegating implementation** - Functions delegate to sibling files for actual work
+3. **Total file size** - Keep `index.ts` under 666-700 lines (implies ~20 public functions max)
+4. **No re-exports from other top-level modules** - Each top-level module is independent
+
+**Example**:
+```typescript
+// machinery/reed/enhanced/index.ts - Façade pattern
+
+// Import implementations from sibling files
+import { enhanceMethodImpl, createLanguageViewImpl } from './methods.js';
+
+// Public API: simple, documented, delegates to implementation
+/**
+ * Enhance a raw method with a language's transform pipeline.
+ */
+export function enhanceMethod(method: RawMethod, language: string): LanguageMethod {
+  return enhanceMethodImpl(method, language);
+}
+
+/**
+ * Create a language view with idiomatic naming.
+ */
+export function createLanguageView(
+  method: LanguageMethod,
+  lang: LanguageDefinition,
+  langKey: string
+): LanguageView {
+  return createLanguageViewImpl(method, lang, langKey);
+}
+```
+
+### Pattern 2: The Namespace Barrel (for utility modules)
+
+**When to use**: When the module exports many related utilities that consumers should access via namespaces.
+
+**Location**: `machinery/{module}/index.ts`
+
+**Rules**:
+1. Use `export * as namespace` syntax
+2. Namespace name matches the file name (without `-manager`, `-operations`, etc.)
+3. Also export types with `export type *`
+
+**Example**:
+```typescript
+// machinery/shuttle/index.ts - Namespace barrel pattern
+
+// Namespaced exports (file: file-system-operations.ts → namespace: fileSystem)
+export * as fileSystem from './file-system-operations.js';
+export type * from './file-system-operations.js';
+
+export * as xmlBlock from './xml-block-manager.js';
+export type * from './xml-block-manager.js';
+
+export * as gradle from './gradle-manager.js';
+export type * from './gradle-manager.js';
+
+// Usage by consumers:
+// import { fileSystem, gradle } from '@o19/spire-loom/machinery/shuttle';
+// fileSystem.ensureDir('./path');
+// gradle.ensureGradleBlock(...);
+```
+
+### Anti-Patterns
+
+**Don't do this**:
+```typescript
+// ❌ WRONG: Re-exporting from other top-level modules
+export { generateTauriPlugin } from '../treadles/tauri-generator.js';
+
+// ❌ WRONG: Complex logic in index.ts
+export function complexFunction(data) {
+  // 100+ lines of implementation...
+}
+
+// ❌ WRONG: Importing from sibling index.ts (causes circular deps)
+import { declareTreadle } from '../treadle-kit/index.js';
+
+// ❌ WRONG: Underscore-renamed imports that are then re-exported
+// This is a code smell - you're pretending it's internal while making it public
+import { createWeave as _createWeave } from './weave.js';
+export { _createWeave as createWeave };
+```
+
+**Do this instead**:
+```typescript
+// ✅ CORRECT: Each module is independent
+// Consumer imports from both modules separately:
+// import { hookup } from '@o19/spire-loom/machinery/shuttle';
+// import { declareTreadle } from '@o19/spire-loom/machinery/treadle-kit';
+
+// ✅ CORRECT: Simple delegation
+export function simpleFunction(data) {
+  return implementation.detail(data);
+}
+
+// ✅ CORRECT: Real re-export (no underscore games)
+export { createWeave } from './weave.js';
+
+// ✅ CORRECT: If the function doesn't belong in your public API,
+// don't re-export it at all - let consumers import from the source module
+// Consumer does: import { createWeave } from './machinery/weave.js';
+```
+
+### Mixing Patterns (for high-level modules)
+
+Complex high-level modules can combine both patterns. The façade exports key functions directly, while sub-features are namespaced:
+
+```typescript
+// machinery/bobbin/index.ts - Mixed pattern
+
+// Pattern 1: Direct exports for primary API (façade style)
+export { createBobbinKit, type BobbinKit } from './kit.js';
+export { processBobbinConfig, type BobbinConfig } from './processor.js';
+
+// Pattern 2: Namespace exports for sub-features (barrel style)
+export * as git from './git.js';
+export type * as git from './git.js';
+
+export * as caching from './caching.js';
+export type * as caching from './caching.js';
+
+export * as envManager from './env.js';
+export type * as envManager from './env.js';
+
+// Usage by consumers:
+// import { createBobbinKit, git, caching } from '@o19/spire-loom/machinery/bobbin';
+// const kit = createBobbinKit();        // direct access to primary API
+// git.hasUncommittedChanges();          // namespaced access to sub-feature
+```
+
+**Rules when mixing**:
+1. Direct exports are for the module's **primary purpose**
+2. Namespace exports are for **secondary utilities** that aren't the main focus
+3. Use consistent namespace names (file stem without `-manager`/`kit` suffixes)
+4. Always export types separately when using namespaces
+
+---
+
+### Directory Structure
+
+```
+machinery/
+├── reed/
+│   ├── enhanced/
+│   │   ├── index.ts          # Façade: enhanceMethod(), enhanceEntity(), etc.
+│   │   ├── enhancement.ts    # Implementation: declareEnhancement
+│   │   ├── methods.ts        # Implementation: method enhancement
+│   │   └── entities.ts       # Implementation: entity enhancement
+│   └── language/
+│       ├── index.ts          # Façade: declareLanguage(), compileToExecutive()
+│       ├── declarative.ts    # Layer 1: declarative schema
+│       └── executive.ts      # Layer 2: executive implementation
+├── shuttle/
+│   ├── index.ts              # Namespace barrel: fileSystem, gradle, cargoToml, etc.
+│   ├── file-system-operations.ts
+│   ├── gradle-manager.ts
+│   └── cargo-toml-manager.ts
+└── treadle-kit/
+    ├── index.ts              # Façade: createTreadleKit(), declareTreadle(), etc.
+    ├── kit.ts                # Implementation: TreadleKit class
+    ├── declarative.ts        # Implementation: declareTreadle
+    └── context-methods.ts    # Implementation: context method helpers
+```
+
+---
+
 ## Related Documents
 
 ### Architecture & Naming

@@ -32,7 +32,7 @@ const RUST_FIELD_META = Symbol('rust:fieldMeta');
  * Configuration options for @rust.Struct decorator
  */
 export interface RustStructOptions {
-  /** 
+  /**
    * If true, methods returning non-void will be wrapped in Result<T, E>.
    * This affects code generation for error handling patterns.
    */
@@ -59,7 +59,7 @@ export interface RustFieldMetadata {
 /**
  * Base class for Rust external types.
  * Can be subclassed by @rust.Struct or used directly.
- * 
+ *
  * The generic parameter T carries the struct class type for type-safe field access.
  */
 export class RustExternalLayer<T = any> extends ExternalLayer {
@@ -210,10 +210,10 @@ export const Vec = createTypeDecorator('Vec');
 
 /**
  * Type helper for defining Rust struct fields.
- * 
+ *
  * This is a compile-time only construct - it has zero runtime overhead.
  * Use with `declare` to add static field types to your struct class.
- * 
+ *
  * Usage:
  *   @rust.Struct
  *   export class Foundframe {
@@ -239,13 +239,13 @@ export interface StructFields<Fields extends Record<string, RustExternalLayer>> 
 /**
  * Mark a class as a Rust struct.
  * Attaches minimal metadata; field processing happens in heddles.
- * 
+ *
  * For proper TypeScript types on static fields, extend DefineStruct<Fields>:
  *   @rust.Struct
  *   export class MyStruct extends rust.DefineStruct<{ field: RustExternalLayer }> {
  *     @rust.Mutex field = SomeType;
  *   }
- * 
+ *
  * With configuration options:
  *   @rust.Struct({ useResult: true })
  *   export class MyStruct { ... }
@@ -264,11 +264,11 @@ export function Struct<T extends new (...args: any[]) => any>(
   // Overload 1: @rust.Struct({ useResult: true }) - with options
   if (typeof optionsOrTarget === 'object' && context === undefined) {
     const options = optionsOrTarget as RustStructOptions;
-    return function(target: T, ctx: ClassDecoratorContext<T>): T {
+    return function (target: T, ctx: ClassDecoratorContext<T>): T {
       return applyStructDecorator(target, ctx, options);
     };
   }
-  
+
   // Overload 2: @rust.Struct - without options
   return applyStructDecorator(optionsOrTarget as T, context!, {});
 }
@@ -396,7 +396,7 @@ import {
   type TypeFactory,
   type LanguageParam,
   type TransformEnhancer,
-  type LanguageMethod,
+  type LanguageMethod
 } from '../machinery/reed/language/index.js';
 import { toSnakeCase } from '../machinery/stringing.js';
 import { RustCore, rustCore } from './spiral/rust.js';
@@ -437,7 +437,7 @@ interface RustMethod extends LanguageMethod<RustParam> {
 
 /**
  * Type factory for Rust code generation.
- * 
+ *
  * Defines how TypeScript types map to Rust types,
  * and provides stub return values for each type.
  */
@@ -477,12 +477,12 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
     // Handle TypeScript array syntax: T[] -> Vec<T>
     let normalizedType = tsType.trim();
     let isArraySyntax = false;
-    
+
     if (normalizedType.endsWith('[]')) {
       normalizedType = normalizedType.slice(0, -2).trim();
       isArraySyntax = true;
     }
-    
+
     // Final collection flag is true if either passed in or detected from syntax
     const finalIsCollection = isCollection || isArraySyntax;
 
@@ -516,10 +516,10 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
 
 /**
  * Custom enhancer adding Rust-specific metadata.
- * 
+ *
  * - Adds implName (snake_case)
  * - Generates service access preamble for Mutex/Option wrappers
- * 
+ *
  * Note: rsReturnType removed - use method.returnType (delegates to returnTypeDef.name)
  */
 const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (methods) => {
@@ -531,21 +531,51 @@ const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (meth
     return {
       ...method,
       implName: toSnakeCase(method.implName || method.name),
-      serviceAccessPreamble: preamble,
+      serviceAccessPreamble: preamble
     } as RustMethod;
   });
 };
 
 /**
+ * Result-wrapping enhancer.
+ *
+ * Wraps return types in Result<T, crate::Error> for methods tagged with 'rust:result'.
+ * This is applied after base type mapping so the returnTypeDef is already set.
+ */
+const resultWrappingEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (
+  methods
+) => {
+  return methods.map((method) => {
+    // Check if method has the rust:result tag
+    if (method.hasTag?.('rust:result')) {
+      const innerType = method.returnTypeDef.name;
+      // Don't double-wrap if already a Result
+      if (!innerType.startsWith('Result<')) {
+        return {
+          ...method,
+          returnTypeDef: {
+            ...method.returnTypeDef,
+            name: `Result<${innerType}, crate::Error>`,
+          },
+        } as RustMethod;
+      }
+    }
+    return method;
+  });
+};
+
+/**
  * Build Rust service access preamble based on link metadata.
- * 
+ *
  * Handles wrapper patterns for struct fields:
  * - Mutex<Option<T>>: lock mutex, then access Option
  * - Option<Mutex<T>>: access Option, then lock Mutex
  * - Option<T>: optional services
  * - Mutex<T>: mutex-wrapped services
  */
-function buildServiceAccessPreamble(link: { fieldName: string; wrappers?: string[] } | undefined): string[] {
+function buildServiceAccessPreamble(
+  link: { fieldName: string; wrappers?: string[] } | undefined
+): string[] {
   if (!link) {
     return ['let __service = foundframe;'];
   }
@@ -563,23 +593,27 @@ function buildServiceAccessPreamble(link: { fieldName: string; wrappers?: string
       // Mutex<Option<T>> - lock first, then access Option
       return [
         `let __field = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`,
-        `let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`,
+        `let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`
       ];
     } else {
       // Option<Mutex<T>> - access Option, then lock
       return [
         `let __field = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`,
-        `let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`,
+        `let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`
       ];
     }
   }
 
   if (wrappers.includes('Option')) {
-    return [`let __service = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`];
+    return [
+      `let __service = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`
+    ];
   }
 
   if (wrappers.includes('Mutex')) {
-    return [`let mut __service = service.${fieldName}.lock().map_err(|_| "${fieldName} mutex poisoned")?;`];
+    return [
+      `let mut __service = service.${fieldName}.lock().map_err(|_| "${fieldName} mutex poisoned")?;`
+    ];
   }
 
   return [`let __service = service.${fieldName};`];
@@ -598,29 +632,29 @@ function buildServiceAccessPreamble(link: { fieldName: string; wrappers?: string
  * - Transform is auto-generated from these primitives
  * - Custom enhancer adds Rust-specific metadata
  */
-export const rustLanguage = declareLanguage<RustParam, LanguageType>({
+export const rustLanguage = declareLanguage({
   name: 'rust',
 
   codeGen: {
     fileExtensions: ['.rs.ejs', '.jni.rs.ejs'],
-    
+
     // Type factory defines how TS types map to Rust
     types: new RustTypeFactory(),
-    
+
     // Rendering config defines code formatting
     rendering: {
       formatParamName: toSnakeCase,
       functionSignature: (method) => {
-        const params = method.params.map(p => `${p.formattedName}: ${p.langType}`).join(', ');
+        const params = method.params.map((p) => `${p.formattedName}: ${p.langType}`).join(', ');
         return `fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
       },
       asyncFunctionSignature: (method) => {
-        const params = method.params.map(p => `${p.formattedName}: ${p.langType}`).join(', ');
+        const params = method.params.map((p) => `${p.formattedName}: ${p.langType}`).join(', ');
         return `async fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
       },
       renderDefinition: (method, opts) => {
         const pub = opts.public ? 'pub ' : '';
-        const params = method.params.map(p => `${p.formattedName}: ${p.langType}`).join(', ');
+        const params = method.params.map((p) => `${p.formattedName}: ${p.langType}`).join(', ');
         return `${pub}fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
       },
       naming: {
@@ -631,9 +665,9 @@ export const rustLanguage = declareLanguage<RustParam, LanguageType>({
         module: 'snake'
       }
     },
-    
-    // Custom enhancer adds Rust-specific metadata
-    enhancers: [rustEnhancer],
+
+    // Custom enhancers: result wrapping first, then metadata
+    enhancers: [resultWrappingEnhancer, rustEnhancer]
   },
 
   warp: {

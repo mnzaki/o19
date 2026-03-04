@@ -19,6 +19,7 @@ import {
   hasBlock,
   escapeMarkerForRegex,
 } from './markers.js';
+import { ensureCargoNdkInstalled } from './cargo-tools.js';
 
 // Gradle block pattern for registry
 const GRADLE_BLOCK_PATTERN = /\/\/ SPIRE-LOOM:BLOCK:([\w-]+)/;
@@ -187,4 +188,118 @@ ${lines.join('\n')}
  */
 export function clearGradleBlockRegistry(): void {
   // No-op - global registry is used now
+}
+
+// ============================================================================
+// Gradle Block Templates
+// ============================================================================
+
+export interface GradleBlockTemplates {
+  rustBuildTask: string;
+}
+
+/**
+ * Generate Rust build task block for build.gradle
+ * 
+ * @param taskName - Base task name (e.g., 'buildRustFoundframe')
+ * @param jniLibsOutput - Output directory for JNI libs
+ */
+export function getRustBuildBlock(taskName: string, jniLibsOutput: string): string {
+  // Derive clean task name: buildRustFoundframe → cleanRustFoundframe
+  const cleanTaskName = taskName.replace(/^build/, 'clean');
+  
+  return `
+// Rust/Cargo integration
+// Requires cargo-ndk: cargo install cargo-ndk
+// NOTE: Generated code only compiles for Android targets, not host!
+
+// Task to build Rust code using cargo-ndk
+tasks.register('${taskName}', Exec) {
+    group = 'build'
+    description = 'Build Rust code for Android targets'
+    
+    doFirst {
+        if (!System.getenv('ANDROID_NDK_HOME') && !System.getenv('ANDROID_NDK_ROOT')) {
+            throw new GradleException(
+                'ANDROID_NDK_HOME or ANDROID_NDK_ROOT not set!\\n' +
+                'Install NDK: sdkmanager "ndk;27.0.12077973"\\n' +
+                'Then set: export ANDROID_NDK_HOME=\\$ANDROID_HOME/ndk/27.0.12077973'
+            )
+        }
+    }
+    
+    commandLine 'cargo', 'ndk',
+        '-t', 'arm64-v8a',
+        '-t', 'x86_64',
+        '-o', '${jniLibsOutput}',
+        'build', '--release'
+    
+    onlyIf {
+        file('Cargo.toml').exists()
+    }
+    
+    inputs.files(fileTree('src').include('**/*.rs'))
+    inputs.file('Cargo.toml')
+    outputs.dir('${jniLibsOutput}')
+}
+
+preBuild.dependsOn ${taskName}
+
+tasks.register('${cleanTaskName}', Delete) {
+    group = 'build'
+    description = 'Clean Rust build artifacts'
+    delete '${jniLibsOutput}'
+}
+clean.dependsOn ${cleanTaskName}
+`;
+}
+
+// ============================================================================
+// Android Gradle Integration
+// ============================================================================
+
+/**
+ * Configure Gradle build for Android-Rust bridge.
+ * Sets up source sets and Rust build tasks.
+ */
+export function configureAndroidGradle(
+  gradlePath: string,
+  options: {
+    spireDir: string;
+    hasCargoToml: boolean;
+    taskName: string;
+  }
+): void {
+  // Configure source sets for spire-generated code
+  ensureGradleSourceSet(gradlePath, 'main', {
+    java: [`${options.spireDir}/android/java`],
+    aidl: [`${options.spireDir}/android/aidl`],
+    jniLibs: [`${options.spireDir}/android/jniLibs`],
+    manifest: `${options.spireDir}/android/AndroidManifest.xml`,
+  });
+
+  // Add Rust build task
+  addRustBuildTask(gradlePath, options);
+
+  // Ensure cargo-ndk is installed (warning only)
+  try {
+    ensureCargoNdkInstalled();
+  } catch {
+    console.warn('  Warning: cargo-ndk not installed. Run: cargo install cargo-ndk');
+  }
+}
+
+/**
+ * Add Rust build task to build.gradle.
+ */
+function addRustBuildTask(
+  gradlePath: string,
+  options: { spireDir: string; hasCargoToml: boolean; taskName: string }
+): void {
+  const jniLibsOutput = `${options.spireDir}/android/jniLibs`;
+  const blockContent = getRustBuildBlock(options.taskName, jniLibsOutput);
+  
+  // Use task-specific block ID for uniqueness (e.g., 'RustBuild:buildRustFoundframe')
+  const blockId = `RustBuild:${options.taskName}`;
+  ensureGradleBlock(gradlePath, blockId, blockContent);
 }

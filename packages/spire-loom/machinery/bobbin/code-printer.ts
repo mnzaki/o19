@@ -14,10 +14,22 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { renderEjs } from '../shuttle/template-renderer.js';
-import { getBuiltinTemplateDir } from '../shuttle/template-renderer.js';
+import { fileURLToPath } from 'node:url';
+import { mejs } from './mejs.js';
 import type { GeneratedFile } from '../heddles/index.js';
 import { camelCase } from '../stringing.js';
+
+// ============================================================================
+// Built-in Templates
+// ============================================================================
+
+/**
+ * Get path to built-in templates directory.
+ */
+function getBuiltinTemplateDir(): string {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(currentDir);
+}
 
 // Import languages to ensure they register themselves
 // This MUST happen before transformMethods is called
@@ -25,8 +37,8 @@ import '../../warp/rust.js';
 import '../../warp/typescript.js';
 import '../../warp/kotlin.js';
 
-// Import the language registry
-import { languages } from '../reed/language/index.js';
+// Import the language registry and RawMethod
+import { languages, RawMethod } from '../reed/language/index.js';
 
 // ============================================================================
 // Types
@@ -40,54 +52,6 @@ export interface MethodLink {
   fieldName: string;
   /** Wrapper types: e.g., ['Option', 'Mutex'] */
   wrappers?: string[];
-}
-
-/**
- * Raw Management method as collected from Management classes.
- *
- * Cross-language naming:
- * - name: Bind-point name with management prefix (e.g., "device_generate_pairing_code")
- * - implName: Original Rust method name (e.g., "generate_pairing_code")
- * - jsName: JavaScript/TypeScript command name (camelCase, from WARP)
- */
-export interface RawMethod<
-  P extends { name: string; type?: string; optional?: boolean } = {
-    name: string;
-    type: string;
-    optional?: boolean;
-  }
-> {
-  name: string; // Bind-point name with prefix (e.g., "device_generate_pairing_code")
-  implName: string; // Original method name (e.g., "generate_pairing_code")
-  jsName?: string; // JavaScript: camelCase (original WARP name)
-  camelName?: string;
-  pascalName?: string;
-  returnType: string;
-  isCollection: boolean;
-  params: Array<P>;
-  description?: string;
-  /** Link metadata for routing to struct fields */
-  link?: MethodLink;
-  /**
-   * Whether methods return Result<T, E> for error handling.
-   * When true, generated code wraps return types in Result and uses ? for error propagation.
-   */
-  useResult?: boolean;
-  /**
-   * Tags for filtering (e.g., 'crud:create', 'auth:required').
-   * Added during method collection in treadle-kit.
-   */
-  tags?: string[];
-  /**
-   * CRUD operation type (create, read, update, delete, list).
-   * Added during method collection in treadle-kit.
-   */
-  crudOperation?: string;
-  /**
-   * Management name this method belongs to.
-   * Added during method collection in treadle-kit.
-   */
-  managementName?: string;
 }
 
 /**
@@ -243,10 +207,9 @@ export async function generateCode(options: GenerateOptions): Promise<GeneratedF
   };
 
   // Render template
-  let content = await renderEjs({
-    template: templatePath,
+  let content = await mejs.renderFile({
+    templatePath,
     data,
-    ejsOptions: options.ejsOptions
   });
 
   // Add header comment based on output file extension
@@ -373,6 +336,15 @@ function transformMethods(methods: RawMethod[], language: Language): RawMethod[]
   
   const transformedMethods = lang.codeGen.transform(methods);
 
+  // Attach hasTag helper to each method for template use
+  for (const method of transformedMethods) {
+    if (!('hasTag' in method)) {
+      (method as any).hasTag = function(tag: string): boolean {
+        return this.tags?.includes(tag) ?? false;
+      };
+    }
+  }
+
   // Attach filter/map helpers that preserve transformation
   transformedMethods.filter = function (
     filter: (method: RawMethod, index: number, array: RawMethod[]) => boolean
@@ -452,8 +424,8 @@ export async function renderTemplate(options: RenderTemplateOptions): Promise<st
       ? path.join(getBuiltinTemplateDir(), options.template)
       : options.template;
 
-  return renderEjs({
-    template: templatePath,
+  return mejs.renderFile({
+    templatePath,
     data: options.data
   });
 }

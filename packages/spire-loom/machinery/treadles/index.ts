@@ -83,21 +83,7 @@ export {
   type WrapperNaming,
 } from '../stringing.js';
 
-// Shuttle utilities (re-exported for convenience)
-export {
-  configureAndroidManifest,
-  findCoreNameForTask,
-  configureGradleBuild,
-  executeAndroidHookup,
-  type AndroidHookupData
-} from '../shuttle/hookup-manager.js';
 
-// Bobbin Android utilities
-export {
-  generateEventCallbackAidl,
-  writeEventCallbackAidl,
-  type EventCallbackConfig
-} from '../bobbin/android.js';
 
 // ============================================================================
 // Tieup Types (re-exported for custom treadles)

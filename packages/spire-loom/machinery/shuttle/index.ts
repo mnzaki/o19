@@ -4,160 +4,64 @@
  * File generation utilities for the spiral architecture.
  * The shuttle carries thread through the warp to weave files.
  * All operations are idempotent—safe to run multiple times.
+ *
+ * @module machinery/shuttle
  */
 
-// File system utilities
-export {
-  ensureDir,
-  ensureFile,
-  ensureTextBlockInserted,
-  ensureTextBlockRemoved,
-  ensureCopied,
-  fileContains,
-  readJson,
-  writeJson,
-  findFiles,
-  type InsertTextOptions,
-} from './file-system-operations.js';
+// ============================================================================
+// Core Shuttle Modules (namespaced exports)
+// ============================================================================
 
-// XML block management
-export {
-  ensureXmlBlock,
-  clearXmlBlockRegistry,
-  type XmlBlock,
-  type XmlBlockMap,
-} from './xml-block-manager.js';
+export * as fileSystem from './file-system-operations.js';
+export type * from './file-system-operations.js';
 
-// Package management
-export {
-  ensureTypeScriptPackageCreated,
-  ensureCargoCrateCreated,
-  ensurePnpmWorkspaceIncludes,
-  ensureCargoWorkspaceIncludes,
-  type TypeScriptPackageOptions,
-  type RustCrateOptions,
-} from './workspace-package-manager.js';
+export * as xmlBlock from './xml-block-manager.js';
+export type * from './xml-block-manager.js';
 
-// Package.json management
-export {
-  ensureNpmDependencyAdded,
-  findWorkspacePackage,
-  addWorkspaceDependency,
-  type NpmDependencyOptions,
-} from './package-json-manager.js';
+export * as workspacePackage from './workspace-package-manager.js';
+export type * from './workspace-package-manager.js';
 
-// Template generation
+export * as packageJson from './package-json-manager.js';
+export type * from './package-json-manager.js';
+
+export * as configurationWriter from './configuration-writer.js';
+export type * from './configuration-writer.js';
+
+export * as cargoTools from './cargo-tools.js';
+export type * from './cargo-tools.js';
+
+export * as gradle from './gradle-manager.js';
+export type * from './gradle-manager.js';
+
+export * as cargoToml from './cargo-toml-manager.js';
+export type * from './cargo-toml-manager.js';
+
+export * as hookup from './hookup-manager.js';
+export type * from './hookup-manager.js';
+
+export * as tauri from './tauri-manager.js';
+export type * from './tauri-manager.js';
+
+export * as blockRegistry from './block-registry.js';
+export type * from './block-registry.js';
+
+export * as markers from './markers.js';
+export type * from './markers.js';
+
+// ============================================================================
+// Template Generation (from bobbin/mejs)
+// ============================================================================
+
 export {
-  loadTemplate,
-  loadBuiltinTemplate,
-  renderEjs,
-  generateFromEjs,
-  templateHelpers,
-  renderWithHelpers,
-  inlineTemplate,
+  mejs,
+  preprocessTemplate,
+  render,
+  renderFile,
+  generate,
+  inline,
+  processTemplate,
+  postprocessOutput,
   type RenderOptions,
-} from './template-renderer.js';
-
-// Configuration management
-export {
-  ensureTauriPermissions,
-  ensureTauriCapability,
-  ensureRustModDeclared,
-  ensureRustUseAdded,
-  ensureTsExportAdded,
-  ensureBuildRs,
-  ensureBuildDependency,
-  ensureAndroidServiceDeclared,
-  type TauriPermission,
-} from './configuration-writer.js';
-
-// Cargo tools
-export {
-  isCargoToolInstalled,
-  getCargoToolVersion,
-  ensureCargoToolInstalled,
-  ensureCargoNdkInstalled,
-  ensureCbindgenInstalled,
-  checkAndroidPrerequisites,
-  printAndroidPrerequisites,
-} from './cargo-tools.js';
-
-// Android Gradle integration
-export {
-  configureAndroidGradle,
-} from './android-gradle-integration.js';
-
-// Tauri generator
-export {
-  generateTauriPlugin,
-} from '../treadles/tauri-generator.js';
-
-// Hookup management
-export {
-  hookupRustCrate,
-  hookupTauriPlugin,
-  unhookTauriPlugin,
-  type TauriHookupOptions,
-  type TauriHookupResult,
-} from './hookup-manager.js';
-
-// Specialized managers
-export {
-  ensureCargoBlock,
-  removeCargoBlock,
-  hasCargoBlock,
-  configureSpireCargo,
-  addWorkspaceDependencies,
-  startCargoGeneration,
-  cleanupUntouchedBlocks,
-  ensureCargoDependencyAdded,
-} from './cargo-toml-manager.js';
-
-export {
-  ensureGradleBlock,
-  ensureGradleBlockRemoved,
-  ensureGradleSourceSet,
-  clearGradleBlockRegistry,
-} from './gradle-manager.js';
-
-export {
-  hookupTauriPlugin as ensureTauriPluginHookup,
-  unhookTauriPlugin as removeTauriPluginHookup,
-  type TauriHookupOptions as TauriPluginOptions,
-  type TauriHookupResult as TauriPluginResult,
-} from './tauri-manager.js';
-
-// Block registry (global cleanup)
-export {
-  registerFile,
-  registerBlock,
-  scanExistingBlocks,
-  cleanupAllBlocks,
-  startGeneration,
-  clearBlockRegistry,
-} from './block-registry.js';
-
-// Marker utilities
-export {
-  buildMarkerTag,
-  buildEndMarkerTag,
-  createMarkers,
-  createRustMarkers,
-  createGradleMarkers,
-  createXmlMarkers,
-  createTomlMarkers,
-  detectLanguageFromPath,
-  escapeMarkerForRegex,
-  buildBlockRegex,
-  findBlock,
-  hasBlock,
-  insertBlock,
-  replaceBlock,
-  removeBlock,
-  ensureBlock,
-  ensureFileBlock,
-  removeFileBlock,
-  type MarkerPair,
-  type BlockOperationResult,
-  type FileBlockResult,
-} from './markers.js';
+  type RenderFileOptions,
+  type GenerateOptions
+} from '../bobbin/mejs.js';

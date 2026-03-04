@@ -67,17 +67,17 @@ export interface DeclarerConfig<T, D> {
   scope: Scope;
 
   /** Validation function - throws if definition invalid */
-  validate?: (def: D) => void | Promise<void>;
+  validate?: (def: D) => void;
 
-  /** Transform definition to declaration surface (can be async) */
-  declare: (def: D) => T | Promise<T>;
+  /** Transform definition to declaration surface */
+  declare: (def: D) => T;
 }
 
 /**
  * A declared declarer function with metadata.
  */
 export interface DeclarerFunction<T, D> {
-  (def: D): T | Promise<T>;
+  (def: D): T;
   declared: Map<string, T>;
   config: DeclarerConfig<T, D>;
 }
@@ -88,34 +88,23 @@ export interface DeclarerFunction<T, D> {
  * This is the type of the 'declare' constant that declares itself,
  * then declares everything else.
  */
-export type SelfDeclarer = <T, D>(
-  config: DeclarerConfig<T, D>
-) => DeclarerFunction<T, D> | Promise<DeclarerFunction<T, D>>;
+export type SelfDeclarer = <T, D>(config: DeclarerConfig<T, D>) => DeclarerFunction<T, D>;
 
 /**
  * Create a declarer function.
  *
  * Internal implementation - used by the self-declarer to create
  * declarer functions for all three scopes.
- * 
+ *
  * Supports both sync and async declare functions. For top-level exports
  * (like in warp/*.ts), use sync declare functions. For async operations,
- * the declare function can return a Promise.
  */
 function createDeclarer<T, D>(config: DeclarerConfig<T, D>): DeclarerFunction<T, D> {
   const registry = scopeRegistries[config.scope];
 
-  const declarationFn = (def: D): T | Promise<T> => {
+  const declarationFn = (def: D): T => {
     // Run validation if provided
-    const validationResult = config.validate?.(def);
-    
-    // Handle async validation
-    if (validationResult instanceof Promise) {
-      return validationResult.then(() => {
-        const result = config.declare(def);
-        return handleDeclarationResult(result, def, registry, config.name);
-      });
-    }
+    config.validate?.(def);
 
     // Sync path
     const result = config.declare(def);
@@ -132,85 +121,16 @@ function createDeclarer<T, D>(config: DeclarerConfig<T, D>): DeclarerFunction<T,
  * Handle the result of a declaration, sync or async.
  */
 function handleDeclarationResult<T, D>(
-  result: T | Promise<T>,
+  result: T,
   def: D,
   registry: Map<string, any>,
   configName: string
-): T | Promise<T> {
+): T {
   const name = (def as any).name || (def as any).id || 'anonymous';
   const key = `${configName}:${name}`;
-
-  if (result instanceof Promise) {
-    return result.then((resolved) => {
-      registry.set(key, resolved);
-      return resolved;
-    });
-  }
 
   registry.set(key, result);
   return result;
 }
 
-// ============================================================================
-// The Self-Declaration: declare declares itself
-// ============================================================================
-
-/**
- * The self-declarer declares ITSELF in the 'declare' scope.
- *
- * This is the moment of self-reference: we use the pattern to define
- * the pattern. declare.declare exists.
- *
- * The self-declarer:
- * 1. Is declared in 'declare' scope (lives forever)
- * 2. Creates declarer functions for all scopes
- * 3. Is used by 'warp' and 'weave' scope consumers
- */
-const selfDeclare: SelfDeclarer = <T, D>(config: DeclarerConfig<T, D>) => {
-  return createDeclarer(config);
-};
-
-/**
- * The 'declare' export - the self-declarer.
- *
- * Use this to declare declarative APIs in any scope.
- *
- * @example
- * ```typescript
- * // Declare a language ('warp' scope)
- * export const declareLanguage = declare<LanguageDefinition, LanguageDefinition>({
- *   name: 'language',
- *   scope: 'warp',
- *   validate: (def) => { if (!def.name) throw new Error('Need name'); },
- *   declare: (def) => def
- * });
- *
- * // Use it
- * export const rustLanguage = declareLanguage({
- *   name: 'rust',
- *   codeGen: { transform: ..., fileExtensions: ['.rs.ejs'] }
- * });
- * ```
- */
-export const declare = selfDeclare;
-
-// ============================================================================
-// Scope: 'declare' - spire-loom itself
-// ============================================================================
-
-/**
- * The self-declarer declares itself explicitly.
- *
- * This enables: declare.declare (meta-circular)
- */
-export const declareSelf = declare<SelfDeclarer, DeclarerConfig<any, any>>({
-  name: 'declarer',
-  scope: 'declare',
-  declare: (config) => createDeclarer(config)
-});
-
-// ============================================================================
-// Type Exports
-// ============================================================================
-
-export type { Scope, DeclarerConfig, DeclarerFunction, SelfDeclarer };
+export const declare = createDeclarer;

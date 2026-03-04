@@ -5,17 +5,18 @@
  * - Layer 1: Declarative (what the language IS)
  * - Layer 2: Executive (how to generate code)
  *
- * Languages self-register by calling declareLanguage() in the 'warp' scope.
+ * This module provides the public API for language definitions.
+ * Implementation details are in sibling modules - never import from them directly.
  *
  * @module machinery/reed/language
  */
 
 // ============================================================================
-// Layer 1: Declarative Schema (what the language IS)
+// Types (re-exported from implementation)
 // ============================================================================
 
 export type {
-  // Core types
+  // Layer 1: Declarative types
   CoreKeywordType,
   KeywordType,
   KeywordDeclaration,
@@ -27,78 +28,61 @@ export type {
   BlockSyntaxDeclaration,
   CompositionTemplate,
   CompositionTemplates,
-  NamingCase,
-  CoreConvention,
-  NamingConventions,
   LanguageIdentity,
   LanguageDeclaration,
-  LanguageDeclarationInput,
+  LanguageDeclarationInput
 } from './declarative.js';
-
-export {
-  CORE_KEYWORD_TYPES,
-  CORE_TYPE_CONSTRUCTORS,
-  commonLanguageDeclaration,
-  compileToExecutive,
-} from './declarative.js';
-
-// ============================================================================
-// Layer 2: Executive System (how to generate code)
-// ============================================================================
-
-// Export LanguageType class (runtime value, not just type)
-export { LanguageType } from './executive.js';
-
-// Export language registry and utilities
-export { languages, LanguageRegistry, getLanguageExtensionKey } from './executive.js';
 
 export type {
-  // Core types
+  // Layer 2: Executive types
   BaseParam,
   LanguageParam,
-  RawMethod,
   LanguageMethod,
   TypeFactory,
   TransformContext,
   TransformEnhancer,
   TransformConfig,
-  
-  // Language definition
   LanguageDefinition,
-  LanguageDefinitionConfig,
-  NamingConventionConfig,
+  NamingConventions,
+  NamingCase,
+  CoreConvention,
   LanguageRenderingConfig,
-  CrudOperation,
-  
-  // Functions
-  deriveCrudMethodName,
-  createTransform,
-  
-  // Built-in enhancers
-  baseTypeMappingEnhancer,
-  namingEnhancer,
-  crudEnhancer,
-  templateHelperEnhancer,
-  DEFAULT_ENHANCERS,
-  
-  // Template helpers
-  ParamCollection,
-  SignatureHelper,
-  CrudNameRenderer,
-  StubReturnRenderer,
-  TypeDefRenderer,
   ParamRenderConfig,
-  SignatureRenderConfig,
-} from './executive.js';
+  SignatureRenderConfig
+} from './imperative.js';
 
 // ============================================================================
-// Layer 1 → Layer 2 Bridge
+// Runtime Values (re-exported from implementation)
 // ============================================================================
 
-import type { LanguageDeclaration, LanguageDeclarationInput } from './declarative.js';
-import type { LanguageDefinition, LanguageDefinitionConfig } from './executive.js';
+export {
+  // Layer 1: Constants
+  CORE_KEYWORD_TYPES,
+  CORE_TYPE_CONSTRUCTORS,
+  commonLanguageDeclaration,
+  cFamilyLanguageDeclaration,
+  compileToExecutive
+} from './declarative.js';
+
+export {
+  // Layer 2: Runtime classes and registry
+  LanguageType,
+  RawMethod,
+  languages,
+  LanguageRegistry,
+  getLanguageExtensionKey,
+  declareLanguageImperatively as declareLanguageBase
+} from './imperative.js';
+
+// ============================================================================
+// Public API: Unified declareLanguage
+// ============================================================================
+
+import type { LanguageDeclaration } from './declarative.js';
 import { compileToExecutive } from './declarative.js';
-import { declareLanguage as executiveDeclareLanguage } from './executive.js';
+import type { LanguageDefinition } from './imperative.js';
+import { declareLanguageImperatively } from './imperative.js';
+import deepmerge from 'deepmerge';
 
 /**
  * Declare a language.
@@ -106,6 +90,9 @@ import { declareLanguage as executiveDeclareLanguage } from './executive.js';
  * This is the main entry point. It accepts either:
  * 1. A declarative LanguageDeclaration (Layer 1) - compiles to executive
  * 2. An executive LanguageDefinitionConfig (Layer 2) - uses directly
+ *
+ * The declarative config is deeply merged with the compiled executive config,
+ * allowing you to override specific fields while keeping the generated ones.
  *
  * @example
  * ```typescript
@@ -116,69 +103,34 @@ import { declareLanguage as executiveDeclareLanguage } from './executive.js';
  *   syntax: { ... }
  * });
  *
- * // Layer 2: Executive style (legacy)
+ * // Layer 1 with enhancers override
  * export const myLang = declareLanguage({
- *   name: 'myLang',
- *   naming: { function: 'snake', type: 'pascal', ... },
- *   render: { ... }
+ *   identity: { name: 'myLang', extensions: ['.my'] },
+ *   conventions: { ... },
+ *   syntax: { ... },
+ *   enhancers: [myCustomEnhancer]  // Passed through to executive layer
  * });
  * ```
  */
-export function declareLanguage(
-  input: LanguageDeclaration | LanguageDefinitionConfig
+export function declareLanguage<T extends LanguageDeclaration = LanguageDeclaration>(
+  input: T
 ): LanguageDefinition {
+  let executiveConfig: LanguageDefinition;
+
   // Check if this is a declarative (Layer 1) or executive (Layer 2) input
   if ('identity' in input && 'syntax' in input) {
     // Layer 1: Compile declarative to executive
-    const compiledConfig = compileToExecutive(input as LanguageDeclaration);
-    
-    // Merge with any additional properties (overrides) from the input
-    // This allows users to provide both declarative schema AND executive overrides
-    const executiveConfig: LanguageDefinitionConfig = {
-      ...compiledConfig,
-      ...input,
-      // Ensure name comes from identity
-      name: (input as LanguageDeclaration).identity.name,
-    };
-    
-    return executiveDeclareLanguage(executiveConfig);
+    const compiledConfig = compileToExecutive(input);
+
+    // Deep merge: input overrides compiled config
+    executiveConfig = deepmerge(compiledConfig, input);
+
+    // Ensure name is set from identity
+    executiveConfig.name = input.identity.name;
+  } else {
+    // Layer 2: Use executive config directly
+    executiveConfig = input as LanguageDefinition;
   }
-  
-  // Layer 2: Use executive config directly
-  return executiveDeclareLanguage(input as LanguageDefinitionConfig);
+
+  return declareLanguageImperatively(executiveConfig);
 }
-
-// ============================================================================
-// Well-Known Language Declarations (C-Family Base)
-// ============================================================================
-
-import { commonLanguageDeclaration } from './declarative.js';
-
-/**
- * C-Family language declaration.
- * Base for Rust, TypeScript, C++, Java, etc.
- */
-export const cFamilyLanguageDeclaration: LanguageDeclaration = {
-  ...commonLanguageDeclaration,
-  identity: {
-    name: 'c_family',
-    extends: 'common',
-    extensions: ['.c', '.cpp', '.h', '.hpp', '.cs', '.java', '.rs', '.ts', '.kt', '.swift'],
-  },
-  conventions: {
-    naming: {
-      ...commonLanguageDeclaration.conventions.naming,
-    },
-  },
-  syntax: {
-    ...commonLanguageDeclaration.syntax,
-    blocks: {
-      ...commonLanguageDeclaration.syntax.blocks,
-      open: '{',
-      close: '}',
-    },
-  },
-};
-
-// Re-export MethodLink for convenience
-export type { MethodLink } from './types.js';

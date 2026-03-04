@@ -32,7 +32,7 @@ import {
   TypeDefRenderer,
   type ParamRenderConfig,
   type SignatureRenderConfig,
-} from '../bobbin/template-helpers.js';
+} from './language/template-helpers.js';
 
 // ============================================================================
 // Transform Context
@@ -276,7 +276,7 @@ export {
   TypeDefRenderer,
   type ParamRenderConfig,
   type SignatureRenderConfig,
-} from '../bobbin/template-helpers.js';
+} from './language/template-helpers.js';
 
 // Export LanguageType class (runtime value)
 export { LanguageType } from './language/types.js';

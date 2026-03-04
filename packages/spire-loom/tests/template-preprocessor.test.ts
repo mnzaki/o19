@@ -2,13 +2,11 @@
  * Tests for template preprocessor
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
-import {
-  preprocessTemplate,
-  postprocessOutput,
-  processTemplate,
-  defaultPreprocessorOptions,
-} from '../machinery/shuttle/template-preprocessor.js';
+import { describe, it, expect } from 'vitest';
+import { mejs, _test } from '../machinery/bobbin/mejs.js';
+
+// Destructure test internals
+const { preprocess: preprocessTemplate, postprocess: postprocessOutput, process: processTemplate, defaultOptions: defaultPreprocessorOptions } = _test;
 
 // EJS will be dynamically imported for integration tests
 let ejs: typeof import('ejs') | null = null;

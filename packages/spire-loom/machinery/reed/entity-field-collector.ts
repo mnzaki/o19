@@ -29,11 +29,10 @@ function extractField(value: Field<unknown>, propName: string): EntityFieldMetad
   value.name = propName;
 
   // Convert to the serializable metadata format
+  // Note: Language-specific types are resolved at enhancement time
   return {
     name: value.name,
     tsType: value.tsType,
-    rustType: value.rustType,
-    sqlType: value.sqlType,
     columnName: value.columnName,
     nullable: value.nullable,
     isPrimary: value.isPrimary,
@@ -50,7 +49,8 @@ function extractField(value: Field<unknown>, propName: string): EntityFieldMetad
  * Usage:
  * ```typescript
  * const fields = collectEntityFields(Bookmark);
- * // [{ name: 'id', tsType: 'number', rustType: 'i64', ... }, ...]
+ * // [{ name: 'id', tsType: 'number', ... }, ...]
+ * // Language-specific types resolved at enhancement time
  * ```
  */
 export const collectEntityFields = createCollector({

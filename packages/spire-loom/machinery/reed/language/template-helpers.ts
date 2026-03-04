@@ -14,7 +14,7 @@
  * EJS calls `toString()` when rendering `<%= obj %>` or `<%- obj %>`,
  * so we abuse this by returning objects whose `toString()` renders the template.
  *
- * @module machinery/bobbin/template-helpers
+ * @module machinery/reed/language/template-helpers
  */
 
 import type {

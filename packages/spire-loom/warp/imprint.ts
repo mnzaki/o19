@@ -97,12 +97,8 @@ export interface EntityOptions {
 export interface EntityFieldMetadata {
   /** Property name (camelCase) */
   name: string;
-  /** TypeScript type */
+  /** TypeScript type (source of truth) */
   tsType: string;
-  /** Rust type (mapped from TS) */
-  rustType: string;
-  /** SQL type (mapped from TS) */
-  sqlType: string;
   /** SQL column name (snake_case) */
   columnName: string;
   /** Whether field is nullable */

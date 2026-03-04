@@ -8,7 +8,7 @@ import type { MgmtMethod } from '../sley/index.js';
 import type { RawMethod } from '../bobbin/index.js';
 import type { GeneratedFile } from '../heddles/index.js';
 import type { SpiralNode, GeneratorContext, WeavingPlan, MethodHelpers } from '../heddles/index.js';
-import type { AndroidHookupData } from '../shuttle/hookup-manager.js';
+import type { hookup } from '../shuttle/index.js';
 
 /**
  * Method filtering and transformation configuration.
@@ -152,7 +152,7 @@ export interface TreadleKit {
     /**
      * Android-specific hookup: manifest, AIDL callback, Gradle config.
      */
-    android(data: AndroidHookupData): Promise<void>;
+    android(data: hookup.AndroidHookupData): Promise<void>;
 
     /**
      * TODO: Rust crate hookup.

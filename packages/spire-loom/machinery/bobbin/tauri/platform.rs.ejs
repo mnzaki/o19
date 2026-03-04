@@ -36,7 +36,7 @@ pub trait <%= platformTraitName %>: Send + Sync {
   fn <%= method.functionName %>(
     &self,
     <%- method.rs.params.list %>
-  ) -> <%- method.useResult ? `Result<${method.rs.returnType}>` : method.returnType %>;
+  ) -> <%- method.returnType %>;
 
 <% }); -%>
 }
