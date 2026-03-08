@@ -11,11 +11,10 @@
  * 4. Beater - Formats and packs the generated code
  */
 
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { SpiralRing } from '../warp/index.js';
 import { createMatrix } from '../machinery/treadles/index.js';
-import { fileSystem, blockRegistry } from '../machinery/shuttle/index.js';
+import { fileSystem, blockRegistry } from '../machinery/sley/index.js';
 import { getWorkspaceInfoFromPath, loadWarp } from './workspace-discovery.js';
 import { Loom, type WorkspaceInfo } from '../machinery/loom.js';
 import {
@@ -369,6 +368,7 @@ Package filter: "${config.packageFilter}"`);
       outputDir: config?.scrimName,
       packagePath,
       packageDir,
+      shed: this.loom.shed,
       config: task.config // Pass tieup config as context.config
     };
 

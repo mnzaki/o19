@@ -32,7 +32,7 @@ export interface Shed {
 }
 
 export class Loom {
-  shed?: Shed;
+  _shed?: Shed;
   heddles?: heddles.Heddles;
   reed?: reed.Reed;
 
@@ -66,17 +66,22 @@ export class Loom {
 
     if (!this.reed) {
       this.reed = reed.fromHeddles(this.heddles);
-      this.shed = {
+      this._shed = {
         ...this.reed
       };
     }
 
-    if (!this.shed) {
-      this.shed = {
+    if (!this._shed) {
+      this._shed = {
         ...this.reed
       };
     }
 
-    return this.shed;
+    return this._shed;
+  }
+
+  get shed(): Shed {
+    if (!this._shed) throw new Error("The Loom ain't ready!");
+    return this._shed;
   }
 }

@@ -30,8 +30,6 @@ import { loadWarp } from './workspace-discovery.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { WeavingPlan } from './plan.js';
-import type { LanguageMethod } from '../machinery/reed/language/method.js';
-import type { BoundQuery } from '../machinery/sley/query.js';
 import type { Shed } from '../machinery/loom.js';
 
 export class PatternMatcher {

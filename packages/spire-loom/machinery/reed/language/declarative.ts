@@ -16,7 +16,7 @@ import type {
   LanguageDefinitionImperative
 } from './imperative.js';
 import { DEFAULT_NAMING_CONVENTIONS, LanguageType } from './types.js';
-import type { LanguageParam, TypeFactory, NamingConventions, LanguageIdentity } from './types.js';
+import type { TypeFactory, NamingConventions, LanguageIdentity } from './types.js';
 import { toSnakeCase, camelCase, pascalCase, type NamingCase, Name } from '../../stringing.js';
 
 // ============================================================================
@@ -376,8 +376,16 @@ function createTypeFactoryFromConstructors<T extends LanguageType>(
       return createWrapper(ctors.object, ...innerProperties);
     },
 
-    //function: function (params: T[], returnType: T): T {
+    // THIS DOESN'T MAKE THEORETICAL SENSE
+    //function: function (name: string, params: T[], returnType: T): T {
     //  if (!ctors.function) throw new Error('No function type constructor in this language!');
+    //  const fnType: LanguageType = new LanguageType(
+    //    name,
+    //    () => fnType.name.toString(),
+    //    false,
+    //    [...params, returnType]
+    //  );
+    //  return fnType as T;
     //},
 
     array: createWrapper.bind(null, ctors.array),
@@ -509,7 +517,7 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
   };
 
   // Build code generation config
-  const codeGen: LanguageCodeGenConfig<LanguageParam, LanguageType> = {
+  const codeGen: LanguageCodeGenConfig<LanguageType> = {
     rendering
   };
 

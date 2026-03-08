@@ -2,7 +2,7 @@ import type { MethodMetadata } from '../../../warp/metadata.js';
 import { Name } from '../../stringing.js';
 import type { FunctionVariantDeclaration } from './declarative.js';
 import type { LanguageDefinitionImperative, LanguageRenderingConfig } from './imperative.js';
-import { LanguageValue, type LanguageParam, type LanguageType } from './types.js';
+import { LanguageThing, LanguageValue, type LanguageParam, type LanguageType } from './types.js';
 
 /**
  * Language-specific method extends raw with:
@@ -15,10 +15,7 @@ import { LanguageValue, type LanguageParam, type LanguageType } from './types.js
  * For templates, use LanguageView (from enhanced/methods.ts) which provides
  * idiomatic naming via conventions.
  */
-export class LanguageMethod<
-  P extends LanguageParam = LanguageParam,
-  T extends LanguageType = LanguageType
-> extends LanguageValue {
+export class LanguageMethod<T extends LanguageType = LanguageType> extends LanguageThing<T> {
   private _render!: LanguageRenderingConfig;
   public tags: string[];
   readonly mgmtName: string;
@@ -29,7 +26,7 @@ export class LanguageMethod<
     readonly raw: MethodMetadata,
     readonly appliedVariants: Record<string, FunctionVariantDeclaration<T>> = {}
   ) {
-    super(raw.name, () => this.lang.types.function(this.paramTypes, this.returnType));
+    super(raw.name);
     this.tags = raw.tags ?? [];
     this.mgmtName = raw.managementName;
   }
@@ -147,13 +144,14 @@ export class LanguageMethod<
   }
 
   paramsAsObject(name: string) {
+    const propertyCtor = this.lang.types.property;
+    if (!propertyCtor) throw new Error("can't wrap params in a language with no objects...");
+
     return this._render.renderParams([
       this._render.formatParam(
         name,
         this.lang.types.object(
-          ...this.raw.params.map((p) =>
-            this.lang.types.property(p.name, this.lang.types.fromTsType(p.tsType))
-          )
+          ...this.raw.params.map((p) => propertyCtor(p.name, this.lang.types.fromTsType(p.tsType)))
         )
       )
     ]);
@@ -173,7 +171,7 @@ export class LanguageMethod<
    * @param nameOverride - Optional name to use instead of method.name (for crudDefinition)
    * @param objectParamName - Optional name to wrap params in an object
    */
-  createVariant(variantName: string, variant: FunctionVariantDeclaration<T>): LanguageMethod<P, T> {
+  createVariant(variantName: string, variant: FunctionVariantDeclaration<T>): LanguageMethod<T> {
     const variants = {
       ...this.appliedVariants,
       [variantName]: variant
@@ -183,26 +181,26 @@ export class LanguageMethod<
     return newMethod;
   }
 
-  withNewName(overrideName: Name | string, variantName = 'rename'): LanguageMethod<P, T> {
+  withNewName(overrideName: Name | string, variantName = 'rename'): LanguageMethod<T> {
     return this.createVariant(variantName, {
       overrideName
     });
   }
 
-  withObjectParams(objectParamName: string): LanguageMethod<P, T> {
+  withObjectParams(objectParamName: string): LanguageMethod<T> {
+    const propertyCtor = this.lang.types.property;
+    if (!propertyCtor) throw new Error("can't wrap params in a language with no objects...");
     return this.createVariant('objectParam', {
       processParams: (params: Array<[string, T]>) => [
         [
           objectParamName,
-          this.lang.types.object(
-            ...params.map(([name, type]) => this.lang.types.property(name, type))
-          ) as T
+          this.lang.types.object(...params.map(([name, type]) => propertyCtor(name, type))) as T
         ]
       ]
     });
   }
 
-  get crud(): LanguageMethod<P, T> {
+  get crud(): LanguageMethod<T> {
     return this.crudName ? this.withNewName(this.crudName) : this;
   }
 }

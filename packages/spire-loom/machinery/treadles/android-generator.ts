@@ -11,17 +11,12 @@
 
 import { RustAndroidSpiraler } from '../../warp/spiral/spiralers/rust/android.js';
 import { RustCore, SpiralOut } from '../../warp/spiral/index.js';
-import {
-  buildServiceNaming,
-  buildAndroidPackageData,
-  buildMethodLink,
-  extractManagementFromBindPoint
-} from '../treadle-kit/index.js';
 import { buildCrateNaming } from '../stringing.js';
-import { hookup } from '../shuttle/index.js';
+import { hookup } from '../sley/index.js';
 import { declareTreadle, generateFromTreadle } from './index.js';
-import { LanguageMethod, RawMethod } from '../reed/language/index.js';
-import type { BaseParam, LanguageParam } from '../reed/language/types.js';
+import type { LanguageParam } from '../reed/language/types.js';
+import { LanguageMethod } from '../reed/language/method.js';
+import type { MethodMetadata } from '../../warp/metadata.js';
 
 /**
  * Extended parameter with AIDL type information.
@@ -37,7 +32,7 @@ interface AidlParam extends LanguageParam {
 }
 
 /**
- * Extended RawMethod with AIDL-specific type information.
+ * Extended MethodMetadata with AIDL-specific type information.
  */
 export class AidlMethod extends LanguageMethod<AidlParam> {
   /** AIDL return type */
@@ -115,7 +110,7 @@ function addAidlTypesToParams(
  * @param methods - Raw methods to transform
  * @returns Methods with AIDL type information added
  */
-export function addAidlTypesToMethods(methods: RawMethod[]): AidlMethod[] {
+export function addAidlTypesToMethods(methods: MethodMetadata[]): AidlMethod[] {
   return methods.map((method) => ({
     ...method,
     aidlReturnType: mapToAidlType(method.returnType),
@@ -149,7 +144,7 @@ export const androidServiceTreadle = declareTreadle({
   },
 
   // Add link metadata for JNI routing and AIDL types
-  transformMethods: (methods, context): RawMethod[] => {
+  transformMethods: (methods, context): MethodMetadata[] => {
     const linkMap = new Map(context.plan.managements.map((m) => [m.name, buildMethodLink(m)]));
     const mgmtNames = context.plan.managements.map((m) => m.name);
 

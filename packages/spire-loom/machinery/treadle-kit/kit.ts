@@ -16,6 +16,7 @@ import { getLanguageExtensionKey, languages } from '../reed/language/index.js';
 import { generateCode } from '../shuttle/code-printer.js';
 import type { GeneratorContext } from '../../weaver/plan-builder.js';
 import type { EntityMetadata } from '../../warp/metadata.js';
+import { hookup } from '../sley/index.js';
 
 /**
  * Create a treadle kit for building generators.
@@ -85,117 +86,44 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       return true;
     },
 
-    //crud: {
-    //  /**
-    //   * Apply CRUD classification to methods.
-    //   *
-    //   * Derives crudName from tags like 'crud:create'.
-    //   * Runs automatically before language enhancement if not already applied.
-    //   */
-    //  //apply(): void {
-    //  //  if (crudApplied) return;
+    language: {
+      /**
+       * Enhance methods with specified languages.
+       *
+       * First language becomes the default (item.lang),
+       * additional languages accessible as item.rs, item.ts, etc.
+       *
+       * @param langs - Language identifiers (e.g., 'rust', 'typescript')
+       */
+      add(...langs: string[]): void {
+        if (langs.length === 0) return;
 
-    //  //  const current = context.methods?.all || [];
-    //  //  const withCrud = applyCrudPipeline(current as RawMethod[]);
-    //  //  context.methods = buildContextMethods(withCrud);
-    //  //  crudApplied = true;
-    //  //},
+        for (const langName of langs) {
+          const lang = languages.get(langName);
+          if (!lang) {
+            console.warn(`[KIT] Unknown language: ${langName}`);
+            continue;
+          }
 
-    //  get isApplied(): boolean {
-    //    return crudApplied;
-    //  }
-    //},
+          // Add language to the BoundQuery
+          context.shed.methods.addLang(lang);
 
-    //language: {
-    //  /**
-    //   * Enhance methods with specified languages.
-    //   *
-    //   * First language becomes the default for getters like `method.returnType`.
-    //   * Can be called incrementally to add more languages.
-    //   *
-    //   * @param langs - Language identifiers (e.g., 'rust', 'typescript')
-    //   */
-    //  add(...langs: string[]): void {
-    //    if (langs.length === 0) return;
+          // Track enhanced languages
+          const langKey = getLanguageExtensionKey(langName);
+          if (!enhancedLanguages.includes(langKey)) {
+            enhancedLanguages.push(langKey);
+          }
+        }
+      },
 
-    //    // Auto-apply CRUD before language enhancement
-    //    if (!crudApplied) {
-    //      kit.crud.apply();
-    //    }
+      get isEnhanced(): boolean {
+        return enhancedLanguages.length > 0;
+      },
 
-    //    const currentMethods = context.methods?.all || [];
-
-    //    // Get current enhancement state
-    //    const currentLangs = isEnhanced(currentMethods[0])
-    //      ? (currentMethods[0] as EnhancedMethod)._languages || []
-    //      : [];
-
-    //    // Store raw on first call
-    //    if (rawMethodsSnapshot.length === 0) {
-    //      rawMethodsSnapshot = isEnhanced(currentMethods[0])
-    //        ? (currentMethods[0] as EnhancedMethod)._raw || [...currentMethods]
-    //        : [...currentMethods];
-    //    }
-
-    //    // Filter duplicates
-    //    const newLangs = langs.filter((l) => !currentLangs.includes(getLanguageExtensionKey(l)));
-    //    if (newLangs.length === 0 && currentLangs.length > 0) return;
-
-    //    // All languages
-    //    const allLangs = [...currentLangs, ...newLangs.map(getLanguageExtensionKey)];
-    //    enhancedLanguages = allLangs;
-
-    //    // Enhance from raw
-    //    const enhanced = enhanceMethods(
-    //      rawMethodsSnapshot,
-    //      [
-    //        ...currentLangs.map((k) => {
-    //          // Find language name from extension key
-    //          const lang = languages.getAll().find((l) => getLanguageExtensionKey(l.name) === k);
-    //          return lang?.name || k;
-    //        }),
-    //        ...langs
-    //      ],
-    //      allLangs[0] // First is default
-    //    );
-
-    //    // Store metadata
-    //    enhanced.forEach((m) => {
-    //      Object.defineProperty(m, '_raw', {
-    //        value: rawMethodsSnapshot,
-    //        writable: false,
-    //        enumerable: false
-    //      });
-    //    });
-
-    //    // Update context
-    //    context.methods = buildContextMethods(enhanced);
-
-    //    // Also enhance entities with the same languages
-    //    const langNames = [
-    //      ...currentLangs.map((k) => {
-    //        const lang = languages.getAll().find((l) => getLanguageExtensionKey(l.name) === k);
-    //        return lang?.name || k;
-    //      }),
-    //      ...langs
-    //    ];
-
-    //    enhancedEntities = enhanceEntities(
-    //      rawEntitiesSnapshot,
-    //      langNames,
-    //      allLangs[0] // First is default
-    //    );
-    //  },
-
-    //  get isEnhanced(): boolean {
-    //    const m = context.methods?.all;
-    //    return !!m && m.length > 0 && isEnhanced(m[0]);
-    //  },
-
-    //  get languages(): string[] {
-    //    return [...enhancedLanguages];
-    //  }
-    //},
+      get languages(): string[] {
+        return [...enhancedLanguages];
+      }
+    },
 
     buildData(dataFn, current, previous): Record<string, unknown> {
       return dataFn(context, current, previous);
@@ -224,9 +152,7 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
         // Auto-enhance if needed for this output's language
         if (detectedLang && detectedLang !== 'unknown') {
           const langKey = getLanguageExtensionKey(detectedLang);
-          if (!kit.language.isEnhanced) {
-            kit.language.add(detectedLang);
-          } else if (!enhancedLanguages.includes(langKey)) {
+          if (!kit.language.isEnhanced || !enhancedLanguages.includes(langKey)) {
             kit.language.add(detectedLang);
           }
         }
@@ -293,6 +219,3 @@ function detectLanguageFromTemplate(template: string): string | undefined {
 
   return undefined;
 }
-
-// Re-export enhancement types for treadle authors
-export type { LanguageView, EnhancedMethod } from '../reed/enhanced/index.js';

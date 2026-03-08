@@ -15,6 +15,7 @@
 import { Name, type NamingCase } from '../../stringing.js';
 import type { MethodParam } from '../../heddles/method-collector.js';
 import type { CoreRing, ExternalLayer, Spiraler, SpiralRing } from '../../../warp/index.js';
+import type { LanguageDefinitionImperative } from './imperative.js';
 
 // ============================================================================
 // Naming Conventions
@@ -88,8 +89,28 @@ export const DEFAULT_NAMING_CONVENTIONS: Required<NamingConventions> = {
  */
 export class LanguageThing<T extends LanguageType = LanguageType> {
   /** Reference to language definition */
-  protected _lang?: LanguageDefinition<T>;
+  protected _lang?: LanguageDefinitionImperative<T>;
   protected _name: Name;
+
+  // Language accessor properties (populated by BoundQuery when multiple languages are added)
+  /** Rust language variant */
+  declare rs: typeof this;
+  /** TypeScript language variant */
+  declare ts: typeof this;
+  /** Kotlin language variant */
+  declare kt: typeof this;
+  /** Swift language variant */
+  declare swift: typeof this;
+  /** Python language variant */
+  declare py: typeof this;
+  /** Go language variant */
+  declare go: typeof this;
+  /** C++ language variant */
+  declare cpp: typeof this;
+  /** Java language variant */
+  declare java: typeof this;
+  /** C# language variant */
+  declare cs: typeof this;
 
   constructor(name: string) {
     this._name = new Name(name);
@@ -107,7 +128,7 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
     return this._name;
   }
 
-  set lang(lang: LanguageDefinition<T>) {
+  set lang(lang: LanguageDefinitionImperative<T>) {
     this._lang = lang;
   }
 
@@ -116,6 +137,28 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
       throw new Error('No language set for this thing!');
     }
     return this._lang;
+  }
+
+  /**
+   * Clone this thing with a different language.
+   * Used by BoundQuery to create language variants (rs, ts, kt, etc.)
+   */
+  cloneWithLang(lang: LanguageDefinitionImperative<T>): typeof this {
+    // Create new object with same prototype
+    const clone = Object.create(Object.getPrototypeOf(this)) as typeof this;
+
+    // Copy all own properties
+    for (const key of Object.getOwnPropertyNames(this)) {
+      const descriptor = Object.getOwnPropertyDescriptor(this, key);
+      if (descriptor) {
+        Object.defineProperty(clone, key, descriptor);
+      }
+    }
+
+    // Set the new language
+    clone.lang = lang;
+
+    return clone;
   }
 
   asContextWith(extra: Record<string, unknown>) {
@@ -177,9 +220,9 @@ export class LanguageValue<T extends LanguageType = LanguageType> extends Langua
     }
   }
 
-  set lang(lang: LanguageDefinition<T>) {
+  set lang(lang: LanguageDefinitionImperative<T>) {
     super.lang = lang;
-    this.type.lang = lang as unknown as LanguageDefinition<LanguageType>;
+    this.type.lang = lang as unknown as LanguageDefinitionImperative<LanguageType>;
   }
 }
 
@@ -231,7 +274,7 @@ export interface TypeFactory<T extends LanguageType = LanguageType> {
   promise: ((innerType: T) => T) | null;
   result: ((okType: T, errType: T) => T) | null;
   object(...innerProperties: T[]): T;
-  //function(params: T[], returnType: T): T;
+  //function(name: string, params: T[], returnType: T): T;
 
   /**
    * Map a TypeScript type to this language's type.

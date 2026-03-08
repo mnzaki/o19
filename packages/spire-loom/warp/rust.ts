@@ -35,9 +35,9 @@ class RustStruct extends LanguageType {
   [RUST_STRUCT_FIELDS] = new Map<string, RustFieldMetadata>();
 
   constructor(name: string, fields: Record<string, LanguageType>) {
-    const stubFields = Object.values(fields).map((f) => `${f.name}: ${f.stubReturn}`);
+    const stubFields = Object.values(fields).map((f) => `${f.name}: ${f.stub}`);
     const stubValue = `${name} {\n  ${stubFields.join(',\n  ')}\n}`;
-    super(name, stubValue, false, false);
+    super(name, stubValue, false, [], false);
   }
 }
 
@@ -408,8 +408,8 @@ import { RustCore, rustCore } from './spiral/rust.js';
 import { RustAndroidSpiraler } from './spiral/spiralers/rust/index.js';
 import { DesktopSpiraler } from './spiral/spiralers/desktop.js';
 import type { TransformEnhancer } from '../machinery/reed/index.js';
-import type { LanguageMethod } from '../machinery/reed/language/imperative.js';
 import type { MethodMetadata } from './metadata.js';
+import type { LanguageMethod } from '../machinery/reed/language/method.js';
 
 // ============================================================================
 // Rust-Specific Types
@@ -428,7 +428,7 @@ interface RustParam extends LanguageParam {
 /**
  * Rust method with language-specific metadata.
  */
-interface RustMethod extends LanguageMethod<RustParam> {
+interface RustMethod extends LanguageMethod {
   /** Inner return type (without Result wrapper) for use in Result<innerReturnType, Error> */
   innerReturnType: string;
   /** Service access preamble for error handling */
@@ -445,10 +445,12 @@ interface RustMethod extends LanguageMethod<RustParam> {
  * Defines how TypeScript types map to Rust types,
  * and provides stub return values for each type.
  */
-class RustTypeFactory implements TypeFactory<LanguageType> {
+class RustTypeFactory implements Partial<TypeFactory<LanguageType>> {
   // Primitive types
   boolean = new LanguageType('bool', 'false', true);
   string = new LanguageType('String', 'String::new()', true);
+  signed = new LanguageType('i64', '0', true);
+  unsigned = new LanguageType('u64', '0', true);
   number = new LanguageType('i64', '0', true);
   void = new LanguageType('()', '()', true);
 
@@ -525,17 +527,14 @@ class RustTypeFactory implements TypeFactory<LanguageType> {
  * - Adds implName (snake_case)
  * - Generates service access preamble for Mutex/Option wrappers
  */
-const rustEnhancer: TransformEnhancer<MethodMetadata, RustParam, RustMethod> = (methods) => {
+const rustEnhancer: TransformEnhancer<MethodMetadata, MethodMetadata> = (methods) => {
   return methods.map((method) => {
     // Get link metadata for service access
     const link = (method as any).link;
     const preamble = buildServiceAccessPreamble(link);
+    (method as any).serviceAccessPreamble = preamble;
 
-    return {
-      ...method,
-      //implName: toSnakeCase(method.implName || method.name),
-      serviceAccessPreamble: preamble
-    } as RustMethod;
+    return method;
   });
 };
 
@@ -545,7 +544,7 @@ const rustEnhancer: TransformEnhancer<MethodMetadata, RustParam, RustMethod> = (
  * Wraps return types in Result<T, crate::Error> for methods tagged with 'rust:result'.
  * This is applied after base type mapping so the returnTypeDef is already set.
  */
-const resultWrappingEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (methods) => {
+const resultWrappingEnhancer: TransformEnhancer<RustMethod, RustMethod> = (methods) => {
   return methods.map((method) => {
     // Check if method has the rust:result tag
     if (method.hasTag?.('rust:result')) {

@@ -15,16 +15,8 @@ import { declare, getScopeRegistry } from '../../self-declarer.js';
 import { type TransformEnhancer } from '../transform-pipeline.js';
 
 // Import LanguageType class (not just type) for runtime use
-import {
-  LanguageType,
-  LanguageValue,
-  type LanguageDefinition,
-  type LanguageParam,
-  type TypeFactory
-} from './types.js';
-import { Name } from '../../stringing.js';
+import { LanguageType, type LanguageDefinition, type TypeFactory } from './types.js';
 import type { MethodMetadata } from '../../../warp/metadata.js';
-import type { FunctionVariantDeclaration } from './declarative.js';
 import type { LanguageMethod } from './method.js';
 
 // ============================================================================
@@ -62,10 +54,7 @@ export interface LanguageRenderingConfig {
 /**
  * Code generation configuration using the new classes-as-config architecture.
  */
-export interface LanguageCodeGenConfig<
-  P extends LanguageParam = LanguageParam,
-  T extends LanguageType = LanguageType
-> {
+export interface LanguageCodeGenConfig<T extends LanguageType = LanguageType> {
   /** Rendering configuration for code generation */
   rendering: LanguageRenderingConfig;
 
@@ -78,15 +67,14 @@ export interface LanguageCodeGenConfig<
    * If provided, takes precedence over auto-generated transform from types + rendering.
    * Use this for advanced use cases that can't be expressed via the declarative config.
    */
-  transform?: (methods: MethodMetadata[]) => LanguageMethod<P, T>[];
+  transform?: (methods: MethodMetadata[]) => LanguageMethod<T>[];
 }
 
 export interface LanguageDefinitionImperative<
-  P extends LanguageParam = LanguageParam,
   T extends LanguageType = LanguageType
 > extends LanguageDefinition<T> {
   /** Code generation configuration */
-  codeGen: LanguageCodeGenConfig<P, T>;
+  codeGen: LanguageCodeGenConfig<T>;
 }
 
 // ============================================================================

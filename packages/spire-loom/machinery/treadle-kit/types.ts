@@ -32,36 +32,21 @@ export interface MethodConfig {
 }
 
 /**
- * CRUD classification API.
- */
-export interface CrudAPI {
-  /**
-   * Apply CRUD classification to methods.
-   *
-   * Derives crudName from tags like 'crud:create'.
-   * Runs automatically before language enhancement if not already applied.
-   */
-  apply(): void;
-
-  /** Whether CRUD classification has been applied */
-  readonly isApplied: boolean;
-}
-
-/**
  * Language enhancement API.
+ * Delegates to BoundQuery.addLang() for multi-language support.
  */
 export interface LanguageAPI {
   /**
    * Enhance methods with specified languages.
    *
-   * First language becomes the default for getters like `method.returnType`.
-   * Can be called incrementally to add more languages.
+   * First language becomes the default (item.lang), 
+   * additional languages accessible as item.rs, item.ts, etc.
    *
    * @param langs - Language identifiers (e.g., 'rust', 'typescript')
    */
   add(...langs: string[]): void;
 
-  /** Whether methods have been language-enhanced */
+  /** Whether any language has been added */
   readonly isEnhanced: boolean;
 
   /** List of enhanced language extension keys (rs, ts, kt) */
@@ -105,7 +90,7 @@ export interface TreadleKit {
    *
    * Creates language views (method.rs, method.ts) with idiomatic naming.
    */
-  //language: LanguageAPI;
+  language: LanguageAPI;
 
   /**
    * Validate node types match expected pattern.

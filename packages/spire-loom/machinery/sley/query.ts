@@ -43,6 +43,24 @@ export interface QueryAPI<T extends Queryable> {
   /** Custom predicate filter */
   filter(predicate: (method: T) => boolean): BoundQuery<T>;
 
+  /**
+   * Add a language for enhancement.
+   * First language becomes primary (item.lang), others accessible as item.rs, item.ts, etc.
+   */
+  addLang(lang: LanguageDefinitionImperative): void;
+
+  /**
+   * Set a single language (convenience method).
+   * Clears any previously added languages.
+   */
+  setLang(lang: LanguageDefinitionImperative): void;
+
+  /** Get the primary language */
+  get primaryLang(): LanguageDefinitionImperative | undefined;
+
+  /** Get all configured languages */
+  get languages(): LanguageDefinitionImperative[];
+
   /** Terminal: Group by management name */
   byManagement(): Map<string, T[]>;
 
@@ -93,13 +111,16 @@ interface Queryable {
  * Filters are composed into a pipeline that's only evaluated when
  * a terminal operation is called. Results are cached for repeated access.
  *
+ * Supports multiple languages - the first language is the primary language,
+ * additional languages are accessible via properties (rs, ts, kt, etc.)
  */
-class BoundQuery<T extends Queryable> {
+export class BoundQuery<T extends Queryable> {
   private source: T[];
   private filters: Array<(m: T) => boolean>;
   private cachedResult: T[] | undefined;
 
-  private _lang?: LanguageDefinitionImperative;
+  /** Multiple languages - first is primary, others accessible as properties */
+  private _langs: LanguageDefinitionImperative[] = [];
 
   constructor(source: T[], filters: Array<(m: T) => boolean> = []) {
     this.source = source;
@@ -110,25 +131,94 @@ class BoundQuery<T extends Queryable> {
     return new BoundQuery(this.source.map(transform), this.filters);
   }
 
-  setLang(lang: LanguageDefinitionImperative) {
-    this._lang = lang;
+  /**
+   * Add a language for enhancement.
+   * First language becomes primary (item.lang), others accessible as item.rs, item.ts, etc.
+   */
+  addLang(lang: LanguageDefinitionImperative): void {
+    this._langs.push(lang);
     this.cachedResult = undefined;
+  }
+
+  /**
+   * Set a single language (convenience method).
+   * Clears any previously added languages.
+   */
+  setLang(lang: LanguageDefinitionImperative): void {
+    this._langs = [lang];
+    this.cachedResult = undefined;
+  }
+
+  /** Get the primary language */
+  get primaryLang(): LanguageDefinitionImperative | undefined {
+    return this._langs[0];
+  }
+
+  /** Get all configured languages */
+  get languages(): LanguageDefinitionImperative[] {
+    return [...this._langs];
   }
 
   /**
    * Evaluate the query pipeline and return filtered results.
    * Cached for repeated access.
+   *
+   * Sets the primary language on each item, and adds property accessors
+   * for additional languages (rs, ts, kt, etc.)
    */
   private evaluate(): T[] {
-    const lang = this._lang;
-    if (!lang) throw new Error('no language specified');
+    if (this._langs.length === 0) throw new Error('no language specified');
 
     if (this.cachedResult === undefined) {
       this.cachedResult = this.filters.reduce(
         (methods, filter) => methods.filter(filter),
         this.source
       );
-      this.cachedResult.forEach((m) => (m.lang = lang));
+
+      const primaryLang = this._langs[0];
+      const additionalLangs = this._langs.slice(1);
+
+      // Get language property name from extension (rust -> rs, typescript -> ts, etc.)
+      const getLangPropName = (lang: LanguageDefinitionImperative): string => {
+        const ext = lang.extensions?.[0]?.replace('.', '').replace('.mejs', '');
+        if (ext) {
+          // Handle special cases
+          if (ext === 'rs') return 'rs';
+          if (ext === 'ts') return 'ts';
+          if (ext === 'kt') return 'kt';
+          if (ext === 'swift') return 'swift';
+          if (ext === 'py') return 'py';
+          if (ext === 'go') return 'go';
+          if (ext === 'cpp' || ext === 'cc' || ext === 'cxx') return 'cpp';
+          if (ext === 'java') return 'java';
+          if (ext === 'cs') return 'cs';
+        }
+        // Fallback to language name
+        return lang.name;
+      };
+
+      this.cachedResult.forEach((item) => {
+        // Set primary language
+        item.lang = primaryLang;
+
+        // Add property accessors for additional languages
+        for (const lang of additionalLangs) {
+          const propName = getLangPropName(lang);
+          Object.defineProperty(item, propName, {
+            get: () => {
+              // Clone the item with the different language
+              const cloned = (
+                item as unknown as {
+                  cloneWithLang(lang: LanguageDefinitionImperative): typeof item;
+                }
+              ).cloneWithLang(lang);
+              return cloned;
+            },
+            enumerable: true,
+            configurable: true
+          });
+        }
+      });
     }
     return this.cachedResult;
   }

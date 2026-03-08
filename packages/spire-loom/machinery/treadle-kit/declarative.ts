@@ -42,6 +42,8 @@ import * as path from 'node:path';
 import type { LanguageMethod } from '../reed/language/method.js';
 import type { MethodMetadata } from '../../warp/metadata.js';
 import type { GeneratedFile, GeneratorContext, TreadleTrodder } from '../../weaver/plan-builder.js';
+import { markers } from '../sley/index.js';
+import { generateCode } from '../shuttle/code-printer.js';
 
 // ============================================================================
 // Types
@@ -298,10 +300,10 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
       const langs = Array.isArray(definition.language)
         ? definition.language
         : [definition.language];
-      //kit.language.add(...langs);
+      kit.language.add(...langs);
 
-      // Update data with enhanced methods
-      data.methods = context.methods?.all || finalMethods;
+      // Update data with enhanced methods reference
+      data.methods = context.shed.methods;
     }
 
     // Phase 1: Generate files using the kit (into spire/)
@@ -385,12 +387,11 @@ async function applyPatches(
     // Merge patch context with global data (patch takes precedence)
     const mergedData = 'context' in patch && patch.context ? { ...data, ...patch.context } : data;
 
-    const { generateCode } = await import('../bobbin/index.js');
     const blockContent = await generateCode({
       template: patch.template,
       outputPath: targetPath,
       data: mergedData,
-      methods,
+      shed: context.shed,
       workspaceRoot: context.workspaceRoot
     });
 

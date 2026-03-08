@@ -8,7 +8,7 @@
 
 import type { ManagementMetadata } from '../../warp/metadata.js';
 import { type Heddles } from '../heddles/index.js';
-import { createQueryAPI, type BoundQuery } from '../sley/query.js';
+import { createQueryAPI, BoundQuery } from '../sley/query.js';
 import { enrichManagement } from './enrichment.js';
 import { LanguageMethod } from './language/method.js';
 
