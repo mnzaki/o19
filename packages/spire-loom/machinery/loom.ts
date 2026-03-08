@@ -28,6 +28,7 @@ export interface WorkspaceInfo {
 
 export interface Shed {
   methods: reed.Reed['methods'];
+  entities: reed.Reed['entities'];
   mgmts: reed.Reed['mgmts'];
 }
 

@@ -38,12 +38,10 @@ import type { SpiralNode } from '../heddles/index.js';
 import { createTreadleKit } from './kit.js';
 import { resolveSpecs, resolveSpecsWithCondition, type SpecOrFn } from './spec-resolver.js';
 import type { hookup } from '../sley/index.js';
-import * as path from 'node:path';
 import type { LanguageMethod } from '../reed/language/method.js';
 import type { MethodMetadata } from '../../warp/metadata.js';
 import type { GeneratedFile, GeneratorContext, TreadleTrodder } from '../../weaver/plan-builder.js';
-import { markers } from '../sley/index.js';
-import { generateCode } from '../shuttle/code-printer.js';
+import { createQueryAPI, type BoundQuery } from '../sley/query.js';
 
 // ============================================================================
 // Types
@@ -75,36 +73,12 @@ export interface OutputSpec {
   context?: Record<string, unknown>;
 }
 
-/**
- * A patch operation to modify an existing file.
- * Used for idempotent file modifications with marker-based block management.
- *
- * The marker scope is automatically set to the treadle name.
+/*
+ * PATCHES DISABLED - Use hookups instead for file modifications
+ * 
+ * export interface PatchSpec { ... }
+ * export type PatchSpecOrFn = ...
  */
-export interface PatchSpec {
-  /** Type of patch operation */
-  type: 'ensureBlock';
-  /** Target file path (relative to packageDir, or absolute) */
-  targetFile: string;
-  /** Marker identifier for the block (e.g., 'spire-deps', 'module-decl') */
-  marker: string;
-  /** Template to render for the block content */
-  template: string;
-  /** Language for marker formatting */
-  language: 'rust' | 'gradle' | 'xml' | 'toml';
-  /** Where to insert the block if it doesn't exist */
-  position?: {
-    /** Insert after this pattern */
-    after?: string;
-    /** Insert before this pattern */
-    before?: string;
-  };
-}
-
-/** Patch spec or a function that returns one (or an array) based on context */
-export type PatchSpecOrFn =
-  | PatchSpec
-  | ((context: GeneratorContext) => PatchSpec | PatchSpec[] | undefined);
 
 /** Output spec or a function that returns one (or an array) based on context */
 export type OutputSpecOrFn =
@@ -133,11 +107,10 @@ export interface TreadleDefinition {
   outputs: OutputSpecOrFn[];
 
   /**
-   * Patches to apply to existing files (idempotent block insertion).
-   * Patches run AFTER file generation and can target any file.
-   * Accepts specs or functions.
+   * PATCHES DISABLED - Use hookups instead for file modifications.
+   * @deprecated Use hookups property instead
    */
-  patches?: PatchSpecOrFn[];
+  // patches?: PatchSpecOrFn[];
 
   /**
    * Declarative hookups - configure external files (AndroidManifest.xml, Cargo.toml, etc.)
@@ -270,7 +243,7 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
 
     // Method collection using the kit
     const finalMethods = definition.transformMethods
-      ? definition.transformMethods(context.shed.methods.all, context)
+      ? createQueryAPI(definition.transformMethods(context.shed.methods.all, context))
       : context.shed.methods;
 
     // Build data with defaults (entities and methods always available)
@@ -280,7 +253,7 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
       currentRing: current.ring,
       previousRing: previous.ring,
       // Always provide entities and methods to templates
-      //entities: context.entities?.all || [],
+      entities: context.shed.entities,
       methods: context.shed.methods
     };
 
@@ -316,15 +289,11 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
         context: o.context
       })),
       data,
-      finalMethods
+      finalMethods,
+      context.shed.entities
     );
 
-    // Phase 2: Apply patches to files (can target any file, including spire/)
-    if (definition.patches && definition.patches.length > 0) {
-      await applyPatches(definition, definition.patches, data, context, finalMethods);
-    }
-
-    // Phase 3: Hookup (runs last)
+    // Phase 2: Hookup (runs after file generation) (runs last)
     const hookups = Array.isArray(definition.hookups)
       ? definition.hookups
       : definition.hookups
@@ -358,54 +327,4 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
   return generator;
 }
 
-/**
- * Apply patches to files.
- *
- * Patches are applied after file generation and can target any file,
- * including files in the spire/ directory or existing package files.
- */
-async function applyPatches(
-  definition: TreadleDefinition,
-  patches: PatchSpecOrFn[],
-  data: Record<string, unknown>,
-  context: GeneratorContext,
-  methods: LanguageMethod[]
-): Promise<void> {
-  // Get the treadle name for marker scope
-  const treadleName = definition.name || 'treadle';
 
-  // Resolve patches (handle functions returning single OR array)
-  const resolvedPatches = resolveSpecs(patches, context);
-
-  for (const patch of resolvedPatches) {
-    // Resolve target file path
-    const targetPath = path.isAbsolute(patch.targetFile)
-      ? patch.targetFile
-      : path.join(context.packageDir, patch.targetFile);
-
-    // Generate block content from template
-    // Merge patch context with global data (patch takes precedence)
-    const mergedData = 'context' in patch && patch.context ? { ...data, ...patch.context } : data;
-
-    const blockContent = await generateCode({
-      template: patch.template,
-      outputPath: targetPath,
-      data: mergedData,
-      shed: context.shed,
-      workspaceRoot: context.workspaceRoot
-    });
-
-    // Create markers using treadle name as scope
-    const markerPair = markers.createMarkers(patch.language, treadleName, patch.marker);
-
-    // Apply the patch
-    markers.ensureFileBlock(targetPath, markerPair, blockContent.content, {
-      insertAfter: patch.position?.after,
-      insertBefore: patch.position?.before
-    });
-
-    if (process.env.DEBUG_MATRIX) {
-      console.log(`[PATCH] Applied ${patch.marker} to ${patch.targetFile}`);
-    }
-  }
-}

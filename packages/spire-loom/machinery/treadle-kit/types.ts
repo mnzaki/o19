@@ -10,6 +10,8 @@ import type { WeavingPlan } from '../../weaver/plan.js';
 import type { GeneratedFile } from '../bobbin/index.js';
 import type { SpiralNode } from '../heddles/index.js';
 import type { LanguageMethod } from '../reed/language/method.js';
+import type { LanguageEntity } from '../reed/language/entity.js';
+import type { BoundQuery } from '../sley/query.js';
 import { hookup } from '../sley/index.js';
 
 /**
@@ -124,7 +126,8 @@ export interface TreadleKit {
   generateFiles(
     outputs: OutputSpec[],
     data: Record<string, unknown>,
-    methods: LanguageMethod[]
+    methods: BoundQuery<LanguageMethod>,
+    entities?: BoundQuery<LanguageEntity>
   ): Promise<GeneratedFile[]>;
 
   /**
