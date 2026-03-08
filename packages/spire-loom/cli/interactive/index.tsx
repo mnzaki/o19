@@ -43,11 +43,11 @@ function parseFlags() {
 }
 
 function getArgValue(args: string[], longFlag: string, shortFlag: string): string | null {
-  const index = args.findIndex(arg => arg === longFlag || arg === shortFlag);
+  const index = args.findIndex((arg) => arg === longFlag || arg === shortFlag);
   if (index !== -1 && args[index + 1]) {
     return args[index + 1];
   }
-  const arg = args.find(arg => arg.startsWith(`${longFlag}=`));
+  const arg = args.find((arg) => arg.startsWith(`${longFlag}=`));
   if (arg) {
     return arg.split('=')[1];
   }
@@ -109,7 +109,9 @@ export async function main(
 
   // Render appropriate view
   if (mode === 'mud') {
-    render(<MudMode dressing={dressing} warp={warp} config={config} onExit={() => process.exit(0)} />);
+    render(
+      <MudMode dressing={dressing} warp={warp} config={config} onExit={() => process.exit(0)} />
+    );
   } else if (mode === 'dressing') {
     render(<DressingEditor workspaceRoot={config.workspace.root} warp={warp} config={config} />);
   } else {
@@ -120,20 +122,14 @@ export async function main(
 /**
  * Convenience function for MUD mode.
  */
-export async function mud(
-  warp: Record<string, any>,
-  config: WeaverConfig
-): Promise<void> {
+export async function mud(warp: Record<string, any>, config: WeaverConfig): Promise<void> {
   return main(warp, config, 'mud');
 }
 
 /**
  * Convenience function for dressing editor mode.
  */
-export async function dressing(
-  warp: Record<string, any>,
-  config: WeaverConfig
-): Promise<void> {
+export async function dressing(warp: Record<string, any>, config: WeaverConfig): Promise<void> {
   return main(warp, config, 'dressing');
 }
 
@@ -156,7 +152,7 @@ async function runDirect() {
   checkTTY();
 
   // When run directly, we need to load the warp module ourselves
-  const { detectWorkspace, loadWarp } = await import('@o19/spire-loom/machinery/reed');
+  const { detectWorkspace, loadWarp } = await import('../../machinery/sley/workspace-discovery.js');
   const workspace = detectWorkspace();
 
   if (workspace.type === 'unknown' || !workspace.warpPath) {
@@ -190,7 +186,9 @@ async function runDirect() {
 
   // Render
   if (mode === 'mud') {
-    render(<MudMode dressing={dressing} warp={warp} config={config} onExit={() => process.exit(0)} />);
+    render(
+      <MudMode dressing={dressing} warp={warp} config={config} onExit={() => process.exit(0)} />
+    );
   } else if (mode === 'dressing') {
     render(<DressingEditor workspaceRoot={flags.workspace} warp={warp} config={config} />);
   } else {
@@ -200,7 +198,7 @@ async function runDirect() {
 
 // Run if executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runDirect().catch(err => {
+  runDirect().catch((err) => {
     console.error(`Fatal error: ${err.message}`);
     process.exit(1);
   });

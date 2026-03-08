@@ -6,10 +6,52 @@ The [bobbin](../) is the spool inside the shuttle that holds the weft thread. In
 
 ## What the Bobbin Holds
 
-- **Templates**: EJS templates for each language/target
+- **Templates**: MEJS templates for each language/target
 - **Gradle Blocks**: Pre-wound Gradle configuration blocks (Rust build tasks, etc.)
 - **IR Cache**: Intermediate representations of parsed WARP.ts
 - **Transform Rules**: How to translate patterns to code
+
+## MEJS Template Syntax
+
+The Bobbin uses **MEJS** (Moustacheod-EJS) templates—moustache-style syntax that compiles to EJS.
+
+### Comments
+```mejs
+{# This is a comment - won't appear in output #}
+```
+
+### Output
+```mejs
+{{ variable }}           {# Unescaped output (default for code gen) #}
+{h variable }            {# HTML-escaped output #}
+```
+
+### Control Flow
+```mejs
+{% if condition %}
+  {{ value }}
+{% endif %}
+
+{% for item in items %}
+  {{ item.name }}
+{% endfor %}
+
+{% while condition %}
+  {{ value }}
+{% endwhile %}
+```
+
+### Helpers
+```mejs
+{{ h.pascalCase(name) }}     {# PascalCase conversion #}
+{{ h.camelCase(name) }}      {# camelCase conversion #}
+{{ h.snakeCase(name) }}      {# snake_case conversion #}
+{{ h.kebabCase(name) }}      {# kebab-case conversion #}
+{{ h.indent(code, 4) }}      {# Indent by N spaces #}
+```
+
+### File Extension
+MEJS templates use `.mejs` extension and live in `machinery/bobbin/{target}/`.
 
 ## The Bobbin's Secret
 

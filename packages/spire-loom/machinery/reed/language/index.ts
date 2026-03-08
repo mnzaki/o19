@@ -28,26 +28,55 @@ export type {
   BlockSyntaxDeclaration,
   CompositionTemplate,
   CompositionTemplates,
-  LanguageIdentity,
   LanguageDeclaration
 } from './declarative.js';
 
 export type {
   // Layer 2: Executive types
-  LanguageMethod,
+  LanguageIdentity,
   LanguageDefinition,
-  NamingConventions,
-  NamingCase,
-  CoreConvention,
   LanguageRenderingConfig
 } from './imperative.js';
+
+/**
+ * Apply naming convention to a name.
+ */
+export function applyNamingConvention(
+  name: string,
+  convention: NamingConventions[keyof NamingConventions] | null | undefined
+): string {
+  if (!convention) return name;
+
+  switch (convention) {
+    case 'snake_case':
+      return toSnakeCase(name);
+    case 'camelCase':
+      return camelCase(name);
+    case 'PascalCase':
+      return pascalCase(name);
+    case 'SCREAMING_SNAKE':
+      return toSnakeCase(name).toUpperCase();
+    case 'kebab-case':
+      return toSnakeCase(name).replace(/_/g, '-');
+    default:
+      return name;
+  }
+}
 
 // ============================================================================
 // Runtime Values (re-exported from implementation)
 // ============================================================================
 
 export {
-  // Layer 1: Constants
+  // Layer 1: Imperative
+  languages,
+  LanguageRegistry,
+  getLanguageExtensionKey,
+  declareLanguageImperatively
+} from './imperative.js';
+
+export {
+  // Layer 2: Declarative
   CORE_KEYWORD_TYPES,
   CORE_TYPE_CONSTRUCTORS,
   commonLanguageDeclaration,
@@ -55,16 +84,7 @@ export {
   compileToExecutive
 } from './declarative.js';
 
-export {
-  // Layer 2: Runtime classes and registry
-  RawMethod,
-  languages,
-  LanguageRegistry,
-  getLanguageExtensionKey,
-  declareLanguageImperatively
-} from './imperative.js';
-
-export { LanguageType, type TypeFactory, type LanguageParam } from './types.js';
+export * from './types.js';
 
 // ============================================================================
 // Public API: Unified declareLanguage
@@ -72,10 +92,11 @@ export { LanguageType, type TypeFactory, type LanguageParam } from './types.js';
 
 import type { LanguageDeclaration } from './declarative.js';
 import { compileToExecutive } from './declarative.js';
-import type { LanguageDefinition, LanguageIdentity, NamingConventions } from './imperative.js';
+import type { LanguageDefinition, LanguageIdentity } from './imperative.js';
 import { declareLanguageImperatively } from './imperative.js';
 import deepmerge from 'deepmerge';
-import type { LanguageParam, LanguageType } from './types.js';
+import type { LanguageParam, LanguageType, NamingConventions } from './types.js';
+import { camelCase, pascalCase, toSnakeCase } from '../../stringing.js';
 
 export type RecursivePartial<T> = {
   [P in keyof T]?: T[P] extends object ? RecursivePartial<T[P]> : T[P];
@@ -133,10 +154,10 @@ export function declareLanguage<P extends LanguageParam, T extends LanguageType>
     executiveConfig = deepmerge(compiledConfig, input);
 
     // Ensure name is set from identity
-    executiveConfig.name = input.identity!.name;
+    executiveConfig.name = input.name;
   } else {
     // Layer 2: Use executive config directly
-    executiveConfig = input as LanguageDefinition;
+    executiveConfig = input as unknown as LanguageDefinition;
   }
 
   return declareLanguageImperatively(executiveConfig);

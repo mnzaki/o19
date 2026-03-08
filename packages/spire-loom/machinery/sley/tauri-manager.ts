@@ -7,7 +7,12 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createRustMarkers, ensureFileBlock, removeFileBlock, type FileBlockResult } from './markers.js';
+import {
+  createRustMarkers,
+  ensureFileBlock,
+  removeFileBlock,
+  type FileBlockResult
+} from './markers.js';
 import { toRustIdentifier } from '../stringing.js';
 
 export interface TauriHookupOptions {
@@ -30,20 +35,14 @@ export interface TauriHookupResult {
 
 /**
  * Hook up Tauri plugin integration into user's src/lib.rs.
- * 
+ *
  * This:
  * 1. Adds spire module declaration with #[path] attribute
  * 2. Injects commands into tauri::generate_handler![]
  * 3. Injects setup call into .setup() closure
  */
 export function hookupTauriPlugin(options: TauriHookupOptions): TauriHookupResult {
-  const {
-    libRsPath,
-    spireModuleName = 'spire',
-    coreName,
-    coreCrateName,
-    commands = [],
-  } = options;
+  const { libRsPath, spireModuleName = 'spire', coreName, coreCrateName, commands = [] } = options;
 
   const changes: string[] = [];
 
@@ -79,7 +78,7 @@ export function hookupTauriPlugin(options: TauriHookupOptions): TauriHookupResul
  */
 function hookupSpireModule(libRsPath: string, spireModuleName: string): boolean {
   const content = fs.readFileSync(libRsPath, 'utf-8');
-  
+
   // Check if already declared
   const spireModPattern = new RegExp(`pub\\s+mod\\s+${spireModuleName}\\s*;`);
   if (spireModPattern.test(content)) {
@@ -89,7 +88,7 @@ function hookupSpireModule(libRsPath: string, spireModuleName: string): boolean 
   // Add spire module declaration with path attribute
   const spireInclude = `#[path = "../spire/src/lib.rs"]\npub mod ${spireModuleName};`;
   fs.writeFileSync(libRsPath, content + '\n' + spireInclude + '\n', 'utf-8');
-  
+
   return true;
 }
 
@@ -112,7 +111,7 @@ function injectCommands(
   // Build command list
   const commandIndent = '      ';
   const commandList = commands
-    .map(cmd => `${commandIndent}crate::${spireModuleName}::commands::${cmd},`)
+    .map((cmd) => `${commandIndent}crate::${spireModuleName}::commands::${cmd},`)
     .join('\n');
 
   // Create markers

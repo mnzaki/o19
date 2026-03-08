@@ -26,17 +26,21 @@ export function ensureNpmDependencyAdded(
 ): boolean {
   const packageJsonPath = path.join(packagePath, 'package.json');
   const pkg = readJson<Record<string, Record<string, string>>>(packageJsonPath, {});
-  
-  const depType = options.dev ? 'devDependencies' : options.peer ? 'peerDependencies' : 'dependencies';
-  
+
+  const depType = options.dev
+    ? 'devDependencies'
+    : options.peer
+      ? 'peerDependencies'
+      : 'dependencies';
+
   if (!pkg[depType]) {
     pkg[depType] = {};
   }
-  
+
   if (pkg[depType][name]) {
     return false;
   }
-  
+
   pkg[depType][name] = version;
   writeJson(packageJsonPath, pkg);
   return true;
@@ -53,17 +57,17 @@ export function findWorkspacePackage(
   if (!fs.existsSync(pnpmYamlPath)) {
     return null;
   }
-  
+
   const content = fs.readFileSync(pnpmYamlPath, 'utf-8');
   const pkgMatch = content.match(/packages:\s*\n((?:\s*-\s*['"]?[^'"\n]+['"]?\n?)+)/);
-  
+
   if (!pkgMatch) return null;
-  
+
   const patterns = pkgMatch[1]
     .split('\n')
     .map((l: string) => l.match(/-\s*['"]?([^'"]+)['"]/)?.[1])
     .filter((p: string | undefined): p is string => !!p);
-  
+
   for (const pattern of patterns) {
     if (pattern.endsWith('/*')) {
       const dir = path.join(workspaceRoot, pattern.slice(0, -2));
@@ -72,7 +76,10 @@ export function findWorkspacePackage(
           const pkgPath = path.join(dir, entry);
           const pkgJsonPath = path.join(pkgPath, 'package.json');
           if (fs.existsSync(pkgJsonPath)) {
-            const pkg = readJson<{ name: string; version: string }>(pkgJsonPath, { name: '', version: '' });
+            const pkg = readJson<{ name: string; version: string }>(pkgJsonPath, {
+              name: '',
+              version: ''
+            });
             if (pkg.name === packageName) {
               return { path: pkgPath, version: pkg.version };
             }
@@ -81,7 +88,7 @@ export function findWorkspacePackage(
       }
     }
   }
-  
+
   return null;
 }
 
@@ -97,7 +104,7 @@ export function addWorkspaceDependency(
   if (!targetInfo) {
     throw new Error(`Workspace package not found: ${toPackage}`);
   }
-  
+
   // For workspace packages, use "workspace:*" protocol
   return ensureNpmDependencyAdded(fromPackage, toPackage, 'workspace:*');
 }

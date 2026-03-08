@@ -8,7 +8,7 @@
  *   .tieup(tauri, {
  *     treadles: [{
  *       treadle: tauriAdaptorTreadle,
- *       warpData: {
+ *       config: {
  *         entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
  *         operations: ['create', 'read', 'update', 'delete', 'list'],
  *         pluginName: 'o19-foundframe-tauri'

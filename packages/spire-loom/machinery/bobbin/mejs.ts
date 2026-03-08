@@ -96,6 +96,9 @@ function escapeRegex(str: string): string {
 /**
  * Preprocess mejs syntax to EJS format.
  *
+ * COMMENTS:
+ * - {# comment #}   → <%# comment %>   (EJS comment, not output)
+ *
  * CONTROL FLOW SIMPLIFICATION:
  * - {% if condition %}      → <%_ if (condition) { _%>
  * - {% elif condition %}    → <%_ } else if (condition) { _%>
@@ -118,6 +121,10 @@ export function preprocessTemplate(template: string, options: PreprocessorOption
   const [outOpen, outClose, codeOpen, codeClose] = opts.delimiters;
 
   let result = template;
+
+  // === COMMENTS ===
+  // {# comment #} → <%# comment %>
+  result = result.replace(/\{#\s*([\s\S]*?)\s*#\}/g, '<%# $1 %>');
 
   // === CONTROL FLOW SIMPLIFICATION ===
   if (opts.simplifyControlFlow) {

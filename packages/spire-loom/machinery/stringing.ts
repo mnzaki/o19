@@ -10,8 +10,78 @@
  * naming conventions: WARP names → code names → bind-point names.
  */
 
-import type { RawMethod } from './bobbin/index.js';
+export type NamingCase =
+  | 'snake_case'
+  | 'camelCase'
+  | 'PascalCase'
+  | 'SCREAMING_SNAKE'
+  | 'kebab-case';
 
+export class Name {
+  readonly parts: string[];
+  constructor(
+    name: string | string[],
+    public defaultCase: NamingCase = 'SCREAMING_SNAKE'
+  ) {
+    if (Array.isArray(name)) {
+      this.parts = name;
+    } else if (name.includes('-')) {
+      // kebab-case
+      this.parts = name.split('-');
+    } else if (name.includes('_')) {
+      // snake_case or SCREAMING_SNAKE
+      this.parts = name.split('_');
+    } else {
+      // it's camelCase or PascalCase
+      this.parts = name.split(/(?=[A-Z])/);
+    }
+
+    for (let i = 0; i < this.parts.length; i++) {
+      this.parts[i] = this.parts[i].toLowerCase();
+    }
+  }
+
+  withNewDefault(defaultCase: NamingCase) {
+    return new Name(this.parts, defaultCase);
+  }
+
+  apply(caseName: NamingCase | null): string {
+    switch (caseName ?? this.defaultCase) {
+      case 'snake_case':
+        return this.snakeCase;
+      case 'camelCase':
+        return this.camelCase;
+      case 'PascalCase':
+        return this.pascalCase;
+      case 'SCREAMING_SNAKE':
+        return this.screamingSname;
+      case 'kebab-case':
+        return this.kebabCase;
+      default:
+        throw new Error(`Unknown case: ${caseName}`);
+    }
+  }
+
+  get snakeCase() {
+    return this.parts.join('_');
+  }
+  get kebabCase() {
+    return this.parts.join('-');
+  }
+  get camelCase() {
+    return this.parts.map((p, i) => (i == 0 ? p : p.charAt(0).toUpperCase() + p.slice(1))).join('');
+  }
+  get pascalCase() {
+    return this.parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+  }
+  get screamingSname() {
+    return this.parts.join('_').toUpperCase();
+  }
+
+  toString(): string {
+    return this.apply(this.defaultCase);
+  }
+}
 // ============================================================================
 // Case Conversions
 // ============================================================================
@@ -329,110 +399,4 @@ export function buildCrateNaming(crateName: string): CrateNaming {
     baseName,
     pascalBase: pascalCase(baseName)
   };
-}
-
-// ============================================================================
-// Type Mapping (AIDL)
-// ============================================================================
-
-/**
- * Map internal type representation to AIDL type.
- * AIDL supports: primitives, String, Parcelable, arrays, interfaces
- *
- * @param type - The internal type (e.g., 'String', 'i32', 'Vec<u8>')
- * @returns The AIDL type (e.g., 'String', 'int', 'byte[]')
- */
-export function mapToAidlType(type: string): string {
-  // Handle nullable marker
-  const isNullable = type.startsWith('?');
-  const baseType = isNullable ? type.slice(1) : type;
-
-  // Map to AIDL type
-  switch (baseType.toLowerCase()) {
-    // Primitives
-    case 'string':
-      return 'String';
-    case 'i32':
-    case 'int':
-      return 'int';
-    case 'i64':
-    case 'long':
-      return 'long';
-    case 'bool':
-    case 'boolean':
-      return 'boolean';
-    case 'f32':
-    case 'float':
-      return 'float';
-    case 'f64':
-    case 'double':
-      return 'double';
-    case 'u8':
-    case 'byte':
-      return 'byte';
-    // Arrays
-    case 'vec<u8>':
-    case 'bytes':
-      return 'byte[]';
-    case 'vec<string>':
-      return 'String[]';
-    // Complex types - assume Parcelable for now
-    default:
-      return baseType;
-  }
-}
-
-/**
- * Extended parameter with AIDL type information.
- */
-export interface AidlParam {
-  name: string;
-  type: string;
-  optional?: boolean;
-  /** AIDL type for the parameter */
-  aidlType?: string;
-  /** Direction qualifier ('in', 'out', 'inout') */
-  direction?: 'in' | 'out' | 'inout';
-}
-
-/**
- * Extended RawMethod with AIDL-specific type information.
- */
-export interface AidlMethod extends RawMethod {
-  /** AIDL return type */
-  aidlReturnType?: string;
-  /** Parameters with AIDL types */
-  params: AidlParam[];
-}
-
-/**
- * Map method parameters for AIDL generation.
- * Adds AIDL-specific type info and direction qualifiers.
- *
- * @param params - Raw parameters to transform
- * @returns Parameters with AIDL type information added
- */
-export function addAidlTypesToParams(
-  params: Array<{ name: string; type: string; optional?: boolean }>
-): AidlParam[] {
-  return params.map((param) => ({
-    ...param,
-    aidlType: mapToAidlType(param.type),
-    direction: 'in' // Default: client sends data to service
-  }));
-}
-
-/**
- * Add AIDL type information to all methods.
- * Adds aidlReturnType and aidlType to each method's params.
- *
- * @param methods - Raw methods to transform
- * @returns Methods with AIDL type information added
- */
-export function addAidlTypesToMethods(methods: RawMethod[]): AidlMethod[] {
-  return methods.map((method) => ({
-    ...method,
-    aidlReturnType: mapToAidlType(method.returnType),
-    params: addAidlTypesToParams(method.params)
-  }));
 }

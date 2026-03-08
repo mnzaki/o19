@@ -12,7 +12,7 @@
 import 'reflect-metadata';
 
 import type { WeaverConfig, WeavingResult } from '@o19/spire-loom/machinery/weaver';
-import { loadWarp } from '@o19/spire-loom/machinery/reed';
+import { loadWarp } from '../machinery/sley/workspace-discovery.js';
 import {
   parseArgs,
   showVersion,

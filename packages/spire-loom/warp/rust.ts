@@ -23,10 +23,23 @@ export const RUST_WRAPPERS = Symbol('rust:wrappers');
 export const RUST_TYPE = Symbol('rust:type');
 export const RUST_STRUCT_MARK = Symbol('rust:struct');
 export const RUST_STRUCT_CONFIG = Symbol('rust:structConfig');
+export const RUST_STRUCT_FIELDS = Symbol('rust:structFields');
 
 // Use Symbol.metadata (Stage 3 standard) for decorator metadata
 // This is stored on the class and accessible via context.metadata
 const RUST_FIELD_META = Symbol('rust:fieldMeta');
+
+class RustStruct extends LanguageType {
+  [RUST_STRUCT_MARK] = true;
+  [RUST_STRUCT_CONFIG]: RustStructOptions = {};
+  [RUST_STRUCT_FIELDS] = new Map<string, RustFieldMetadata>();
+
+  constructor(name: string, fields: Record<string, LanguageType>) {
+    const stubFields = Object.values(fields).map((f) => `${f.name}: ${f.stubReturn}`);
+    const stubValue = `${name} {\n  ${stubFields.join(',\n  ')}\n}`;
+    super(name, stubValue, false, false);
+  }
+}
 
 /**
  * Configuration options for @rust.Struct decorator
@@ -69,12 +82,21 @@ export class RustExternalLayer<T = any> extends ExternalLayer {
   wrappers?: RustWrapper[];
   /** Parent struct class (when this is a field) */
   structClass?: T;
+  /** Target LanguageType (which can be a RustStruct itself) */
+  target?: LanguageType;
 
   /**
    * Check if a class is marked as a Rust struct.
    */
-  static isRustStruct(target: unknown): boolean {
+  static isRustStruct(target: unknown): target is RustStruct {
     return typeof target === 'function' && (target as any)[RUST_STRUCT_MARK] === true;
+  }
+
+  /**
+   * Check if a class is marked as a Rust struct.
+   */
+  isRustStruct(): this is RustStruct {
+    return RustExternalLayer.isRustStruct(this);
   }
 
   /**
@@ -82,7 +104,7 @@ export class RustExternalLayer<T = any> extends ExternalLayer {
    */
   static getFieldMetadata(target: unknown): Map<string, RustFieldMetadata> | undefined {
     if (typeof target !== 'function') return undefined;
-    return (target as any).__rustFields;
+    return (target as any)[RUST_STRUCT_FIELDS];
   }
 }
 
@@ -204,32 +226,9 @@ export const f64 = createTypeDecorator('f64');
  */
 export const Vec = createTypeDecorator('Vec');
 
-// ============================================================================
-// Type Helpers for Struct Field Definitions
-// ============================================================================
-
-/**
- * Type helper for defining Rust struct fields.
- *
- * This is a compile-time only construct - it has zero runtime overhead.
- * Use with `declare` to add static field types to your struct class.
- *
- * Usage:
- *   @rust.Struct
- *   export class Foundframe {
- *     @rust.Mutex @rust.Option thestream = TheStream;
- *     @rust.Mutex @rust.Option device_manager = DeviceManager;
- *   }
- *   // Add static field types:
- *   export declare module './WARP.ts' {
- *     interface Foundframe extends rust.StructFields<{
- *       thestream: rust.RustExternalLayer;
- *       device_manager: rust.RustExternalLayer;
- *     }> {}
- *   }
- */
-export interface StructFields<Fields extends Record<string, RustExternalLayer>> {
-  // Static field types are added here
+export interface StructField {
+  fieldName: string;
+  type: LanguageType;
 }
 
 // ============================================================================
@@ -260,11 +259,13 @@ export function Struct<T extends new (...args: any[]) => any>(
 export function Struct<T extends new (...args: any[]) => any>(
   optionsOrTarget: RustStructOptions | T,
   context?: ClassDecoratorContext<T>
-): T | ((target: T, context: ClassDecoratorContext<T>) => T) {
+):
+  | RustStructWithFields<T>
+  | ((target: T, context: ClassDecoratorContext<T>) => RustStructWithFields<T>) {
   // Overload 1: @rust.Struct({ useResult: true }) - with options
   if (typeof optionsOrTarget === 'object' && context === undefined) {
     const options = optionsOrTarget as RustStructOptions;
-    return function (target: T, ctx: ClassDecoratorContext<T>): T {
+    return function (target: T, ctx: ClassDecoratorContext<T>): RustStructWithFields<T> {
       return applyStructDecorator(target, ctx, options);
     };
   }
@@ -277,13 +278,13 @@ function applyStructDecorator<T extends new (...args: any[]) => any>(
   target: T,
   context: ClassDecoratorContext<T>,
   options: RustStructOptions
-): T {
+): RustStructWithFields<T> {
   // Get field metadata from Symbol.metadata
   const metadata = (context.metadata as any) || {};
   const fieldMeta = metadata[RUST_FIELD_META] || new Map();
 
   // Store metadata on the class for later access
-  (target as any).__rustFields = fieldMeta;
+  (target as any)[RUST_STRUCT_FIELDS] = fieldMeta;
   (target as any)[RUST_STRUCT_MARK] = true;
   (target as any)[RUST_STRUCT_CONFIG] = options;
 
@@ -295,13 +296,13 @@ function applyStructDecorator<T extends new (...args: any[]) => any>(
  * when its properties are accessed.
  */
 function createRustStructClass<T extends new (...args: any[]) => any>(OriginalClass: T) {
-  const fieldMeta = (OriginalClass as any).__rustFields || new Map();
+  const fieldMeta = (OriginalClass as any)[RUST_STRUCT_FIELDS] || new Map();
   const structConfig = (OriginalClass as any)[RUST_STRUCT_CONFIG];
 
-  class RustStructClass extends RustExternalLayer {
-    static [RUST_STRUCT_MARK] = true;
+  class RustStructClass extends RustStruct {
     static __originalClass = OriginalClass;
-    static __rustFields = fieldMeta;
+    static [RUST_STRUCT_MARK] = true;
+    static [RUST_STRUCT_FIELDS] = fieldMeta;
     static [RUST_STRUCT_CONFIG] = structConfig;
 
     static get [Symbol.for('rust:structName')](): string {
@@ -316,14 +317,17 @@ function createRustStructClass<T extends new (...args: any[]) => any>(OriginalCl
 
   // Create accessors for each field - return RustExternalLayer instances
   for (const [fieldName, meta] of fieldMeta.entries()) {
-    Object.defineProperty(RustStructClass, fieldName, {
-      get: () => {
-        const layer = new RustExternalLayer();
-        layer.fieldName = fieldName;
-        layer.wrappers = meta[RUST_WRAPPERS] || [];
-        layer.structClass = RustStructClass; // Reference to parent struct
-        return layer;
-      },
+    const target = (OriginalClass as any)[fieldName];
+    if (!(target instanceof LanguageType)) {
+      throw new Error(`[rust] Field '${fieldName}' must be a LanguageType`);
+    }
+    const layer = new RustExternalLayer();
+    layer.fieldName = fieldName;
+    layer.wrappers = meta[RUST_WRAPPERS] || [];
+    layer.structClass = RustStructClass; // Reference to parent struct
+    layer.target = target;
+    Object.defineProperty(RustStructClass.prototype, fieldName, {
+      value: layer,
       enumerable: true,
       configurable: true
     });
@@ -331,9 +335,12 @@ function createRustStructClass<T extends new (...args: any[]) => any>(OriginalCl
 
   // Return type merges the struct class (T) with RustExternalLayer
   // This makes static fields available while preserving the base class behavior
-  return RustStructClass as unknown as (new () => RustExternalLayer<T>) & T;
+  return RustStructClass as unknown as RustStructWithFields<T>;
 }
 
+type RustStructWithFields<T extends new (...args: any[]) => any> = {
+  new (): RustStruct & { [P in keyof T]: RustExternalLayer };
+};
 // ============================================================================
 // Rust Data Types (for method signatures)
 // ============================================================================
@@ -374,7 +381,7 @@ export function getRustStructMetadata(
   const ctor = target as any;
   return {
     name: ctor.name,
-    fields: ctor.__rustFields || new Map()
+    fields: ctor[RUST_STRUCT_FIELDS] || new Map()
   };
 }
 
@@ -394,14 +401,15 @@ import {
   declareLanguage,
   LanguageType,
   type TypeFactory,
-  type LanguageParam,
-  type LanguageMethod
+  type LanguageParam
 } from '../machinery/reed/language/index.js';
 import { toSnakeCase } from '../machinery/stringing.js';
 import { RustCore, rustCore } from './spiral/rust.js';
 import { RustAndroidSpiraler } from './spiral/spiralers/rust/index.js';
 import { DesktopSpiraler } from './spiral/spiralers/desktop.js';
 import type { TransformEnhancer } from '../machinery/reed/index.js';
+import type { LanguageMethod } from '../machinery/reed/language/imperative.js';
+import type { MethodMetadata } from './metadata.js';
 
 // ============================================================================
 // Rust-Specific Types
@@ -437,12 +445,17 @@ interface RustMethod extends LanguageMethod<RustParam> {
  * Defines how TypeScript types map to Rust types,
  * and provides stub return values for each type.
  */
-class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
+class RustTypeFactory implements TypeFactory<LanguageType> {
   // Primitive types
   boolean = new LanguageType('bool', 'false', true);
   string = new LanguageType('String', 'String::new()', true);
   number = new LanguageType('i64', '0', true);
   void = new LanguageType('()', '()', true);
+
+  // Entity type factory
+  class(name: string, fields: Record<string, LanguageType>): LanguageType {
+    return new RustStruct(name, fields);
+  }
 
   // Generic type factories
   array(itemType: LanguageType): LanguageType {
@@ -463,11 +476,6 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
     return new LanguageType(`Result<${okType.name}, ${errName}>`, 'Ok(Default::default())');
   }
 
-  // Entity type factory
-  entity(name: string): LanguageType {
-    return new LanguageType(name, `// Entity: ${name}\n    Default::default()`, false, true);
-  }
-
   // Map TypeScript type to Rust type
   fromTsType(tsType: string, isCollection: boolean): LanguageType {
     // Handle TypeScript array syntax: T[] -> Vec<T>
@@ -483,22 +491,23 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
     const finalIsCollection = isCollection || isArraySyntax;
 
     const baseType = (() => {
-      switch (normalizedType.toLowerCase()) {
+      switch (normalizedType) {
         case 'string':
           return this.string;
         case 'number':
           return this.number;
         case 'boolean':
-        case 'bool':
           return this.boolean;
         case 'void':
           return this.void;
-        case 'date':
+        case 'Date':
           // Date is typically represented as i64 (timestamp) or String in Rust
           return new LanguageType('String', 'String::new()', true);
         default:
-          // Complex type / entity
-          return this.entity(normalizedType);
+          // Complex type / entity TODO FIXME REMOVE THIS it's conflation of
+          // layers ya kimi
+          //return this.class(normalizedType);
+          throw new Error('unknown type!');
       }
     })();
 
@@ -516,7 +525,7 @@ class RustTypeFactory implements TypeFactory<RustParam, LanguageType> {
  * - Adds implName (snake_case)
  * - Generates service access preamble for Mutex/Option wrappers
  */
-const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (methods) => {
+const rustEnhancer: TransformEnhancer<MethodMetadata, RustParam, RustMethod> = (methods) => {
   return methods.map((method) => {
     // Get link metadata for service access
     const link = (method as any).link;
@@ -524,7 +533,7 @@ const rustEnhancer: TransformEnhancer<RustMethod, RustParam, RustMethod> = (meth
 
     return {
       ...method,
-      implName: toSnakeCase(method.implName || method.name),
+      //implName: toSnakeCase(method.implName || method.name),
       serviceAccessPreamble: preamble
     } as RustMethod;
   });

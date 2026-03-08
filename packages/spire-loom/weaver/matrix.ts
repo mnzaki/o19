@@ -4,7 +4,7 @@
  * The matrix defines what to generate based on spiral type transitions.
  */
 
-import type { GeneratorFunction } from './types.js';
+import type { TreadleTrodder } from './plan-builder.js';
 
 /**
  * The Generator Matrix: [CurrentType, PreviousType] → Generator
@@ -12,7 +12,7 @@ import type { GeneratorFunction } from './types.js';
  * This matrix defines what to generate based on the transition
  * from one ring type to another.
  */
-export class GeneratorMatrix extends Map<string, GeneratorFunction> {
+export class GeneratorMatrix extends Map<string, TreadleTrodder> {
   /**
    * Set a generator for a type pair.
    *
@@ -20,7 +20,7 @@ export class GeneratorMatrix extends Map<string, GeneratorFunction> {
    * @param previousType - The inner ring type (e.g., 'RustCore')
    * @param generator - The generator function
    */
-  setPair(currentType: string, previousType: string, generator: GeneratorFunction): this {
+  setPair(currentType: string, previousType: string, generator: TreadleTrodder): this {
     const key = `${currentType}→${previousType}`;
     return this.set(key, generator);
   }
@@ -28,7 +28,7 @@ export class GeneratorMatrix extends Map<string, GeneratorFunction> {
   /**
    * Get a generator for a type pair.
    */
-  getPair(currentType: string, previousType: string): GeneratorFunction | undefined {
+  getPair(currentType: string, previousType: string): TreadleTrodder | undefined {
     const key = `${currentType}→${previousType}`;
     return this.get(key);
   }

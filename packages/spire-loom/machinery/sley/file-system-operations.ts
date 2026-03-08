@@ -21,12 +21,12 @@ export function ensureDir(dirPath: string): void {
  */
 export function ensureFile(filePath: string, content: string): boolean {
   ensureDir(path.dirname(filePath));
-  
+
   if (fs.existsSync(filePath)) {
     const existing = fs.readFileSync(filePath, 'utf-8');
     if (existing === content) return false;
   }
-  
+
   fs.writeFileSync(filePath, content, 'utf-8');
   return true;
 }
@@ -55,23 +55,20 @@ export function ensureTextBlockInserted(
   options: InsertTextOptions
 ): boolean {
   ensureDir(path.dirname(filePath));
-  
+
   let content = '';
   if (fs.existsSync(filePath)) {
     content = fs.readFileSync(filePath, 'utf-8');
   }
-  
+
   const startMarker = options.noMarkers ? '' : `\n${options.marker} >>\n`;
   const endMarker = options.noMarkers ? '' : `\n${options.marker} <<\n`;
   const fullBlock = startMarker + blockContent + endMarker;
-  
+
   // Check if block already exists with same content
   const escapedMarker = options.marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const blockRegex = new RegExp(
-    `${escapedMarker} >>\\n([\\s\\S]*?)\\n${escapedMarker} <<`,
-    'g'
-  );
-  
+  const blockRegex = new RegExp(`${escapedMarker} >>\\n([\\s\\S]*?)\\n${escapedMarker} <<`, 'g');
+
   const existingMatch = blockRegex.exec(content);
   if (existingMatch) {
     const existingContent = existingMatch[1];
@@ -83,7 +80,7 @@ export function ensureTextBlockInserted(
     fs.writeFileSync(filePath, newContent, 'utf-8');
     return true;
   }
-  
+
   // Insert new block
   let newContent: string;
   switch (options.position) {
@@ -105,7 +102,7 @@ export function ensureTextBlockInserted(
       newContent = content.slice(0, insertIndex) + fullBlock + content.slice(insertIndex);
       break;
   }
-  
+
   fs.writeFileSync(filePath, newContent, 'utf-8');
   return true;
 }
@@ -113,22 +110,19 @@ export function ensureTextBlockInserted(
 /**
  * Remove a text block identified by marker (idempotent).
  */
-export function ensureTextBlockRemoved(
-  filePath: string,
-  marker: string
-): boolean {
+export function ensureTextBlockRemoved(filePath: string, marker: string): boolean {
   if (!fs.existsSync(filePath)) return false;
-  
+
   const content = fs.readFileSync(filePath, 'utf-8');
   const escapedMarker = marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const blockRegex = new RegExp(
     `\\n?${escapedMarker} >>\\n[\\s\\S]*?\\n${escapedMarker} <<\\n?`,
     'g'
   );
-  
+
   const newContent = content.replace(blockRegex, '');
   if (newContent === content) return false;
-  
+
   fs.writeFileSync(filePath, newContent, 'utf-8');
   return true;
 }
@@ -184,18 +178,19 @@ export function findFiles(
 ): string[] {
   const { recursive = true, excludeDirs = ['node_modules', '.git', 'target', 'dist'] } = options;
   const results: string[] = [];
-  
-  const regex = typeof pattern === 'string' 
-    ? new RegExp(pattern.replace(/\./g, '\\.').replace(/\*/g, '.*'))
-    : pattern;
-  
+
+  const regex =
+    typeof pattern === 'string'
+      ? new RegExp(pattern.replace(/\./g, '\\.').replace(/\*/g, '.*'))
+      : pattern;
+
   function scan(currentDir: string): void {
     if (!fs.existsSync(currentDir)) return;
-    
+
     const entries = fs.readdirSync(currentDir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(currentDir, entry.name);
-      
+
       if (entry.isDirectory()) {
         if (recursive && !excludeDirs.includes(entry.name)) {
           scan(fullPath);
@@ -205,7 +200,7 @@ export function findFiles(
       }
     }
   }
-  
+
   scan(dir);
   return results;
 }

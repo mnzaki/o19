@@ -75,66 +75,6 @@ const crudMetadata = globalThis[GLOBAL_KEY].crud;
 const methodTags = globalThis[GLOBAL_KEY].tags;
 const entityMetadata = globalThis[GLOBAL_KEY].entities;
 
-// ============================================================================
-// Entity Management System
-// ============================================================================
-
-/**
- * Options for the @Management.Entity decorator.
- */
-export interface EntityOptions {
-  /** Custom table/collection name (defaults to entity class name) */
-  tableName?: string;
-  /** Whether this entity is read-only (no create/update/delete) */
-  readOnly?: boolean;
-  /** Tags for categorization */
-  tags?: string[];
-}
-
-/**
- * Field metadata for entity code generation.
- */
-export interface EntityFieldMetadata {
-  /** Property name (camelCase) */
-  name: string;
-  /** TypeScript type (source of truth) */
-  tsType: string;
-  /** SQL column name (snake_case) */
-  columnName: string;
-  /** Whether field is nullable */
-  nullable: boolean;
-  /** Whether this is the primary key */
-  isPrimary: boolean;
-  /** Whether this is an auto-managed created timestamp */
-  isCreatedAt: boolean;
-  /** Whether this is an auto-managed updated timestamp */
-  isUpdatedAt: boolean;
-  /** Whether to include in INSERT statements */
-  forInsert: boolean;
-  /** Whether to include in UPDATE statements */
-  forUpdate: boolean;
-}
-
-/**
- * Metadata for an Entity associated with a Management.
- */
-export interface EntityMetadata {
-  /** The entity class constructor */
-  entityClass: new (...args: any[]) => any;
-  /** The entity class name */
-  name: string;
-  /** Management class this entity belongs to */
-  managementName: string;
-  /** Management class name without 'Mgmt' */
-  serviceName: string;
-  /** Entity name all lower case */
-  lower: string;
-  /** Optional metadata attached by decorator */
-  options?: EntityOptions;
-  /** Field metadata for code generation */
-  fields?: EntityFieldMetadata[];
-}
-
 /**
  * Decorator for Management reach (Stage 3 format).
  * @param level - 'Private' | 'Local' | 'Global'
@@ -321,31 +261,11 @@ export abstract class Management {
 
 // Import and re-export Layer/Layering from layers.ts for backward compatibility
 import { Layer, Layering, ExternalLayer } from './layers.js';
+import type { EntityMetadata, EntityOptions, LinkMetadata } from './metadata.js';
 export { Layer, Layering, ExternalLayer };
 
 // Symbol for link metadata (to avoid property collision)
 export const LINK_TARGET = Symbol('loom:linkTarget');
-
-/**
- * Minimal metadata stored by @loom.link decorator.
- * Heavy processing (resolving methods, mapping types) happens in heddles.
- */
-export interface LinkMetadata {
-  /** The target struct class (e.g., Foundframe) */
-  structClass: typeof ExternalLayer;
-  /** The field name within the struct (e.g., 'device_manager') */
-  fieldName: string;
-  /**
-   * Whether methods return Result<T, E> for error handling.
-   * Inherited from @rust.Struct({ useResult: true }) on the linked struct.
-   */
-  useResult?: boolean;
-  /**
-   * Wrapper types for the linked field (e.g., ['Mutex', 'Option']).
-   * Used to generate proper field access code.
-   */
-  wrappers?: string[];
-}
 
 /**
  * Link a Management to an ExternalLayer field.
@@ -354,11 +274,17 @@ export interface LinkMetadata {
  * Usage:
  *   @loom.link(foundframe.inner.core.thestream)
  */
-export function link<L extends ExternalLayer>(linkTarget: L | (() => L)) {
-  return <T extends typeof Management>(target: T, context: ClassDecoratorContext<T>): T => {
+export function link<L extends ExternalLayer>(linkTarget: L) {
+  return <T extends typeof Management>(
+    decoratorTarget: T,
+    _context: ClassDecoratorContext<T>
+  ): T => {
     // Store the link target (function or value) for resolution at weave time
-    (target as any)[LINK_TARGET] = linkTarget;
-    return target;
+    (decoratorTarget as any)[LINK_TARGET] = {
+      target: linkTarget
+    } as LinkMetadata;
+
+    return decoratorTarget;
   };
 }
 
@@ -366,6 +292,8 @@ export function link<L extends ExternalLayer>(linkTarget: L | (() => L)) {
  * Get link metadata from a Management class.
  * Returns undefined if not linked.
  */
-export function getLinkTarget<T extends typeof Management>(mgmtClass: T): LinkMetadata | undefined {
+export function getLinkMetadata<T extends typeof Management>(
+  mgmtClass: T
+): LinkMetadata | undefined {
   return (mgmtClass as any)[LINK_TARGET];
 }

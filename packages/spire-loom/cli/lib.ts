@@ -7,8 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { WeaverConfig } from '@o19/spire-loom/machinery/weaver';
-import { detectWorkspace, getSuggestedPackageFilter } from '@o19/spire-loom/machinery/reed';
+import { Weaver } from '@o19/spire-loom/weaver';
 
 export interface CliOptions {
   watch?: boolean;
@@ -341,12 +340,17 @@ export async function handleCommonArgs(
   return false;
 }
 
-export async function findWorkspaceConfig(): Promise<WeaverConfig | null> {
+export async function findWorkspaceConfig(): Promise<Weaver | null> {
   const args = process.argv.slice(2);
   const options = parseArgs(args);
-  const workspace = detectWorkspace();
 
-  if (workspace.type === 'unknown') {
+  const weaver = new Weaver({
+    verbose: options.verbose,
+    packageFilter: options.package
+  });
+  const workspace = await weaver.loadWorkspace();
+
+  if (!workspace || workspace.type === 'unknown') {
     console.error('❌ Not in a workspace or package directory');
     console.error('   Run this from a directory with:');
     console.error('   - pnpm-workspace.yaml (pnpm workspace)');
@@ -361,34 +365,25 @@ export async function findWorkspaceConfig(): Promise<WeaverConfig | null> {
     return null;
   }
 
-  let packageFilter = options.package;
-
-  if (!packageFilter && workspace.type === 'package' && workspace.currentPackage) {
-    const suggested = getSuggestedPackageFilter(workspace);
+  if (!options.package && workspace.type === 'package' && workspace.currentPackage) {
+    const suggested = workspace.currentPackage;
 
     console.log(`📍 Package detected: ${workspace.currentPackage}`);
     if (suggested) {
-      packageFilter = suggested;
       console.log(`   Auto-filtering to: "${suggested}" (use -p all to override)\n`);
     }
   } else if (workspace.type === 'workspace') {
     console.log(`📍 Workspace detected: ${workspace.root}`);
-    if (!packageFilter) {
+    if (!options.package) {
       console.log(`   Generating all packages (use --package <name> to filter)\n`);
     }
   }
 
   console.log(`📄 Loading: ${workspace.warpPath}\n`);
 
-  const config: WeaverConfig = {
-    workspace,
-    verbose: options.verbose,
-    packageFilter
-  };
-
-  if (packageFilter) {
-    console.log(`📦 Package filter: "${packageFilter}"\n`);
+  if (workspace.currentPackage) {
+    console.log(`📦 Package filter: "${workspace.currentPackage}"\n`);
   }
 
-  return config;
+  return weaver;
 }

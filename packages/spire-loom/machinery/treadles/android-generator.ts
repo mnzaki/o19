@@ -11,22 +11,117 @@
 
 import { RustAndroidSpiraler } from '../../warp/spiral/spiralers/rust/android.js';
 import { RustCore, SpiralOut } from '../../warp/spiral/index.js';
-import { addManagementPrefix } from '../sley/index.js';
 import {
-  toSnakeCase,
   buildServiceNaming,
   buildAndroidPackageData,
-  toRawMethod,
   buildMethodLink,
-  extractManagementFromBindPoint,
-  addAidlTypesToMethods
+  extractManagementFromBindPoint
 } from '../treadle-kit/index.js';
 import { buildCrateNaming } from '../stringing.js';
 import { hookup } from '../shuttle/index.js';
-import type { hookup as HookupTypes } from '../shuttle/index.js';
 import { declareTreadle, generateFromTreadle } from './index.js';
-import type { GeneratorContext } from '../heddles/index.js';
-import type { RawMethod } from '../bobbin/index.js';
+import { LanguageMethod, RawMethod } from '../reed/language/index.js';
+import type { BaseParam, LanguageParam } from '../reed/language/types.js';
+
+/**
+ * Extended parameter with AIDL type information.
+ */
+interface AidlParam extends LanguageParam {
+  name: string;
+  type: string;
+  optional?: boolean;
+  /** AIDL type for the parameter */
+  aidlType?: string;
+  /** Direction qualifier ('in', 'out', 'inout') */
+  direction?: 'in' | 'out' | 'inout';
+}
+
+/**
+ * Extended RawMethod with AIDL-specific type information.
+ */
+export class AidlMethod extends LanguageMethod<AidlParam> {
+  /** AIDL return type */
+  aidlReturnType?: string;
+}
+
+/**
+ * Map internal type representation to AIDL type.
+ * AIDL supports: primitives, String, Parcelable, arrays, interfaces
+ *
+ * @param type - The internal type (e.g., 'String', 'i32', 'Vec<u8>')
+ * @returns The AIDL type (e.g., 'String', 'int', 'byte[]')
+ */
+export function mapToAidlType(type: string): string {
+  // Handle nullable marker
+  const isNullable = type.startsWith('?');
+  const baseType = isNullable ? type.slice(1) : type;
+
+  // Map to AIDL type
+  switch (baseType.toLowerCase()) {
+    // Primitives
+    case 'string':
+      return 'String';
+    case 'i32':
+    case 'int':
+      return 'int';
+    case 'i64':
+    case 'long':
+      return 'long';
+    case 'bool':
+    case 'boolean':
+      return 'boolean';
+    case 'f32':
+    case 'float':
+      return 'float';
+    case 'f64':
+    case 'double':
+      return 'double';
+    case 'u8':
+    case 'byte':
+      return 'byte';
+    // Arrays
+    case 'vec<u8>':
+    case 'bytes':
+      return 'byte[]';
+    case 'vec<string>':
+      return 'String[]';
+    // Complex types - assume Parcelable for now
+    default:
+      return baseType;
+  }
+}
+
+/**
+ * Map method parameters for AIDL generation.
+ * Adds AIDL-specific type info and direction qualifiers.
+ *
+ * @param params - Raw parameters to transform
+ * @returns Parameters with AIDL type information added
+ */
+function addAidlTypesToParams(
+  params: Array<{ name: string; type: string; optional?: boolean }>
+): AidlParam[] {
+  return params.map((param) => ({
+    ...param,
+    aidlType: mapToAidlType(param.type),
+    direction: 'in' // Default: client sends data to service
+  }));
+}
+
+/**
+ * Add AIDL type information to all methods.
+ * Adds aidlReturnType and aidlType to each method's params.
+ *
+ * @param methods - Raw methods to transform
+ * @returns Methods with AIDL type information added
+ */
+export function addAidlTypesToMethods(methods: RawMethod[]): AidlMethod[] {
+  return methods.map((method) => ({
+    ...method,
+    aidlReturnType: mapToAidlType(method.returnType),
+    params: addAidlTypesToParams(method.params)
+  }));
+}
 
 // ============================================================================
 // Treadle Definition
@@ -50,7 +145,7 @@ export const androidServiceTreadle = declareTreadle({
   // Method filtering and transformation
   methods: {
     filter: 'platform',
-    pipeline: [addManagementPrefix()]
+    pipeline: []
   },
 
   // Add link metadata for JNI routing and AIDL types
@@ -66,7 +161,7 @@ export const androidServiceTreadle = declareTreadle({
         link: mgmtName ? linkMap.get(mgmtName) : undefined
       };
     });
-    
+
     // Then add AIDL type information for all methods
     return addAidlTypesToMethods(withLinks);
   },
@@ -131,24 +226,22 @@ export const androidServiceTreadle = declareTreadle({
   outputs: [
     {
       template: 'android/service.kt.mejs',
-      path: 'android/java/{packagePath}/service/{serviceName}.kt',
-      language: 'kotlin'
+      path: 'android/java/{packagePath}/service/{serviceName}.kt'
     },
     // AIDL generation enabled - generates interface for NDK aidl tool
     {
       template: 'android/aidl_interface.aidl.mejs',
-      path: 'android/aidl/{packagePath}/{interfaceName}.aidl',
-      language: 'aidl'
+      path: 'android/aidl/{packagePath}/{interfaceName}.aidl'
     },
     {
       template: 'android/jni_bridge.jni.rs.mejs',
-      path: 'src/lib.rs',
-      language: 'rust_jni'
+      path: 'src/lib.rs'
     }
   ],
 
   // Package integration
   hookup: {
+    // FIXME this is the old hookup system!!!
     type: 'custom',
     async customHookup(context, files, data) {
       await hookup.executeAndroidHookup(context, files, {

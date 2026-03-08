@@ -18,8 +18,8 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
-import { GeneratorMatrix } from '../heddles/index.js';
 import { generateFromTreadle, type TreadleDefinition } from './declarative.js';
+import { GeneratorMatrix } from '../../weaver/matrix.js';
 
 // ============================================================================
 // Types
@@ -143,20 +143,20 @@ async function loadTreadleFromFile(
 
 /**
  * Type guard to check if a value is a TreadleDefinition.
- * 
+ *
  * Supports both matrix treadles (with matches) and tieup treadles (without matches).
  */
 function isTreadleDefinition(value: unknown): value is TreadleDefinition {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
-  
+
   const v = value as Record<string, unknown>;
-  
+
   // Must have methods and outputs
   const hasMethods = 'methods' in v && typeof v.methods === 'object' && v.methods !== null;
   const hasOutputs = 'outputs' in v && Array.isArray(v.outputs);
-  
+
   // Matrix treadles have matches, tieup treadles don't
   // Both are valid TreadleDefinitions
   return hasMethods && hasOutputs;
@@ -183,7 +183,7 @@ export function buildMatrixFromTreadles(treadles: DiscoveredTreadle[]): Generato
       }
       continue;
     }
-    
+
     const generator = generateFromTreadle(definition);
 
     for (const match of definition.matches) {

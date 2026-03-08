@@ -12,264 +12,21 @@
  */
 
 import { declare, getScopeRegistry } from '../../self-declarer.js';
-import type { ExternalLayer } from '../../../warp/imprint.js';
-import type { CoreRing, Spiraler, SpiralRing } from '../../../warp/spiral/pattern.js';
-import {
-  type TransformConfig,
-  createTransform,
-  type TransformEnhancer
-} from '../transform-pipeline.js';
+import { type TransformEnhancer } from '../transform-pipeline.js';
 
 // Import LanguageType class (not just type) for runtime use
-import { LanguageType, type BaseParam, type LanguageParam, type TypeFactory } from './types.js';
-import { camelCase, pascalCase, toSnakeCase } from '../../stringing.js';
-import type { MethodLink } from '../../bobbin/index.js';
+import {
+  LanguageType,
+  LanguageValue,
+  type LanguageDefinition,
+  type LanguageParam,
+  type TypeFactory
+} from './types.js';
+import { Name } from '../../stringing.js';
+import type { MethodMetadata } from '../../../warp/metadata.js';
+import type { FunctionVariantDeclaration } from './declarative.js';
+import type { LanguageMethod } from './method.js';
 
-// ============================================================================
-// Language Identity
-// ============================================================================
-
-/* NOTE: the unused type parameters are so that LanguageDeclarationInput can
- * properly pass types through so that type inference works correctly for the
- * fields in codeGen.rendering
- */
-export interface LanguageIdentity<
-  _P extends LanguageParam = LanguageParam,
-  _T extends LanguageType = LanguageType
-> {
-  /** Language name (e.g., 'typescript', 'rust', 'kotlin') */
-  name: string;
-  /** Parent language to inherit from (e.g., 'c_family') */
-  extends?: string;
-  /** File extensions associated with this language */
-  extensions: string[];
-}
-
-// ============================================================================
-// Naming Conventions
-// ============================================================================
-
-export type NamingCase =
-  | 'snake_case'
-  | 'camelCase'
-  | 'PascalCase'
-  | 'SCREAMING_SNAKE'
-  | 'kebab-case';
-
-export type CoreConvention =
-  | 'function'
-  | 'type'
-  | 'variable'
-  | 'const'
-  | 'module'
-  | 'field'
-  | 'method'
-  | 'parameter'
-  | 'generic';
-
-export type NamingConventions = {
-  [K in CoreConvention]: NamingCase | null;
-} & Record<string, NamingCase | null>;
-
-/**
- * Default naming conventions.
- * Merged with user-provided conventions to fill in missing values.
- */
-export const DEFAULT_NAMING_CONVENTIONS: Required<NamingConventions> = {
-  function: 'snake_case',
-  type: 'PascalCase',
-  variable: 'snake_case',
-  const: 'SCREAMING_SNAKE',
-  module: 'snake_case',
-  field: 'snake_case',
-  method: 'snake_case',
-  parameter: 'snake_case',
-  generic: 'PascalCase'
-};
-
-// ============================================================================
-// Method Types
-// ============================================================================
-
-/**
- * Raw method — core data class, no language enhancement.
- *
- * This is what comes from Management metadata collection.
- * Language enhancement happens separately via the enhancement system.
- *
- * CRUD classification is stored in tags (e.g., 'crud:create'), not as
- * a direct property. Use getCrudNameFromTags() to derive crudName.
- *
- * @example
- * ```typescript
- * const raw = new RawMethod(
- *   'bookmark_addBookmark',
- *   'addBookmark',
- *   'addBookmark',
- *   'void',
- *   false,
- *   [{ name: 'url', type: 'string' }],
- *   'Add a bookmark',
- *   undefined,
- *   ['crud:create'],
- *   'BookmarkMgmt'
- * );
- * ```
- */
-export class RawMethod {
-  constructor(
-    /** Bind-point name with management prefix (e.g., 'bookmark_add_bookmark') */
-    public readonly name: string,
-    /** Original implementation name (e.g., 'add_bookmark') */
-    public readonly implName: string,
-    /** JavaScript/TypeScript camelCase name (from WARP) */
-    public readonly jsName: string | undefined,
-    /** TypeScript return type */
-    public readonly returnType: string,
-    /** Whether return is a collection */
-    public readonly isCollection: boolean,
-    /** Method parameters */
-    public readonly params: BaseParam[],
-    /** JSDoc description */
-    public readonly description: string | undefined,
-    /** Link metadata for routing to struct fields */
-    public readonly link: MethodLink | undefined,
-    /** Tags from decorators (e.g., 'crud:create', 'auth:required') */
-    public readonly tags: string[] | undefined,
-    /** Management class this method belongs to */
-    public readonly managementName: string | undefined,
-    /** CRUD method name (added by CRUD pipeline, derived from tags) */
-    public crudName?: string
-  ) {}
-
-  /**
-   * Check if this method has a specific tag.
-   */
-  hasTag(tag: string): boolean {
-    return this.tags?.includes(tag) ?? false;
-  }
-
-  /**
-   * Get CRUD operation from tags (e.g., 'create', 'read').
-   */
-  getCrudOperation(): string | undefined {
-    return this.tags?.find((t) => t.startsWith('crud:'))?.replace('crud:', '');
-  }
-
-  /**
-   * CRUD operation type (create, read, update, delete, list).
-   * Convenience getter that calls getCrudOperation().
-   */
-  get crudOperation(): string | undefined {
-    return this.getCrudOperation();
-  }
-}
-
-/**
- * Language-specific method extends raw with:
- * - Naming variants (camelName, pascalName, snakeName)
- * - Type definition (returnTypeDef)
- * - Stub return value
- * - Template helpers (params, signature)
- *
- * This is the internal representation after language enhancement.
- * For templates, use LanguageView (from enhanced/methods.ts) which provides
- * idiomatic naming via conventions.
- */
-export class LanguageMethod<
-  P extends LanguageParam = LanguageParam,
-  T extends LanguageType = LanguageType
-> extends RawMethod {
-  withNewName(name: string): LanguageMethod<P, T> {
-    // 1. Create new object with same prototype chain
-    const clone = Object.create(Object.getPrototypeOf(this)) as LanguageMethod<P, T>;
-
-    // 2. Copy all own property descriptors from original
-    for (const key of Object.getOwnPropertyNames(this)) {
-      const descriptor = Object.getOwnPropertyDescriptor(this, key);
-      if (descriptor) {
-        Object.defineProperty(clone, key, descriptor);
-      }
-    }
-
-    // 3. Override name-based properties
-    //    name is readonly but we can redefine it since it's configurable
-    Object.defineProperty(clone, 'name', {
-      value: name,
-      writable: false,
-      enumerable: true,
-      configurable: true
-    });
-
-    // 4. Recalculate naming variants based on new name
-    Object.defineProperty(clone, 'camelName', {
-      value: camelCase(name),
-      writable: true,
-      enumerable: true,
-      configurable: true
-    });
-
-    Object.defineProperty(clone, 'pascalName', {
-      value: pascalCase(name),
-      writable: true,
-      enumerable: true,
-      configurable: true
-    });
-
-    Object.defineProperty(clone, 'snakeName', {
-      value: toSnakeCase(name),
-      writable: true,
-      enumerable: true,
-      configurable: true
-    });
-
-    return clone;
-  }
-
-  cloneWith(
-    overrides: Partial<Omit<LanguageMethod<P, T>, 'name' | 'camelName' | 'pascalName' | 'snakeName'>>
-  ): LanguageMethod<P, T> {
-    const clone = Object.create(Object.getPrototypeOf(this)) as LanguageMethod<P, T>;
-
-    // Copy all own properties
-    for (const key of Object.getOwnPropertyNames(this)) {
-      const descriptor = Object.getOwnPropertyDescriptor(this, key);
-      if (descriptor) {
-        Object.defineProperty(clone, key, descriptor);
-      }
-    }
-
-    // Apply overrides (excluding name-related properties which should use withNewName)
-    for (const [key, value] of Object.entries(overrides)) {
-      Object.defineProperty(clone, key, {
-        value,
-        writable: true,
-        enumerable: true,
-        configurable: true
-      });
-    }
-
-    return clone;
-  }
-
-  /** camelCase name */
-  camelName!: string;
-  /** PascalCase name */
-  pascalName!: string;
-  /** snake_case name */
-  snakeName!: string;
-
-  /**
-   * Parameters with language-specific enhancements.
-   * Overrides RawMethod.params to include langType and formattedName.
-   */
-  declare params: P[];
-
-  /** Return type definition with full metadata */
-  returnTypeDef!: T;
-  /** Stub return value for mock implementations */
-  stubReturn!: string;
-}
 // ============================================================================
 // Language Rendering Configuration
 // ============================================================================
@@ -277,36 +34,25 @@ export class LanguageMethod<
 /**
  * Configuration for rendering language-specific code constructs.
  */
-export interface LanguageRenderingConfig<
-  P extends LanguageParam = LanguageParam,
-  T extends LanguageType = LanguageType
-> {
+export interface LanguageRenderingConfig {
+  // TODO remove
   /** Format a parameter name (e.g., snake_case, camelCase) */
-  formatParamName: (name: string) => string;
+  formatParam: (name: string, type: LanguageType) => string;
+
+  /** render a list of formatted params */
+  renderParams: (params: string[]) => string;
 
   /** Generate function signature */
-  functionSignature: (method: LanguageMethod<P, T>) => string;
-
-  /** Generate async function signature (optional) */
-  asyncFunctionSignature?: (method: LanguageMethod<P, T>) => string;
+  functionSignature: (method: LanguageMethod) => string;
 
   /** Render full function definition with variant options (optional) */
-  renderDefinition?: (
-    method: LanguageMethod<P, T>,
-    options: {
-      public?: boolean;
-      private?: boolean;
-      protected?: boolean;
-      static?: boolean;
-      async?: boolean;
-    }
-  ) => string;
+  renderDefinition: (method: LanguageMethod) => string;
 
   /**
    * Render parameters wrapped in an object (optional).
    * Used by withObjectParams() for DDD service/port patterns.
    */
-  renderObjectWrappedParams?: (method: LanguageMethod<P, T>, objectParamName: string) => string;
+  renderObjectWrappedParams?: (method: LanguageMethod, objectParamName: string) => string;
 }
 
 // ============================================================================
@@ -320,94 +66,27 @@ export interface LanguageCodeGenConfig<
   P extends LanguageParam = LanguageParam,
   T extends LanguageType = LanguageType
 > {
-  /** Type factory for generating language-specific types */
-  types: TypeFactory<P, T>;
-
   /** Rendering configuration for code generation */
-  rendering: LanguageRenderingConfig<P, T>;
+  rendering: LanguageRenderingConfig;
 
   /** Optional custom transform enhancers */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  enhancers?: TransformEnhancer<any, any, any>[];
+  enhancers?: TransformEnhancer<any, any>[];
 
   /**
    * Optional custom transform function.
    * If provided, takes precedence over auto-generated transform from types + rendering.
    * Use this for advanced use cases that can't be expressed via the declarative config.
    */
-  transform?: (methods: RawMethod[]) => LanguageMethod<P, T>[];
+  transform?: (methods: MethodMetadata[]) => LanguageMethod<P, T>[];
 }
 
-// ============================================================================
-// Language WARP Configuration
-// ============================================================================
-
-/**
- * WARP integration configuration for a language.
- */
-export interface LanguageWarpConfig {
-  /** ExternalLayer subclass for this language */
-  externalLayerClass: new () => ExternalLayer;
-
-  /**
-   * Field decorator functions (e.g., { Mutex, Option, i64 }).
-   * Supports both legacy and TC39 decorator signatures.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fieldDecorators: Record<string, any>;
-
-  /** Class decorator function (e.g., Struct) - can be direct or factory */
-  classDecorator: ClassDecorator | ((options?: any) => ClassDecorator);
-
-  /** Core ring configuration */
-  core: {
-    /** The CoreRing subclass (e.g., RustCore) */
-    coreClass: new (...args: any[]) => CoreRing<any, any, any>;
-    /** Factory to create core instance */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    createCore: (layer?: any) => CoreRing<any, any, any>;
-  };
-
-  /**
-   * Spiraler classes for type-safe navigation.
-   * Key is target ring name (e.g., 'android', 'desktop', 'typescript').
-   */
-  spiralers: Record<string, new (innerRing: SpiralRing) => Spiraler>;
-
-  /** Expose base factory at loom.spiral.{language} for "start from nothing" */
-  exposeBaseFactory?: boolean;
-}
-
-// ============================================================================
-// Language Definition (Generic)
-// ============================================================================
-
-/**
- * Complete language definition with full type safety.
- *
- * Languages self-register by calling declareLanguage() at module load time.
- * This enables dynamic language discovery without central configuration.
- *
- * @template P Parameter type extending LanguageParam
- * @template T Type definition extending LanguageType
- */
-export interface LanguageDefinition<
+export interface LanguageDefinitionImperative<
   P extends LanguageParam = LanguageParam,
   T extends LanguageType = LanguageType
-> extends LanguageIdentity<P, T> {
+> extends LanguageDefinition<T> {
   /** Code generation configuration */
   codeGen: LanguageCodeGenConfig<P, T>;
-
-  conventions: {
-    /** Naming conventions for the language */
-    naming: NamingConventions;
-  };
-
-  /**
-   * WARP integration configuration.
-   * Optional for code-generation-only languages.
-   */
-  warp?: LanguageWarpConfig;
 }
 
 // ============================================================================
@@ -456,7 +135,10 @@ export interface TypeMapping {
  * });
  * ```
  */
-export const declareLanguageImperatively = declare<LanguageDefinition, LanguageDefinition>({
+export const declareLanguageImperatively = declare<
+  LanguageDefinitionImperative,
+  LanguageDefinitionImperative
+>({
   name: 'language',
   scope: 'warp',
   validate: (def) => {
@@ -466,7 +148,7 @@ export const declareLanguageImperatively = declare<LanguageDefinition, LanguageD
     if (!def.extensions?.length) {
       throw new Error(`[language] Language '${def.name}' must have extensions for detection`);
     }
-    if (!def.codeGen?.types && !def.codeGen?.transform) {
+    if (!def.types && !def.codeGen?.transform) {
       throw new Error(
         `[language] Language '${def.name}' must have either 'types' (new format) or 'transform' (legacy)`
       );
@@ -481,29 +163,7 @@ export const declareLanguageImperatively = declare<LanguageDefinition, LanguageD
       }
     }
   },
-  declare: (def) => {
-    // Auto-generate transform if not provided (new architecture)
-    if (!def.codeGen.transform && def.codeGen.types && def.codeGen.rendering) {
-      const transformConfig: TransformConfig<LanguageParam, LanguageType> = {
-        language: def.name,
-        types: def.codeGen.types as TypeFactory<LanguageParam, LanguageType>,
-        formatParamName: def.codeGen.rendering.formatParamName,
-        functionSignature: def.codeGen.rendering.functionSignature,
-        asyncFunctionSignature: def.codeGen.rendering.asyncFunctionSignature,
-        customEnhancers: def.codeGen.enhancers as TransformEnhancer<
-          LanguageMethod,
-          LanguageParam,
-          LanguageMethod
-        >[]
-      };
-
-      // Generate and attach transform
-      (def.codeGen as any).transform = createTransform(transformConfig);
-    }
-
-    // Return the definition synchronously
-    return def;
-  }
+  declare: (def) => def // TODO what should we rather return after processing the language?
 });
 
 // ============================================================================
@@ -517,14 +177,14 @@ export const declareLanguageImperatively = declare<LanguageDefinition, LanguageD
  * by consumers (e.g., reed/language.ts exports).
  */
 export class LanguageRegistry {
-  get(name: string): LanguageDefinition | undefined {
+  get(name: string): LanguageDefinitionImperative | undefined {
     return getScopeRegistry('warp').get(`language:${name}`);
   }
 
-  getAll(): LanguageDefinition[] {
+  getAll(): LanguageDefinitionImperative[] {
     return Array.from(getScopeRegistry('warp').entries())
       .filter(([key]) => key.startsWith('language:'))
-      .map(([, value]) => value as LanguageDefinition);
+      .map(([, value]) => value as LanguageDefinitionImperative);
   }
 
   /**
@@ -532,7 +192,7 @@ export class LanguageRegistry {
    * Matches against registered language extensions.
    * Handles template files with .mejs extension (e.g., .rs.mejs matches .rs)
    */
-  detectByExtension(filename: string): LanguageDefinition | undefined {
+  detectByExtension(filename: string): LanguageDefinitionImperative | undefined {
     const basename = filename.toLowerCase();
 
     for (const [, lang] of getScopeRegistry('warp').entries()) {
@@ -541,11 +201,11 @@ export class LanguageRegistry {
         const extLower = ext.toLowerCase();
         // Match the registered extension exactly
         if (basename.endsWith(extLower)) {
-          return lang as LanguageDefinition;
+          return lang as LanguageDefinitionImperative;
         }
         // Match template extension: .rs.mejs or .rs.ejs against registered .rs
         if (basename.endsWith(`${extLower}.mejs`) || basename.endsWith(`${extLower}.ejs`)) {
-          return lang as LanguageDefinition;
+          return lang as LanguageDefinitionImperative;
         }
       }
     }
@@ -555,17 +215,18 @@ export class LanguageRegistry {
 
   /**
    * Get transform function for a language.
-   */
-  getTransform(name: string): ((methods: RawMethod[]) => LanguageMethod[]) | undefined {
+   *
+  getTransform(name: string): ((methods: Method[]) => LanguageMethod[]) | undefined {
     return this.get(name)?.codeGen.transform;
   }
+  */
 
   /**
    * Get type factory for a language (new architecture).
    */
   getTypeFactory(name: string): TypeFactory | undefined {
     const lang = this.get(name);
-    return (lang?.codeGen as any)?.types;
+    return lang?.types;
   }
 }
 

@@ -61,7 +61,7 @@ export type { TauriHookupOptions, TauriHookupResult } from './tauri-manager.js';
 // ============================================================================
 
 import type { GeneratorContext } from '../heddles/index.js';
-import type { GeneratedFile } from '../heddles/index.js';
+import type { GeneratedFile } from '../bobbin/index.js';
 import { ensureXmlBlock } from './xml-block-manager.js';
 import { configureAndroidGradle } from './gradle-manager.js';
 // ============================================================================

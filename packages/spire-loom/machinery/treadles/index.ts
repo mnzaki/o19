@@ -41,18 +41,7 @@ export {
   // Core kit
   createTreadleKit,
   type TreadleKit,
-  type MethodConfig,
-  type ServiceNaming,
-  type AndroidPackageData,
-  // Utilities
-  pascalCase,
-  camelCase,
-  toSnakeCase,
-  toRawMethod,
-  buildMethodLink,
-  extractManagementFromBindPoint,
-  buildServiceNaming,
-  buildAndroidPackageData
+  type MethodConfig
 } from '../treadle-kit/index.js';
 
 // Declarative API
@@ -61,8 +50,7 @@ export {
   generateFromTreadle,
   type TreadleDefinition,
   type MatchPattern,
-  type OutputSpec,
-  type HookupConfig
+  type OutputSpec
 } from '../treadle-kit/declarative.js';
 
 // Discovery
@@ -80,10 +68,8 @@ export {
   buildAndroidServiceNaming,
   buildTauriPluginNaming,
   buildWrapperNaming,
-  type WrapperNaming,
+  type WrapperNaming
 } from '../stringing.js';
-
-
 
 // ============================================================================
 // Tieup Types (re-exported for custom treadles)
@@ -108,12 +94,7 @@ export { generateAndroidService, type AndroidGenerationOptions } from './android
 export { generateTauriPlugin, type TauriGenerationOptions } from './tauri-generator.js';
 
 // DDD Services Treadle - TypeScript domain layer generation
-export {
-  dddServicesTreadle,
-  generateDddServices,
-  type ManagementService,
-  type ServiceMethod
-} from './ddd-services.js';
+export { dddServicesTreadle } from './ddd-services.js';
 
 // Tauri Adaptor Treadle - Tauri command binding generation
 export {

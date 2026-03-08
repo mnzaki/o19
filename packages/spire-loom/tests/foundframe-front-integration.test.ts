@@ -106,11 +106,11 @@ describe('Foundframe-Front Integration', () => {
     });
 
     // 3. Create front with tieup (replicating WARP.ts pattern)
-    // Each treadle has its own warpData in the treadles array
+    // Each treadle has its own config in the treadles array
     const front = tauri.typescript.ddd().tieup({
       treadles: [{
         treadle: kyselyAdaptorTreadle,
-        warpData: {
+        config: {
           entities: ['Bookmark', 'Media'],
           operations: ['create', 'read', 'update', 'delete']
         }
@@ -127,7 +127,7 @@ describe('Foundframe-Front Integration', () => {
     expect(treadleEntry.treadle, 'should have a treadle').toBeTruthy();
     expect('methods' in treadleEntry.treadle, 'treadle should be TreadleDefinition (has methods)').toBeTruthy();
     expect('outputs' in treadleEntry.treadle, 'treadle should be TreadleDefinition (has outputs)').toBeTruthy();
-    expect(treadleEntry.warpData?.entities).toEqual(['Bookmark', 'Media'], 'should have correct warpData');
+    expect(treadleEntry.config?.entities).toEqual(['Bookmark', 'Media'], 'should have correct config');
 
     console.log('Tieup setup successful with TreadleDefinition!');
     console.log('  Treadle name:', (treadleEntry.treadle as TreadleDefinition).name);

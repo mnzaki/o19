@@ -3,16 +3,17 @@
  *
  * Composable transform enhancers for language-specific code generation.
  *
- * The pipeline transforms RawMethod[] into LanguageMethod[] through
+ * The pipeline transforms MethodMetadata[] into LanguageMethod[] through
  * a series of enhancer functions. Each enhancer adds language-specific
  * metadata and template helpers.
  *
  * @module machinery/reed/transform-pipeline
  */
 
+import type { MethodMetadata } from '../../warp/metadata.js';
 import { pascalCase, camelCase, toSnakeCase } from '../stringing.js';
-import { type LanguageParam, type LanguageType, type TypeFactory } from './language/types.js';
-import type { LanguageMethod, RawMethod } from './language/index.js';
+import type { LanguageMethod } from './language/imperative.js';
+import type { LanguageParam, LanguageType, TypeFactory } from './language/types.js';
 
 // ============================================================================
 // Transform Context
@@ -23,14 +24,11 @@ import type { LanguageMethod, RawMethod } from './language/index.js';
  *
  * Provides shared state and configuration for the transform pipeline.
  */
-export interface TransformContext<
-  P extends LanguageParam = LanguageParam,
-  T extends LanguageType = LanguageType
-> {
+export interface TransformContext<T extends LanguageType = LanguageType> {
   /** Language identifier (e.g., 'rust', 'typescript') */
   language: string;
   /** Type factory for generating language-specific types */
-  types: TypeFactory<P, T>;
+  types: TypeFactory<T>;
 }
 
 // ============================================================================
@@ -48,45 +46,9 @@ export interface TransformContext<
  * @template O Output method type
  */
 export type TransformEnhancer<
-  M extends RawMethod = RawMethod,
-  P extends LanguageParam = LanguageParam,
+  M extends MethodMetadata = MethodMetadata,
   O extends LanguageMethod = LanguageMethod
-> = (methods: M[], context: TransformContext<P>) => O[];
-
-// ============================================================================
-// Built-in Enhancers
-// ============================================================================
-
-/**
- * Naming enhancer.
- *
- * Adds camelCase, PascalCase, and snake_case name variants.
- */
-export const namingEnhancer: TransformEnhancer<RawMethod, LanguageParam, LanguageMethod> = (
-  methods
-) => {
-  return methods.map((method) => ({
-    ...method,
-    camelName: camelCase(method.name),
-    pascalName: pascalCase(method.name),
-    snakeName: toSnakeCase(method.name)
-  })) as LanguageMethod[];
-};
-
-/**
- * CRUD enhancer.
- *
- * Copies crudName from raw method (added by CRUD pipeline).
- * The CRUD pipeline runs before language enhancement.
- */
-export const crudEnhancer: TransformEnhancer<RawMethod, LanguageParam, LanguageMethod> = (
-  methods
-) => {
-  return methods.map((method) => ({
-    ...method,
-    crudName: method.crudName || ''
-  })) as LanguageMethod[];
-};
+> = (methods: M[], context: TransformContext) => O[];
 
 // ============================================================================
 // Default Pipeline
@@ -97,9 +59,7 @@ export const crudEnhancer: TransformEnhancer<RawMethod, LanguageParam, LanguageM
  *
  * Applied to all languages unless overridden.
  */
-export const DEFAULT_ENHANCERS: TransformEnhancer<RawMethod, LanguageParam, LanguageMethod>[] = [
-  namingEnhancer,
-  crudEnhancer
+export const DEFAULT_ENHANCERS: TransformEnhancer<MethodMetadata, LanguageMethod>[] = [
   // Note: templateHelperEnhancer removed - template helpers now provided by Method Enhancement system
 ];
 
@@ -117,7 +77,7 @@ export interface TransformConfig<
   /** Language identifier */
   language: string;
   /** Type factory for generating types */
-  types: TypeFactory<P, T>;
+  types: TypeFactory<T>;
   /** Parameter name formatter */
   formatParamName: (name: string) => string;
   /** Function signature generator */
@@ -125,7 +85,7 @@ export interface TransformConfig<
   /** Async function signature generator (optional) */
   asyncFunctionSignature?: (method: LanguageMethod<P, T>) => string;
   /** Custom enhancers to add to the pipeline */
-  customEnhancers?: TransformEnhancer[];
+  customEnhancers?: TransformEnhancer<any, LanguageMethod<P, T>>[];
 }
 
 /**
@@ -136,25 +96,25 @@ export interface TransformConfig<
  * @param config Transform configuration
  * @returns Transform function (RawMethod[] -> LanguageMethod[])
  */
-export function createTransform<
-  P extends LanguageParam = LanguageParam,
-  T extends LanguageType = LanguageType
->(config: TransformConfig<P, T>): (methods: RawMethod[]) => LanguageMethod<P, T>[] {
-  // Build enhancer pipeline
-  const enhancers = config.customEnhancers
-    ? [...DEFAULT_ENHANCERS, ...config.customEnhancers]
-    : DEFAULT_ENHANCERS;
-
-  const context: TransformContext<P, T> = {
-    language: config.language,
-    types: config.types
-  };
-
-  // Return transform function
-  return (methods: RawMethod[]) => {
-    return enhancers.reduce<LanguageMethod<P, T>[]>(
-      (acc, enhancer) => enhancer(acc as any, context) as LanguageMethod<P, T>[],
-      methods as LanguageMethod<P, T>[]
-    );
-  };
-}
+//export function createTransform<
+//  P extends LanguageParam = LanguageParam,
+//  T extends LanguageType = LanguageType
+//>(config: TransformConfig<P, T>): (methods: RawMethod[]) => LanguageMethod<P, T>[] {
+//  // Build enhancer pipeline
+//  const enhancers = config.customEnhancers
+//    ? [...DEFAULT_ENHANCERS, ...config.customEnhancers]
+//    : DEFAULT_ENHANCERS;
+//
+//  const context: TransformContext<P, T> = {
+//    language: config.language,
+//    types: config.types
+//  };
+//
+//  // Return transform function
+//  return (methods: RawMethod[]) => {
+//    return enhancers.reduce<LanguageMethod<P, T>[]>(
+//      (acc, enhancer) => enhancer(acc as any, context) as LanguageMethod<P, T>[],
+//      methods as LanguageMethod<P, T>[]
+//    );
+//  };
+//}

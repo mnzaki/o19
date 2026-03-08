@@ -15,8 +15,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mejs } from './mejs.js';
-import type { GeneratedFile } from '../heddles/index.js';
+import { mejs } from '../bobbin/mejs.js';
+import type { GeneratedFile } from '../bobbin/index.js';
 
 // ============================================================================
 // Built-in Templates
@@ -37,30 +37,13 @@ import '../../warp/typescript.js';
 import '../../warp/kotlin.js';
 
 // Import the language registry and RawMethod
-import { languages, RawMethod } from '../reed/language/index.js';
-
-// Import method enhancement system for language views
-import { enhanceMethods, type EnhancedMethod } from '../reed/enhanced/methods.js';
+import { languages } from '../reed/language/index.js';
+import type { Shed } from '../loom.js';
+import type { LanguageDefinitionImperative } from '../reed/language/imperative.js';
 
 // ============================================================================
 // Types
 // ============================================================================
-
-/**
- * Link metadata for routing to struct fields.
- */
-export interface MethodLink {
-  /** Field name to access (e.g., 'device_manager') */
-  fieldName: string;
-  /** Wrapper types: e.g., ['Option', 'Mutex'] */
-  wrappers?: string[];
-}
-
-/**
- * Transformed method - language-specific extensions applied.
- * This is a generic type that depends on the target language.
- */
-export type TransformedMethod = RawMethod & Record<string, unknown>;
 
 /**
  * Type discriminator for language-specific transforms.
@@ -84,17 +67,14 @@ export type Language = 'kotlin' | 'rust' | 'rust_jni' | 'aidl' | 'typescript' | 
  *
  * @param templatePath - Path to the EJS template
  */
-export function detectLanguage(templatePath: string): Language {
-  const basename = path.basename(templatePath).toLowerCase();
-
+export function detectLanguage(templatePath: string): LanguageDefinitionImperative {
   // Use language registry for detection
   const lang = languages.detectByExtension(templatePath);
   if (lang) {
-    return lang.name as Language;
+    return lang;
   }
 
-  // Fallback for unknown extensions
-  return 'unknown';
+  throw new Error('unknown language');
 }
 
 // ============================================================================
@@ -108,8 +88,8 @@ export interface GenerateOptions {
   outputPath: string;
   /** Template data - 'methods' will be auto-transformed based on output extension */
   data: Record<string, unknown>;
-  /** Raw Management methods to transform */
-  methods?: RawMethod[];
+  /** The Shed: all context we enhanced in the reed and heddles */
+  shed: Shed;
   /** EJS rendering options */
   ejsOptions?: import('ejs').Options;
   /**
@@ -242,19 +222,14 @@ export async function generateCode(options: GenerateOptions): Promise<GeneratedF
   );
 
   // Detect language from template filename (double extension pattern)
-  const language = detectLanguage(templatePath);
-
-  // Prepare methods for template - enhance if needed
-  let templateMethods: unknown[] | undefined = options.methods;
-
-  if (options.methods && language !== 'unknown') {
-    templateMethods = prepareMethodsForTemplate(options.methods, language);
-  }
+  const lang = detectLanguage(templatePath);
+  options.shed.methods.setLang(lang);
 
   // Build final data with prepared methods
   const data = {
+    lang,
     ...options.data,
-    methods: templateMethods ?? options.data.methods
+    ...options.shed
   };
 
   // Render template
@@ -352,23 +327,6 @@ ${overrideInstructions}
   }
 }
 
-/**
- * Prepare enhanced methods for templates.
- *
- * If methods are already EnhancedMethods, use them directly.
- * Otherwise, enhance them with the detected language.
- */
-function prepareMethodsForTemplate(methods: RawMethod[], language: Language): EnhancedMethod[] {
-  // Check if methods are already EnhancedMethods (have _default property)
-  if (methods.length > 0 && '_default' in (methods[0] as any)) {
-    // Methods are already EnhancedMethods - use directly
-    return methods as unknown[] as EnhancedMethod[];
-  }
-
-  // Methods are raw - enhance them with the detected language
-  return enhanceMethods(methods, [language]);
-}
-
 // ============================================================================
 // Batch Generation
 // ============================================================================
@@ -384,16 +342,13 @@ export interface GenerationTask {
  *
  * All methods arrays in data will be auto-transformed based on output extension.
  */
-export async function generateBatch(
-  tasks: GenerationTask[],
-  methods?: RawMethod[]
-): Promise<GeneratedFile[]> {
+export async function generateBatch(tasks: GenerationTask[], shed: Shed): Promise<GeneratedFile[]> {
   const promises = tasks.map((task) =>
     generateCode({
       template: task.template,
       outputPath: task.outputPath,
       data: task.data,
-      methods
+      shed
     })
   );
 

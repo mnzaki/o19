@@ -11,45 +11,33 @@
  * 4. Beater - Formats and packs the generated code
  */
 
-import * as fsp from 'node:fs/promises';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { SpiralRing } from '../warp/index.js';
-import type { Layer } from '../warp/layers.js';
-import { SpiralRing as SpiralRingClass, SpiralOut } from '../warp/spiral/pattern.js';
+import { createMatrix } from '../machinery/treadles/index.js';
+import { fileSystem, blockRegistry } from '../machinery/shuttle/index.js';
+import { getWorkspaceInfoFromPath, loadWarp } from './workspace-discovery.js';
+import { Loom, type WorkspaceInfo } from '../machinery/loom.js';
 import {
-  Heddles,
-  type WeavingPlan,
-  type GenerationTask,
+  PatternMatcher,
   type GeneratedFile,
-  type GeneratorFunction,
-  GeneratorMatrix
-} from './heddles/index.js';
-import { createMatrix } from './treadles/index.js';
-import { collectManagements, type ManagementMetadata } from './reed/index.js';
-import { fileSystem, blockRegistry } from './shuttle/index.js';
-//import { getRefinements } from '../warp/refine/decorator.js';
-//import type { RefinementResult } from '../warp/refine/types.js';
-import {
-  collectQueriesFromDirectory,
-  type CollectedQuery,
-  type QueryCollectionResult
-} from './reed/index.js';
-import type { WorkspaceInfo } from './reed/workspace-discovery.js';
+  type GenerationTask,
+  type TreadleTrodder
+} from './plan-builder.js';
+import type { WeavingPlan } from './plan.js';
 
 // Placeholder for future implementation
 export interface WeaverConfig {
   /** The workspace to weave */
-  workspace: WorkspaceInfo;
+  workspace?: WorkspaceInfo;
   /** Output directory for generated code */
-  outputDir?: string;
+  scrimName?: string;
   /** Which rings to generate (default: all) */
   rings?: string[];
   /** Filter to specific package by export name (e.g., 'foundframe', 'android') */
   packageFilter?: string;
   /** Verbosity level */
   verbose?: boolean;
-  /** Pre-loaded managements (optional) */
-  managements?: ManagementMetadata[];
 }
 
 export interface WeavingResult {
@@ -74,55 +62,55 @@ export interface WeavingResult {
  *   const result = await weaver.weave();
  */
 export class Weaver {
-  private heddles: Heddles | undefined;
-  private matrix: GeneratorMatrix | undefined;
-  private managements: ManagementMetadata[] = [];
-  private queries: CollectedQuery[] = [];
+  private _patternMatcher?: PatternMatcher;
+  private _loom?: Loom;
 
-  constructor(
-    private warp: Record<string, SpiralRing>,
-    matrix?: GeneratorMatrix
-  ) {
-    this.matrix = matrix;
+  constructor(public config?: WeaverConfig) {}
+
+  get loom() {
+    if (!this._loom) throw new Error('no workspace loaded yet!');
+    return this._loom;
   }
 
-  /**
-   * Initialize the heddles with a matrix.
-   * If no matrix provided, discovers all treadles (built-in + user).
-   */
-  private async initHeddles(workspaceRoot?: string): Promise<Heddles> {
-    if (this.heddles) {
-      return this.heddles;
-    }
-
-    if (!this.matrix) {
-      // Auto-discover all treadles
-      this.matrix = await createMatrix(workspaceRoot);
-    }
-
-    this.heddles = new Heddles(this.matrix);
-    return this.heddles;
+  get patternMatcher() {
+    if (!this._patternMatcher) throw new Error('no workspace loaded yet!');
+    return this._patternMatcher;
   }
-
-  /**
-   * Collect Management Imprints from loom/ directory.
-   */
-  async collectManagements(loomDir: string): Promise<void> {
-    this.managements = await collectManagements(loomDir);
-
-    if (this.managements.length === 0) {
-      console.warn('⚠️  No Management Imprints found in loom/');
-    }
-  }
-
-  /**
-   * Collect @loom.crud.query decorators from loom/ directory.
+  /*
+   * Detect workspace type and locate loom/WARP.ts.
    *
-   * This is called by the reed during the dressing phase.
-   * Queries are later passed to refinements during weaving.
+   * Checks for:
+   * - pnpm-workspace.yaml (pnpm workspace)
+   * - Cargo.toml with [workspace] (Cargo workspace)
+   * - loom/ directory with WARP.ts
+   *
+   * If in a package subdirectory, walks up to find parent workspace.
    */
-  async collectQueries(loomDir: string): Promise<QueryCollectionResult> {
-    return collectQueriesFromDirectory(loomDir);
+  async loadWorkspace(cwd: string = process.cwd()): Promise<WorkspaceInfo | null> {
+    let ret = getWorkspaceInfoFromPath(cwd);
+
+    if (ret.type == 'package') {
+      // Walk up to find parent workspace
+      let current = cwd;
+      while (current !== path.dirname(current)) {
+        current = path.dirname(current);
+        const parent = getWorkspaceInfoFromPath(current);
+        if (parent.type == 'workspace') {
+          parent.currentPackage = ret.name;
+          parent.type = 'package';
+          ret = parent;
+          break;
+        }
+      }
+    }
+
+    if (ret.name && ret.loomDir && ret.warpPath && ret.type !== 'unknown') {
+      ret.warp = await loadWarp(ret.warpPath, ret.root);
+      this._loom = new Loom(ret as WorkspaceInfo);
+      return this._loom.workspace;
+    }
+
+    return null;
   }
 
   /**
@@ -134,12 +122,20 @@ export class Weaver {
    * The plan contains:
    * - All edges in the spiral graph
    * - All nodes grouped by type
-   * - Management Imprints for code generation
    * - Generation tasks derived from matrix matching
    */
-  async buildPlan(workspaceRoot?: string): Promise<WeavingPlan> {
-    const heddles = await this.initHeddles(workspaceRoot);
-    return heddles.buildPlan(this.warp, this.managements, workspaceRoot);
+  async buildPlan(workspace: WorkspaceInfo): Promise<WeavingPlan> {
+    const matrix = await createMatrix(workspace.root);
+    this._patternMatcher = new PatternMatcher(matrix);
+    return Object.assign(
+      await this.patternMatcher.buildPlan(
+        workspace.warp as Record<string, SpiralRing>,
+        workspace.root
+      ),
+      {
+        managements: this.loom.heddles!.mgmts
+      }
+    );
   }
 
   /**
@@ -153,7 +149,17 @@ export class Weaver {
    * 2. Execute each generation task (Shuttle)
    * 3. Format the generated code (Beater)
    */
-  async weave(config?: WeaverConfig): Promise<WeavingResult> {
+  async weave(): Promise<WeavingResult> {
+    const config = this.config;
+    const workspace = config?.workspace ?? (await this.loadWorkspace());
+    if (!workspace) {
+      console.warn('⚠️ No loom/ directory found');
+      throw new Error('No loom/ directory found');
+    } else if (config?.verbose) {
+      console.log('🧵 Configuring workspace');
+      console.log('Rings found:', Object.keys(workspace.warp));
+    }
+
     // Start a new generation for block tracking
     blockRegistry.startGeneration();
 
@@ -162,44 +168,49 @@ export class Weaver {
     let filesModified = 0;
     let filesUnchanged = 0;
 
-    if (config?.verbose) {
-      console.log('Weaving WARP.ts...');
-      console.log('Rings found:', Object.keys(this.warp));
-    }
-
     // Phase 0: Collect from loom/ directory (Reed)
-    const loomDir = config?.workspace?.root ? path.join(config.workspace.root, 'loom') : undefined;
-    if (loomDir) {
-      if (this.managements.length === 0) {
-        await this.collectManagements(loomDir);
-      }
-      // Also collect @loom.crud.query decorators
-      if (this.queries.length === 0) {
-        const queryResult = await this.collectQueries(loomDir);
-        this.queries = queryResult.queries;
+    const heddles = await this.loom.buildHeddles();
 
-        if (config?.verbose && this.queries.length > 0) {
-          console.log(`\nCollected ${this.queries.length} @loom.crud.query decorator(s):`);
-          for (const query of this.queries) {
-            console.log(`  - ${query.className}.${query.methodName}`);
-          }
-        }
+    if (heddles.errors.length) {
+      console.error(
+        `\nErrors found while building heddles (extracting metadata): ${heddles.errors.length}`
+      );
+      for (const error of heddles.errors) {
+        console.error(`  - ${error}`);
       }
+
+      throw new Error("can't weave with broken heddles");
     }
 
+    const shed = await this.loom.openShed();
+
     if (config?.verbose) {
-      console.log(`Managements found: ${this.managements.length}`);
-      for (const mgmt of this.managements) {
+      console.log(`Managements found: ${heddles.mgmts.length}`);
+      for (const mgmt of heddles.mgmts) {
         console.log(`  - ${mgmt.name} (@reach ${mgmt.reach})`);
         console.log(
-          `    Methods: ${mgmt.methods.map((m) => `${m.name} (${m.operation})`).join(', ')}`
+          `    Methods: ${mgmt.methods.map((m) => `${m.name} (${m.crudOperation})`).join(', ')}\n`
         );
       }
-      console.log();
+
+      //if (shed.queries.length) {
+      //  console.log(`\nCollected ${shed.queries.length} @loom.crud.query decorator(s):`);
+      //  for (const query of shed.queries) {
+      //    console.log(`  - ${query.className}.${query.methodName}`);
+      //  }
+      //}
+
+      console.log(`Managements found: ${shed.mgmts.length}`);
+      for (const mgmt of shed.mgmts) {
+        console.log(`  - ${mgmt.name} (@reach ${mgmt.reach})`);
+        console.log(
+          `    Methods: ${mgmt.methods.map((m) => `${m.name} (${m.crudOperation})`).join(', ')}\n`
+        );
+      }
     }
 
     // Phase 1: Build the weaving plan (Heddles)
-    const plan = await this.buildPlan(config?.workspace?.root);
+    const plan = await this.buildPlan(workspace);
 
     if (config?.verbose) {
       console.log(`\nPlan built:`);
@@ -324,15 +335,10 @@ Package filter: "${config.packageFilter}"`);
     config?: WeaverConfig
   ): Promise<{ generated: number; modified: number; unchanged: number }> {
     // Get the generator - either from task (tieup) or from matrix
-    let generator: GeneratorFunction | undefined = task.generator;
-    
-    if (!generator) {
-      // Ensure heddles are initialized
-      const heddles = await this.initHeddles(config?.workspace?.root);
+    let generator: TreadleTrodder | undefined = task.generator;
 
-      // Get the generator from the matrix via the heddles
-      const matrix = (heddles as any).matrix as GeneratorMatrix;
-      generator = matrix.getPair(task.match[0], task.match[1]);
+    if (!generator) {
+      generator = this.patternMatcher.matchPair(task.match[0], task.match[1]);
     }
 
     if (!generator) {
@@ -344,7 +350,7 @@ Package filter: "${config.packageFilter}"`);
 
     // Get treadle name from generator if available
     const treadleName = (generator as any).treadleName || task.match[0];
-    
+
     if (config?.verbose) {
       console.log(`\nGenerating: ${task.match.join(' → ')} (${task.exportName})`);
     }
@@ -360,17 +366,17 @@ Package filter: "${config.packageFilter}"`);
     const context = {
       plan,
       workspaceRoot: config?.workspace?.root ?? process.cwd(),
-      outputDir: config?.outputDir,
+      outputDir: config?.scrimName,
       packagePath,
       packageDir,
-      config: task.config  // Pass tieup warpData as context.config
+      config: task.config // Pass tieup config as context.config
     };
-    
+
     if (process.env.DEBUG) {
       console.log(`[DEBUG] Calling generator ${treadleName} for ${task.match.join('→')}`);
       console.log(`[DEBUG] Package: ${packagePath}, Dir: ${packageDir}`);
     }
-    
+
     let files: GeneratedFile[];
     try {
       files = await generator(task.current, task.previous, context);
@@ -386,10 +392,10 @@ Package filter: "${config.packageFilter}"`);
 
     // Write files using shuttle
     let written = 0;
-    
+
     // Log treadle execution summary
     console.log(`  🧵 ${treadleName}: ${files.length} file(s)`);
-    
+
     for (const file of files) {
       // Treadle paths are relative to the package directory
       // All generated files go into spire/ subdirectory to keep packages clean
@@ -510,29 +516,12 @@ Package filter: "${config.packageFilter}"`);
 
   //  return results;
   //}
-
-
 }
 
 /**
  * Convenience function to weave a WARP.ts module.
  */
-export async function weave(
-  warp: Record<string, SpiralRing>,
-  config?: WeaverConfig
-): Promise<WeavingResult> {
-  const weaver = new Weaver(warp);
-  return weaver.weave(config);
-}
-
-/**
- * Convenience function to build a weaving plan without executing.
- * Useful for debugging and inspection.
- */
-export async function buildPlan(
-  warp: Record<string, SpiralRing>,
-  workspaceRoot?: string
-): Promise<WeavingPlan> {
-  const weaver = new Weaver(warp);
-  return weaver.buildPlan(workspaceRoot);
+export async function weave(config?: WeaverConfig): Promise<WeavingResult> {
+  const weaver = new Weaver(config);
+  return weaver.weave();
 }

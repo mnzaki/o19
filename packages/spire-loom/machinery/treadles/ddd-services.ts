@@ -13,7 +13,7 @@
  *
  * Usage in WARP.ts:
  *   const front = loom.spiral.typescript.ddd()
- *     .tieup({ treadles: [{ treadle: dddServicesTreadle, warpData: {} }] });
+ *     .tieup({ treadles: [{ treadle: dddServicesTreadle, config: {} }] });
  */
 
 import {

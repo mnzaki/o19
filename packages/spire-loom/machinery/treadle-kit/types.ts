@@ -4,11 +4,13 @@
  * Core type definitions for the treadle kit.
  */
 
-import type { MgmtMethod } from '../sley/index.js';
-import type { RawMethod } from '../bobbin/index.js';
-import type { GeneratedFile } from '../heddles/index.js';
-import type { SpiralNode, GeneratorContext, WeavingPlan, MethodHelpers } from '../heddles/index.js';
-import type { hookup } from '../shuttle/index.js';
+import type { MethodMetadata } from '../../warp/metadata.js';
+import type { GeneratorContext } from '../../weaver/plan-builder.js';
+import type { WeavingPlan } from '../../weaver/plan.js';
+import type { GeneratedFile } from '../bobbin/index.js';
+import type { SpiralNode } from '../heddles/index.js';
+import type { LanguageMethod } from '../reed/language/method.js';
+import { hookup } from '../sley/index.js';
 
 /**
  * Method filtering and transformation configuration.
@@ -26,7 +28,7 @@ export interface MethodConfig {
   /**
    * Pipeline transformations to apply.
    */
-  pipeline: Array<(methods: MgmtMethod[]) => MgmtMethod[]>;
+  pipeline: Array<(methods: MethodMetadata[]) => MethodMetadata[]>;
 }
 
 /**
@@ -96,14 +98,14 @@ export interface TreadleKit {
    *
    * Derives crudName from method tags before language enhancement.
    */
-  crud: CrudAPI;
+  //crud: CrudAPI;
 
   /**
    * Language enhancement system.
    *
    * Creates language views (method.rs, method.ts) with idiomatic naming.
    */
-  language: LanguageAPI;
+  //language: LanguageAPI;
 
   /**
    * Validate node types match expected pattern.
@@ -115,11 +117,6 @@ export interface TreadleKit {
     previous: SpiralNode,
     expected: { current: string; previous: string }
   ): boolean;
-
-  /**
-   * Collect methods from managements with filtering and transformation.
-   */
-  collectMethods(config: MethodConfig): RawMethod[];
 
   /**
    * Build template data from a function or static object.
@@ -142,7 +139,7 @@ export interface TreadleKit {
   generateFiles(
     outputs: OutputSpec[],
     data: Record<string, unknown>,
-    methods: RawMethod[]
+    methods: LanguageMethod[]
   ): Promise<GeneratedFile[]>;
 
   /**

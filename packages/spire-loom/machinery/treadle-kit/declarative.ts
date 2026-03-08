@@ -34,19 +34,14 @@
  */
 
 import { declare } from '../self-declarer.js';
-import type {
-  SpiralNode,
-  GeneratedFile,
-  GeneratorContext,
-  GeneratorFunction
-} from '../heddles/index.js';
-import type { MgmtMethod } from '../sley/index.js';
+import type { SpiralNode } from '../heddles/index.js';
 import { createTreadleKit } from './kit.js';
 import { resolveSpecs, resolveSpecsWithCondition, type SpecOrFn } from './spec-resolver.js';
-import type { hookup } from '../shuttle/index.js';
+import type { hookup } from '../sley/index.js';
 import * as path from 'node:path';
-import { markers } from '../shuttle/index.js';
-import type { RawMethod } from '../reed/language/index.js';
+import type { LanguageMethod } from '../reed/language/method.js';
+import type { MethodMetadata } from '../../warp/metadata.js';
+import type { GeneratedFile, GeneratorContext, TreadleTrodder } from '../../weaver/plan-builder.js';
 
 // ============================================================================
 // Types
@@ -59,7 +54,7 @@ export interface MatchPattern {
 
 export interface MethodConfig {
   filter: 'core' | 'platform' | 'front';
-  pipeline: Array<(methods: MgmtMethod[]) => MgmtMethod[]>;
+  pipeline: Array<(methods: MethodMetadata[]) => MethodMetadata[]>;
 }
 
 /**
@@ -134,6 +129,7 @@ export interface TreadleDefinition {
 
   /** Output files to generate (into spire/). Accepts specs or functions. */
   outputs: OutputSpecOrFn[];
+
   /**
    * Patches to apply to existing files (idempotent block insertion).
    * Patches run AFTER file generation and can target any file.
@@ -152,7 +148,7 @@ export interface TreadleDefinition {
 
   /**
    * Configuration schema for tieup treadles.
-   * Declares expected warpData shape. Used for validation and type inference.
+   * Declares expected config shape. Used for validation and type inference.
    * @example
    * config: {
    *   entities: [] as string[],
@@ -169,7 +165,7 @@ export interface TreadleDefinition {
         previous: SpiralNode
       ) => Record<string, unknown>);
   validate?: (current: SpiralNode, previous: SpiralNode) => boolean | void;
-  transformMethods?: (methods: RawMethod[], context: GeneratorContext) => RawMethod[];
+  transformMethods?: (methods: LanguageMethod[], context: GeneratorContext) => LanguageMethod[];
 }
 
 // ============================================================================
@@ -195,7 +191,7 @@ export interface TreadleDefinition {
  * });
  * ```
  */
-export const declareTreadle = declare<TreadleDefinition, TreadleDefinition>({
+export const declareTreadle = declare<TreadleDefinition, TreadleTrodder>({
   name: 'treadle',
   scope: 'weave',
   validate: (def) => {
@@ -214,7 +210,7 @@ export const declareTreadle = declare<TreadleDefinition, TreadleDefinition>({
       throw new Error('TreadleDefinition must have at least one output');
     }
   },
-  declare: (def) => def
+  declare: generateFromTreadle
 });
 
 // ============================================================================
@@ -222,7 +218,7 @@ export const declareTreadle = declare<TreadleDefinition, TreadleDefinition>({
 // ============================================================================
 
 /**
- * Convert a TreadleDefinition into a GeneratorFunction.
+ * Convert a TreadleDefinition into a TreadleMatch.
  *
  * This bridges the declarative and imperative worlds. The definition describes
  * what to generate, and this function creates the actual generator that the
@@ -233,7 +229,7 @@ export const declareTreadle = declare<TreadleDefinition, TreadleDefinition>({
  * 2. **Patching** - Patches are applied to any file (including spire/ files)
  * 3. **Hookup** - Custom hookup runs last
  */
-export function generateFromTreadle(definition: TreadleDefinition): GeneratorFunction {
+export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodder {
   const generator = async (
     current: SpiralNode,
     previous: SpiralNode,
@@ -271,10 +267,9 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
     }
 
     // Method collection using the kit
-    const rawMethods = kit.collectMethods(definition.methods);
     const finalMethods = definition.transformMethods
-      ? definition.transformMethods(rawMethods, context)
-      : rawMethods;
+      ? definition.transformMethods(context.shed.methods.all, context)
+      : context.shed.methods;
 
     // Build data with defaults (entities and methods always available)
     let data: Record<string, unknown> = {
@@ -283,8 +278,8 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
       currentRing: current.ring,
       previousRing: previous.ring,
       // Always provide entities and methods to templates
-      entities: context.entities?.all || [],
-      methods: finalMethods
+      //entities: context.entities?.all || [],
+      methods: context.shed.methods
     };
 
     if (definition.data) {
@@ -303,7 +298,7 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
       const langs = Array.isArray(definition.language)
         ? definition.language
         : [definition.language];
-      kit.language.add(...langs);
+      //kit.language.add(...langs);
 
       // Update data with enhanced methods
       data.methods = context.methods?.all || finalMethods;
@@ -336,7 +331,7 @@ export function generateFromTreadle(definition: TreadleDefinition): GeneratorFun
 
     // 3a: New declarative hookups (preferred)
     if (hookups && hookups.length > 0) {
-      const { runHookups } = await import('../shuttle/hookups/index.js');
+      const { runHookups } = await import('../sley/hookups/index.js');
 
       // Resolve hookup specs (handle functions returning single OR array)
       const resolvedHookups = resolveSpecsWithCondition(hookups, context);
@@ -372,7 +367,7 @@ async function applyPatches(
   patches: PatchSpecOrFn[],
   data: Record<string, unknown>,
   context: GeneratorContext,
-  methods: RawMethod[]
+  methods: LanguageMethod[]
 ): Promise<void> {
   // Get the treadle name for marker scope
   const treadleName = definition.name || 'treadle';

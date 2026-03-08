@@ -59,7 +59,7 @@ export function resetScope(scope: Exclude<Scope, 'declare'>): void {
 /**
  * Configuration for declaring a declarative API.
  */
-export interface DeclarerConfig<T, D> {
+export interface DeclarerConfig<D, T> {
   /** Unique identifier for this declarative API */
   name: string;
 
@@ -76,10 +76,10 @@ export interface DeclarerConfig<T, D> {
 /**
  * A declared declarer function with metadata.
  */
-export interface DeclarerFunction<T, D> {
+export interface DeclarerFunction<D, T> {
   (def: D): T;
   declared: Map<string, T>;
-  config: DeclarerConfig<T, D>;
+  config: DeclarerConfig<D, T>;
 }
 
 /**
@@ -88,7 +88,7 @@ export interface DeclarerFunction<T, D> {
  * This is the type of the 'declare' constant that declares itself,
  * then declares everything else.
  */
-export type SelfDeclarer = <T, D>(config: DeclarerConfig<T, D>) => DeclarerFunction<T, D>;
+export type SelfDeclarer = <D, T>(config: DeclarerConfig<D, T>) => DeclarerFunction<D, T>;
 
 /**
  * Create a declarer function.
@@ -99,7 +99,7 @@ export type SelfDeclarer = <T, D>(config: DeclarerConfig<T, D>) => DeclarerFunct
  * Supports both sync and async declare functions. For top-level exports
  * (like in warp/*.ts), use sync declare functions. For async operations,
  */
-function createDeclarer<T, D>(config: DeclarerConfig<T, D>): DeclarerFunction<T, D> {
+function createDeclarer<D, T>(config: DeclarerConfig<D, T>): DeclarerFunction<D, T> {
   const registry = scopeRegistries[config.scope];
 
   const declarationFn = (def: D): T => {
@@ -120,7 +120,7 @@ function createDeclarer<T, D>(config: DeclarerConfig<T, D>): DeclarerFunction<T,
 /**
  * Handle the result of a declaration, sync or async.
  */
-function handleDeclarationResult<T, D>(
+function handleDeclarationResult<D, T>(
   result: T,
   def: D,
   registry: Map<string, any>,

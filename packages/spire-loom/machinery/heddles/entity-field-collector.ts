@@ -7,9 +7,7 @@
  * "Fields bloom from the class; we merely gather them."
  */
 
-import {
-  Field
-} from '@o19/spire-loom/warp/field';
+import { Field } from '@o19/spire-loom/warp/field';
 import { createCollector } from './class-metadata-collector.js';
 import type { EntityFieldMetadata } from '../treadle-kit/computed-entity-helpers.js';
 
@@ -64,8 +62,6 @@ export const collectEntityFields = createCollector({
  * @param EntityClass - The entity class to inspect
  * @returns Array of field metadata
  */
-export function getEntityFields(
-  EntityClass: new (...args: any[]) => any
-): EntityFieldMetadata[] {
+export function getEntityFields(EntityClass: new (...args: any[]) => any): EntityFieldMetadata[] {
   return collectEntityFields.collect(EntityClass);
 }

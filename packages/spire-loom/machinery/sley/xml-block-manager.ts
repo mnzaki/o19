@@ -9,19 +9,19 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { XMLParser } from 'fast-xml-parser';
 import { ensureDir } from './file-system-operations.js';
-import { 
-  registerFile, 
-  registerBlock, 
+import {
+  registerFile,
+  registerBlock,
   scanExistingBlocks,
   isBlockRegistered,
-  clearBlockRegistry 
+  clearBlockRegistry
 } from './block-registry.js';
-import { 
+import {
   createXmlMarkers,
   ensureBlock,
   removeBlock,
   hasBlock,
-  escapeMarkerForRegex,
+  escapeMarkerForRegex
 } from './markers.js';
 
 // XML block pattern for registry: <!-- SPIRE-LOOM:XML:BLOCKID -->
@@ -53,16 +53,13 @@ const PARSER_OPTIONS = {
   parseTagValue: false,
   trimValues: true,
   preserveOrder: false,
-  processEntities: false,
+  processEntities: false
 };
 
 /**
  * Extract key attributes from an element for comparison.
  */
-function extractKey(
-  attrs: Record<string, string>,
-  keyAttributes: string[]
-): string | null {
+function extractKey(attrs: Record<string, string>, keyAttributes: string[]): string | null {
   const parts: string[] = [];
   for (const attr of keyAttributes) {
     let value = attrs[attr];
@@ -86,21 +83,21 @@ function hasMatchingElement(
 ): boolean {
   const manifest = parsed.manifest;
   if (!manifest) return false;
-  
+
   const searchContainers = [manifest];
   if (manifest.application) {
     searchContainers.push(manifest.application);
   }
-  
+
   const desiredKey = extractKey(desiredAttrs, keyAttributes);
   if (!desiredKey) return false;
-  
+
   for (const container of searchContainers) {
     const elements = container[tagName];
     if (!elements) continue;
-    
+
     const arr = Array.isArray(elements) ? elements : [elements];
-    
+
     for (const el of arr) {
       if (!el || typeof el !== 'object') continue;
       const key = extractKey(el, keyAttributes);
@@ -109,7 +106,7 @@ function hasMatchingElement(
       }
     }
   }
-  
+
   return false;
 }
 
@@ -120,7 +117,7 @@ function parseBlockInfo(content: string): { tag: string; attrs: Record<string, s
   const parser = new XMLParser(PARSER_OPTIONS);
   const wrapped = `<root>${content}</root>`;
   const parsed = parser.parse(wrapped);
-  
+
   const root = parsed.root || parsed;
   for (const [key, value] of Object.entries(root)) {
     if (key.startsWith('@_')) continue;
@@ -128,7 +125,7 @@ function parseBlockInfo(content: string): { tag: string; attrs: Record<string, s
       return { tag: key, attrs: value as Record<string, string> };
     }
   }
-  
+
   throw new Error('No valid element found in block content');
 }
 
@@ -175,15 +172,12 @@ function ensureApplicationOpen(content: string): { content: string; insertPoint:
     const tagContent = selfCloseMatch[1];
     if (!tagContent.endsWith('/')) {
       const openTag = tagContent + '>';
-      const newContent = content.replace(
-        selfCloseMatch[0],
-        openTag + '</application>'
-      );
+      const newContent = content.replace(selfCloseMatch[0], openTag + '</application>');
       const insertPoint = newContent.indexOf('</application>');
       return { content: newContent, insertPoint };
     }
   }
-  
+
   const appEnd = content.indexOf('</application>');
   if (appEnd === -1) throw new Error('No </application> tag found');
   return { content, insertPoint: appEnd };
@@ -198,25 +192,25 @@ export function ensureXmlBlock(
   blockMap: XmlBlockMap
 ): { added: string[]; removed: string[]; updated: string[] } {
   const result = { added: [] as string[], removed: [] as string[], updated: [] as string[] };
-  
+
   ensureDir(path.dirname(filePath));
-  
+
   // Register this file for global cleanup
   registerFile(filePath, XML_BLOCK_PATTERN, (_file, blockId, content) => {
     const markers = createXmlMarkers('xml', blockId);
     const res = removeBlock(content, markers);
     return res.modified ? res.content : null;
   });
-  
+
   // Read existing content
   let content = '';
   if (fs.existsSync(filePath)) {
     content = fs.readFileSync(filePath, 'utf-8');
   }
-  
+
   // Scan for existing spire-loom markers and register them
   scanExistingBlocks(filePath, content);
-  
+
   // If file doesn't exist or is empty, create a basic manifest structure
   if (!content.trim()) {
     content = `<?xml version="1.0" encoding="utf-8"?>
@@ -224,7 +218,7 @@ export function ensureXmlBlock(
     <application/>
 </manifest>`;
   }
-  
+
   // Parse for detection only
   const parser = new XMLParser(PARSER_OPTIONS);
   let parsed: any;
@@ -233,12 +227,12 @@ export function ensureXmlBlock(
   } catch (e) {
     throw new Error(`Failed to parse ${filePath}: ${e}`);
   }
-  
+
   // Process each block
   for (const [blockId, block] of Object.entries(blockMap)) {
     const keyAttributes = block.keyAttributes ?? ['android:name'];
     const markers = createXmlMarkers('xml', blockId);
-    
+
     // Parse block info for detection
     let blockInfo: { tag: string; attrs: Record<string, string> };
     try {
@@ -246,7 +240,7 @@ export function ensureXmlBlock(
     } catch (e) {
       throw new Error(`Failed to parse block content for ${blockId}: ${e}`);
     }
-    
+
     // Check if block already exists in file (regardless of registry state)
     if (hasBlock(content, markers)) {
       // Check if content changed using generic block operations
@@ -254,11 +248,11 @@ export function ensureXmlBlock(
         `${escapeMarkerForRegex(markers.start)}([\\s\\S]*?)${escapeMarkerForRegex(markers.end)}`
       );
       const existingMatch = content.match(blockRegex);
-      
+
       if (existingMatch) {
         const existingContent = existingMatch[1].trim();
         const newContent = block.content.trim();
-        
+
         if (existingContent !== newContent) {
           // Update using generic replace
           const res = ensureBlock(content, markers, block.content);
@@ -271,7 +265,7 @@ export function ensureXmlBlock(
       registerBlock(filePath, blockId);
       continue;
     }
-    
+
     // Check for manual override (element exists but not managed by us)
     const exists = hasMatchingElement(parsed, blockInfo.tag, keyAttributes, blockInfo.attrs);
     if (exists) {
@@ -280,10 +274,10 @@ export function ensureXmlBlock(
       registerBlock(filePath, blockId);
       continue;
     }
-    
+
     // Add new block
     let insertPoint: number;
-    
+
     if (block.parent === 'application') {
       const ensured = ensureApplicationOpen(content);
       content = ensured.content;
@@ -291,16 +285,16 @@ export function ensureXmlBlock(
     } else {
       insertPoint = findInsertionPoint(content, block.parent);
     }
-    
+
     // Format block with proper indentation
     const indent = '    ';
     const fullBlock = `\n${indent}${markers.start}\n${indent}${block.content}\n${indent}${markers.end}\n`;
     content = content.slice(0, insertPoint) + fullBlock + content.slice(insertPoint);
-    
+
     registerBlock(filePath, blockId);
     result.added.push(blockId);
   }
-  
+
   fs.writeFileSync(filePath, content, 'utf-8');
   return result;
 }

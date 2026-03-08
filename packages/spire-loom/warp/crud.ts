@@ -24,10 +24,10 @@ export type CrudOperation = 'create' | 'read' | 'update' | 'delete' | 'list';
  * Metadata for CRUD operations.
  */
 export interface CrudMetadata {
-  operation: CrudOperation;
+  crudOperation: CrudOperation;
   entity?: string;
-  soft?: boolean;
-  collection?: boolean;
+  isSoftDelete?: boolean;
+  isCollection?: boolean;
 }
 
 // ============================================================================
@@ -81,7 +81,7 @@ function createCrudDecorator(operation: CrudOperation) {
       const context = arg2;
       pendingCrudMethods.push({
         methodName: String(context.name),
-        metadata: { operation },
+        metadata: { crudOperation: operation },
         tag: `crud:${operation}`
       });
       return arg1; // Return original method
@@ -92,7 +92,7 @@ function createCrudDecorator(operation: CrudOperation) {
     return function (_target: any, context: ClassMethodDecoratorContext) {
       pendingCrudMethods.push({
         methodName: String(context.name),
-        metadata: { operation, ...options },
+        metadata: { crudOperation: operation, ...options },
         tag: `crud:${operation}`
       });
       return _target;

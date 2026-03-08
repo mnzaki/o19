@@ -4,50 +4,47 @@
  * Builds the weaving plan from a WARP.ts module.
  */
 
-import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler } from '../../warp/index.js';
-import { CoreRing } from '../../warp/spiral/index.js';
-import { SurfaceRing } from '../../warp/spiral/surface.js';
-import type { ManagementMetadata } from '../reed/index.js';
+import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler } from '../warp/index.js';
+import { CoreRing } from '../warp/spiral/index.js';
+import { SurfaceRing } from '../warp/spiral/surface.js';
 import {
   collectAllTieups,
-  getTieups,
   addTieup,
   getLazyTieups,
   clearLazyTieups,
-  type LazyTieup,
-  type TieupTreadle
-} from '../../warp/tieups.js';
-import { generateFromTreadle, type TreadleDefinition } from '../treadle-kit/declarative.js';
-import type {
-  SpiralEdge,
-  SpiralNode,
-  GenerationTask,
-  WeavingPlan,
-  GeneratorFunction,
-} from './types.js';
+  type LazyTieup
+} from '../warp/tieups.js';
+import {
+  generateFromTreadle,
+  type TreadleDefinition
+} from '../machinery/treadle-kit/declarative.js';
 import { GeneratorMatrix, DEFAULT_MATRIX } from './matrix.js';
-import { enrichManagementMethods } from './enrichment.js';
 import {
   getEffectiveTypeName,
   detectRelationship,
   collectAllLayers,
-  findNodeForRing,
-} from './traversal.js';
-import { ensureMetadata } from './metadata.js';
-import { loadWarp } from '../reed/workspace-discovery.js';
+  findNodeForRing
+} from '../machinery/heddles/traversal.js';
+import { ensureMetadata } from '../warp/metadata.js';
+import { loadWarp } from './workspace-discovery.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { WeavingPlan } from './plan.js';
+import type { LanguageMethod } from '../machinery/reed/language/method.js';
+import type { BoundQuery } from '../machinery/sley/query.js';
+import type { Shed } from '../machinery/loom.js';
 
-/**
- * The Heddles - builds the weaving plan from a WARP.ts module.
- */
-export class Heddles {
+export class PatternMatcher {
   private matrix: GeneratorMatrix;
   /** Tracks the primary export name for each ring (the first one assigned) */
   private ringExportNames: WeakMap<SpiralRing, string> = new WeakMap();
 
   constructor(matrix: GeneratorMatrix = DEFAULT_MATRIX) {
     this.matrix = matrix;
+  }
+
+  matchPair(current: string, previous: string) {
+    return this.matrix.getPair(current, previous);
   }
 
   /**
@@ -60,15 +57,11 @@ export class Heddles {
    */
   async buildPlan(
     warp: Record<string, SpiralRing>,
-    managements: ManagementMetadata[] = [],
     workspaceRoot?: string
-  ): Promise<WeavingPlan> {
+  ): Promise<Omit<WeavingPlan, 'managements'>> {
     const edges: SpiralEdge[] = [];
     const nodesByType = new Map<string, SpiralNode[]>();
     const tasks: GenerationTask[] = [];
-
-    // HEDDLES: Enrich managements with computed metadata
-    const enrichedManagements = enrichManagementMethods(managements);
 
     // Track seen ring pairs to deduplicate tasks
     const seenRingPairs = new WeakMap<SpiralRing, Set<SpiralRing>>();
@@ -110,18 +103,15 @@ export class Heddles {
         if (!fs.existsSync(packageWarpPath)) continue;
 
         try {
-
           const packageWarp = await loadWarp(packageWarpPath, workspaceRoot);
           const packageRing = packageWarp[exportName];
 
           if (packageRing instanceof SpiralRing) {
-
             // Ensure metadata on package ring
             ensureMetadata(packageRing, exportName);
 
             // Collect lazy tieups from package WARP
             const packageLazyTieups = getLazyTieups(packageRing);
-
 
             // Merge: main tieups first, then package tieups
             const existingTieups = lazyTieupRegistry.get(exportName) || [];
@@ -209,7 +199,6 @@ export class Heddles {
     const allLayers = collectAllLayers(mutableWarp);
     const tieups = collectAllTieups(allLayers);
 
-
     for (const tieup of tieups) {
       const targetNode = findNodeForRing(nodesByType, tieup.target);
       const sourceNode = findNodeForRing(nodesByType, tieup.source);
@@ -218,13 +207,13 @@ export class Heddles {
 
       for (const entry of tieup.config.treadles) {
         const treadle = entry.treadle;
-        const warpData = entry.warpData;
+        const config = entry.config;
 
-        let generator: GeneratorFunction;
+        let generator: TreadleTrodder;
         if (this.isTreadleDefinition(treadle)) {
           generator = generateFromTreadle(treadle);
         } else {
-          generator = treadle as GeneratorFunction;
+          generator = treadle as TreadleTrodder;
         }
 
         tasks.push({
@@ -233,12 +222,12 @@ export class Heddles {
           previous: sourceNode,
           exportName: targetNode.exportName ?? 'unknown',
           generator,
-          config: warpData
+          config: config
         });
       }
     }
 
-    return { edges, nodesByType, managements: enrichedManagements, tasks, _isComplete: true };
+    return { edges, nodesByType, tasks, _isComplete: true };
   }
 
   private traverse(
@@ -318,6 +307,103 @@ export class Heddles {
   }
 }
 
-export function createHeddles(matrix?: GeneratorMatrix): Heddles {
-  return new Heddles(matrix);
+/**
+ * An edge in the spiral graph.
+ */
+export interface SpiralEdge {
+  /** The parent/inner ring */
+  from: SpiralRing;
+  /** The child/outer ring */
+  to: SpiralRing;
+  /** Relationship type */
+  relationship: 'wraps' | 'aggregates' | 'adapts' | 'binds';
+  /** Export name from WARP.ts (if applicable) */
+  exportName?: string;
+}
+
+/**
+ * A node in the traversal, with path information.
+ */
+export interface SpiralNode {
+  /** The ring instance */
+  ring: SpiralRing;
+  /** Type name (constructor.name) */
+  typeName: string;
+  /** Parent node (null for roots) */
+  parent: SpiralNode | null;
+  /** Depth in the tree */
+  depth: number;
+  /** Export name from WARP.ts */
+  exportName?: string;
+}
+/**
+ * A trodder that, when it finds (current, previous) match, trods a treadle with
+ * the context
+ */
+export type TreadleTrodder = (
+  current: SpiralNode,
+  previous: SpiralNode,
+  context?: GeneratorContext
+) => Promise<GeneratedFile[]>;
+
+/**
+ * A generated file specification.
+ */
+export interface GeneratedFile {
+  /** Output path */
+  path: string;
+  /** File content */
+  content: string;
+}
+
+/**
+ * A task to generate code.
+ */
+export interface GenerationTask {
+  /** Matrix match: [CurrentType, PreviousType] */
+  match: [string, string];
+  /** The current (outer) node */
+  current: SpiralNode;
+  /** The previous (inner) node */
+  previous: SpiralNode;
+  /** Export name from WARP.ts (the spiraler's export) */
+  exportName: string;
+  /**
+   * Optional generator function.
+   * If provided, bypasses matrix lookup (used for tieup tasks).
+   */
+  generator?: TreadleTrodder;
+  /**
+   * Optional config data from tieup (config).
+   * Passed to generator context.config when executing.
+   */
+  config?: Record<string, unknown>;
+}
+
+/**
+ * Generator context passed to generators.
+ */
+export interface GeneratorContext {
+  /** The weaving plan with all metadata */
+  plan: WeavingPlan;
+  /** Workspace root directory */
+  workspaceRoot: string;
+  /** Output directory for generated code */
+  outputDir?: string;
+  /** Package path relative to workspace (e.g., 'crates/foundframe-android') */
+  packagePath: string;
+  /** Full package directory path */
+  packageDir: string;
+  /** Method collection helpers (populated by treadle-kit) */
+  shed: Shed;
+  /**
+   * Entity collection helpers (populated by treadle-kit).
+   * Provides access to entities associated with managements.
+   */
+  //entities: BoundQuery<LanguageEntity>;
+  /**
+   * Configuration data from tieup (config).
+   * Available when treadle is invoked via .tieup()
+   */
+  config?: Record<string, unknown>;
 }

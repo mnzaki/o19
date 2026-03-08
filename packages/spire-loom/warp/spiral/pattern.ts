@@ -65,6 +65,7 @@ export abstract class CoreRing<
 > extends SpiralRing {
   /** Internal storage for the name property */
   private _name?: string;
+  public options: { [key: string]: any } = {};
 
   constructor(
     /** The external layer (struct definition) backing this core */

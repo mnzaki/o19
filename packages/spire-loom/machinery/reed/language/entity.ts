@@ -12,10 +12,13 @@
  * @module machinery/reed/enhanced/entities
  */
 
-import { languages as languageRegistry, getLanguageExtensionKey } from '../language/index.js';
-import type { LanguageDefinition, NamingConventions } from '../language/imperative.js';
-import { pascalCase, camelCase, toSnakeCase } from '../../stringing.js';
-import { declareEnhancement } from './enhancement.js';
+import {
+  languages as languageRegistry,
+  getLanguageExtensionKey,
+  type NamingConventions
+} from '../language/index.js';
+import { pascalCase, camelCase, toSnakeCase, Name } from '../../stringing.js';
+import { LanguageThing, type LanguageDefinition } from './types.js';
 
 // ============================================================================
 // Entity Types
@@ -60,31 +63,11 @@ export interface RawEntity {
  */
 export interface LanguageEntityField extends RawEntityField {
   /** Language-specific type (resolved at enhancement time) */
-  langType: string;
+  //langType: string | Name;
   /** SQL type for database schemas */
   sqlType: string;
   /** Column name (snake_case) */
   columnName: string;
-}
-
-/**
- * Entity with language-specific field types.
- */
-export interface LanguageEntity {
-  /** Entity name */
-  name: string;
-  /** Type name in language convention */
-  typeName: string;
-  /** Table name (snake_case plural) */
-  tableName: string;
-  /** Fields with resolved types */
-  fields: LanguageEntityField[];
-  /** Primary key field */
-  primaryField?: LanguageEntityField;
-  /** Insertable fields (excludes auto-generated) */
-  insertFields: LanguageEntityField[];
-  /** Updatable fields (excludes primary key and auto-generated) */
-  updateFields: LanguageEntityField[];
 }
 
 // ============================================================================
@@ -254,7 +237,7 @@ function pluralize(name: string): string {
  */
 export function enhanceEntity(entity: RawEntity, language: string): LanguageEntity {
   const lang = languageRegistry.get(language);
-  if (!lang?.codeGen?.types) {
+  if (!lang?.types) {
     throw new Error(
       `Language '${language}' not registered or has no types. ` +
         `Registered languages: ${
@@ -266,7 +249,7 @@ export function enhanceEntity(entity: RawEntity, language: string): LanguageEnti
     );
   }
 
-  const types = lang.codeGen.types;
+  const types = lang.types;
   const naming = lang.conventions.naming;
 
   // Enhance fields with language-specific types
@@ -304,15 +287,15 @@ export function enhanceEntity(entity: RawEntity, language: string): LanguageEnti
     (f) => f.forUpdate !== false && !f.isPrimary && !f.isCreatedAt
   );
 
-  return {
-    name: entity.name,
-    typeName: applyNamingConvention(entity.name, naming.type),
-    tableName: toSnakeCase(pluralize(entity.name)),
+  return new LanguageEntity(
+    entity.name,
+    applyNamingConvention(entity.name, naming.type),
+    toSnakeCase(pluralize(entity.name)),
     fields,
     primaryField,
     insertFields,
     updateFields
-  };
+  );
 }
 
 // ============================================================================
@@ -371,36 +354,14 @@ export function createEntityLanguageView(
 
   Object.defineProperty(view, 'variableName', {
     get() {
-      return applyNamingConvention(entity.name, naming.variable);
+      return naming.variable ? entity.name.apply(naming.variable) : entity.name.toString();
     },
     enumerable: true
   });
 
   Object.defineProperty(view, 'moduleName', {
     get() {
-      return applyNamingConvention(entity.name, naming.module);
-    },
-    enumerable: true
-  });
-
-  // Raw names
-  Object.defineProperty(view, 'camelName', {
-    get() {
-      return camelCase(entity.name);
-    },
-    enumerable: true
-  });
-
-  Object.defineProperty(view, 'pascalName', {
-    get() {
-      return pascalCase(entity.name);
-    },
-    enumerable: true
-  });
-
-  Object.defineProperty(view, 'snakeName', {
-    get() {
-      return toSnakeCase(entity.name);
+      return entity.name.apply(naming.module);
     },
     enumerable: true
   });
@@ -414,7 +375,7 @@ export function createEntityLanguageView(
       return applyNamingConvention(field.name, naming.variable);
     },
     get type() {
-      return field.langType;
+      return ''; // TODO field.langType.toString();
     },
     get sqlType() {
       return field.sqlType;
@@ -455,30 +416,30 @@ export function createEntityLanguageView(
 
   Object.defineProperty(view, 'insertFields', {
     get() {
-      return entity.insertFields.map(createFieldView);
+      return entity.insertFields?.map(createFieldView) ?? [];
     },
     enumerable: true
   });
 
   Object.defineProperty(view, 'updateFields', {
     get() {
-      return entity.updateFields.map(createFieldView);
+      return entity.updateFields?.map(createFieldView) ?? [];
     },
     enumerable: true
   });
 
   // Code generation helpers
-  Object.defineProperty(view, 'structDefinition', {
-    get() {
-      // Language-specific struct definition
-      // Could be customized per language via rendering config
-      const fields = entity.fields
-        .map((f) => `  ${applyNamingConvention(f.name, naming.variable)}: ${f.langType},`)
-        .join('\n');
-      return `${entity.typeName} {\n${fields}\n}`;
-    },
-    enumerable: true
-  });
+  // Object.defineProperty(view, 'structDefinition', {
+  //   get() {
+  //     // Language-specific struct definition
+  //     // Could be customized per language via rendering config
+  //     const fields = entity.fields
+  //       .map((f) => `  ${applyNamingConvention(f.name, naming.variable)}: ${f.langType},`)
+  //       .join('\n');
+  //     return `${entity.typeName} {\n${fields}\n}`;
+  //   },
+  //   enumerable: true
+  // });
 
   Object.defineProperty(view, 'tableDefinition', {
     get() {
@@ -600,29 +561,29 @@ export function enhanceEntities(
   });
 }
 
-// ============================================================================
-// Self-Declaration: The Entity Enhancement System
-// ============================================================================
-
 /**
- * The entity enhancement system.
- *
- * Declares itself using declareEnhancement(), providing both single-item
- * enhancement and batch operations via enhanceAll().
- *
- * @example
- * ```typescript
- * // Direct use (same as enhanceEntity)
- * const enhanced = entityEnhancement(raw, 'rust');
- *
- * // Batch enhance with multiple languages
- * const enhanced = entityEnhancement.enhanceAll(entities, ['rust', 'typescript']);
- * ```
+ * Entity with language-specific field types.
  */
-export const entityEnhancement = declareEnhancement({
-  name: 'entity',
-  enhance: enhanceEntity,
-  createView: createEntityLanguageView,
-  createContainer: (raw, enhancements, defaultLangKey) =>
-    createEnhancedEntity(raw, enhancements, defaultLangKey)
-});
+export class LanguageEntity extends LanguageThing {
+  protected _name: Name;
+
+  constructor(
+    /** Entity name */
+    name: string,
+    /** Type name in language convention */
+    public typeName: string,
+    /** Table name (snake_case plural) */
+    public tableName: string,
+    /** Fields with resolved types */
+    public fields: LanguageEntityField[],
+    /** Primary key field */
+    public primaryField?: LanguageEntityField,
+    /** Insertable fields (excludes auto-generated) */
+    public insertFields?: LanguageEntityField[],
+    /** Updatable fields (excludes primary key and auto-generated) */
+    public updateFields?: LanguageEntityField[]
+  ) {
+    super(name);
+    this._name = new Name(name);
+  }
+}

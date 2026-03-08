@@ -6,6 +6,9 @@
  * what code to generate.
  */
 
+import type { EntityMetadata, ManagementMetadata, MethodMetadata } from '../../warp/metadata.js';
+import type { QueryCollectionResult } from './query-collector.js';
+
 // ============================================================================
 // Core Types
 // ============================================================================
@@ -14,40 +17,8 @@ export {
   type EnrichedMethodMetadata,
   type SpiralEdge,
   type SpiralNode,
-  type GenerationTask,
-  type WeavingPlan,
-  type MethodHelpers,
-  type ServiceMethod,
-  type ManagementMethods,
-  type GeneratorContext,
-  type GeneratorFunction,
-  type GeneratedFile,
-  ensurePlanComplete
+  type ManagementMethods
 } from './types.js';
-
-// Re-export query types from sley for GeneratorContext.query
-export {
-  type BoundQuery,
-  type QueryAPI,
-  type MethodQueryAPI,
-  type CrudOperation
-} from '../sley/query.js';
-
-// ============================================================================
-// Matrix
-// ============================================================================
-
-export { GeneratorMatrix, DEFAULT_MATRIX } from './matrix.js';
-
-// ============================================================================
-// Enrichment (computed metadata from ownership chain)
-// ============================================================================
-
-export { enrichManagementMethods } from './enrichment.js';
-
-// ============================================================================
-// Traversal Utilities
-// ============================================================================
 
 export {
   getEffectiveTypeName,
@@ -59,16 +30,12 @@ export {
   getPathToRoot
 } from './traversal.js';
 
-// ============================================================================
-// Metadata
-// ============================================================================
+export * from './management-collector.js';
+export * from './query-collector.js';
 
-export { ensureMetadata } from './metadata.js';
-
-// ============================================================================
-// Plan Builder (Main Heddles class)
-// ============================================================================
-
-export { Heddles, createHeddles } from './plan-builder.js';
-
-// Note: pattern-matcher exports removed - import from './pattern-matcher.js' directly if needed
+export interface Heddles extends QueryCollectionResult {
+  mgmts: ManagementMetadata[];
+  methods: MethodMetadata[];
+  entities: EntityMetadata[];
+  errors: string[];
+}

@@ -1,0 +1,45 @@
+{#
+   ============================================================================
+   Kotlin Class Base Template
+   ============================================================================
+   Context:
+     - module: string       - Package name (e.g., 'com.example.app')
+     - imports: string[]    - List of import statements
+     - name: string         - Class name
+     - description: string  - Class description (optional)
+     - inherits: string     - Parent class/interface (optional)
+     - sections: string[]   - Code sections to include in class body
+   ============================================================================
+#}
+
+{% if module %}
+package {{ module }}
+
+{% endif %}
+{% if imports && imports.length > 0 %}
+{% for import in imports %}
+import {{ import }}
+{% endfor %}
+
+{% endif %}
+/**
+ * {{ name }}
+ *
+{% if description %}
+ * {{ description }}
+{% else %}
+ * Auto-generated Kotlin class.
+{% endif %}
+ */
+class {{ name }}{% if inherits %} : {{ inherits }}{% endif %} {
+
+{% if sections && sections.length > 0 %}
+{% for section in sections %}
+    // ------------------------------------------------------------------------
+    // Section: {{ h.pascalCase(section) }}
+    // ------------------------------------------------------------------------
+    {{ section }}
+
+{% endfor %}
+{% endif %}
+}

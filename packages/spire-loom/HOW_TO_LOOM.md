@@ -354,7 +354,7 @@ const front = tauri.typescript.ddd({
 }).tieup({
   treadles: [{
     treadle: accumulateGuilt,
-    warpData: {
+    config: {
       guiltLevels: ['mild', 'moderate', 'existential', 'absurdist'],
       voidStareThemes: ['midnight', 'abyss', 'grandma-disappointed'],
       excuses: ['too busy', 'forgot', 'was scared', 'next time for sure']
@@ -389,7 +389,7 @@ export const front = loom.spiral()
   .tieup({ 
     treadles: [{
       treadle: weaveFoundation,
-      warpData: {
+      config: {
         guiltAccumulationRate: 1.0,
         voidStareDefaultDuration: 5000,
         grandmaQuotes: ['Bless your heart', 'You tried', 'Maybe tomorrow']
@@ -419,7 +419,7 @@ export const front = loom.spiral.typescript.ddd({
 }).tieup({ 
   treadles: [{
     treadle: hauntLockScreen,
-    warpData: {
+    config: {
       mobileNotifications: true,
       lockScreenGuilt: true,
       vibrationPattern: 'sad-long'
@@ -456,7 +456,7 @@ export const front = loom.spiral(loom.tsCore(), {
 }).tieup({ 
   treadles: [{
     treadle: stareIntoVoid,
-    warpData: {
+    config: {
       voidTypes: ['existential', 'bureaucratic', 'grandma-sad'],
       stareSounds: ['silence.mp3', 'distant-wind.mp3', 'sigh.mp3']
     }
@@ -482,9 +482,9 @@ export const front = tauri.typescript.ddd({
   aggregateRoots: ['AlmostAggregate']
 }).tieup({ 
   treadles: [
-    { treadle: accumulateGuilt, warpData: { maxGuilt: 9000 } },
-    { treadle: stareIntoVoid, warpData: { stareDuration: 10000 } },
-    { treadle: dispenseGrandmaWisdom, warpData: { quoteCount: 47 } }
+    { treadle: accumulateGuilt, config: { maxGuilt: 9000 } },
+    { treadle: stareIntoVoid, config: { stareDuration: 10000 } },
+    { treadle: dispenseGrandmaWisdom, config: { quoteCount: 47 } }
   ] 
 });
 
@@ -529,9 +529,9 @@ export const front = loom.spiral(myCustomCore(), {
   language: 'typescript'
 }).tieup({
   treadles: [
-    { treadle: embraceAbsurdity, warpData: { kafkaFactor: 0.99 } },
-    { treadle: weighTheSoul, warpData: { color: '#8B4513' } },
-    { treadle: amplifySilence, warpData: { ambientTracks: ['void1.mp3', 'void2.mp3'] } }
+    { treadle: embraceAbsurdity, config: { kafkaFactor: 0.99 } },
+    { treadle: weighTheSoul, config: { color: '#8B4513' } },
+    { treadle: amplifySilence, config: { ambientTracks: ['void1.mp3', 'void2.mp3'] } }
   ]
 });
 ```
@@ -722,7 +722,7 @@ export const front = tauri.typescript.ddd({
 }).tieup({
   treadles: [{
     treadle: accumulateGuilt,
-    warpData: {
+    config: {
       guiltLevels: ['mild', 'moderate', 'existential', 'absurdist'],
       voidStareThemes: ['midnight', 'abyss', 'grandma-disappointed'],
       excuses: [
@@ -1165,7 +1165,7 @@ hookups: [{
 3. **Entities decorate Managements** - `@Mgmt.Entity` links data to operations
 4. **The loom generates to `spire/`** - Isolated from hand-written code
 5. **Methods flow through the spiral** - Collected, filtered, transformed
-6. **Tieup treadles for extensions** - Attach via `.tieup()` with `warpData`
+6. **Tieup treadles for extensions** - Attach via `.tieup()` with `config`
 7. **Workspace templates override builtins** - Place in `loom/bobbin/`
 8. **Query API for complex filtering** - Chainable: `.crud().tag().management()`
 9. **Hookups modify external files** - `patches` deprecated; use declarative hookups

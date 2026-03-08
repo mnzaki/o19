@@ -6,57 +6,32 @@
  * before weaving begins.
  */
 
-export { type TransformEnhancer } from './transform-pipeline.js';
+import type { ManagementMetadata } from '../../warp/metadata.js';
+import { type Heddles } from '../heddles/index.js';
+import { createQueryAPI, type BoundQuery } from '../sley/query.js';
+import { enrichManagement } from './enrichment.js';
+import { LanguageMethod } from './language/method.js';
 
-export {
-  collectManagements,
-  filterByReach,
-  filterByCrud,
-  groupByReach,
-  toAidlMethods,
-  type ManagementMetadata,
-  type MethodMetadata,
-  type CrudOperation,
-  type ReachLevel
-} from './management-collector.js';
+export type * from './transform-pipeline.js';
+export * from './language/index.js';
 
-export {
-  parseDrizzleSchema,
-  validateSchema,
-  type ParsedSchema,
-  type TableDef,
-  type ColumnDef,
-  type QueryDef
-} from './drizzle-parser.js';
+export interface Reed {
+  mgmts: ManagementMetadata[];
+  methods: BoundQuery<LanguageMethod>;
+  //entities: BoundQuery<LanguageEntity>;
+  //queries: QueryHelpers;
+}
 
-export {
-  collectQueriesFromDirectory,
-  collectQueriesFromFile,
-  type CollectedQuery,
-  type QueryCollectionResult
-} from './query-collector.js';
+export function fromHeddles(heddles: Heddles): Reed {
+  const mgmts = heddles.mgmts.map(enrichManagement);
+  const methods = createQueryAPI(heddles.methods.map((m) => new LanguageMethod(m)));
+  //const entities = createQueryAPI(heddles.entities.map(m => new LanguageEntity(m)));
+  //const queries = enrichManagementQueries(heddles.queries);
 
-export {
-  detectWorkspace,
-  loadWarp,
-  getSuggestedPackageFilter,
-  type WorkspaceInfo
-} from './workspace-discovery.js';
-
-// Re-export EntityFieldMetadata from warp for machinery use
-export type { EntityFieldMetadata } from '@o19/spire-loom/warp/imprint';
-
-// Shared class metadata collector pattern (for entity field collection and future use)
-export {
-  createCollector,
-  createDeepCollector,
-  isInstanceOf,
-  withName,
-  type ClassMetadataCollector,
-  type CollectorConfig,
-  type PredicateFn,
-  type ExtractorFn
-} from './class-metadata-collector.js';
-
-// Entity field collection (uses shared collector pattern)
-export { collectEntityFields, getEntityFields } from './entity-field-collector.js';
+  return {
+    mgmts,
+    methods
+    // entities
+    //queries
+  };
+}

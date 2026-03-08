@@ -11,18 +11,13 @@
  */
 
 import type {
-  LanguageDefinition,
   LanguageRenderingConfig,
   LanguageCodeGenConfig,
-  NamingConventions,
-  NamingCase,
-  LanguageMethod,
-  LanguageIdentity
+  LanguageDefinitionImperative
 } from './imperative.js';
-import { DEFAULT_NAMING_CONVENTIONS } from './imperative.js';
-import { LanguageType } from './types.js';
-import type { LanguageParam, TypeFactory } from './types.js';
-import { toSnakeCase, camelCase, pascalCase } from '../../stringing.js';
+import { DEFAULT_NAMING_CONVENTIONS, LanguageType } from './types.js';
+import type { LanguageParam, TypeFactory, NamingConventions, LanguageIdentity } from './types.js';
+import { toSnakeCase, camelCase, pascalCase, type NamingCase, Name } from '../../stringing.js';
 
 // ============================================================================
 // Core Keyword Types (Well-Known)
@@ -32,7 +27,6 @@ export const CORE_KEYWORD_TYPES = [
   // Declarations
   'function',
   'variable',
-  'mutableVariable',
   'constant',
   'type',
   'class',
@@ -90,38 +84,42 @@ export type KeywordType = CoreKeywordType | string;
 // Keyword Declaration
 // ============================================================================
 
-export interface KeywordDeclaration {
-  /** The actual keyword text (e.g., 'fn', 'function', 'def') */
-  keyword: string;
-  /** Whether this keyword is reserved and cannot be used as an identifier */
-  isReserved: boolean;
-  /** Category of keyword */
-  category:
-    | 'declaration'
-    | 'statement'
-    | 'expression'
-    | 'visibility'
-    | 'modifier'
-    | 'control'
-    | 'module'
-    | 'literal';
-  /** Position in syntax */
-  position: 'prefix' | 'suffix' | 'standalone';
-  /** What this keyword modifies, if applicable */
-  modifies?: 'function' | 'variable' | 'class' | 'field' | 'method';
-}
+//export interface KeywordDeclaration {
+//  /** The actual keyword text (e.g., 'fn', 'function', 'def') */
+//  keyword: string;
+//  /** Whether this keyword is reserved and cannot be used as an identifier */
+//  isReserved: boolean;
+//  /** Category of keyword */
+//  category:
+//    | 'declaration'
+//    | 'statement'
+//    | 'expression'
+//    | 'visibility'
+//    | 'modifier'
+//    | 'control'
+//    | 'module'
+//    | 'literal';
+//  /** Position in syntax */
+//  position: 'prefix' | 'suffix' | 'standalone';
+//  /** What this keyword modifies, if applicable */
+//  modifies?: 'function' | 'variable' | 'class' | 'field' | 'method';
+//}
 
 export type Keywords = {
-  [K in CoreKeywordType]: KeywordDeclaration | null;
-} & Record<string, KeywordDeclaration | null>;
+  [K in CoreKeywordType]: string | null;
+} & Record<string, string | null>;
 
 // ============================================================================
 // Type Constructor Declarations
 // ============================================================================
 
 export const CORE_TYPE_CONSTRUCTORS = [
-  'optional',
-  'array',
+  'boolean',
+  'string',
+  'signed',
+  'unsigned',
+  'option',
+  'list',
   'map',
   'set',
   'function',
@@ -135,14 +133,12 @@ export const CORE_TYPE_CONSTRUCTORS = [
 export type CoreTypeConstructor = (typeof CORE_TYPE_CONSTRUCTORS)[number];
 
 export interface TypeConstructorDeclaration {
-  /** Strategy for constructing the type */
-  strategy: 'wrapper' | 'suffix' | 'prefix' | 'union' | 'intersection' | 'function' | 'tuple';
-  /** Template string with placeholders like {{T}}, {{K}}, {{V}} */
-  template: string;
+  /** Template function to render this type given inner types */
+  template: string | ((...innerTypes: LanguageType[]) => string);
+  /** Stub (example/temporary/default) value for this type */
+  stub: string | ((...innerTypes: LanguageType[]) => string);
   /** Import path if this type requires an import */
-  importPath: string | null;
-  /** Whether this type always requires an import */
-  requiresImport: boolean;
+  importPath?: string;
 }
 
 export type TypeConstructors = {
@@ -153,15 +149,13 @@ export type TypeConstructors = {
 // Function Variant Declarations
 // ============================================================================
 
-export interface FunctionVariantDeclaration {
-  /** Whether this variant is supported */
-  supported: boolean;
+export interface FunctionVariantDeclaration<T extends LanguageType = LanguageType> {
   /** Keyword used for this variant (e.g., 'async', 'unsafe') */
-  keyword?: string;
-  /** Position of the keyword relative to function */
-  position: 'before' | 'after' | 'around';
-  /** Additional syntax required */
-  syntax?: string;
+  prependKeyword?: string;
+  wrapReturnType?: (returnType: T) => T;
+  processParams?: (params: Array<[string, T]>) => Array<[string, T]>;
+  //applyVariant?: (...args: any[]) => any;
+  overrideName?: Name | string;
 }
 
 // ============================================================================
@@ -170,13 +164,13 @@ export interface FunctionVariantDeclaration {
 
 export interface BlockSyntaxDeclaration {
   /** Opening delimiter for blocks */
-  open: string;
+  blockOpen: string;
   /** Closing delimiter for blocks */
-  close: string;
+  blockClose: string;
   /** Whether the language uses implicit return (expression-based) */
-  implicitReturn: boolean;
+  blockImplicitReturn: boolean;
   /** Separator between statements */
-  statementSeparator: string;
+  blockStatementSeparator: string;
 }
 
 // ============================================================================
@@ -187,11 +181,12 @@ export interface CompositionTemplate {
   /** Template source using preprocessed EJS syntax */
   source: string;
   /** Whitespace handling: 'preserve', 'trim', 'compact' */
-  whitespace: 'preserve' | 'trim' | 'compact';
+  whitespace?: 'preserve' | 'trim' | 'compact';
 }
 
 export interface CompositionTemplates {
   functionSignature: CompositionTemplate;
+  functionParams: CompositionTemplate;
   parameter: CompositionTemplate;
   functionDefinition: CompositionTemplate;
   typeDefinition: CompositionTemplate;
@@ -213,21 +208,18 @@ export interface CompositionTemplates {
  * without specifying how to generate code.
  */
 export interface LanguageDeclaration extends LanguageIdentity {
-  /** Naming conventions for the language */
-  conventions: {
-    naming: NamingConventions;
-  };
-
   /** Syntax definitions */
-  syntax: {
+  syntax: BlockSyntaxDeclaration & {
+    paramsOpen: string;
+    paramsSeparator: string;
+    paramsClose: string;
+    propertyNameSeparator: string;
     /** Keyword mappings (null means unsupported) */
     keywords: Keywords;
     /** Type constructor templates */
     types: TypeConstructors;
     /** Function variants (async, unsafe, etc.) */
     variants: Record<string, FunctionVariantDeclaration>;
-    /** Block syntax configuration */
-    blocks: BlockSyntaxDeclaration;
     /** Composition templates for code generation */
     composition: CompositionTemplates;
   };
@@ -246,7 +238,7 @@ export interface LanguageDeclaration extends LanguageIdentity {
 import ejs from 'ejs';
 import { preprocessTemplate } from '../../bobbin/mejs.js';
 import type { TransformEnhancer } from '../transform-pipeline.js';
-
+import type { LanguageMethod } from './method.js';
 /**
  * Renders a template with data at runtime.
  *
@@ -303,17 +295,16 @@ function formatName(name: string, convention: NamingCase | null | undefined): st
  * For function templates (advanced constructors), calls the function.
  */
 function applyTypeTemplate(
-  template: string | ((...args: string[]) => string),
-  vars: Record<string, string>
+  template: string | ((...args: LanguageType[]) => string),
+  args: LanguageType[] = []
 ): string {
   if (typeof template === 'function') {
     // Advanced constructor with function template
-    const args = Object.values(vars);
     return template(...args);
   }
 
   // Simple string template with {{var}} substitution
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '');
+  return template;
 }
 
 /**
@@ -322,66 +313,86 @@ function applyTypeTemplate(
  * This generates a class that implements TypeFactory by interpreting
  * the type constructor templates (e.g., `Vec<{{T}}>`).
  */
-function createTypeFactoryFromConstructors(
-  constructors: TypeConstructors
-): TypeFactory<LanguageParam, LanguageType> {
+function createTypeFactoryFromConstructors<T extends LanguageType>(
+  syntax: LanguageDeclaration['syntax']
+): TypeFactory<T> {
+  const ctors = syntax.types;
+  function createPrimitive(raw: TypeConstructorDeclaration | null): T {
+    if (!raw) throw new Error('Invalid type constructor');
+    const name = applyTypeTemplate(raw.template, []);
+    const stub = applyTypeTemplate(raw.stub, []);
+    return new LanguageType(name, stub, true) as T;
+  }
+  function createWrapper(raw: TypeConstructorDeclaration, ...innerTypes: LanguageType[]): T {
+    const name = applyTypeTemplate(raw.template, innerTypes);
+    const stub = applyTypeTemplate(raw.stub, innerTypes);
+    return new LanguageType(name, stub, true) as T;
+  }
   // Build primitive types - these could also come from declarations
   // For now, use defaults (these are primitive and don't vary much by language)
-  const boolean = new LanguageType('bool', 'false', true);
-  const string = new LanguageType('String', 'String::new()', true);
-  const number = new LanguageType('i64', '0', true);
-  const void_ = new LanguageType('()', '()', true);
+  const boolean = createPrimitive(ctors.boolean);
+  const string = createPrimitive(ctors.string);
+  const signed = ctors.signed && createPrimitive(ctors.signed);
+  const unsigned = ctors.unsigned && createPrimitive(ctors.unsigned);
+  const number = createPrimitive(ctors.number ?? ctors.signed ?? ctors.unsigned);
+  const void_ = ctors.void && createPrimitive(ctors.void);
+
+  if (!ctors.array || !boolean || !string || !void_ || !(signed || number || unsigned)) {
+    throw new Error(`Invalid type constructors: ${JSON.stringify(ctors)}`);
+  }
 
   return {
     boolean,
     string,
+    signed,
+    unsigned,
     number,
     void: void_,
 
-    array(itemType: LanguageType): LanguageType {
-      const ctor = constructors.array;
-      if (ctor?.template) {
-        const name = applyTypeTemplate(ctor.template, { T: itemType.name });
-        // Stub return uses the type's known values or a generic constructor
-        const stub = name.includes('null') ? 'null' : `${name}::new()`;
-        return new LanguageType(name, stub);
-      }
-      // Default: Array<T>
-      return new LanguageType(`${itemType.name}[]`, '[]');
+    property: function (name: string, innerType: T): T {
+      const stub = (innerType: LanguageType) =>
+        `${name}${syntax.propertyNameSeparator}${innerType.stub}`;
+      return new LanguageType(name, stub, false, [innerType]) as T;
     },
 
-    optional(innerType: LanguageType): LanguageType {
-      const ctor = constructors.optional;
-      if (ctor?.template) {
-        const name = applyTypeTemplate(ctor.template, { T: innerType.name });
-        const stub = name.includes('null') ? 'null' : `${name}::default()`;
-        return new LanguageType(name, stub);
-      }
-      // Default: T | null
-      return new LanguageType(`${innerType.name} | null`, 'null');
+    class: function (name: string, propertiesMap: Record<string, T>): T {
+      const propertyCtor = this.property?.bind(this);
+      if (!ctors.class || !propertyCtor)
+        throw new Error('No class type constructor in this language!');
+      const properties: LanguageType[] = Object.entries(propertiesMap).map(([k, t]) =>
+        propertyCtor(k, t)
+      );
+      const classType: LanguageType = new LanguageType(
+        name,
+        () => classType.name.toString(),
+        false,
+        properties
+      );
+      return classType as T;
     },
 
-    promise(innerType: LanguageType): LanguageType {
-      const ctor = constructors.promise;
-      if (ctor?.template) {
-        const name = applyTypeTemplate(ctor.template, { T: innerType.name });
-        return new LanguageType(name, 'Promise.resolve()');
-      }
-      // Default: Promise<T>
-      return new LanguageType(`Promise<${innerType.name}>`, 'Promise.resolve()');
+    object: function (...innerProperties: T[]): T {
+      if (!ctors.object) throw new Error('No object type constructor in this language!');
+      return createWrapper(ctors.object, ...innerProperties);
     },
 
-    result(okType: LanguageType, errType?: string | LanguageType): LanguageType {
-      const errName = typeof errType === 'string' ? errType : (errType?.name ?? 'Error');
-      // TODO: Use result constructor when added to core
-      return new LanguageType(`Result<${okType.name}, ${errName}>`, 'Ok(Default::default())');
-    },
+    //function: function (params: T[], returnType: T): T {
+    //  if (!ctors.function) throw new Error('No function type constructor in this language!');
+    //},
 
-    entity(name: string): LanguageType {
-      return new LanguageType(name, `Default::default()`, false, true);
-    },
+    array: createWrapper.bind(null, ctors.array),
 
-    fromTsType(tsType: string, isCollection: boolean): LanguageType {
+    optional: ctors.optional && createWrapper.bind(null, ctors.optional),
+
+    promise: ctors.promise && createWrapper.bind(null, ctors.promise),
+
+    result: ctors.result && createWrapper.bind(null, ctors.result),
+
+    //entity(name: string): LanguageType {
+    //  return new LanguageType(name, `Default::default()`, false, true);
+    //},
+
+    fromTsType(tsType: string, isCollection: boolean): T {
       // Handle TypeScript array syntax: T[]
       let normalizedType = tsType.trim();
       let isArraySyntax = false;
@@ -405,7 +416,8 @@ function createTypeFactoryFromConstructors(
           case 'void':
             return this.void;
           default:
-            return this.entity(normalizedType);
+            throw new Error('wtf');
+          //return this.entity(normalizedType);
         }
       })();
 
@@ -428,7 +440,7 @@ function createTypeFactoryFromConstructors(
  */
 export function compileToExecutive<T extends LanguageDeclaration = LanguageDeclaration>(
   declaration: T
-): Partial<LanguageDefinition> {
+): Partial<LanguageDefinitionImperative> {
   // Merge with defaults to fill in any missing conventions
   const naming: NamingConventions = {
     ...DEFAULT_NAMING_CONVENTIONS,
@@ -436,186 +448,68 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
   };
 
   // Create type factory from constructors
-  const types = createTypeFactoryFromConstructors(declaration.syntax.types);
+  const types = createTypeFactoryFromConstructors(declaration.syntax);
 
   // Build rendering config from composition templates
   const composition = declaration.syntax.composition;
 
   // Build language context (available in all template renders)
   const languageContext = {
+    ...declaration.syntax,
     // Naming conventions - full config available for contextual usage
     naming,
-
-    // Block syntax
-    blocks: declaration.syntax.blocks,
-
-    // Keywords (for conditional logic in templates)
-    keywords: declaration.syntax.keywords,
+    types,
 
     // Template helpers - use appropriate convention based on context
-    formatName: (name: string, convention?: NamingCase) => formatName(name, convention)
+    formatName
   };
 
   const rendering: LanguageRenderingConfig = {
     // Parameters use parameter naming convention (falls back to variable, then snake)
-    formatParamName: (name: string) =>
-      formatName(name, naming.parameter ?? naming.variable ?? 'snake_case'),
+    formatParam: (name: string, type: LanguageType) => {
+      return renderTemplate(composition.parameter.source, { ...languageContext, name, type });
+    },
+
+    renderParams: (params: string[]) => {
+      return renderTemplate(composition.functionParams.source, { ...languageContext, params });
+    },
 
     functionSignature: (method: LanguageMethod) => {
-      // Build template context: language context + method data
-      const context = {
-        ...languageContext,
-        method: {
-          name: method.name,
-          snakeName: method.snakeName,
-          camelName: method.camelName,
-          pascalName: pascalCase(method.name),
-          // Naming helpers for templates
-          get names() {
-            return {
-              snake: toSnakeCase(method.name),
-              camel: camelCase(method.name),
-              pascal: pascalCase(method.name),
-              screaming: toSnakeCase(method.name).toUpperCase(),
-              kebab: toSnakeCase(method.name).replace(/_/g, '-')
-            };
-          },
-          params: method.params,
-          paramList: method.params
-            .map((p: LanguageParam) => `${p.formattedName}: ${p.langType}`)
-            .join(', '),
-          returnType: method.returnTypeDef?.name ?? 'void'
-        },
-        // Convenience accessors
-        name: method.name,
-        snakeName: method.snakeName,
-        camelName: method.camelName,
-        params: method.params
-          .map((p: LanguageParam) => `${p.formattedName}: ${p.langType}`)
-          .join(', '),
-        returnType: method.returnTypeDef?.name ?? 'void'
-      };
-
-      return renderTemplate(composition.functionSignature.source, context);
+      return renderTemplate(
+        composition.functionSignature.source,
+        method.asContextWith(languageContext)
+      );
     },
 
-    asyncFunctionSignature: (method: LanguageMethod) => {
-      // Check if async is supported
-      const asyncVariant = declaration.syntax.variants.async;
-      if (!asyncVariant?.supported) {
-        // Fall back to regular signature
-        return rendering.functionSignature!(method);
-      }
-
-      const context = {
-        ...languageContext,
-        method: {
-          name: method.name,
-          snakeName: method.snakeName,
-          camelName: method.camelName,
-          pascalName: pascalCase(method.name),
-          // Naming helpers for templates
-          get names() {
-            return {
-              snake: toSnakeCase(method.name),
-              camel: camelCase(method.name),
-              pascal: pascalCase(method.name),
-              screaming: toSnakeCase(method.name).toUpperCase(),
-              kebab: toSnakeCase(method.name).replace(/_/g, '-')
-            };
-          },
-          params: method.params,
-          paramList: method.params
-            .map((p: LanguageParam) => `${p.formattedName}: ${p.langType}`)
-            .join(', '),
-          returnType: method.returnTypeDef?.name ?? 'void'
-        },
-        name: method.name,
-        snakeName: method.snakeName,
-        camelName: method.camelName,
-        params: method.params
-          .map((p: LanguageParam) => `${p.formattedName}: ${p.langType}`)
-          .join(', '),
-        returnType: method.returnTypeDef?.name ?? 'void',
-        // Async variant flag for template conditional
-        isAsync: true
-      };
-
-      return renderTemplate(composition.functionSignature.source, context);
-    },
-
-    renderDefinition: (
-      method: LanguageMethod,
-      opts: {
-        public?: boolean;
-        private?: boolean;
-        protected?: boolean;
-        static?: boolean;
-        async?: boolean;
-      }
-    ) => {
-      const signature = rendering.functionSignature!(method);
-
-      const context = {
-        ...languageContext,
-        method: {
-          name: method.name,
-          snakeName: method.snakeName,
-          camelName: method.camelName,
-          pascalName: pascalCase(method.name),
-          // Naming helpers for templates
-          get names() {
-            return {
-              snake: toSnakeCase(method.name),
-              camel: camelCase(method.name),
-              pascal: pascalCase(method.name),
-              screaming: toSnakeCase(method.name).toUpperCase(),
-              kebab: toSnakeCase(method.name).replace(/_/g, '-')
-            };
-          },
-          params: method.params,
-          paramList: method.params
-            .map((p: LanguageParam) => `${p.formattedName}: ${p.langType}`)
-            .join(', '),
-          returnType: method.returnTypeDef?.name ?? 'void'
-        },
-        signature,
-        // Variant flags for template conditionals
-        opts,
-        isPublic: opts.public ?? false,
-        isPrivate: opts.private ?? false,
-        isProtected: opts.protected ?? false,
-        isStatic: opts.static ?? false,
-        isAsync: opts.async ?? false
-      };
-
-      return renderTemplate(composition.functionDefinition.source, context);
-    },
-
-    renderObjectWrappedParams: (method: LanguageMethod, objectParamName: string) => {
-      // Build inner param list (the object type contents)
-      const innerParamList = method.params
-        .map((p: LanguageParam) => {
-          const optMarker = p.optional ? '?' : '';
-          return `${p.formattedName}${optMarker}: ${p.langType}`;
-        })
-        .join(', ');
-
-      const context = {
-        ...languageContext,
-        objectParamName,
-        innerParamList,
-        params: method.params
-      };
-
-      return renderTemplate(composition.objectWrappedParams.source, context);
+    renderDefinition: (method: LanguageMethod) => {
+      return renderTemplate(
+        composition.functionDefinition.source,
+        method.asContextWith(languageContext)
+      );
     }
+
+    //renderObjectWrappedParams: (method: LanguageMethod, objectParamName: string) => {
+    //  // Build inner param list (the object type contents)
+    //  const innerParamList = method.params
+    //    .map((p: LanguageParam) => {
+    //      const optMarker = p.optional ? '?' : '';
+    //      return `${p.formattedName}${optMarker}: ${p.langType}`;
+    //    })
+    //    .join(', ');
+
+    //  const context = {
+    //    ...languageContext,
+    //    objectParamName,
+    //    innerParamList,
+    //    params: method.params
+    //  };
+
+    //  return renderTemplate(composition.objectWrappedParams.source, context);
+    //}
   };
 
   // Build code generation config
   const codeGen: LanguageCodeGenConfig<LanguageParam, LanguageType> = {
-    fileExtensions: declaration.extensions.map((ext) => (ext.startsWith('.') ? ext : `.${ext}`)),
-    types,
     rendering
   };
 
@@ -624,6 +518,8 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
   // runtime classes (ExternalLayer, CoreRing, Spiraler)
   return {
     name: declaration.name,
+    types,
+    extensions: declaration.extensions.map((ext) => (ext.startsWith('.') ? ext : `.${ext}`)),
     codeGen
   };
 }
@@ -631,6 +527,39 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
 // ============================================================================
 // Well-Known Core Types
 // ============================================================================
+
+export const commonLanguageTypes: TypeConstructors = {
+  boolean: {
+    template: 'boolean',
+    stub: 'false'
+  },
+  string: {
+    template: 'string',
+    stub: '""'
+  },
+  signed: {
+    template: 'number',
+    stub: '0'
+  },
+  unsigned: {
+    template: 'number',
+    stub: '0'
+  },
+  property: {
+    template: (T: LanguageType) => `{{name}}{{propertyNameSeparator}}${T}`,
+    stub: (T: LanguageType) => `{{name}}{{propertyNameSeparator}}${T.stub}`
+  },
+  option: null,
+  list: null,
+  map: null,
+  set: null,
+  function: null,
+  tuple: null,
+  union: null,
+  intersection: null,
+  reference: null,
+  promise: null
+};
 
 export const commonLanguageDeclaration: LanguageDeclaration = {
   name: 'common',
@@ -650,203 +579,80 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
   },
   syntax: {
     keywords: {
-      function: {
-        keyword: 'function',
-        isReserved: true,
-        category: 'declaration',
-        position: 'prefix'
-      },
-      variable: { keyword: 'const', isReserved: true, category: 'declaration', position: 'prefix' },
-      mutableVariable: {
-        keyword: 'let',
-        isReserved: true,
-        category: 'declaration',
-        position: 'prefix'
-      },
-      constant: { keyword: 'const', isReserved: true, category: 'declaration', position: 'prefix' },
-      type: { keyword: 'type', isReserved: true, category: 'declaration', position: 'prefix' },
-      class: { keyword: 'class', isReserved: true, category: 'declaration', position: 'prefix' },
-      interface: {
-        keyword: 'interface',
-        isReserved: true,
-        category: 'declaration',
-        position: 'prefix'
-      },
-      enum: { keyword: 'enum', isReserved: true, category: 'declaration', position: 'prefix' },
-      namespace: {
-        keyword: 'namespace',
-        isReserved: true,
-        category: 'declaration',
-        position: 'prefix'
-      },
-      public: { keyword: 'public', isReserved: true, category: 'visibility', position: 'prefix' },
-      private: { keyword: 'private', isReserved: true, category: 'visibility', position: 'prefix' },
-      protected: {
-        keyword: 'protected',
-        isReserved: true,
-        category: 'visibility',
-        position: 'prefix'
-      },
-      internal: {
-        keyword: 'internal',
-        isReserved: true,
-        category: 'visibility',
-        position: 'prefix'
-      },
-      static: {
-        keyword: 'static',
-        isReserved: true,
-        category: 'modifier',
-        position: 'prefix',
-        modifies: 'function'
-      },
-      abstract: {
-        keyword: 'abstract',
-        isReserved: true,
-        category: 'modifier',
-        position: 'prefix',
-        modifies: 'class'
-      },
-      final: {
-        keyword: 'final',
-        isReserved: true,
-        category: 'modifier',
-        position: 'prefix',
-        modifies: 'class'
-      },
-      override: {
-        keyword: 'override',
-        isReserved: true,
-        category: 'modifier',
-        position: 'prefix',
-        modifies: 'method'
-      },
-      if: { keyword: 'if', isReserved: true, category: 'control', position: 'prefix' },
-      else: { keyword: 'else', isReserved: true, category: 'control', position: 'prefix' },
-      for: { keyword: 'for', isReserved: true, category: 'control', position: 'prefix' },
-      while: { keyword: 'while', isReserved: true, category: 'control', position: 'prefix' },
-      do: { keyword: 'do', isReserved: true, category: 'control', position: 'prefix' },
-      break: { keyword: 'break', isReserved: true, category: 'control', position: 'standalone' },
-      continue: {
-        keyword: 'continue',
-        isReserved: true,
-        category: 'control',
-        position: 'standalone'
-      },
-      return: { keyword: 'return', isReserved: true, category: 'control', position: 'standalone' },
-      switch: { keyword: 'switch', isReserved: true, category: 'control', position: 'prefix' },
-      case: { keyword: 'case', isReserved: true, category: 'control', position: 'prefix' },
-      default: { keyword: 'default', isReserved: true, category: 'control', position: 'prefix' },
-      import: { keyword: 'import', isReserved: true, category: 'module', position: 'prefix' },
-      export: { keyword: 'export', isReserved: true, category: 'module', position: 'prefix' },
-      from: { keyword: 'from', isReserved: true, category: 'module', position: 'standalone' },
-      async: {
-        keyword: 'async',
-        isReserved: true,
-        category: 'modifier',
-        position: 'prefix',
-        modifies: 'function'
-      },
-      await: { keyword: 'await', isReserved: true, category: 'expression', position: 'prefix' },
-      try: { keyword: 'try', isReserved: true, category: 'control', position: 'prefix' },
-      catch: { keyword: 'catch', isReserved: true, category: 'control', position: 'prefix' },
-      finally: { keyword: 'finally', isReserved: true, category: 'control', position: 'prefix' },
-      throw: { keyword: 'throw', isReserved: true, category: 'control', position: 'standalone' },
-      new: { keyword: 'new', isReserved: true, category: 'expression', position: 'prefix' },
-      delete: { keyword: 'delete', isReserved: true, category: 'expression', position: 'prefix' },
-      this: { keyword: 'this', isReserved: true, category: 'literal', position: 'standalone' },
-      super: { keyword: 'super', isReserved: true, category: 'literal', position: 'standalone' },
-      null: { keyword: 'null', isReserved: true, category: 'literal', position: 'standalone' },
-      true: { keyword: 'true', isReserved: true, category: 'literal', position: 'standalone' },
-      false: { keyword: 'false', isReserved: true, category: 'literal', position: 'standalone' },
-      undefined: {
-        keyword: 'undefined',
-        isReserved: true,
-        category: 'literal',
-        position: 'standalone'
-      }
+      function: 'function',
+      variable: 'var',
+      constant: 'const',
+      type: 'type',
+      class: 'class',
+      interface: 'interface',
+      enum: 'enum',
+      namespace: 'namespace',
+      public: 'public',
+      private: 'private',
+      protected: 'protected',
+      internal: 'internal',
+      static: 'static',
+      abstract: 'abstract',
+      final: 'final',
+      override: 'override',
+      if: 'if',
+      else: 'else',
+      for: 'for',
+      while: 'while',
+      do: 'do',
+      break: 'break',
+      continue: 'continue',
+      return: 'return',
+      switch: 'switch',
+      case: 'case',
+      default: 'default',
+      import: 'import',
+      export: 'export',
+      from: 'from',
+      async: 'async',
+      await: 'await',
+      try: 'try',
+      catch: 'catch',
+      finally: 'finally',
+      throw: 'throw',
+      new: 'new',
+      delete: 'delete',
+      this: 'this',
+      super: 'super',
+      null: 'null',
+      true: 'true',
+      false: 'false',
+      undefined: 'undefined'
     },
-    types: {
-      optional: {
-        strategy: 'suffix',
-        template: '{{T}} | null',
-        importPath: null,
-        requiresImport: false
-      },
-      array: {
-        strategy: 'wrapper',
-        template: 'Array<{{T}}>',
-        importPath: null,
-        requiresImport: false
-      },
-      map: {
-        strategy: 'wrapper',
-        template: 'Map<{{K}}, {{V}}>',
-        importPath: null,
-        requiresImport: false
-      },
-      set: { strategy: 'wrapper', template: 'Set<{{T}}>', importPath: null, requiresImport: false },
-      function: {
-        strategy: 'function',
-        template: '({{Params}}) => {{Return}}',
-        importPath: null,
-        requiresImport: false
-      },
-      tuple: {
-        strategy: 'tuple',
-        template: '[{{Items}}]',
-        importPath: null,
-        requiresImport: false
-      },
-      union: {
-        strategy: 'union',
-        template: '{{T1}} | {{T2}}',
-        importPath: null,
-        requiresImport: false
-      },
-      intersection: {
-        strategy: 'intersection',
-        template: '{{T1}} & {{T2}}',
-        importPath: null,
-        requiresImport: false
-      },
-      reference: {
-        strategy: 'prefix',
-        template: 'typeof {{T}}',
-        importPath: null,
-        requiresImport: false
-      },
-      promise: {
-        strategy: 'wrapper',
-        template: 'Promise<{{T}}>',
-        importPath: null,
-        requiresImport: false
-      }
-    },
+    types: commonLanguageTypes,
     variants: {
-      async: { supported: true, keyword: 'async', position: 'before' },
-      unsafe: { supported: false, position: 'before' },
-      const: { supported: false, position: 'before' }
+      async: { prependKeyword: 'async' },
+      public: { prependKeyword: 'public' },
+      private: { prependKeyword: 'private' },
+      protected: { prependKeyword: 'protected' },
+      static: { prependKeyword: 'static' }
     },
-    blocks: {
-      open: '{',
-      close: '}',
-      implicitReturn: false,
-      statementSeparator: ';'
-    },
+    blockOpen: '{',
+    blockClose: '}',
+    blockImplicitReturn: false,
+    blockStatementSeparator: ';',
+    paramsOpen: '(',
+    paramsSeparator: ', ',
+    paramsClose: ')',
+    propertyNameSeparator: ': ',
     composition: {
       functionSignature: {
         source:
-          '{% if visibility %}{{visibility}} {% endif %}function {{name}}{{generics}}{{params}}{% if returnType %}: {{returnType}}{% endif %}',
-        whitespace: 'trim'
+          '{{ prependedKeywords }} function {{name}}{{generics}}{{params}}{% if returnType %}: {{returnType}}{% endif %}'
       },
       parameter: {
-        source: '{% if isOptional %}{{name}}?{% else %}{{name}}{% endif %}: {{type}}',
-        whitespace: 'trim'
+        source: '{{name}}: {{type}}'
+      },
+      functionParams: {
+        source: '{{ paramsOpen }}{{ params.join(paramSeparator) }}{{ paramsClose }}'
       },
       functionDefinition: {
-        source: '{{signature}} {{blockOpen}}{{body}}{{blockClose}}',
-        whitespace: 'trim'
+        source: '{{signature}} {{blockOpen}}\n{{body}}\n{{blockClose}}'
       },
       typeDefinition: {
         source:
@@ -883,18 +689,13 @@ export const cFamilyLanguageDeclaration: LanguageDeclaration = {
   ...commonLanguageDeclaration,
   name: 'c_family',
   extends: 'common',
-  extensions: ['.c', '.cpp', '.h', '.hpp', '.cs', '.java', '.rs', '.ts', '.kt', '.swift'],
+  extensions: ['.c', '.h'],
   conventions: {
     naming: {
       ...commonLanguageDeclaration.conventions.naming
     }
   },
   syntax: {
-    ...commonLanguageDeclaration.syntax,
-    blocks: {
-      ...commonLanguageDeclaration.syntax.blocks,
-      open: '{',
-      close: '}'
-    }
+    ...commonLanguageDeclaration.syntax
   }
 };

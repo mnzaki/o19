@@ -9,8 +9,9 @@
     "jsx": "react-jsx"
   },
   "include": [
-    "warp/**/*",
+    "cli/**/*",
+    "weaver/**/*",
     "machinery/**/*",
-    "cli/**/*"
+    "warp/**/*"
   ]
 }

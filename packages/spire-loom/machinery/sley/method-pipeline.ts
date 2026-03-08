@@ -28,82 +28,12 @@
  */
 
 import type { CrudOperation } from '../../warp/imprint.js';
+import type { MethodMetadata } from '../../warp/metadata.js';
 import { toSnakeCaseFull as toSnakeCase } from '../stringing.js';
 
 // ============================================================================
 // Core Types
 // ============================================================================
-
-/**
- * A Management method at any stage of processing.
- *
- * This is the unified representation that flows through the pipeline.
- * Each translation layer can modify fields, but the method identity is preserved.
- * 
- * Note: name is the high-level TypeScript method name (e.g., "generatePairingCode").
- * Transformations like snake_case happen when converting to RawMethod.
- * 
- * IMPORTANT: The management layer does NO translation of the WARP.
- * It merely collects and carries the WARP definitions forward.
- * All transformations (prefixing, snake_case, etc.) happen in the pipeline
- * when converting MgmtMethod → RawMethod.
- */
-export interface MgmtMethod {
-  /** Unique identifier: "{managementName}.{methodName}" */
-  readonly id: string;
-
-  /** Management this method belongs to (e.g., "BookmarkMgmt") */
-  managementName: string;
-
-  /** Method name from Management Imprint (e.g., "generatePairingCode") - as written in WARP.ts */
-  name: string;
-
-  /** JavaScript/TypeScript method name (camelCase, same as name) */
-  jsName: string;
-
-  /** Parameters for the method */
-  params: MgmtParam[];
-
-  /** Return type */
-  returnType: string;
-
-  /** Whether return is an array */
-  isCollection: boolean;
-
-  /** JSDoc description */
-  description?: string;
-
-  /** Tags from decorators (e.g., ['crud:create', 'auth:required']) */
-  tags?: string[];
-
-  /** CRUD operation if tagged */
-  crudOperation?: CrudOperation;
-
-  /**
-   * Arbitrary metadata that translations can attach.
-   * Use namespacing: 'myTranslation.key' to avoid collisions.
-   * 
-   * NOTE: Heddles use this to store computed metadata like useResult, wrappers.
-   */
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * A parameter in a Management method.
- */
-export interface MgmtParam {
-  /** Parameter name */
-  name: string;
-
-  /** TypeScript type */
-  tsType: string;
-
-  /** Whether optional */
-  optional?: boolean;
-
-  /** Expression for passing to implementation (e.g., "data.url") */
-  invokeExpr?: string;
-}
 
 /**
  * A function that transforms methods.
@@ -113,13 +43,13 @@ export interface MgmtParam {
  * - Output: transformed methods for this ring
  * - No side effects, no filtering (filtering happens later)
  */
-export type MethodTranslation = (methods: MgmtMethod[]) => MgmtMethod[];
+export type MethodTranslation = (methods: MethodMetadata[]) => MethodMetadata[];
 
 /**
  * A filter predicate for methods.
  * Returns true to KEEP the method, false to exclude.
  */
-export type MethodFilter = (method: MgmtMethod) => boolean;
+export type MethodFilter = (method: MethodMetadata) => boolean;
 
 // ============================================================================
 // Pipeline Builder
@@ -156,10 +86,7 @@ export class MethodPipeline {
    * Returns the complete, transformed method set.
    */
   process(methods: MgmtMethod[]): MgmtMethod[] {
-    return this.translations.reduce(
-      (current, translate) => translate(current),
-      methods
-    );
+    return this.translations.reduce((current, translate) => translate(current), methods);
   }
 
   /**
@@ -188,26 +115,8 @@ export function addPrefix(prefix: string): MethodTranslation {
   return (methods) =>
     methods.map((method) => ({
       ...method,
-      name: `${prefix}${method.name}`,
+      name: `${prefix}${method.name}`
     }));
-}
-
-/**
- * Add management name as prefix (snake_case).
- *
- * Example: BookmarkMgmt methods get "bookmark_" prefix
- */
-export function addManagementPrefix(): MethodTranslation {
-  return (methods) =>
-    methods.map((method) => {
-      const mgmtPrefix = toSnakeCase(
-        method.managementName.replace(/Mgmt$/, '')
-      );
-      return {
-        ...method,
-        name: `${mgmtPrefix}_${method.name}`,
-      };
-    });
 }
 
 /**
@@ -232,9 +141,7 @@ export function crudInterfaceMapping(): MethodTranslation {
       if (crudOp) {
         // Find the read method for this management (for create-then-get)
         const mgmtMethods = byMgmt.get(method.managementName) || [];
-        const readMethod = mgmtMethods.find((m) =>
-          m.tags?.includes('crud:read')
-        );
+        const readMethod = mgmtMethods.find((m) => m.tags?.includes('crud:read'));
 
         // Transform to CRUD interface method
         const transformed = transformToCrudInterface(method, crudOp, readMethod);
@@ -259,8 +166,8 @@ export function mapTypes(typeMap: Record<string, string>): MethodTranslation {
       returnType: typeMap[method.returnType] ?? method.returnType,
       params: method.params.map((p) => ({
         ...p,
-        tsType: typeMap[p.tsType] ?? p.tsType,
-      })),
+        tsType: typeMap[p.tsType] ?? p.tsType
+      }))
     }));
 }
 
@@ -290,9 +197,7 @@ export function tagFilter(filterOut: string[]): MethodFilter {
 /**
  * Create a filter that only includes specific CRUD operations.
  */
-export function crudOperationFilter(
-  operations: CrudOperation[]
-): MethodFilter {
+export function crudOperationFilter(operations: CrudOperation[]): MethodFilter {
   const opSet = new Set(operations);
 
   return (method) => {
@@ -322,15 +227,13 @@ function extractCrudOperation(tags: string[] | undefined): CrudOperation | undef
 /**
  * Group methods by management name.
  */
-export function groupByManagement<T extends { managementName: string }>(
-  methods: T[]
-): Map<string, T[]> {
+export function groupByManagement<T extends { mgmtName: string }>(methods: T[]): Map<string, T[]> {
   const grouped = new Map<string, T[]>();
 
   for (const method of methods) {
-    const list = grouped.get(method.managementName) ?? [];
+    const list = grouped.get(method.mgmtName) ?? [];
     list.push(method);
-    grouped.set(method.managementName, list);
+    grouped.set(method.mgmtName, list);
   }
 
   return grouped;
@@ -339,9 +242,7 @@ export function groupByManagement<T extends { managementName: string }>(
 /**
  * Group methods by CRUD operation.
  */
-export function groupByCrud<T extends { crudOperation?: string }>(
-  methods: T[]
-): Map<string, T[]> {
+export function groupByCrud<T extends { crudOperation?: string }>(methods: T[]): Map<string, T[]> {
   const grouped = new Map<string, T[]>();
 
   for (const method of methods) {
@@ -375,8 +276,8 @@ function transformToCrudInterface(
           name: 'data',
           tsType: `Create${method.managementName.replace(/Mgmt$/, '')}`,
           optional: false,
-          invokeExpr: buildDestructuringExpr(method.params, 'data'),
-        },
+          invokeExpr: buildDestructuringExpr(method.params, 'data')
+        }
       ];
       invokeTransform = params[0].invokeExpr;
       break;
@@ -388,8 +289,8 @@ function transformToCrudInterface(
           name: 'data',
           tsType: `Update${method.managementName.replace(/Mgmt$/, '')}`,
           optional: false,
-          invokeExpr: buildDestructuringExpr(method.params.slice(1), 'data'),
-        },
+          invokeExpr: buildDestructuringExpr(method.params.slice(1), 'data')
+        }
       ];
       invokeTransform = `id, ${params[1].invokeExpr}`;
       break;
@@ -418,21 +319,18 @@ function transformToCrudInterface(
         operation === 'create' && readMethod
           ? {
               commandName: readMethod.name,
-              idParamName: 'id',
+              idParamName: 'id'
             }
           : undefined,
-      'crud.originalReturnType': method.returnType,
-    },
+      'crud.originalReturnType': method.returnType
+    }
   };
 }
 
 /**
  * Build destructuring expression: "{ url: data.url, title: data.title }"
  */
-function buildDestructuringExpr(
-  params: MgmtParam[],
-  dataVar: string
-): string {
+function buildDestructuringExpr(params: MgmtParam[], dataVar: string): string {
   const mappings = params.map((p) => `${p.name}: ${dataVar}.${p.name}`);
   return `{ ${mappings.join(', ')} }`;
 }
@@ -456,25 +354,27 @@ export interface EnrichedMethodFields {
  *
  * This is the ENTRY POINT to the pipeline - call this first to get
  * methods in the right shape, then apply translations.
- * 
+ *
  * NOTE: This function preserves the WARP names exactly as written.
  * No transformation (snake_case, prefixing, etc.) happens here.
  * Those transformations are applied later by pipeline translations
  * when converting MgmtMethod → RawMethod.
- * 
+ *
  * NOTE: This function preserves enriched fields (useResult, wrappers) if present.
  * These come from heddles enrichment, not computed here.
  */
 export function fromSourceMethods(
   managementName: string,
-  methods: Array<{
-    name: string;
-    returnType: string;
-    isCollection?: boolean;
-    params: Array<{ name: string; type: string; optional?: boolean }>;
-    description?: string;
-    tags?: string[];
-  } & EnrichedMethodFields>
+  methods: Array<
+    {
+      name: string;
+      returnType: string;
+      isCollection?: boolean;
+      params: Array<{ name: string; type: string; optional?: boolean }>;
+      description?: string;
+      tags?: string[];
+    } & EnrichedMethodFields
+  >
 ): MgmtMethod[] {
   return methods.map((method) => {
     // Keep the original high-level name (e.g., "generatePairingCode")
@@ -487,7 +387,7 @@ export function fromSourceMethods(
       params: method.params.map((p) => ({
         name: p.name,
         tsType: mapTypeScriptType(p.type),
-        optional: p.optional,
+        optional: p.optional
       })),
       returnType: mapTypeScriptType(method.returnType),
       isCollection: method.isCollection ?? false,
@@ -498,8 +398,8 @@ export function fromSourceMethods(
       metadata: {
         useResult: (method as EnrichedMethodFields).useResult,
         wrappers: (method as EnrichedMethodFields).wrappers,
-        fieldName: (method as EnrichedMethodFields).fieldName,
-      },
+        fieldName: (method as EnrichedMethodFields).fieldName
+      }
     };
   });
 }

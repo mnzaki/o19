@@ -45,7 +45,7 @@ export interface MockTreadleConfig {
  * const runner = createTestRunner({
  *   warp: {
  *     foundframe: loom.spiral(core)
- *       .tieup({ treadles: [mockTreadle], warpData: {} })
+ *       .tieup({ treadles: [mockTreadle], config: {} })
  *   }
  * });
  * ```
@@ -162,7 +162,7 @@ export const warpFixtures = {
    * With tieup: Core + custom treadle.
    */
   withTieup: (treadle: TreadleDefinition, config: Record<string, unknown>) => ({
-    foundframe: {} as any, // Would have .tieup({ treadles: [treadle], warpData: config })
+    foundframe: {} as any, // Would have .tieup({ treadles: [treadle], config: config })
   }),
 
   /**

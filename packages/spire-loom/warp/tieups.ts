@@ -11,13 +11,13 @@
  * // Attach a declarative treadle to a layer
  * const myTreadle = declareTreadle({...});
  * const foundframe = loom.spiral(Foundframe)
- *   .tieup({ treadles: [{ treadle: myTreadle, warpData: {} }] });
+ *   .tieup({ treadles: [{ treadle: myTreadle, config: {} }] });
  * ```
  */
 
 import type { Layer } from './layers.js';
-import type { GeneratorFunction } from '../machinery/heddles/index.js';
 import type { TreadleDefinition } from '../machinery/treadle-kit/declarative.js';
+import type { TreadleTrodder } from '../weaver/plan-builder.js';
 
 // ============================================================================
 // Types
@@ -25,22 +25,22 @@ import type { TreadleDefinition } from '../machinery/treadle-kit/declarative.js'
 
 /**
  * Supported treadle types for tieups.
- * - GeneratorFunction: Result of generateFromTreadle()
+ * - TreadleMatch: Result of generateFromTreadle()
  * - TreadleDefinition: Result of declareTreadle()
  */
-export type TieupTreadle = GeneratorFunction | TreadleDefinition;
+export type TieupTreadle = TreadleTrodder | TreadleDefinition;
 
 /**
- * A treadle entry with its own warpData.
+ * A treadle entry with its own config.
  */
 export interface TreadleEntry {
-  /** 
+  /**
    * The treadle to execute.
    * Can be a TreadleDefinition (from declareTreadle).
    */
   treadle: TieupTreadle;
   /** Data passed to this specific treadle */
-  warpData?: { [key: string]: unknown };
+  config?: { [key: string]: unknown };
 }
 
 /**
@@ -99,15 +99,15 @@ export interface LazyTieup {
  */
 export function getTieups(layer: Layer): StoredTieup[] {
   const applied = (layer as any)[TIEUPS_KEY] || [];
-  
+
   // Also include lazy tieups as StoredTieup format
   const lazy = getLazyTieups(layer);
-  const lazyAsStored: StoredTieup[] = lazy.map(lt => ({
+  const lazyAsStored: StoredTieup[] = lazy.map((lt) => ({
     target: layer,
     source: lt.source,
     config: { treadles: lt.treadles }
   }));
-  
+
   return [...applied, ...lazyAsStored];
 }
 
@@ -178,11 +178,11 @@ export function clearLazyTieups(layer: Layer): void {
  * // Use this layer as both source and target
  * const myTreadle = declareTreadle({...});
  * const foundframe = loom.spiral(Foundframe)
- *   .tieup({ treadles: [{ treadle: myTreadle, warpData: {} }] });
+ *   .tieup({ treadles: [{ treadle: myTreadle, config: {} }] });
  *
  * // Use another layer as source
  * const front = tauri.typescript.ddd()
- *   .tieup(foundframe, { treadles: [{ treadle: myTreadle, warpData: {} }] });
+ *   .tieup(foundframe, { treadles: [{ treadle: myTreadle, config: {} }] });
  * ```
  */
 export function tieup<L extends Layer>(

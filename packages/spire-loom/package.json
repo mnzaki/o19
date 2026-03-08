@@ -58,6 +58,11 @@
       "import": "./warp/index.ts",
       "default": "./warp/index.ts"
     },
+    "./weaver": {
+      "types": "./weaver/index.ts",
+      "import": "./weaver/index.ts",
+      "default": "./weaver/index.ts"
+    },
     "./machinery/treadle-kit": {
       "types": "./machinery/treadle-kit/index.ts",
       "import": "./machinery/treadle-kit/index.ts",
@@ -82,11 +87,6 @@
       "types": "./machinery/shuttle/index.ts",
       "import": "./machinery/shuttle/index.ts",
       "default": "./machinery/shuttle/index.ts"
-    },
-    "./machinery/weaver": {
-      "types": "./machinery/weaver.ts",
-      "import": "./machinery/weaver.ts",
-      "default": "./machinery/weaver.ts"
     },
     "./machinery/reed": {
       "types": "./machinery/reed/workspace-discovery.ts",

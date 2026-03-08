@@ -11,8 +11,8 @@ import {
   ensureGradleBlock,
   ensureGradleBlockRemoved,
   ensureGradleSourceSet,
-  clearGradleBlockRegistry,
-} from '../machinery/shuttle/gradle-manager.js';
+  clearGradleBlockRegistry
+} from '../machinery/sley/gradle-manager.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_DIR = path.join('/tmp', `gradle-test-${Date.now()}`);
@@ -33,14 +33,18 @@ describe('gradle-manager', () => {
     const gradlePath = path.join(TEST_DIR, 'build.gradle');
     fs.writeFileSync(gradlePath, '');
 
-    const result = ensureGradleBlock(gradlePath, 'TestBlock', `
+    const result = ensureGradleBlock(
+      gradlePath,
+      'TestBlock',
+      `
 android {
     compileSdk 34
 }
-`);
+`
+    );
 
     expect(result).toBe(true);
-    
+
     const content = fs.readFileSync(gradlePath, 'utf-8');
     expect(content.includes('// SPIRE-LOOM:BLOCK:TESTBLOCK')).toBe(true);
     expect(content.includes('// /SPIRE-LOOM:BLOCK:TESTBLOCK')).toBe(true);
@@ -49,16 +53,24 @@ android {
 
   it('adds block after specific marker', () => {
     const gradlePath = path.join(TEST_DIR, 'build.gradle');
-    fs.writeFileSync(gradlePath, `plugins {
+    fs.writeFileSync(
+      gradlePath,
+      `plugins {
     id 'com.android.library'
 }
-`);
+`
+    );
 
-    ensureGradleBlock(gradlePath, 'RustTask', `
+    ensureGradleBlock(
+      gradlePath,
+      'RustTask',
+      `
 tasks.register('buildRust') {
     // Build Rust
 }
-`, { after: 'plugins {' });
+`,
+      { after: 'plugins {' }
+    );
 
     const content = fs.readFileSync(gradlePath, 'utf-8');
     expect(content.includes('// SPIRE-LOOM:BLOCK:RUSTTASK')).toBe(true);
@@ -85,7 +97,7 @@ tasks.register('buildRust') {
     const result = ensureGradleBlock(gradlePath, 'TestBlock', 'version2');
 
     expect(result).toBe(true);
-    
+
     const content = fs.readFileSync(gradlePath, 'utf-8');
     expect(content.includes('version2')).toBe(true);
     expect(!content.includes('version1')).toBe(true);
@@ -93,7 +105,9 @@ tasks.register('buildRust') {
 
   it('removes block completely', () => {
     const gradlePath = path.join(TEST_DIR, 'build.gradle');
-    fs.writeFileSync(gradlePath, `plugins {
+    fs.writeFileSync(
+      gradlePath,
+      `plugins {
 }
 // SPIRE-LOOM:BLOCK:TESTBLOCK
 test {
@@ -101,12 +115,13 @@ test {
 // /SPIRE-LOOM:BLOCK:TESTBLOCK
 android {
 }
-`);
+`
+    );
 
     const result = ensureGradleBlockRemoved(gradlePath, 'TestBlock');
 
     expect(result).toBe(true);
-    
+
     const content = fs.readFileSync(gradlePath, 'utf-8');
     expect(!content.includes('spire-loom:TestBlock')).toBe(true);
     expect(!content.includes('test {')).toBe(true);
@@ -120,11 +135,11 @@ android {
 
     const result = ensureGradleSourceSet(gradlePath, 'main', {
       java: ['./src/main/java'],
-      aidl: ['./src/main/aidl'],
+      aidl: ['./src/main/aidl']
     });
 
     expect(result).toBe(true);
-    
+
     const content = fs.readFileSync(gradlePath, 'utf-8');
     expect(content.includes('android {')).toBe(true);
     expect(content.includes('sourceSets {')).toBe(true);
@@ -144,7 +159,7 @@ android {
       aidl: ['./spire/android/aidl'],
       jniLibs: ['./spire/android/jniLibs'],
       assets: ['./spire/android/assets'],
-      manifest: './spire/android/AndroidManifest.xml',
+      manifest: './spire/android/AndroidManifest.xml'
     });
 
     const content = fs.readFileSync(gradlePath, 'utf-8');
@@ -171,9 +186,13 @@ android {
 `;
     fs.writeFileSync(gradlePath, originalContent);
 
-    ensureGradleBlock(gradlePath, 'NewBlock', `
+    ensureGradleBlock(
+      gradlePath,
+      'NewBlock',
+      `
 // New content
-`);
+`
+    );
 
     const content = fs.readFileSync(gradlePath, 'utf-8');
     expect(content.includes("namespace 'ty.circulari.test'")).toBe(true);

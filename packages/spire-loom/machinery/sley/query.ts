@@ -17,61 +17,57 @@
  * Backward compatible with context.methods - both are available.
  */
 
-import type { RawMethod } from '../bobbin/index.js';
+import type { CrudOperation } from '../../warp/crud.js';
+import type { LanguageDefinitionImperative } from '../reed/language/imperative.js';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 /**
- * CRUD operations supported by the query builder.
- */
-export type CrudOperation = 'create' | 'read' | 'update' | 'delete' | 'list';
-
-/**
  * Query API interface - chainable filters and terminal operations.
  */
-export interface QueryAPI<T extends { tags?: string[]; crudOperation?: string; managementName?: string }> {
+export interface QueryAPI<T extends Queryable> {
   /** Filter by tag */
   tag(tag: string): BoundQuery<T>;
-  
+
   /** Filter by multiple tags (AND logic) */
   tags(...tags: string[]): BoundQuery<T>;
-  
+
   /** Filter by CRUD operation(s) */
   crud(...ops: CrudOperation[]): BoundQuery<T>;
-  
+
   /** Filter by management name */
   management(name: string): BoundQuery<T>;
-  
+
   /** Custom predicate filter */
   filter(predicate: (method: T) => boolean): BoundQuery<T>;
-  
+
   /** Terminal: Group by management name */
   byManagement(): Map<string, T[]>;
-  
+
   /** Terminal: Group by CRUD operation */
   byCrud(): Map<string, T[]>;
-  
+
   /** Terminal: Get all matching methods */
   get all(): T[];
-  
+
   /** Terminal: Get first matching method */
   get first(): T | undefined;
-  
+
   /** Terminal: Get count of matching methods */
   get count(): number;
-  
+
   /** Terminal: Check if any methods match */
   get hasAny(): boolean;
-  
+
   /** Terminal: Pre-filtered getters */
   get creates(): BoundQuery<T>;
   get reads(): BoundQuery<T>;
   get updates(): BoundQuery<T>;
   get deletes(): BoundQuery<T>;
   get lists(): BoundQuery<T>;
-  
+
   /** Iteration terminals */
   forEach(cb: (method: T) => void): void;
   map<U>(fn: (method: T) => U): U[];
@@ -80,29 +76,43 @@ export interface QueryAPI<T extends { tags?: string[]; crudOperation?: string; m
   every(predicate: (method: T) => boolean): boolean;
 }
 
-/**
- * Bound query - immutable query state with lazy evaluation.
- */
-export interface BoundQuery<T extends { tags?: string[]; crudOperation?: string; managementName?: string }> extends QueryAPI<T> {}
-
 // ============================================================================
 // Implementation
 // ============================================================================
 
+interface Queryable {
+  lang: LanguageDefinitionImperative;
+  tags?: string[];
+  crudOperation?: string;
+  managementName?: string;
+}
+
 /**
- * Internal implementation of BoundQuery with lazy evaluation.
- * 
+ * BoundQuery with lazy evaluation.
+ *
  * Filters are composed into a pipeline that's only evaluated when
  * a terminal operation is called. Results are cached for repeated access.
+ *
  */
-class BoundQueryImpl<T extends { tags?: string[]; crudOperation?: string; managementName?: string }> implements BoundQuery<T> {
+class BoundQuery<T extends Queryable> {
   private source: T[];
   private filters: Array<(m: T) => boolean>;
   private cachedResult: T[] | undefined;
 
+  private _lang?: LanguageDefinitionImperative;
+
   constructor(source: T[], filters: Array<(m: T) => boolean> = []) {
     this.source = source;
     this.filters = filters;
+  }
+
+  transform(transform: (m: T) => T): BoundQuery<T> {
+    return new BoundQuery(this.source.map(transform), this.filters);
+  }
+
+  setLang(lang: LanguageDefinitionImperative) {
+    this._lang = lang;
+    this.cachedResult = undefined;
   }
 
   /**
@@ -110,11 +120,15 @@ class BoundQueryImpl<T extends { tags?: string[]; crudOperation?: string; manage
    * Cached for repeated access.
    */
   private evaluate(): T[] {
+    const lang = this._lang;
+    if (!lang) throw new Error('no language specified');
+
     if (this.cachedResult === undefined) {
       this.cachedResult = this.filters.reduce(
         (methods, filter) => methods.filter(filter),
         this.source
       );
+      this.cachedResult.forEach((m) => (m.lang = lang));
     }
     return this.cachedResult;
   }
@@ -124,7 +138,7 @@ class BoundQueryImpl<T extends { tags?: string[]; crudOperation?: string; manage
    * Immutable - doesn't modify the current query.
    */
   private withFilter(filter: (m: T) => boolean): BoundQuery<T> {
-    return new BoundQueryImpl(this.source, [...this.filters, filter]);
+    return new BoundQuery(this.source, [...this.filters, filter]);
   }
 
   // ========================================================================
@@ -132,19 +146,21 @@ class BoundQueryImpl<T extends { tags?: string[]; crudOperation?: string; manage
   // ========================================================================
 
   tag(tag: string): BoundQuery<T> {
-    return this.withFilter(m => m.tags?.includes(tag) ?? false);
+    return this.withFilter((m) => m.tags?.includes(tag) ?? false);
   }
 
   tags(...tags: string[]): BoundQuery<T> {
-    return this.withFilter(m => tags.every(tag => m.tags?.includes(tag) ?? false));
+    return this.withFilter((m) => tags.every((tag) => m.tags?.includes(tag) ?? false));
   }
 
   crud(...ops: CrudOperation[]): BoundQuery<T> {
-    return this.withFilter(m => m.crudOperation !== undefined && ops.includes(m.crudOperation as CrudOperation));
+    return this.withFilter(
+      (m) => m.crudOperation !== undefined && ops.includes(m.crudOperation as CrudOperation)
+    );
   }
 
   management(name: string): BoundQuery<T> {
-    return this.withFilter(m => m.managementName === name);
+    return this.withFilter((m) => m.managementName === name);
   }
 
   filter(predicate: (method: T) => boolean): BoundQuery<T> {
@@ -248,7 +264,7 @@ class BoundQueryImpl<T extends { tags?: string[]; crudOperation?: string; manage
 
   /**
    * Make BoundQuery iterable - can use in for...of loops!
-   * 
+   *
    * @example
    * ```typescript
    * for (const method of context.query?.methods) {
@@ -266,69 +282,35 @@ class BoundQueryImpl<T extends { tags?: string[]; crudOperation?: string; manage
 // ============================================================================
 
 /**
- * Query API for a collection of methods.
- * Contains the primary query and pre-filtered CRUD entry points.
- */
-export interface MethodQueryAPI<T extends { tags?: string[]; crudOperation?: string; managementName?: string }> {
-  /** Primary query over all methods */
-  methods: BoundQuery<T>;
-  
-  /** Pre-filtered: create methods */
-  creates: BoundQuery<T>;
-  
-  /** Pre-filtered: read methods */
-  reads: BoundQuery<T>;
-  
-  /** Pre-filtered: update methods */
-  updates: BoundQuery<T>;
-  
-  /** Pre-filtered: delete methods */
-  deletes: BoundQuery<T>;
-  
-  /** Pre-filtered: list methods */
-  lists: BoundQuery<T>;
-}
-
-/**
  * Create a query API bound to a method collection.
- * 
+ *
  * Returns a POJO with:
  * - `methods`: Primary query over all methods
  * - `creates`, `reads`, etc.: Pre-filtered entry points
- * 
+ *
  * @example
  * ```typescript
  * context.query = createQueryAPI(rawMethods);
- * 
+ *
  * // Use primary query with chaining
  * const authCreates = context.query?.methods
  *   .crud('create')
  *   .tag('auth:required')
  *   .all;
- * 
+ *
  * // Use pre-filtered entry point
  * const bookmarkCreates = context.query?.creates
  *   .management('BookmarkMgmt')
  *   .all;
  * ```
  */
-export function createQueryAPI<T extends { tags?: string[]; crudOperation?: string; managementName?: string }>(
-  methods: T[]
-): MethodQueryAPI<T> {
-  const allQuery = new BoundQueryImpl(methods);
-  
-  return {
-    methods: allQuery,
-    creates: allQuery.crud('create'),
-    reads: allQuery.crud('read'),
-    updates: allQuery.crud('update'),
-    deletes: allQuery.crud('delete'),
-    lists: allQuery.crud('list'),
-  };
+export function createQueryAPI<
+  T extends {
+    lang: LanguageDefinitionImperative;
+    tags?: string[];
+    crudOperation?: string;
+    managementName?: string;
+  }
+>(stuff: T[]) {
+  return new BoundQuery(stuff);
 }
-
-// ============================================================================
-// Re-exports for convenience
-// ============================================================================
-
-export { BoundQueryImpl };

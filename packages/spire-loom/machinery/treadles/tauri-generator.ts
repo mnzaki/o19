@@ -6,7 +6,6 @@
 
 import * as path from 'node:path';
 import type { SpiralNode, GeneratorContext } from '../heddles/index.js';
-import type { hookup } from '../shuttle/index.js';
 import {
   declareTreadle,
   generateFromTreadle,
@@ -15,8 +14,8 @@ import {
 import { TauriSpiraler } from '../../warp/spiral/spiralers/tauri.js';
 import { RustCore } from '../../warp/spiral/index.js';
 import { hookup, cargoToml } from '../shuttle/index.js';
-import { addManagementPrefix } from '../sley/index.js';
 import { buildCrateNaming } from '../stringing.js';
+import type { GeneratedFile } from '../bobbin/index.js';
 
 /**
  * Convert snake_case command name to kebab-case permission identifier.
@@ -42,7 +41,7 @@ export const tauriPluginTreadle = declareTreadle({
 
   methods: {
     filter: 'platform',
-    pipeline: [addManagementPrefix()]
+    pipeline: []
   },
 
   data: (_context, current, previous) => {
@@ -82,17 +81,17 @@ export const tauriPluginTreadle = declareTreadle({
   },
 
   outputs: [
-    { template: 'tauri/README.md.mejs', path: 'README.md', language: 'rust' },
-    { template: 'tauri/error.rs.mejs', path: 'src/error.rs', language: 'rust' },
-    { template: 'tauri/models.rs.mejs', path: 'src/models.rs', language: 'rust' },
-    { template: 'tauri/platform.rs.mejs', path: 'src/platform.rs', language: 'rust' },
-    { template: 'tauri/commands.rs.mejs', path: 'src/commands.rs', language: 'rust' },
-    { template: 'tauri/extension.rs.mejs', path: 'src/extension.rs', language: 'rust' },
-    { template: 'tauri/lib.rs.mejs', path: 'src/lib.rs', language: 'rust' },
-    { template: 'tauri/desktop.rs.mejs', path: 'src/desktop.rs', language: 'rust' },
-    { template: 'tauri/mobile/mod.rs.mejs', path: 'src/mobile/mod.rs', language: 'rust' },
-    { template: 'tauri/mobile/android.rs.mejs', path: 'src/mobile/android.rs', language: 'rust' },
-    { template: 'tauri/mobile/ios.rs.mejs', path: 'src/mobile/ios.rs', language: 'rust' }
+    { template: 'tauri/README.md.mejs', path: 'README.md' },
+    { template: 'tauri/error.rs.mejs', path: 'src/error.rs' },
+    { template: 'tauri/models.rs.mejs', path: 'src/models.rs' },
+    { template: 'tauri/platform.rs.mejs', path: 'src/platform.rs' },
+    { template: 'tauri/commands.rs.mejs', path: 'src/commands.rs' },
+    { template: 'tauri/extension.rs.mejs', path: 'src/extension.rs' },
+    { template: 'tauri/lib.rs.mejs', path: 'src/lib.rs' },
+    { template: 'tauri/desktop.rs.mejs', path: 'src/desktop.rs' },
+    { template: 'tauri/mobile/mod.rs.mejs', path: 'src/mobile/mod.rs' },
+    { template: 'tauri/mobile/android.rs.mejs', path: 'src/mobile/android.rs' },
+    { template: 'tauri/mobile/ios.rs.mejs', path: 'src/mobile/ios.rs' }
   ],
 
   hookups: (ctx) => {
@@ -167,7 +166,7 @@ export async function generateTauriPlugin(
   current: SpiralNode,
   previous: SpiralNode,
   context?: GeneratorContext
-): Promise<import('../heddles/index.js').GeneratedFile[]> {
+): Promise<GeneratedFile[]> {
   const baseGenerator = generateFromTreadle(tauriPluginTreadle);
   const files = await baseGenerator(current, previous, context);
 

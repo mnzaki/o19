@@ -23,14 +23,10 @@ export {
 // Method Pipeline - composable translations for Management methods
 export {
   // Core types
-  type MgmtMethod,
-  type MgmtParam,
   type MethodTranslation,
   type MethodFilter,
-  MethodPipeline,
   // Translations
   addPrefix,
-  addManagementPrefix,
   crudInterfaceMapping,
   mapTypes,
   // Filters
@@ -48,13 +44,7 @@ export {
 // Use method-pipeline for new code
 
 // Query Builder - Chainable queries over methods (APP-009)
-export {
-  createQueryAPI,
-  type BoundQuery,
-  type QueryAPI,
-  type MethodQueryAPI,
-  type CrudOperation
-} from './query.js';
+export { createQueryAPI, type BoundQuery, type QueryAPI, type CrudOperation } from './query.js';
 
 // Entity Pipeline - composable translations for Entity classes
 export {
@@ -76,3 +66,36 @@ export {
   // Utilities
   fromSourceEntities
 } from './entity-pipeline.js';
+
+export * as fileSystem from './file-system-operations.js';
+export type * from './file-system-operations.js';
+
+export * as xmlBlock from './xml-block-manager.js';
+export type * from './xml-block-manager.js';
+
+export * as workspacePackage from './workspace-package-manager.js';
+export type * from './workspace-package-manager.js';
+
+export * as packageJson from './package-json-manager.js';
+export type * from './package-json-manager.js';
+
+export * as cargoTools from './cargo-tools.js';
+export type * from './cargo-tools.js';
+
+export * as gradle from './gradle-manager.js';
+export type * from './gradle-manager.js';
+
+export * as cargoToml from './cargo-toml-manager.js';
+export type * from './cargo-toml-manager.js';
+
+export * as hookup from './hookup-manager.js';
+export type * from './hookup-manager.js';
+
+export * as tauri from './tauri-manager.js';
+export type * from './tauri-manager.js';
+
+export * as blockRegistry from './block-registry.js';
+export type * from './block-registry.js';
+
+export * as markers from './markers.js';
+export type * from './markers.js';

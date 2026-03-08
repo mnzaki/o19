@@ -46,7 +46,7 @@ export class RustCore<
     // Metadata is enriched by heddles from export name after loadWarp sets .name
     // We set language here so it's available immediately; heddles will add packageName/path
     super(layer, layer as any, { language: 'rust' } as any);
-    
+
     // Ensure layer has a name - use constructor name as fallback
     // This handles cases like loom.spiral.tauri where layer is created inline
     const layerAny = layer as any;

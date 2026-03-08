@@ -10,32 +10,12 @@
  * - File generation with auto-enhancement
  */
 
-import * as path from 'node:path';
-import type { SpiralNode, GeneratorContext, WeavingPlan, MethodHelpers } from '../heddles/index.js';
-import { ensurePlanComplete } from '../heddles/index.js';
-import type { ManagementMetadata } from '../reed/index.js';
-import { type EntityMetadata } from '../../warp/imprint.js';
-import { filterByReach } from '../reed/index.js';
-import type { MgmtMethod } from '../sley/index.js';
-import type { RawMethod } from '../bobbin/index.js';
-import type { GeneratedFile } from '../heddles/index.js';
-import { generateCode } from '../bobbin/index.js';
-import { hookup, type hookup as HookupTypes } from '../shuttle/index.js';
-import type { MethodConfig, TreadleKit } from './types.js';
-import { toRawMethod, buildContextMethods } from './context-methods.js';
-import { buildContextEntities } from './context-entities.js';
-import { createQueryAPI } from '../sley/query.js';
-import { applyCrudPipeline } from '../sley/crud-pipeline.js';
-import {
-  enhanceMethods,
-  enhanceEntities,
-  isEnhanced,
-  type EnhancedMethod,
-  type LanguageView,
-  type EnhancedEntity
-} from '../reed/enhanced/index.js';
+import type { GeneratedFile } from '../bobbin/index.js';
+import type { TreadleKit } from './types.js';
 import { getLanguageExtensionKey, languages } from '../reed/language/index.js';
-import { getScopeRegistry } from '../self-declarer.js';
+import { generateCode } from '../shuttle/code-printer.js';
+import type { GeneratorContext } from '../../weaver/plan-builder.js';
+import type { EntityMetadata } from '../../warp/metadata.js';
 
 /**
  * Create a treadle kit for building generators.
@@ -54,13 +34,11 @@ import { getScopeRegistry } from '../self-declarer.js';
  */
 export function createTreadleKit(context: GeneratorContext): TreadleKit {
   // Store raw snapshots for incremental enhancement
-  let rawMethodsSnapshot: RawMethod[] = [];
   let crudApplied = false;
   let enhancedLanguages: string[] = [];
-  
+
   // Entity enhancement state
   let rawEntitiesSnapshot: Array<{ name: string; fields: any[] }> = [];
-  let enhancedEntities: EnhancedEntity[] = [];
 
   // EAGER: Collect entities immediately when kit is created
   const allEntities: EntityMetadata[] = [];
@@ -69,25 +47,26 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       allEntities.push(...mgmt.entities);
     }
   }
-  
-  // Store raw entity snapshots for enhancement (convert to RawEntity format)
-  rawEntitiesSnapshot = allEntities.map(e => ({
-    name: e.name,
-    fields: e.fields?.map(f => ({
-      name: f.name,
-      tsType: f.tsType,
-      nullable: f.nullable,
-      isPrimary: f.isPrimary,
-      isCreatedAt: f.isCreatedAt,
-      isUpdatedAt: f.isUpdatedAt,
-      forInsert: f.forInsert,
-      forUpdate: f.forUpdate
-    })) || []
-  }));
-  
-  context.entities = buildContextEntities(allEntities);
 
-  const kit = {
+  // Store raw entity snapshots for enhancement (convert to RawEntity format)
+  rawEntitiesSnapshot = allEntities.map((e) => ({
+    name: e.name,
+    fields:
+      e.fields?.map((f) => ({
+        name: f.name,
+        tsType: f.tsType,
+        nullable: f.nullable,
+        isPrimary: f.isPrimary,
+        isCreatedAt: f.isCreatedAt,
+        isUpdatedAt: f.isUpdatedAt,
+        forInsert: f.forInsert,
+        forUpdate: f.forUpdate
+      })) || []
+  }));
+
+  //context.entities = buildContextEntities(allEntities);
+
+  const kit: TreadleKit = {
     context,
     plan: context.plan,
 
@@ -106,163 +85,117 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
       return true;
     },
 
-    crud: {
-      /**
-       * Apply CRUD classification to methods.
-       *
-       * Derives crudName from tags like 'crud:create'.
-       * Runs automatically before language enhancement if not already applied.
-       */
-      apply(): void {
-        if (crudApplied) return;
+    //crud: {
+    //  /**
+    //   * Apply CRUD classification to methods.
+    //   *
+    //   * Derives crudName from tags like 'crud:create'.
+    //   * Runs automatically before language enhancement if not already applied.
+    //   */
+    //  //apply(): void {
+    //  //  if (crudApplied) return;
 
-        const current = context.methods?.all || [];
-        const withCrud = applyCrudPipeline(current as RawMethod[]);
-        context.methods = buildContextMethods(withCrud);
-        crudApplied = true;
-      },
+    //  //  const current = context.methods?.all || [];
+    //  //  const withCrud = applyCrudPipeline(current as RawMethod[]);
+    //  //  context.methods = buildContextMethods(withCrud);
+    //  //  crudApplied = true;
+    //  //},
 
-      get isApplied(): boolean {
-        return crudApplied;
-      }
-    },
+    //  get isApplied(): boolean {
+    //    return crudApplied;
+    //  }
+    //},
 
-    language: {
-      /**
-       * Enhance methods with specified languages.
-       *
-       * First language becomes the default for getters like `method.returnType`.
-       * Can be called incrementally to add more languages.
-       *
-       * @param langs - Language identifiers (e.g., 'rust', 'typescript')
-       */
-      add(...langs: string[]): void {
-        if (langs.length === 0) return;
+    //language: {
+    //  /**
+    //   * Enhance methods with specified languages.
+    //   *
+    //   * First language becomes the default for getters like `method.returnType`.
+    //   * Can be called incrementally to add more languages.
+    //   *
+    //   * @param langs - Language identifiers (e.g., 'rust', 'typescript')
+    //   */
+    //  add(...langs: string[]): void {
+    //    if (langs.length === 0) return;
 
-        // Auto-apply CRUD before language enhancement
-        if (!crudApplied) {
-          kit.crud.apply();
-        }
+    //    // Auto-apply CRUD before language enhancement
+    //    if (!crudApplied) {
+    //      kit.crud.apply();
+    //    }
 
-        const currentMethods = context.methods?.all || [];
+    //    const currentMethods = context.methods?.all || [];
 
-        // Get current enhancement state
-        const currentLangs = isEnhanced(currentMethods[0])
-          ? (currentMethods[0] as EnhancedMethod)._languages || []
-          : [];
+    //    // Get current enhancement state
+    //    const currentLangs = isEnhanced(currentMethods[0])
+    //      ? (currentMethods[0] as EnhancedMethod)._languages || []
+    //      : [];
 
-        // Store raw on first call
-        if (rawMethodsSnapshot.length === 0) {
-          rawMethodsSnapshot = isEnhanced(currentMethods[0])
-            ? (currentMethods[0] as EnhancedMethod)._raw || [...currentMethods]
-            : [...currentMethods];
-        }
+    //    // Store raw on first call
+    //    if (rawMethodsSnapshot.length === 0) {
+    //      rawMethodsSnapshot = isEnhanced(currentMethods[0])
+    //        ? (currentMethods[0] as EnhancedMethod)._raw || [...currentMethods]
+    //        : [...currentMethods];
+    //    }
 
-        // Filter duplicates
-        const newLangs = langs.filter((l) => !currentLangs.includes(getLanguageExtensionKey(l)));
-        if (newLangs.length === 0 && currentLangs.length > 0) return;
+    //    // Filter duplicates
+    //    const newLangs = langs.filter((l) => !currentLangs.includes(getLanguageExtensionKey(l)));
+    //    if (newLangs.length === 0 && currentLangs.length > 0) return;
 
-        // All languages
-        const allLangs = [...currentLangs, ...newLangs.map(getLanguageExtensionKey)];
-        enhancedLanguages = allLangs;
+    //    // All languages
+    //    const allLangs = [...currentLangs, ...newLangs.map(getLanguageExtensionKey)];
+    //    enhancedLanguages = allLangs;
 
-        // Enhance from raw
-        const enhanced = enhanceMethods(
-          rawMethodsSnapshot,
-          [...currentLangs.map((k) => {
-            // Find language name from extension key
-            const lang = languages.getAll().find((l) => getLanguageExtensionKey(l.name) === k);
-            return lang?.name || k;
-          }), ...langs],
-          allLangs[0] // First is default
-        );
+    //    // Enhance from raw
+    //    const enhanced = enhanceMethods(
+    //      rawMethodsSnapshot,
+    //      [
+    //        ...currentLangs.map((k) => {
+    //          // Find language name from extension key
+    //          const lang = languages.getAll().find((l) => getLanguageExtensionKey(l.name) === k);
+    //          return lang?.name || k;
+    //        }),
+    //        ...langs
+    //      ],
+    //      allLangs[0] // First is default
+    //    );
 
-        // Store metadata
-        enhanced.forEach((m) => {
-          Object.defineProperty(m, '_raw', {
-            value: rawMethodsSnapshot,
-            writable: false,
-            enumerable: false
-          });
-        });
+    //    // Store metadata
+    //    enhanced.forEach((m) => {
+    //      Object.defineProperty(m, '_raw', {
+    //        value: rawMethodsSnapshot,
+    //        writable: false,
+    //        enumerable: false
+    //      });
+    //    });
 
-        // Update context
-        context.methods = buildContextMethods(enhanced);
-        
-        // Also enhance entities with the same languages
-        const langNames = [...currentLangs.map((k) => {
-          const lang = languages.getAll().find((l) => getLanguageExtensionKey(l.name) === k);
-          return lang?.name || k;
-        }), ...langs];
-        
-        enhancedEntities = enhanceEntities(
-          rawEntitiesSnapshot,
-          langNames,
-          allLangs[0] // First is default
-        );
-      },
+    //    // Update context
+    //    context.methods = buildContextMethods(enhanced);
 
-      get isEnhanced(): boolean {
-        const m = context.methods?.all;
-        return m && m.length > 0 && isEnhanced(m[0]);
-      },
+    //    // Also enhance entities with the same languages
+    //    const langNames = [
+    //      ...currentLangs.map((k) => {
+    //        const lang = languages.getAll().find((l) => getLanguageExtensionKey(l.name) === k);
+    //        return lang?.name || k;
+    //      }),
+    //      ...langs
+    //    ];
 
-      get languages(): string[] {
-        return [...enhancedLanguages];
-      }
-    },
+    //    enhancedEntities = enhanceEntities(
+    //      rawEntitiesSnapshot,
+    //      langNames,
+    //      allLangs[0] // First is default
+    //    );
+    //  },
 
-    collectMethods(config): RawMethod[] {
-      ensurePlanComplete(context.plan, 'collect methods in kit');
+    //  get isEnhanced(): boolean {
+    //    const m = context.methods?.all;
+    //    return !!m && m.length > 0 && isEnhanced(m[0]);
+    //  },
 
-      // Filter by reach
-      const filtered = filterByReach(context.plan.managements, config.filter);
-
-      // Convert to MgmtMethod format
-      const mgmtMethods: MgmtMethod[] = [];
-
-      for (const mgmt of filtered) {
-        for (const method of mgmt.methods) {
-          mgmtMethods.push({
-            id: `${mgmt.name}.${method.name}`,
-            managementName: mgmt.name,
-            name: method.name,
-            jsName: method.name,
-            params: method.params.map((p) => ({
-              name: p.name,
-              tsType: p.type,
-              optional: p.optional ?? false
-            })),
-            returnType: method.returnType,
-            isCollection: method.operation === 'list' || method.name.startsWith('list'),
-            tags: [`crud:${method.operation}`],
-            crudOperation: method.operation
-          });
-        }
-      }
-
-      // Apply pipeline transformations (defaults to identity)
-      let processedMethods = mgmtMethods;
-      for (const transform of config.pipeline || []) {
-        processedMethods = transform(processedMethods);
-      }
-
-      // Convert to RawMethod
-      const rawMethods = processedMethods.map((m) => toRawMethod(m));
-
-      // Store raw snapshot
-      rawMethodsSnapshot = [...rawMethods];
-      crudApplied = false;
-      enhancedLanguages = [];
-
-      // Build and attach method helpers to context (classic API)
-      context.methods = buildContextMethods(rawMethods);
-
-      // Build and attach query API (new chainable API)
-      context.query = createQueryAPI(rawMethods);
-
-      return rawMethods;
-    },
+    //  get languages(): string[] {
+    //    return [...enhancedLanguages];
+    //  }
+    //},
 
     buildData(dataFn, current, previous): Record<string, unknown> {
       return dataFn(context, current, previous);
@@ -298,21 +231,18 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
           }
         }
 
-        // Use enhanced methods from context
-        const enhancedMethods = context.methods.all;
-
         // Merge per-output context with main data (context takes precedence)
         // Include enhanced entities for template access (entity.rs.fields, etc.)
         const mergedData = output.context
-          ? { ...data, ...output.context, methods: enhancedMethods, entities: enhancedEntities }
-          : { ...data, methods: enhancedMethods, entities: enhancedEntities };
+          ? { ...data, ...output.context, entities: [] } // TODO
+          : { ...data, entities: [] }; // TODO
 
         // Generate the file (workspace → package → builtin templates)
         const file = await generateCode({
           template: output.template,
           outputPath,
           data: mergedData,
-          methods: enhancedMethods,
+          shed: context.shed,
           workspaceRoot: context.workspaceRoot,
           packagePath: context.packagePath
         });
@@ -353,8 +283,8 @@ function detectLanguageFromTemplate(template: string): string | undefined {
 
   // Check against registered language file extensions
   for (const lang of languages.getAll()) {
-    if (!lang.codeGen?.fileExtensions) continue;
-    for (const ext of lang.codeGen.fileExtensions) {
+    if (!lang.extensions) continue;
+    for (const ext of lang.extensions) {
       if (basename.endsWith(ext.toLowerCase())) {
         return lang.name;
       }

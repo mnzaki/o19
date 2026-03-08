@@ -15,23 +15,47 @@
  * @module machinery/bobbin
  */
 
-// ============================================================================
-// Public API: re-exported
-// ============================================================================
-
-export { generateCode, generateBatch, renderTemplate, detectLanguage } from './code-printer.js';
-
 export * as mejs from './mejs.js';
 
-// ============================================================================
-// Public API: Types (re-exported)
-// ============================================================================
+/**
+ * A generated file specification.
+ */
+export interface GeneratedFile {
+  /** Output path */
+  path: string;
+  /** File content */
+  content: string;
+}
 
-export type {
-  MethodLink,
-  TransformedMethod,
-  Language,
-  GenerateOptions,
-  GenerationTask,
-  RenderTemplateOptions
-} from './code-printer.js';
+export interface Bobbin {
+  /** The name of this Bobbin, which is used as directory to hold the weft
+   * (generated files)
+   **/
+  name: string;
+  weft: Array<{
+    /** a file name */
+    name: string;
+    /** file sections */
+    sections: Array<{
+      /** a file section name */
+      name: string;
+      /** the section's template */
+      template: string;
+      /** a file section's content, which is a context object for the section
+       * template
+       */
+      context: Record<string, unknown>;
+    }>;
+  }>;
+}
+
+import * as mejs from './mejs.js';
+
+export function bobbinToGeneratedFiles(bobbin: Bobbin): GeneratedFile[] {
+  return bobbin.weft.map((weft) => ({
+    path: `${bobbin.name}/${weft.name}`,
+    content: weft.sections
+      .map((section) => mejs.renderFile({ templatePath: section.type, data: section.content }))
+      .join('\n')
+  }));
+}

@@ -10,38 +10,29 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-/**
- * IMPORT STRATEGY NOTE:
- *
- * We import from '@o19/spire-loom/warp/imprint' (package path) instead of
- * '../../warp/imprint.js' (relative path) to ensure the SAME module instance
- * is used as Management classes that call @loom.reach().
- *
- * WHY THIS MATTERS:
- *   - Management classes in other packages import '@o19/spire-loom'
- *   - The collector was using a relative import, causing different module instances
- *   - WeakMap metadata stored by @reach() was invisible to getReach()
- *
- * GLOBAL REGISTRY SAFETY NET:
- *   Even with different import paths, the global registry in imprint.ts ensures
- *   metadata is shared. But using consistent imports reduces confusion.
- */
 import {
   getReach,
   getCrudMethods,
   getMethodTags,
-  getLinkTarget,
   getEntities,
-  type LinkMetadata,
-  type EntityMetadata,
-  Management
-} from '@o19/spire-loom/warp/imprint';
+  Management,
+  getLinkMetadata
+} from '../../warp/imprint.js';
 import { getEntityFields } from './entity-field-collector.js';
+
+import type {
+  CrudOperation,
+  EntityMetadata,
+  ManagementMetadata,
+  MethodMetadata,
+  MethodParamMetadata,
+  ReachLevel
+} from '../../warp/metadata.js';
 
 // TypeScript method signature parser
 interface ParsedMethod {
   name: string;
-  params: Array<{ name: string; type: string; optional?: boolean }>;
+  params: Array<MethodParamMetadata>;
   returnType: string;
 }
 
@@ -112,7 +103,7 @@ function parseMethodSignatures(sourceFile: string): Map<string, ParsedMethod> {
     if (name === 'constructor' || name.startsWith('_')) continue;
 
     // Parse parameters
-    const params: Array<{ name: string; type: string; optional?: boolean }> = [];
+    const params: MethodParamMetadata[] = [];
     if (paramsStr.trim()) {
       // Smart split: don't split on commas inside < > brackets
       const paramParts = splitParamsRespectingGenerics(paramsStr);
@@ -123,7 +114,7 @@ function parseMethodSignatures(sourceFile: string): Map<string, ParsedMethod> {
         if (paramMatch) {
           params.push({
             name: paramMatch[1],
-            type: paramMatch[3].trim(),
+            tsType: paramMatch[3].trim(),
             optional: !!paramMatch[2]
           });
         }
@@ -138,64 +129,6 @@ function parseMethodSignatures(sourceFile: string): Map<string, ParsedMethod> {
   }
 
   return methods;
-}
-
-/**
- * CRUD operation type.
- */
-export type CrudOperation = 'create' | 'read' | 'update' | 'delete' | 'list';
-
-/**
- * Management reach level.
- */
-export type ReachLevel = 'Private' | 'Local' | 'Global';
-
-/**
- * Method metadata from @crud decorator.
- *
- * NOTE: This contains ONLY immediately available metadata from the loom source.
- * Computed values (useResult, wrappers) are added by heddles, not here.
- */
-export interface MethodMetadata {
-  /** Method name */
-  name: string;
-  /** CRUD operation type (if CRUD-tagged) */
-  operation?: CrudOperation;
-  /** Parameter types (parsed from signature) */
-  params: Array<{ name: string; type: string; optional?: boolean }>;
-  /** Return type */
-  returnType: string;
-  /** JSDoc description */
-  description?: string;
-  /** Whether this is a collection operation (returns array) */
-  isCollection?: boolean;
-  /** Whether this is a soft delete */
-  isSoftDelete?: boolean;
-  /** Tags attached to this method (e.g., ['crud:create', 'auth:required']) */
-  tags?: string[];
-}
-
-/**
- * Management Imprint metadata.
- *
- * NOTE: This contains ONLY immediately available metadata from the loom source.
- * The link is stored as-is; heddles will resolve it to compute wrappers/useResult.
- */
-export interface ManagementMetadata {
-  /** Management class name (e.g., "BookmarkMgmt") */
-  name: string;
-  /** Reach level from @reach decorator */
-  reach: ReachLevel;
-  /** Source file path */
-  sourceFile: string;
-  /** Methods with their CRUD metadata */
-  methods: MethodMetadata[];
-  /** Entity classes associated with this management */
-  entities: EntityMetadata[];
-  /** Constants defined in the management */
-  constants: Record<string, unknown>;
-  /** Link target for routing (raw, unresolved) */
-  link?: LinkMetadata;
 }
 
 /**
@@ -309,6 +242,61 @@ export async function collectManagements<T extends typeof Management>(
   return managements;
 }
 
+export type MethodTransform = (methods: MethodMetadata[]) => MethodMetadata[];
+export type EntityTransform = (entities: EntityMetadata[]) => EntityMetadata[];
+
+export function collectMethods(
+  context: { mgmts: ManagementMetadata[] },
+  pipeline: MethodTransform[] = []
+): MethodMetadata[] {
+  // Filter by reach
+  // Convert to MethodMetadata format
+  const mgmtMethods: MethodMetadata[] = [];
+
+  for (const mgmt of context.mgmts) {
+    for (const method of mgmt.methods) {
+      mgmtMethods.push({
+        id: `${mgmt.name}.${method.name}`,
+        managementName: mgmt.name,
+        name: method.name,
+        params: method.params,
+        returnType: method.returnType,
+        isCollection: method.crudOperation === 'list' || method.name.startsWith('list'),
+        tags: [`crud:${method.crudOperation}`],
+        crudOperation: method.crudOperation
+      });
+    }
+  }
+
+  // Apply pipeline transformations (defaults to identity)
+  let processedMethods = mgmtMethods;
+  for (const transform of pipeline || []) {
+    processedMethods = transform(processedMethods);
+  }
+
+  return processedMethods;
+}
+
+export function collectEntities(
+  context: { mgmts: ManagementMetadata[] },
+  pipeline: EntityTransform[] = []
+) {
+  const allEntities: EntityMetadata[] = [];
+  for (const mgmt of context.mgmts) {
+    if (mgmt.entities) {
+      allEntities.push(...mgmt.entities);
+    }
+  }
+
+  // Apply pipeline transformations (defaults to identity)
+  let processedEntities = allEntities;
+  for (const transform of pipeline || []) {
+    processedEntities = transform(processedEntities);
+  }
+
+  return processedEntities;
+}
+
 /**
  * Load a single Management from a file.
  *
@@ -337,7 +325,7 @@ async function loadManagement<T extends typeof Management>(
     if (process.env.DEBUG_MANAGEMENT) {
       console.log(`[DEBUG]   ${exportName}: type=${typeof exported}, hasReach=${!!hasReach}`);
     }
-    if (typeof exported === 'function' && hasReach) {
+    if (exported instanceof Management) {
       const mgmtClass = exported as T;
 
       // Skip if already seen (prevents duplicates from WARP.ts scanning)
@@ -371,16 +359,7 @@ function extractMetadata<T extends typeof Management>(
   const reach = getReach(mgmtClass) ?? 'Private';
 
   // Get link target from decorator metadata
-  const rawLink = getLinkTarget(mgmtClass);
-
-  // Build link metadata (raw, unresolved - heddles will compute useResult/wrappers)
-  const link: LinkMetadata | undefined = rawLink
-    ? {
-        structClass: rawLink.structClass ?? (rawLink as any).constructor,
-        fieldName: rawLink.fieldName ?? ''
-        // useResult and wrappers are NOT computed here - heddles will resolve them
-      }
-    : undefined;
+  const link = getLinkMetadata(mgmtClass);
 
   // Get CRUD methods from decorator metadata
   const crudMethods = getCrudMethods(mgmtClass);
@@ -404,14 +383,17 @@ function extractMetadata<T extends typeof Management>(
       const tags = methodTags?.get(methodName);
 
       methods.push({
+        id: `${mgmtClass.name}.${methodName}`,
+        managementName: mgmtClass.name,
+        // defaults that will (hopefully) be overridden below
+        params: [],
+        returnType: 'void',
+
+        ...metadata,
+        ...parsed,
+
         name: methodName,
-        operation: metadata.operation as CrudOperation,
-        params: parsed?.params ?? [],
-        returnType: parsed?.returnType ?? 'void',
-        isCollection: metadata.collection,
-        isSoftDelete: metadata.soft,
         tags
-        // useResult is NOT set here - heddles will compute it from struct config
       });
       processedMethods.add(methodName);
     }
@@ -425,13 +407,13 @@ function extractMetadata<T extends typeof Management>(
     const tags = methodTags?.get(methodName);
 
     methods.push({
+      id: `${mgmtClass.name}.${methodName}`,
+      managementName: mgmtClass.name,
+      ...parsed,
       name: methodName,
-      params: parsed.params,
-      returnType: parsed.returnType,
       isCollection: false,
       isSoftDelete: false,
       tags
-      // useResult is NOT set here - heddles will compute it from struct config
     });
   }
 
@@ -504,7 +486,7 @@ export function filterByCrud(
   management: ManagementMetadata,
   operations: CrudOperation[]
 ): MethodMetadata[] {
-  return management.methods.filter((m) => m.operation && operations.includes(m.operation));
+  return management.methods.filter((m) => m.crudOperation && operations.includes(m.crudOperation));
 }
 
 /**
@@ -523,65 +505,4 @@ export function groupByReach(
   }
 
   return grouped;
-}
-
-/**
- * Generate AIDL methods from Management metadata.
- */
-export function toAidlMethods(managements: ManagementMetadata[]): Array<{
-  name: string;
-  returnType: string;
-  params: Array<{ name: string; type: string }>;
-  description?: string;
-}> {
-  const methods: Array<{
-    name: string;
-    returnType: string;
-    params: Array<{ name: string; type: string }>;
-    description?: string;
-  }> = [];
-
-  for (const mgmt of managements) {
-    for (const method of mgmt.methods) {
-      methods.push({
-        name: method.name,
-        returnType: method.returnType === 'void' ? 'void' : 'String',
-        params: method.params.map((p) => ({
-          name: p.name,
-          type: mapTsToAidlType(p.type)
-        })),
-        description: method.description || `${mgmt.name}.${method.name}`
-      });
-    }
-  }
-
-  return methods;
-}
-
-/**
- * Map TypeScript types to AIDL types.
- */
-function mapTsToAidlType(tsType: string): string {
-  const typeMap: Record<string, string> = {
-    string: 'String',
-    String: 'String',
-    number: 'int',
-    boolean: 'boolean',
-    void: 'void',
-    any: 'String'
-  };
-
-  // Handle arrays
-  if (tsType.endsWith('[]')) {
-    const inner = tsType.slice(0, -2);
-    return `${mapTsToAidlType(inner)}[]`;
-  }
-
-  // Handle optionals
-  if (tsType.endsWith('?')) {
-    const inner = tsType.slice(0, -1);
-    return mapTsToAidlType(inner);
-  }
-
-  return typeMap[tsType] || 'String';
 }
