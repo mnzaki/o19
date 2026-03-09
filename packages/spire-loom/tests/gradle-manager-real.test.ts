@@ -11,7 +11,7 @@ import {
   ensureGradleBlock,
   ensureGradleSourceSet,
   clearGradleBlockRegistry,
-} from '../machinery/shuttle/gradle-manager.js';
+} from '../machinery/sley/gradle-manager.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_DIR = path.join('/tmp', `gradle-real-test-${Date.now()}`);

@@ -13,7 +13,8 @@ import {
 } from '../treadle-kit/index.js';
 import { TauriSpiraler } from '../../warp/spiral/spiralers/tauri.js';
 import { RustCore } from '../../warp/spiral/index.js';
-import { hookup, cargoToml } from '../shuttle/index.js';
+import { hookup } from '../shuttle/index.js';
+import { cargoToml } from '../sley/index.js';
 import { buildCrateNaming } from '../stringing.js';
 import type { GeneratedFile } from '../bobbin/index.js';
 

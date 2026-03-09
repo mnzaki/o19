@@ -15,9 +15,9 @@ import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { applyFileBlockHookup } from '../machinery/shuttle/hookups/file-block.js';
+import { applyFileBlockHookup } from '../machinery/sley/hookups/file-block.js';
 import type { GeneratorContext } from '../machinery/heddles/index.js';
-import type { FileBlockHookup } from '../machinery/shuttle/hookups/types.js';
+import type { FileBlockHookup } from '../machinery/sley/hookups/types.js';
 
 // ============================================================================
 // Test Helpers

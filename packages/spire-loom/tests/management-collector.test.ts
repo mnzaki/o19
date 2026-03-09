@@ -6,7 +6,7 @@
 
 import { describe, test } from 'vitest';
 import assert from 'node:assert';
-import { splitParamsRespectingGenerics } from '../machinery/reed/management-collector.js';
+import { splitParamsRespectingGenerics } from '../machinery/heddles/management-collector.js';
 
 describe('management-collector', () => {
   test('splitParamsRespectingGenerics handles simple types', () => {

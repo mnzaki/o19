@@ -228,7 +228,12 @@ export class BoundQuery<T extends Queryable> {
    * Immutable - doesn't modify the current query.
    */
   private withFilter(filter: (m: T) => boolean): BoundQuery<T> {
-    return new BoundQuery(this.source, [...this.filters, filter]);
+    const newQuery = new BoundQuery(this.source, [...this.filters, filter]);
+    // Propagate languages to the new query
+    for (const lang of this._langs) {
+      newQuery.addLang(lang);
+    }
+    return newQuery;
   }
 
   // ========================================================================

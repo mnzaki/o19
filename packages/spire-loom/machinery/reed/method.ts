@@ -1,7 +1,14 @@
-import type { MethodMetadata } from '../../../warp/metadata.js';
-import { Name } from '../../stringing.js';
-import type { LanguageDefinitionImperative, LanguageRenderingConfig } from './imperative.js';
-import { LanguageThing, type FunctionVariantDeclaration, type LanguageType } from './types.js';
+import type { MethodMetadata } from '../../warp/metadata.js';
+import { Name } from '../stringing.js';
+import type {
+  LanguageDefinitionImperative,
+  LanguageRenderingConfig
+} from './language/imperative.js';
+import {
+  LanguageThing,
+  type FunctionVariantDeclaration,
+  type LanguageType
+} from './language/types.js';
 
 /**
  * Language-specific method extends raw with:
@@ -127,11 +134,14 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
   }
 
   get paramTypes() {
-    return this.raw.params.map((p) => this.lang.types.fromTsType(p.tsType, false));
+    return this.raw.params.map((p) => this.lang.codeGen.types.fromTsType(p.tsType, false));
   }
 
   get returnType(): T {
-    let type = this.lang.types.fromTsType(this.raw.returnType, !!this.raw.isCollection) as T;
+    let type = this.lang.codeGen.types.fromTsType(
+      this.raw.returnType,
+      !!this.raw.isCollection
+    ) as T;
     // Apply variant return type wrappers
     for (const variant of Object.values(this.appliedVariants)) {
       if (variant.wrapReturnType) {
@@ -144,7 +154,7 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
   get params() {
     let params: Array<[string, T]> = this.raw.params.map((p) => [
       p.name,
-      this.lang.types.fromTsType(p.tsType) as T
+      this.lang.codeGen.types.fromTsType(p.tsType) as T
     ]);
     for (const variant of Object.values(this.appliedVariants)) {
       if (variant.processParams) {
@@ -179,14 +189,16 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
   }
 
   paramsAsObject(name: string) {
-    const propertyCtor = this.lang.types.property;
+    const propertyCtor = this.lang.codeGen.types.property;
     if (!propertyCtor) throw new Error("can't wrap params in a language with no objects...");
 
     return this._render.renderParams([
       this._render.formatParam(
         name,
-        this.lang.types.object(
-          ...this.raw.params.map((p) => propertyCtor(p.name, this.lang.types.fromTsType(p.tsType)))
+        this.lang.codeGen.types.object(
+          ...this.raw.params.map((p) =>
+            propertyCtor(p.name, this.lang.codeGen.types.fromTsType(p.tsType))
+          )
         )
       )
     ]);
@@ -277,13 +289,15 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
   }
 
   withObjectParams(objectParamName: string, variantName = 'objectParam'): LanguageMethod<T> {
-    const propertyCtor = this.lang.types.property;
+    const propertyCtor = this.lang.codeGen.types.property;
     if (!propertyCtor) throw new Error("can't wrap params in a language with no objects...");
     return this.withVariance(variantName, {
       processParams: (params: Array<[string, T]>) => [
         [
           objectParamName,
-          this.lang.types.object(...params.map(([name, type]) => propertyCtor(name, type))) as T
+          this.lang.codeGen.types.object(
+            ...params.map(([name, type]) => propertyCtor(name, type))
+          ) as T
         ]
       ]
     });

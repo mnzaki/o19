@@ -25,14 +25,7 @@ export type { TreadleKit, MethodConfig } from './types.js';
 
 export { declareTreadle, generateFromTreadle } from './declarative.js';
 
-export type {
-  MatchPattern,
-  OutputSpec,
-  PatchSpec,
-  TreadleDefinition,
-  OutputSpecOrFn,
-  PatchSpecOrFn
-} from './declarative.js';
+export type { MatchPattern, OutputSpec, TreadleDefinition, OutputSpecOrFn } from './declarative.js';
 
 // ============================================================================
 // Public API: Entity Helpers (re-exported)
@@ -52,5 +45,8 @@ export {
   buildColumnDefinition,
   buildCreateTableStatement
 } from './computed-entity-helpers.js';
+
+// Re-export stringing utilities needed by treadles
+export { buildTauriPluginNaming, buildCrateNaming } from '../stringing.js';
 
 export type { EntityFieldMetadata, ComputedEntityHelpers } from './computed-entity-helpers.js';

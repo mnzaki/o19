@@ -38,10 +38,10 @@ import type { SpiralNode } from '../heddles/index.js';
 import { createTreadleKit } from './kit.js';
 import { resolveSpecs, resolveSpecsWithCondition, type SpecOrFn } from './spec-resolver.js';
 import type { hookup } from '../sley/index.js';
-import type { LanguageMethod } from '../reed/language/method.js';
+import type { LanguageMethod } from '../reed/index.js';
 import type { MethodMetadata } from '../../warp/metadata.js';
 import type { GeneratedFile, GeneratorContext, TreadleTrodder } from '../../weaver/plan-builder.js';
-import { createQueryAPI, type BoundQuery } from '../sley/query.js';
+import { createQueryAPI } from '../sley/query.js';
 
 // ============================================================================
 // Types
@@ -75,7 +75,7 @@ export interface OutputSpec {
 
 /*
  * PATCHES DISABLED - Use hookups instead for file modifications
- * 
+ *
  * export interface PatchSpec { ... }
  * export type PatchSpecOrFn = ...
  */
@@ -105,12 +105,6 @@ export interface TreadleDefinition {
 
   /** Output files to generate (into spire/). Accepts specs or functions. */
   outputs: OutputSpecOrFn[];
-
-  /**
-   * PATCHES DISABLED - Use hookups instead for file modifications.
-   * @deprecated Use hookups property instead
-   */
-  // patches?: PatchSpecOrFn[];
 
   /**
    * Declarative hookups - configure external files (AndroidManifest.xml, Cargo.toml, etc.)
@@ -326,5 +320,3 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
 
   return generator;
 }
-
-

@@ -17,7 +17,7 @@ import type {
 } from './imperative.js';
 import { DEFAULT_NAMING_CONVENTIONS, LanguageType } from './types.js';
 import type { TypeFactory, NamingConventions, LanguageIdentity } from './types.js';
-import { toSnakeCase, camelCase, pascalCase, type NamingCase, Name } from '../../stringing.js';
+import { formatName } from '../../stringing.js';
 
 // ============================================================================
 // Core Keyword Types (Well-Known)
@@ -210,12 +210,6 @@ export interface LanguageDeclaration extends LanguageIdentity {
     /** Composition templates for code generation */
     composition: CompositionTemplates;
   };
-
-  /**
-   * Optional custom transform enhancers.
-   * These are passed through to the executive layer's transform pipeline.
-   */
-  enhancers?: TransformEnhancer[];
 }
 
 // ============================================================================
@@ -223,31 +217,7 @@ export interface LanguageDeclaration extends LanguageIdentity {
 // ============================================================================
 
 import { mejs } from '../../bobbin/index.js';
-import type { TransformEnhancer } from '../transform-pipeline.js';
-import type { LanguageMethod } from './method.js';
-
-/**
- * Formats a name according to naming convention.
- * Uses utilities from machinery/stringing.ts
- */
-function formatName(name: string, convention: NamingCase | null | undefined): string {
-  if (!convention) return name;
-
-  switch (convention) {
-    case 'snake_case':
-      return toSnakeCase(name);
-    case 'camelCase':
-      return camelCase(name);
-    case 'PascalCase':
-      return pascalCase(name);
-    case 'SCREAMING_SNAKE':
-      return toSnakeCase(name).toUpperCase();
-    case 'kebab-case':
-      return toSnakeCase(name).replace(/_/g, '-');
-    default:
-      return name;
-  }
-}
+import type { LanguageMethod } from '../method.js';
 
 // ============================================================================
 // Type Factory Generation
@@ -440,7 +410,7 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
   const rendering: LanguageRenderingConfig = {
     // Parameters use parameter naming convention (falls back to variable, then snake)
     formatParam: (name: string, type: LanguageType) => {
-      const formattedName = new Name(name, naming.parameter).toString();
+      const formattedName = formatName(name, naming.parameter);
       return mejs.renderTemplate(composition.parameter.source, {
         ...languageContext,
         name: formattedName,
@@ -488,6 +458,7 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
 
   // Build code generation config
   const codeGen: LanguageCodeGenConfig<LanguageType> = {
+    types,
     rendering
   };
 
@@ -496,7 +467,6 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
   // runtime classes (ExternalLayer, CoreRing, Spiraler)
   return {
     name: declaration.name,
-    types,
     extensions: declaration.extensions.map((ext) => (ext.startsWith('.') ? ext : `.${ext}`)),
     codeGen
   };

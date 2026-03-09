@@ -20,8 +20,8 @@ import * as os from 'node:os';
 import { 
   configureAndroidManifest, 
   configureGradleBuild
-} from '../machinery/shuttle/hookup-manager.js';
-import { writeEventCallbackAidl } from '../machinery/shuttle/hookup-manager.js';
+} from '../machinery/sley/hookup-manager.js';
+import { writeEventCallbackAidl } from '../machinery/sley/hookup-manager.js';
 import type { GeneratedFile } from '../machinery/heddles/types.js';
 
 // Helper to create temp workspace structure

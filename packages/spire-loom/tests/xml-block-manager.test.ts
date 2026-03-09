@@ -9,8 +9,8 @@ import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ensureXmlBlock, clearXmlBlockRegistry } from '../machinery/shuttle/xml-block-manager.js';
-import { cleanupAllBlocks, clearBlockRegistry, startGeneration } from '../machinery/shuttle/block-registry.js';
+import { ensureXmlBlock, clearXmlBlockRegistry } from '../machinery/sley/xml-block-manager.js';
+import { cleanupAllBlocks, clearBlockRegistry, startGeneration } from '../machinery/sley/block-registry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_DIR = path.join('/tmp', `xml-test-${Date.now()}`);

@@ -13,9 +13,9 @@ import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { applyRustModuleHookup } from '../machinery/shuttle/hookups/rust-module.js';
+import { applyRustModuleHookup } from '../machinery/sley/hookups/rust-module.js';
 import type { GeneratorContext } from '../machinery/heddles/index.js';
-import type { RustModuleHookup } from '../machinery/shuttle/hookups/types.js';
+import type { RustModuleHookup } from '../machinery/sley/hookups/types.js';
 
 // ============================================================================
 // Test Helpers

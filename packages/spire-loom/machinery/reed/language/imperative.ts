@@ -20,8 +20,8 @@ import {
   type TypeFactory
 } from './types.js';
 import type { MethodMetadata } from '../../../warp/metadata.js';
-import type { LanguageMethod } from './method.js';
-import type { LanguageEntity } from './entity.js';
+import type { LanguageMethod } from '../method.js';
+import type { LanguageEntity } from '../entity.js';
 
 // ============================================================================
 // Language Rendering Configuration
@@ -62,6 +62,9 @@ export interface LanguageCodeGenConfig<T extends LanguageType = LanguageType> {
   /** Rendering configuration for code generation */
   rendering: LanguageRenderingConfig<T>;
 
+  /** Type factory for generating language-specific types */
+  types: TypeFactory<T>;
+
   /** Optional custom transform enhancers */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   //enhancers?: TransformEnhancer<any, any>[];
@@ -84,9 +87,6 @@ export interface LanguageEnhancements {
 export interface LanguageDefinitionImperative<
   T extends LanguageType = LanguageType
 > extends LanguageIdentity {
-  /** Type factory for generating language-specific types */
-  types: TypeFactory<T>;
-
   functionVariants: Record<string, FunctionVariantDeclaration>;
 
   /**
@@ -159,7 +159,7 @@ export const declareLanguageImperatively = declare<
     if (!def.extensions?.length) {
       throw new Error(`[language] Language '${def.name}' must have extensions for detection`);
     }
-    if (!def.types && !def.codeGen?.transform) {
+    if (!def.codeGen.types && !def.codeGen?.transform) {
       throw new Error(
         `[language] Language '${def.name}' must have either 'types' (new format) or 'transform' (legacy)`
       );
@@ -237,7 +237,7 @@ export class LanguageRegistry {
    */
   getTypeFactory(name: string): TypeFactory | undefined {
     const lang = this.get(name);
-    return lang?.types;
+    return lang?.codeGen.types;
   }
 }
 

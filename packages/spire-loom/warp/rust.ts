@@ -384,7 +384,7 @@ import {
 import { RustCore, rustCore } from './spiral/rust.js';
 import { RustAndroidSpiraler } from './spiral/spiralers/rust/index.js';
 import { DesktopSpiraler } from './spiral/spiralers/desktop.js';
-import type { LanguageMethod } from '../machinery/reed/language/method.js';
+import type { LanguageMethod } from '../machinery/reed/method.js';
 
 // ============================================================================
 // Rust Type Factory
@@ -439,7 +439,6 @@ export const types = new RustTypeFactory();
 export const rustLanguage = declareLanguage<LanguageType>({
   name: 'rust',
   extensions: ['.rs', '.jni.rs'],
-  types,
   conventions: {
     naming: {
       function: 'snake_case',
@@ -499,6 +498,10 @@ export const rustLanguage = declareLanguage<LanguageType>({
       void: {
         template: '()',
         stub: '()'
+      },
+      array: {
+        template: (T: LanguageType) => `Vec<${T.name}>`,
+        stub: 'Vec::new()'
       }
     }
   },
@@ -535,5 +538,9 @@ export const rustLanguage = declareLanguage<LanguageType>({
       desktop: DesktopSpiraler
     },
     exposeBaseFactory: true
+  },
+
+  codeGen: {
+    types
   }
 });

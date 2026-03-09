@@ -181,6 +181,12 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
   }
 }
 
+/**
+ * A LanguageType instance represents 1 type from 1 language.
+ * It is constructed with a name and a stub value that can be used in templates
+ * when a default or example is needed.
+ *
+ */
 export class LanguageType extends LanguageThing {
   constructor(
     /** The language type name (e.g., 'String', 'i64', 'Vec<T>') */

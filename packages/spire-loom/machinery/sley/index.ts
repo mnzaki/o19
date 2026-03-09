@@ -20,31 +20,12 @@ export {
   type RoutingInfo
 } from './operation-router.js';
 
-// Method Pipeline - composable translations for Management methods
-export {
-  // Core types
-  type MethodTranslation,
-  type MethodFilter,
-  // Translations
-  addPrefix,
-  crudInterfaceMapping,
-  mapTypes,
-  // Filters
-  tagFilter,
-  crudOperationFilter,
-  // Grouping utilities
-  groupByManagement,
-  groupByCrud,
-  // Utilities
-  fromSourceMethods
-} from './method-pipeline.js';
-
 // Legacy modules - internal use only, will be removed
 // These are kept for internal compatibility but not exported publicly
 // Use method-pipeline for new code
 
 // Query Builder - Chainable queries over methods (APP-009)
-export { createQueryAPI, type BoundQuery, type QueryAPI, type CrudOperation } from './query.js';
+export { createQueryAPI, type BoundQuery, type QueryAPI } from './query.js';
 
 // Entity Pipeline - composable translations for Entity classes
 export {

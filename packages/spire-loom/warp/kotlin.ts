@@ -1,33 +1,21 @@
 /**
  * Kotlin Language Definition 🌾
  *
- * First-class Kotlin support using the pure-config architecture.
+ * First-class Kotlin support using the modern declarative architecture.
  *
  * Demonstrates how easy it is to add a new language:
  * - Define TypeFactory
- * - Define RenderingConfig
- * - No custom transform needed!
+ * - Define syntax with type constructors
+ * - Add function variants
+ * - Auto-generated rendering from templates
  */
 
 import {
   declareLanguage,
   LanguageType,
-  type TypeFactory,
-  type LanguageParam
+  type TypeFactory
 } from '../machinery/reed/language/index.js';
 import { camelCase } from '../machinery/stringing.js';
-
-// ============================================================================
-// Kotlin-Specific Types
-// ============================================================================
-
-/**
- * Kotlin parameter with language-specific metadata.
- */
-interface KotlinParam extends LanguageParam {
-  /** Kotlin type name (e.g., 'String', 'Int', 'List<T>') */
-  ktType: string;
-}
 
 // ============================================================================
 // Kotlin Type Factory
@@ -36,7 +24,7 @@ interface KotlinParam extends LanguageParam {
 /**
  * Type factory for Kotlin code generation.
  */
-class KotlinTypeFactory implements TypeFactory<KotlinParam, LanguageType> {
+class KotlinTypeFactory implements Partial<TypeFactory<LanguageType>> {
   // Primitive types
   boolean = new LanguageType('Boolean', 'false', true);
   string = new LanguageType('String', '""', true);
@@ -54,7 +42,7 @@ class KotlinTypeFactory implements TypeFactory<KotlinParam, LanguageType> {
 
   promise(innerType: LanguageType): LanguageType {
     // Kotlin uses Deferred for async, but typically we just use the type in suspend functions
-    return new LanguageType(innerType.name, innerType.stubReturn);
+    return new LanguageType(innerType.name, innerType.stub);
   }
 
   result(okType: LanguageType, errType: string | LanguageType = 'Throwable'): LanguageType {
@@ -64,7 +52,7 @@ class KotlinTypeFactory implements TypeFactory<KotlinParam, LanguageType> {
 
   // Entity type factory
   entity(name: string): LanguageType {
-    return new LanguageType(name, 'null', false, true);
+    return new LanguageType(name, 'null', false, [], true);
   }
 
   // Map TypeScript type to Kotlin type
@@ -105,6 +93,9 @@ class KotlinTypeFactory implements TypeFactory<KotlinParam, LanguageType> {
   }
 }
 
+// Export the type factory
+export const types = new KotlinTypeFactory();
+
 // ============================================================================
 // Language Definition
 // ============================================================================
@@ -112,54 +103,80 @@ class KotlinTypeFactory implements TypeFactory<KotlinParam, LanguageType> {
 /**
  * Kotlin language definition.
  *
- * Demonstrates the pure-config architecture:
+ * Uses the modern declarative architecture:
  * - TypeFactory provides type mappings
- * - Rendering config provides code formatting
- * - Transform is auto-generated
- * - No custom enhancers needed!
+ * - Syntax definitions for code generation
+ * - Function variants for suspend, public, etc.
+ * - Auto-generated rendering from templates
  */
-export const kotlinLanguage = declareLanguage<KotlinParam, LanguageType>({
+export const kotlinLanguage = declareLanguage<LanguageType>({
   name: 'kotlin',
   extensions: ['.kt', '.kts'],
+  types,
+
   conventions: {
     naming: {
       function: 'camelCase',
       type: 'PascalCase',
       variable: 'camelCase',
       const: 'SCREAMING_SNAKE',
-      module: 'snake_case'
+      module: 'snake_case',
+      field: 'camelCase',
+      method: 'camelCase',
+      parameter: 'camelCase',
+      generic: 'PascalCase'
     }
   },
 
-  codeGen: {
-    // Type factory defines how TS types map to Kotlin
-    types: new KotlinTypeFactory(),
+  // Function variants that can be accessed via method.{variant}
+  functionVariants: {
+    suspend: { prependKeyword: 'suspend' },
+    public: { prependKeyword: 'public' },
+    private: { prependKeyword: 'private' },
+    protected: { prependKeyword: 'protected' },
+    internal: { prependKeyword: 'internal' }
+  },
 
-    // Rendering config defines code formatting
-    rendering: {
-      formatParamName: camelCase,
-      functionSignature: (method) => {
-        const params = method.params
-          .map((p) => `${p.name}: ${p.langType}${p.optional ? '?' : ''}`)
-          .join(', ');
-        return `fun ${method.camelName}(${params}): ${method.returnTypeDef.name}`;
+  // Syntax definitions for code generation
+  syntax: {
+    keywords: {
+      function: 'fun',
+      public: 'public',
+      private: 'private',
+      protected: 'protected',
+      internal: 'internal'
+    },
+    functionReturnTypeSeparator: ': ',
+    types: {
+      boolean: {
+        template: 'Boolean',
+        stub: 'false'
       },
-      asyncFunctionSignature: (method) => {
-        const params = method.params
-          .map((p) => `${p.name}: ${p.langType}${p.optional ? '?' : ''}`)
-          .join(', ');
-        return `suspend fun ${method.camelName}(${params}): ${method.returnTypeDef.name}`;
+      string: {
+        template: 'String',
+        stub: '""'
       },
-      renderDefinition: (method, opts) => {
-        // Kotlin typically doesn't use visibility keywords in interfaces
-        const params = method.params
-          .map((p) => `${p.name}: ${p.langType}${p.optional ? '?' : ''}`)
-          .join(', ');
-        return `fun ${method.camelName}(${params}): ${method.returnTypeDef.name}`;
+      signed: {
+        template: 'Int',
+        stub: '0'
+      },
+      unsigned: {
+        template: 'UInt',
+        stub: '0u'
+      },
+      number: {
+        template: 'Int',
+        stub: '0'
+      },
+      void: {
+        template: 'Unit',
+        stub: ''
+      },
+      array: {
+        template: (T: LanguageType) => `List<${T.name}>`,
+        stub: 'emptyList()'
       }
     }
-
-    // No enhancers needed — defaults are sufficient!
   }
 
   // No WARP config yet - Kotlin is code-generation-only for now

@@ -4,7 +4,7 @@
  * Applies Gradle build.gradle hookups declaratively.
  */
 
-import type { GeneratorContext } from '../../heddles/index.js';
+import type { GeneratorContext } from '../../../weaver/plan-builder.js';
 import { configureAndroidGradle } from '../gradle-manager.js';
 import type { GradleHookup, HookupResult, GradlePluginEntry } from './types.js';
 

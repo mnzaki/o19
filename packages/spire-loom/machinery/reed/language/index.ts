@@ -84,26 +84,8 @@ export function declareLanguage<T extends LanguageType>(
   return declareLanguageImperatively(executiveConfig);
 }
 
-export type {
-  // Layer 1: Declarative types
-  CoreKeywordType,
-  KeywordType,
-  Keywords,
-  CoreTypeConstructor,
-  TypeConstructorDeclaration,
-  TypeConstructors,
-  FunctionVariantDeclaration,
-  BlockSyntaxDeclaration,
-  CompositionTemplate,
-  CompositionTemplates,
-  LanguageDeclaration
-} from './declarative.js';
-
-export type {
-  // Layer 2: Executive types
-  LanguageDefinitionImperative,
-  LanguageRenderingConfig
-} from './imperative.js';
+export type * from './declarative.js';
+export type * from './imperative.js';
 
 // ============================================================================
 // Runtime Values (re-exported from implementation)

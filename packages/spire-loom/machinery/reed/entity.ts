@@ -2,7 +2,7 @@
  * Entity Enhancement System 🌀
  *
  * Language-specific entity enhancement with deferred type resolution.
- * 
+ *
  * Mirrors the LanguageMethod pattern:
  * - Raw entity metadata stored in constructor
  * - Types resolved lazily when getters are accessed
@@ -12,8 +12,8 @@
  * @module machinery/reed/language/entity
  */
 
-import { pascalCase, camelCase, toSnakeCase, Name } from '../../stringing.js';
-import { LanguageThing } from './types.js';
+import { pascalCase, camelCase, snakeCase } from '../stringing.js';
+import { LanguageThing } from './language/types.js';
 
 // ============================================================================
 // Entity Types
@@ -86,7 +86,7 @@ function pluralize(name: string): string {
 
 /**
  * Entity with language-specific field types.
- * 
+ *
  * Uses deferred type resolution like LanguageMethod.
  * Fields are resolved when accessed, using the language set via this.lang.
  */
@@ -105,7 +105,7 @@ export class LanguageEntity extends LanguageThing {
 
   /** Table name (snake_case plural) */
   get tableName(): string {
-    return toSnakeCase(pluralize(this.raw.name));
+    return snakeCase(pluralize(this.raw.name));
   }
 
   /** Variable name (camelCase) */
@@ -115,7 +115,7 @@ export class LanguageEntity extends LanguageThing {
 
   /** Module name (snake_case) */
   get moduleName(): string {
-    return toSnakeCase(this.raw.name);
+    return snakeCase(this.raw.name);
   }
 
   /** camelName alias */
@@ -130,7 +130,7 @@ export class LanguageEntity extends LanguageThing {
 
   /** snakeName alias */
   get snakeName(): string {
-    return toSnakeCase(this.raw.name);
+    return snakeCase(this.raw.name);
   }
 
   /** All fields with language-specific types resolved */
@@ -171,7 +171,7 @@ export class LanguageEntity extends LanguageThing {
 
   /** Enhance a raw field with language-specific types */
   private enhanceField(field: RawEntityField): LanguageEntityField {
-    const langTypeDef = this.lang.types.fromTsType(field.tsType, false);
+    const langTypeDef = this.lang.codeGen.types.fromTsType(field.tsType, false);
     const langType = langTypeDef.name.toString();
 
     // SQL type mapping (simplified)
@@ -193,7 +193,7 @@ export class LanguageEntity extends LanguageThing {
       ...field,
       langType,
       sqlType,
-      columnName: toSnakeCase(field.name)
+      columnName: snakeCase(field.name)
     };
   }
 }

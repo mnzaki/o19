@@ -82,9 +82,33 @@ export class Name {
     return this.apply(this.defaultCase);
   }
 }
+
 // ============================================================================
 // Case Conversions
 // ============================================================================
+
+/**
+ * Formats a name according to naming convention.
+ * Uses utilities from machinery/stringing.ts
+ */
+export function formatName(name: string, convention: NamingCase | null | undefined): string {
+  if (!convention) return name;
+
+  switch (convention) {
+    case 'snake_case':
+      return snakeCase(name);
+    case 'camelCase':
+      return camelCase(name);
+    case 'PascalCase':
+      return pascalCase(name);
+    case 'SCREAMING_SNAKE':
+      return snakeCase(name).toUpperCase();
+    case 'kebab-case':
+      return snakeCase(name).replace(/_/g, '-');
+    default:
+      return name;
+  }
+}
 
 /**
  * Convert string to PascalCase.
@@ -94,17 +118,7 @@ export class Name {
  * pascalCase('my_service') // 'MyService'
  * pascalCase('myService')  // 'MyService'
  */
-export function pascalCase(str: string): string {
-  if (str.charAt(0) === str.charAt(0).toUpperCase()) {
-    // already pascal
-    return str;
-  }
-
-  return str
-    .split(/[-_]/)
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase())
-    .join('');
-}
+export const pascalCase = (str: string) => new Name(str, 'PascalCase').toString();
 
 /**
  * Convert string to camelCase.
@@ -114,12 +128,7 @@ export function pascalCase(str: string): string {
  * camelCase('my-service') // 'myService'
  * camelCase('MyService')  // 'myService'
  */
-export function camelCase(str: string): string {
-  return str
-    .replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
-    .replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())
-    .replace(/^[A-Z]/, (letter) => letter.toLowerCase());
-}
+export const camelCase = (str: string): string => new Name(str, 'camelCase').toString();
 
 /**
  * Convert string to snake_case.
@@ -129,31 +138,7 @@ export function camelCase(str: string): string {
  * toSnakeCase('myService') // 'my_service'
  * toSnakeCase('MyServiceName') // 'my_service_name'
  */
-export function toSnakeCase(str: string): string {
-  return str
-    .replace(/([A-Z])/g, '_$1')
-    .toLowerCase()
-    .replace(/^_/, '');
-}
-
-/**
- * Convert camelCase/PascalCase to snake_case with handling for consecutive capitals.
- * More comprehensive than toSnakeCase for complex names.
- *
- * @example
- * toSnakeCaseFull('HTTPRequest') // 'http_request'
- * toSnakeCaseFull('addBookmark') // 'add_bookmark'
- */
-export function toSnakeCaseFull(name: string): string {
-  return (
-    name
-      // Handle consecutive capitals: "HTTPRequest" -> "HTTP_Request"
-      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
-      // Handle camelCase: "addBookmark" -> "add_Bookmark"
-      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-      .toLowerCase()
-  );
-}
+export const snakeCase = (str: string): string => new Name(str, 'snake_case').toString();
 
 // ============================================================================
 // Naming Patterns (Service & Package Naming)
@@ -283,9 +268,7 @@ export function buildWrapperNaming(
   const pascalAffix = affix ? pascalCase(affix) : '';
 
   const baseName = pascalAffix ? `${pascalCore}${pascalAffix}` : pascalCore;
-  const snakeBase = affix
-    ? `${toSnakeCase(coreName)}_${toSnakeCase(affix)}`
-    : toSnakeCase(coreName);
+  const snakeBase = affix ? `${snakeCase(coreName)}_${snakeCase(affix)}` : snakeCase(coreName);
 
   return {
     wrapperName: `${baseName}${options.wrapperSuffix}`,
@@ -307,7 +290,7 @@ export function buildAndroidServiceNaming(coreName: string, affix?: string): Wra
     ...naming,
     wrapperName: naming.serviceName,
     interfaceName: naming.interfaceName,
-    fileName: toSnakeCase(naming.serviceName)
+    fileName: snakeCase(naming.serviceName)
   };
 }
 

@@ -29,7 +29,7 @@
  * ```
  */
 
-import { toSnakeCase } from '../machinery/stringing.js';
+import { snakeCase } from '../machinery/stringing.js';
 
 // ============================================================================
 // Options Interfaces
@@ -128,13 +128,11 @@ export class Field<T> {
   // Computed Properties (for template use)
   // ========================================================================
 
-
-
   /**
    * SQL column name (snake_case of property name).
    */
   get columnName(): string {
-    return this.options.columnName ?? toSnakeCase(this.name);
+    return this.options.columnName ?? snakeCase(this.name);
   }
 
   /**

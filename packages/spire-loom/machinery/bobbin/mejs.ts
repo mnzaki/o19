@@ -30,7 +30,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { toSnakeCase, camelCase, pascalCase } from '../stringing.js';
+import { snakeCase, camelCase, pascalCase } from '../stringing.js';
 
 // ============================================================================
 // EJS Integration (Hidden)
@@ -240,12 +240,12 @@ function postprocessOutput(output: string): string {
 // ============================================================================
 
 const templateHelpers = {
-  snakeCase: toSnakeCase,
+  snakeCase: snakeCase,
   camelCase,
   pascalCase,
 
   kebabCase(str: string): string {
-    return toSnakeCase(str).replace(/_/g, '-');
+    return snakeCase(str).replace(/_/g, '-');
   },
 
   indent(str: string, spaces = 2): string {

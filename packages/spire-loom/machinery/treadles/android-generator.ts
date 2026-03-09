@@ -15,7 +15,7 @@ import { buildCrateNaming } from '../stringing.js';
 import { hookup } from '../sley/index.js';
 import { declareTreadle, generateFromTreadle } from './index.js';
 import type { LanguageParam } from '../reed/language/types.js';
-import { LanguageMethod } from '../reed/language/method.js';
+import { LanguageMethod } from '../reed/method.js';
 import type { MethodMetadata } from '../../warp/metadata.js';
 
 /**

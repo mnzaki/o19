@@ -18,28 +18,17 @@ import { fileURLToPath } from 'node:url';
 import { mejs } from '../bobbin/mejs.js';
 import type { GeneratedFile } from '../bobbin/index.js';
 
-// ============================================================================
-// Built-in Templates
-// ============================================================================
-
-/**
- * Get path to built-in templates directory.
- */
-function getBuiltinTemplateDir(): string {
-  const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(currentDir);
-}
+// Import the language registry and RawMethod
+import { languages } from '../reed/language/index.js';
+import type { Shed } from '../loom.js';
+import type { LanguageDefinitionImperative } from '../reed/language/imperative.js';
 
 // Import languages to ensure they register themselves
 // This MUST happen before transformMethods is called
 import '../../warp/rust.js';
 import '../../warp/typescript.js';
 import '../../warp/kotlin.js';
-
-// Import the language registry and RawMethod
-import { languages } from '../reed/language/index.js';
-import type { Shed } from '../loom.js';
-import type { LanguageDefinitionImperative } from '../reed/language/imperative.js';
+import '../../warp/aidl.js';
 
 // ============================================================================
 // Types
@@ -106,21 +95,13 @@ export interface GenerateOptions {
 }
 
 /**
- * Generate code from template with automatic language detection and transformation.
- *
- * The language is detected from the output file extension:
- * - .kt → Kotlin transforms
- * - .rs → Rust JNI transforms
- * - .aidl → AIDL transforms
- *
- * @example
- * await generateCode({
- *   template: 'android/service.kt.mejs',
- *   outputPath: '.../FoundframeService.kt',
- *   data: { serviceName: 'FoundframeService' },
- *   methods: rawMethods,  // Auto-transformed for Kotlin
- * });
+ * Get path to built-in templates directory.
  */
+function getBuiltinTemplateDir(): string {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(currentDir);
+}
+
 /**
  * Resolve template path, checking workspace, package, then builtin.
  *
@@ -213,6 +194,22 @@ function ensureEjsExtension(templatePath: string): string {
   return `${templatePath}.ejs`;
 }
 
+/**
+ * Generate code from template with automatic language detection and transformation.
+ *
+ * The language is detected from the output file extension:
+ * - .kt → Kotlin transforms
+ * - .rs → Rust JNI transforms
+ * - .aidl → AIDL transforms
+ *
+ * @example
+ * await generateCode({
+ *   template: 'android/service.kt.mejs',
+ *   outputPath: '.../FoundframeService.kt',
+ *   data: { serviceName: 'FoundframeService' },
+ *   methods: rawMethods,  // Auto-transformed for Kotlin
+ * });
+ */
 export async function generateCode(options: GenerateOptions): Promise<GeneratedFile> {
   // Determine template path (workspace first, package second, then builtin)
   const templatePath = resolveTemplatePath(
@@ -224,6 +221,7 @@ export async function generateCode(options: GenerateOptions): Promise<GeneratedF
   // Detect language from template filename (double extension pattern)
   const lang = detectLanguage(templatePath);
   options.shed.methods.setLang(lang);
+  options.shed.entities.setLang(lang);
 
   // Build final data with prepared methods
   const data = {

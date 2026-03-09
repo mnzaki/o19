@@ -14,9 +14,9 @@ import { expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { applyCargoTomlHookup } from '../machinery/shuttle/hookups/cargo-toml.js';
+import { applyCargoTomlHookup } from '../machinery/sley/hookups/cargo-toml.js';
 import type { GeneratorContext } from '../machinery/heddles/index.js';
-import type { CargoTomlHookup } from '../machinery/shuttle/hookups/types.js';
+import type { CargoTomlHookup } from '../machinery/sley/hookups/types.js';
 
 // ============================================================================
 // Test Helpers

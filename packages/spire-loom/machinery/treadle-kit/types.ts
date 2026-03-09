@@ -9,8 +9,7 @@ import type { GeneratorContext } from '../../weaver/plan-builder.js';
 import type { WeavingPlan } from '../../weaver/plan.js';
 import type { GeneratedFile } from '../bobbin/index.js';
 import type { SpiralNode } from '../heddles/index.js';
-import type { LanguageMethod } from '../reed/language/method.js';
-import type { LanguageEntity } from '../reed/language/entity.js';
+import type { LanguageMethod, LanguageEntity } from '../reed/index.js';
 import type { BoundQuery } from '../sley/query.js';
 import { hookup } from '../sley/index.js';
 
@@ -41,7 +40,7 @@ export interface LanguageAPI {
   /**
    * Enhance methods with specified languages.
    *
-   * First language becomes the default (item.lang), 
+   * First language becomes the default (item.lang),
    * additional languages accessible as item.rs, item.ts, etc.
    *
    * @param langs - Language identifiers (e.g., 'rust', 'typescript')
