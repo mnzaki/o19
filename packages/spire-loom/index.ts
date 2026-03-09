@@ -111,7 +111,7 @@ import { spiral, link, reach, crud, Management, typescript, rust } from './warp/
 // What we export, the        loom               remembers
 export { rust, typescript, Management, crud, reach, link, spiral } from './warp/index.js';
 
-import { weave, type WeaverConfig } from './weaver/index.js';
+import { weave } from './weaver/index.js';
                                   /*         */                                    
 // The pattern conserves          /*         */                                    
 export const loom = {             /*         */                                    
@@ -122,11 +122,11 @@ export const loom = {             /*         */
   Management,/*   how we    tend///*         /*                                    
 */rust,/*   what endures       ////*         */                                    
   /*************/ /***is woven/////*         /*                                    
-*/weave: <Conf extends Parameters</*         */                                    
-  /*****************/typeof/*****//*         /*                                    
-*/weave/*************/>[0]>/*****//*         */                                    
-  /*******/(ur: Conf)/****/=>{/**//*         /*                                    
-*/weave/**/(ur)/******/;}/*******//*         */                                    
+*/weave: <Cnf extends  Parameters</*         */                                    
+  /*****************/typeof /****//*         /*                                    
+*/weave/*************/>[0]>/****///*         */                                    
+  /*******/(ur: Cnf)/**/=>/*///////*         /*                                    
+*/weave/**/(ur)/**//**////*////////*         */                                    
 };                                                                                 
                                                                                    
 /* The weft in bloom                                                             */

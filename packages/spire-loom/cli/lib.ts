@@ -8,6 +8,8 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Weaver } from '@o19/spire-loom/weaver';
+import type { WorkspaceInfo } from '../machinery/loom.js';
+import { loadWorkspace } from '../weaver/workspace-discovery.js';
 
 export interface CliOptions {
   watch?: boolean;
@@ -340,15 +342,11 @@ export async function handleCommonArgs(
   return false;
 }
 
-export async function findWorkspaceConfig(): Promise<{ weaver: Weaver; workspace: WorkspaceInfo } | null> {
+export async function findWorkspaceConfig(): Promise<WorkspaceInfo | null> {
   const args = process.argv.slice(2);
   const options = parseArgs(args);
 
-  const weaver = new Weaver({
-    verbose: options.verbose,
-    packageFilter: options.package
-  });
-  const workspace = await weaver.loadWorkspace();
+  const workspace = await loadWorkspace();
 
   if (!workspace || workspace.type === 'unknown') {
     console.error('❌ Not in a workspace or package directory');
@@ -385,5 +383,5 @@ export async function findWorkspaceConfig(): Promise<{ weaver: Weaver; workspace
     console.log(`📦 Package filter: "${workspace.currentPackage}"\n`);
   }
 
-  return { weaver, workspace };
+  return workspace;
 }

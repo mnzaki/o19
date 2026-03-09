@@ -11,7 +11,7 @@
 // Polyfill for decorator metadata
 import 'reflect-metadata';
 
-import type { WeavingResult } from '@o19/spire-loom/weaver';
+import type { WeaverConfig, WeavingResult } from '@o19/spire-loom/weaver';
 import { handleCommonArgs } from './lib.js';
 
 export {
@@ -26,10 +26,15 @@ export type { CliOptions } from './lib.js';
 
 /**
  * Main entry point for classic CLI mode.
- * Takes the weave function from the caller.
+ * Takes the weave function from the caller so that it can use the library as
+ * loaded from the warp!
+ *
+ * NOTE: this reversal of control flow is VERY IMPORTANT otherwise we face
+ * issues with tsx creating multiple instances of the module which makes
+ * instanceof tests fail.
  */
 export async function main(
-  weave: () => Promise<WeavingResult>,
+  weave: (config?: WeaverConfig) => Promise<WeavingResult>,
   warp: Record<string, any>
 ): Promise<void> {
   const args = process.argv.slice(2);

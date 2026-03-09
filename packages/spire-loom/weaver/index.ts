@@ -15,7 +15,7 @@ import * as path from 'node:path';
 import type { SpiralRing } from '../warp/index.js';
 import { createMatrix } from '../machinery/treadles/index.js';
 import { fileSystem, blockRegistry } from '../machinery/sley/index.js';
-import { getWorkspaceInfoFromPath, loadWarp } from './workspace-discovery.js';
+import { getWorkspaceInfoFromPath, loadWarp, loadWorkspace } from './workspace-discovery.js';
 import { Loom, type WorkspaceInfo } from '../machinery/loom.js';
 import {
   PatternMatcher,
@@ -86,27 +86,11 @@ export class Weaver {
    * If in a package subdirectory, walks up to find parent workspace.
    */
   async loadWorkspace(cwd: string = process.cwd()): Promise<WorkspaceInfo | null> {
-    let ret = getWorkspaceInfoFromPath(cwd);
+    const workspace = await loadWorkspace(cwd);
 
-    if (ret.type == 'package') {
-      // Walk up to find parent workspace
-      let current = cwd;
-      while (current !== path.dirname(current)) {
-        current = path.dirname(current);
-        const parent = getWorkspaceInfoFromPath(current);
-        if (parent.type == 'workspace') {
-          parent.currentPackage = ret.name;
-          parent.type = 'package';
-          ret = parent;
-          break;
-        }
-      }
-    }
-
-    if (ret.name && ret.loomDir && ret.warpPath && ret.type !== 'unknown') {
-      ret.warp = await loadWarp(ret.warpPath, ret.root);
-      this._loom = new Loom(ret as WorkspaceInfo);
-      return this._loom.workspace;
+    if (workspace) {
+      this._loom = new Loom(workspace);
+      return workspace;
     }
 
     return null;
@@ -199,7 +183,7 @@ export class Weaver {
       //  }
       //}
 
-      console.log(`Managements found: ${shed.mgmts.length}`);
+      console.log(`Managements found: ${shed.mgmts.all.length}`);
       for (const mgmt of shed.mgmts) {
         console.log(`  - ${mgmt.name} (@reach ${mgmt.reach})`);
         console.log(

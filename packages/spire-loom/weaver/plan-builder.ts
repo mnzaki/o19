@@ -300,8 +300,10 @@ export class PatternMatcher {
     const v = value as Record<string, unknown>;
     const hasMatches = 'matches' in v && Array.isArray(v.matches);
     const hasMethods = 'methods' in v && typeof v.methods === 'object' && v.methods !== null;
+    // Support both 'outputs' (legacy) and 'newFiles' (current) properties
     const hasOutputs = 'outputs' in v && Array.isArray(v.outputs);
-    return hasMatches || (hasMethods && hasOutputs);
+    const hasNewFiles = 'newFiles' in v && Array.isArray(v.newFiles);
+    return hasMatches || (hasMethods && (hasOutputs || hasNewFiles));
   }
 }
 
@@ -382,8 +384,8 @@ export interface GenerationTask {
  * Generator context passed to generators.
  */
 export interface GeneratorContext extends Shed {
-  currentRing: SpiralRing;
-  previousRing: SpiralRing;
+  currentRing?: SpiralRing;
+  previousRing?: SpiralRing;
   /** The weaving plan with all metadata */
   plan: WeavingPlan;
   /** Workspace root directory */

@@ -129,3 +129,28 @@ export function getSuggestedPackageFilter(info: WorkspaceInfo): string | undefin
   return undefined;
 }
 */
+export async function loadWorkspace(cwd: string = process.cwd()): Promise<WorkspaceInfo | null> {
+  let ret = getWorkspaceInfoFromPath(cwd);
+
+  if (ret.type == 'package') {
+    // Walk up to find parent workspace
+    let current = cwd;
+    while (current !== path.dirname(current)) {
+      current = path.dirname(current);
+      const parent = getWorkspaceInfoFromPath(current);
+      if (parent.type == 'workspace') {
+        parent.currentPackage = ret.name;
+        parent.type = 'package';
+        ret = parent;
+        break;
+      }
+    }
+  }
+
+  if (ret.name && ret.loomDir && ret.warpPath && ret.type !== 'unknown') {
+    ret.warp = await loadWarp(ret.warpPath, ret.root);
+    return ret as WorkspaceInfo;
+  }
+
+  return null;
+}
