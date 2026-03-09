@@ -151,6 +151,23 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
     return type;
   }
 
+  /**
+   * Formatted parameters string.
+   * Generated from the language's composition.functionParams template.
+   *
+   * @example
+   * // Rust: method.params
+   * // → "(url: String, title: Option<String>)"
+   *
+   * // TypeScript: method.params
+   * // → "(url: string, title?: string)"
+   *
+   * @example Template usage:
+   * ```mejs
+   * {# Custom parameter formatting #}
+   * fn {{ method.name }}_wrapper{{ method.params }} -> {{ method.returnType.name }}
+   * ```
+   */
   get params() {
     let params: Array<[string, T]> = this.raw.params.map((p) => [
       p.name,
@@ -175,10 +192,53 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
     return this.returnType.stub;
   }
 
+  /**
+   * Function signature without body.
+   * Generated from the language's composition.functionSignature template.
+   *
+   * @example
+   * // Rust: method.signature
+   * // → "pub fn add_bookmark(url: String) -> Result<(), Error>"
+   *
+   * // TypeScript: method.signature
+   * // → "async addBookmark(url: string): Promise<void>"
+   *
+   * // AIDL: method.signature
+   * // → "void addBookmark(String url)"
+   *
+   * @example Template usage:
+   * ```mejs
+   * {# Define a function with custom body #}
+   * {{ method.signature }} {
+   *     {{ method.invoke('self.foundframe') }}
+   * }
+   *
+   * {# Or with variant modifiers #}
+   * {{ method.pub.async.signature }} {
+   *     // implementation
+   * }
+   * ```
+   */
   get signature() {
     return this._render.functionSignature(this);
   }
 
+  /**
+   * Full function definition with signature and body placeholder.
+   * Generated from the language's composition.functionDefinition template.
+   *
+   * NOTE: The default template includes a {{body}} placeholder that expects
+   * content to be provided. For most use cases, prefer `signature` and
+   * provide your own braces/body.
+   *
+   * @example
+   * // Default output (includes body placeholder):
+   * // "pub fn add_bookmark(url: String) -> Result<(), Error> {
+   * // {{body}}
+   * // }"
+   *
+   * @see signature For signature-only output
+   */
   get definition() {
     return this._render.renderDefinition(this);
   }

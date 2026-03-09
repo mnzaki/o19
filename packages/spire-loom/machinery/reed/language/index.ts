@@ -5,6 +5,12 @@
  * - Layer 1: Declarative (what the language IS)
  * - Layer 2: Executive (how to generate code)
  *
+ * COMPILATION FLOW:
+ * 1. User provides mixed declarative + optional imperative config
+ * 2. If 'syntax' field present: compileToExecutive() generates codeGen from syntax
+ * 3. Deep merge: explicit config overrides compiled config
+ * 4. Register final config via declareLanguageImperatively()
+ *
  * This module provides the public API for language definitions.
  * Implementation details are in sibling modules - never import from them directly.
  *
@@ -35,29 +41,41 @@ export type LanguageDeclarationInput<T extends LanguageType> = LanguageIdentity 
 /**
  * Declare a language.
  *
- * This is the main entry point. It accepts a mixed object of:
- * 1. A declarative LanguageDeclaration (Layer 1) - compiles to executive
- * 2. An executive LanguageDefinition (Layer 2) - overrides anything that comes
- * out of the compiled declarative config
+ * This is the main entry point. It accepts a mixed object containing:
+ * 1. Declarative config (Layer 1): conventions, syntax, functionVariants
+ *    - syntax.types generates codeGen.types (TypeFactory)
+ *    - syntax.composition generates codeGen.rendering (RenderingConfig)
+ * 2. Optional imperative overrides (Layer 2): codeGen, enhancements, warp
  *
- * The declarative config is deeply merged with the compiled executive config,
- * allowing you to override specific fields while keeping the generated ones.
+ * COMPILATION:
+ * - If 'syntax' field is present: compileToExecutive() generates codeGen
+ * - Explicit codeGen overrides compiled codeGen via deepmerge
+ * - Final config is registered via declareLanguageImperatively()
  *
  * @example
  * ```typescript
- * // Layer 1: Declarative style
+ * // Pure declarative (recommended)
  * export const myLang = declareLanguage({
- *   identity: { name: 'myLang', extensions: ['.my'] },
- *   conventions: { naming: { function: 'snake', type: 'pascal' } },
- *   syntax: { ... }
+ *   name: 'myLang',
+ *   extensions: ['.my'],
+ *   conventions: { naming: { function: 'snake_case' } },
+ *   syntax: {
+ *     keywords: { function: 'fn' },
+ *     types: { boolean: { template: 'bool', stub: 'false' } },
+ *     composition: { functionSignature: { source: 'fn {{name}}()' } }
+ *   }
  * });
  *
- * // Layer 1 with enhancers override
+ * // Declarative with imperative overrides
  * export const myLang = declareLanguage({
- *   identity: { name: 'myLang', extensions: ['.my'] },
- *   conventions: { ... },
- *   syntax: { ... },
- *   enhancements [myCustomEnhancer]  // Passed through to executive layer
+ *   name: 'myLang',
+ *   extensions: ['.my'],
+ *   syntax: { ... },  // Generates types + rendering
+ *   codeGen: {
+ *     rendering: {
+ *       functionSignature: (m) => `custom ${m.name}()`  // Override
+ *     }
+ *   }
  * });
  * ```
  */
@@ -66,18 +84,21 @@ export function declareLanguage<T extends LanguageType>(
 ): LanguageDefinitionImperative {
   let executiveConfig: LanguageDefinitionImperative;
 
-  // Check if this is a declarative (Layer 1) or executive (Layer 2) input
+  // Layer 1: Compile declarative syntax to executive codeGen
   if ('syntax' in input) {
-    // Layer 1: Compile declarative to executive
+    // compileToExecutive() generates:
+    // - codeGen.types from syntax.types (TypeFactory)
+    // - codeGen.rendering from syntax.composition (RenderingConfig)
     const compiledConfig = compileToExecutive(input as LanguageDeclaration);
 
-    // Deep merge: input overrides compiled config
+    // Deep merge: explicit config overrides compiled config
+    // This allows imperative overrides of generated parts
     executiveConfig = deepmerge(compiledConfig, input);
 
     // Ensure name is set from identity
     executiveConfig.name = input.name;
   } else {
-    // Layer 2: Use executive config directly
+    // Layer 2: Pure imperative (no declarative compilation)
     executiveConfig = input as unknown as LanguageDefinitionImperative;
   }
 

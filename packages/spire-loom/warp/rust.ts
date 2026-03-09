@@ -385,6 +385,91 @@ import { RustCore, rustCore } from './spiral/rust.js';
 import { RustAndroidSpiraler } from './spiral/spiralers/rust/index.js';
 import { DesktopSpiraler } from './spiral/spiralers/desktop.js';
 import type { LanguageMethod } from '../machinery/reed/method.js';
+import type { LinkMetadata } from '../warp/metadata.js';
+
+// ============================================================================
+// Rust Invocation Generator
+// ============================================================================
+
+/**
+ * Generate Rust code for invoking a method through an ExternalLayer link.
+ *
+ * This generates the unwrapping chain for Mutex/Option wrappers and calls
+ * the actual method on the inner type.
+ *
+ * @param method - The LanguageMethod with link metadata
+ * @param variablePath - The path to the struct instance (e.g., 'self.foundframe')
+ * @returns The generated Rust invocation code
+ *
+ * @example
+ * // For a method linked to foundframe.inner.core.thestream with wrappers [Mutex, Option]:
+ * generateRustInvocation(method, 'self.foundframe')
+ * // Returns: 'self.foundframe.thestream.lock().unwrap().as_ref().map(|s| s.add_bookmark(url)).transpose()?'
+ */
+export function generateRustInvocation(method: LanguageMethod, variablePath: string): string {
+  const link = method.raw.link as LinkMetadata | undefined;
+  if (!link) {
+    throw new Error(
+      `Method ${method.name} has no link metadata. Use @loom.link() on the Management.`
+    );
+  }
+
+  // Extract field info from the link target
+  const target = link.target as
+    | {
+        fieldName?: string;
+        wrappers?: string[];
+      }
+    | undefined;
+
+  if (!target?.fieldName) {
+    throw new Error(`Link target for ${method.name} has no fieldName`);
+  }
+
+  const fieldName = target.fieldName;
+  const wrappers = target.wrappers ?? [];
+  const useResult = link.useResult ?? false;
+
+  // Convert method name to snake_case for Rust
+  // Build parameter list
+  const params = method.raw.params.map((p) => p.name).join(', ');
+
+  // Build the unwrapping chain
+  let invocation = `${variablePath}.${fieldName}`;
+
+  // Apply wrappers in order (outer to inner)
+  for (const wrapper of wrappers) {
+    switch (wrapper) {
+      case 'Mutex':
+        invocation += '.lock().unwrap()';
+        break;
+      case 'Option':
+        invocation += '.as_ref()';
+        break;
+      case 'Arc':
+      case 'RwLock':
+        // These would need special handling, skip for now
+        break;
+    }
+  }
+
+  // Build the method call closure
+  const methodCall = `s.${method.name}(${params})`;
+
+  // Wrap in map to handle the Option<InnerType>
+  if (wrappers.includes('Option')) {
+    invocation += `.map(|s| ${methodCall})`;
+  } else {
+    invocation += `.${method.name}(${params})`;
+  }
+
+  // Handle Result wrapping
+  if (useResult && wrappers.includes('Option')) {
+    invocation += '.transpose()?'; // Convert Option<Result<T,E>> to Result<Option<T>,E>
+  }
+
+  return invocation;
+}
 
 // ============================================================================
 // Rust Type Factory
@@ -513,6 +598,14 @@ export const rustLanguage = declareLanguage<LanguageType>({
       if (method.hasTag('rust:result')) {
         method.addVariance('result');
       }
+
+      // Add invoke helper for generating ExternalLayer method calls
+      // Usage in templates: {{ method.invoke('self.foundframe') }}
+      Object.defineProperty(method, 'invoke', {
+        get: () => generateRustInvocation.bind(null, method),
+        enumerable: true,
+        configurable: true
+      });
     }
   },
 

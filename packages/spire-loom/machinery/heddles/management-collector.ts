@@ -393,7 +393,8 @@ function extractMetadata<T extends typeof Management>(
         ...parsed,
 
         name: methodName,
-        tags
+        tags,
+        link // Inherit link from management
       });
       processedMethods.add(methodName);
     }
@@ -413,7 +414,8 @@ function extractMetadata<T extends typeof Management>(
       name: methodName,
       isCollection: false,
       isSoftDelete: false,
-      tags
+      tags,
+      link // Inherit link from management
     });
   }
 

@@ -142,6 +142,8 @@ export interface MethodMetadata {
    * NOTE: Heddles use this to store computed metadata like useResult, wrappers.
    */
   metadata?: Record<string, unknown>;
+  /** Link to ExternalLayer for service invocation (inherited from Management) */
+  link?: LinkMetadata;
 }
 
 /**
