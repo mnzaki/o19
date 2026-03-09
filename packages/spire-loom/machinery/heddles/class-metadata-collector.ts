@@ -27,7 +27,7 @@ export type PredicateFn = (value: unknown, propName: string) => boolean;
 /**
  * A function that extracts metadata from a matching property.
  */
-export type ExtractorFn<T> = (value: unknown, propName: string) => T;
+export type ExtractorFn<T> = (value: any, propName: string) => T;
 
 /**
  * Configuration for a class metadata collector.

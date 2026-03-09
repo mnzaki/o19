@@ -20,7 +20,7 @@ export interface WorkspaceInfo {
   warpPath: string;
 
   /** loaded warp **/
-  warp: Record<string, unknown>;
+  //warp: Record<string, unknown>;
 
   /** Current package name if in a package subdirectory */
   currentPackage?: string;

@@ -11,7 +11,7 @@
 // Polyfill for decorator metadata
 import 'reflect-metadata';
 
-import type { WeaverConfig, WeavingResult } from '@o19/spire-loom/weaver';
+import type { WeaverConfig, WeavingResult } from '../weaver/index.js';
 import { handleCommonArgs } from './lib.js';
 
 export {
@@ -34,7 +34,7 @@ export type { CliOptions } from './lib.js';
  * instanceof tests fail.
  */
 export async function main(
-  weave: (config?: WeaverConfig) => Promise<WeavingResult>,
+  weave: () => Promise<WeavingResult>,
   warp: Record<string, any>
 ): Promise<void> {
   const args = process.argv.slice(2);

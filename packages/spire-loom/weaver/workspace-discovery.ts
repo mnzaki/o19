@@ -70,6 +70,7 @@ export async function loadWarp(
   warpPath: string,
   workspaceRoot?: string
 ): Promise<Record<string, any>> {
+  console.log('🧵 Loading WARP.ts', { warpPath, workspaceRoot });
   const { pathToFileURL } = await import('node:url');
   const warpUrl = pathToFileURL(warpPath).href;
 
@@ -148,7 +149,7 @@ export async function loadWorkspace(cwd: string = process.cwd()): Promise<Worksp
   }
 
   if (ret.name && ret.loomDir && ret.warpPath && ret.type !== 'unknown') {
-    ret.warp = await loadWarp(ret.warpPath, ret.root);
+    //ret.warp = await loadWarp(ret.warpPath, ret.root);
     return ret as WorkspaceInfo;
   }
 

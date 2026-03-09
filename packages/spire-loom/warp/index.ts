@@ -4,6 +4,8 @@
  * "The warp is the foundation. All weaving begins here."
  */
 
+export type WARP = Record<string, unknown>;
+
 // Spiral system (rings, surfaces, spirals)
 export * from './spiral/index.js';
 

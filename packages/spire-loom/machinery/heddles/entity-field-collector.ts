@@ -7,7 +7,7 @@
  * "Fields bloom from the class; we merely gather them."
  */
 
-import { Field } from '@o19/spire-loom/warp/field';
+import { Field } from '../../warp/field.js';
 import { createCollector } from './class-metadata-collector.js';
 import type { EntityFieldMetadata } from '../treadle-kit/computed-entity-helpers.js';
 

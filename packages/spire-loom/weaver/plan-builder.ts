@@ -4,7 +4,14 @@
  * Builds the weaving plan from a WARP.ts module.
  */
 
-import { SpiralRing, SpiralOut, SpiralMux, Spiraler, MuxSpiraler } from '../warp/index.js';
+import {
+  SpiralRing,
+  SpiralOut,
+  SpiralMux,
+  Spiraler,
+  MuxSpiraler,
+  type WARP
+} from '../warp/index.js';
 import { CoreRing } from '../warp/spiral/index.js';
 import { SurfaceRing } from '../warp/spiral/surface.js';
 import {
@@ -53,10 +60,7 @@ export class PatternMatcher {
    * @param workspaceRoot - Optional workspace root for WARP override checking
    * @returns A plan with edges, nodes, managements, and generation tasks
    */
-  async buildPlan(
-    warp: Record<string, SpiralRing>,
-    workspaceRoot?: string
-  ): Promise<Omit<WeavingPlan, 'managements'>> {
+  async buildPlan(warp: WARP, workspaceRoot?: string): Promise<Omit<WeavingPlan, 'managements'>> {
     const edges: SpiralEdge[] = [];
     const nodesByType = new Map<string, SpiralNode[]>();
     const tasks: GenerationTask[] = [];
@@ -67,8 +71,9 @@ export class PatternMatcher {
     // Registry for lazy tieups: exportName -> LazyTieup[]
     const lazyTieupRegistry = new Map<string, LazyTieup[]>();
 
-    // Create a mutable copy of warp (ESM modules are read-only)
-    const mutableWarp = { ...warp };
+    // Create a mutable copy of warp (ESM modules are read-only, and WARP is
+    // just a wholeass imported module)
+    const mutableWarp = { ...warp } as Record<string, SpiralRing>;
 
     // ==========================================================================
     // Phase 0: Ensure metadata and collect lazy tieups from main WARP

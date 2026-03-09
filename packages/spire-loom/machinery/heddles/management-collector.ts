@@ -325,10 +325,7 @@ async function loadManagement<T extends typeof Management>(
     if (process.env.DEBUG_MANAGEMENT) {
       console.log(`[DEBUG]   ${exportName}: type=${typeof exported}, hasReach=${!!hasReach}`);
     }
-    // Check if it's a class with @reach decorator (Management classes always have @reach)
-    // Note: We can't use 'instanceof Management' due to potential module resolution differences
-    // between the collector and the loom files (especially in pnpm monorepos)
-    if (typeof exported === 'function' && hasReach) {
+    if (exported instanceof Management) {
       const mgmtClass = exported as T;
 
       // Skip if already seen (prevents duplicates from WARP.ts scanning)

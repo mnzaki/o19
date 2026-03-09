@@ -217,14 +217,8 @@ export async function generateCode(options: GenerateOptions): Promise<GeneratedF
   // If no language is detected, proceed without language transformation
   const lang = detectLanguage(templatePath);
   if (lang) {
-    if (process.env.DEBUG_LANG) {
-      console.log(`[DEBUG_LANG] Setting language to ${lang.name} for ${options.template}`);
-      console.log(`[DEBUG_LANG] Methods type: ${typeof options.methods}, has setLang: ${typeof options.methods?.setLang}`);
-    }
     options.methods.setLang(lang);
     options.entities.setLang(lang);
-  } else if (process.env.DEBUG_LANG) {
-    console.log(`[DEBUG_LANG] No language detected for ${options.template}`);
   }
 
   // Build final data with prepared methods

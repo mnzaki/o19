@@ -7,7 +7,6 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Weaver } from '@o19/spire-loom/weaver';
 import type { WorkspaceInfo } from '../machinery/loom.js';
 import { loadWorkspace } from '../weaver/workspace-discovery.js';
 

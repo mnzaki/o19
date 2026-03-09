@@ -104,7 +104,7 @@
 import stuff from     'future-neighbours';
 
 /✱ The warp holds the imprint of intention */
-export *    from      './warp/imprint.js';
+//export *    from      './warp/imprint.js';
 // We  Import the spiral's          reach,
 // link the rust to       Management
 import { spiral, link, reach, crud, Management, typescript, rust } from './warp/index.js';

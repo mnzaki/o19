@@ -13,12 +13,7 @@ import type { QueryCollectionResult } from './query-collector.js';
 // Core Types
 // ============================================================================
 
-export {
-  type EnrichedMethodMetadata,
-  type SpiralEdge,
-  type SpiralNode,
-  type ManagementMethods
-} from './types.js';
+export { type EnrichedMethodMetadata, type SpiralEdge, type SpiralNode } from './types.js';
 
 export {
   getEffectiveTypeName,

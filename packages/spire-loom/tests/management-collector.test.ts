@@ -4,8 +4,7 @@
  * Tests for the management metadata collection system.
  */
 
-import { describe, test } from 'vitest';
-import assert from 'node:assert';
+import { describe, test, expect, assert } from 'vitest';
 import { splitParamsRespectingGenerics } from '../machinery/heddles/management-collector.js';
 
 describe('management-collector', () => {
@@ -30,9 +29,7 @@ describe('management-collector', () => {
   });
 
   test('splitParamsRespectingGenerics handles nested generics', () => {
-    const result = splitParamsRespectingGenerics(
-      'data: Map<string, Array<number>>'
-    );
+    const result = splitParamsRespectingGenerics('data: Map<string, Array<number>>');
     expect(result).toEqual(['data: Map<string, Array<number>>']);
   });
 
@@ -40,9 +37,6 @@ describe('management-collector', () => {
     const result = splitParamsRespectingGenerics(
       'data?: Record<string, unknown>, opts?: Partial<Config>'
     );
-    assert.deepStrictEqual(result, [
-      'data?: Record<string, unknown>',
-      'opts?: Partial<Config>'
-    ]);
+    assert.deepStrictEqual(result, ['data?: Record<string, unknown>', 'opts?: Partial<Config>']);
   });
 });

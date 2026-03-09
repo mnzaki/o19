@@ -52,17 +52,15 @@ const spawnArgs = [
     console.error("Couldn't find WARP.ts in workspace loom dir");
     process.exit(1);
   }
-  const { /* warp: { loom }, */ warpPath } = workspace;
+  const { warp, warpPath } = workspace;
   import { main } from '${interactiveEntry}';
-  import(warpPath)
-    .then(mod => {
-      const loom = mod.default?.weave ? mod.default : mod;
-      // it's VERY IMPORTANT that controlled flow is reversed
-      // and we pass the weave function from the loom object
-      // exported BY the loaded WARP.ts! This sidesteps identity
-      // (instanceof) issues
-      return main(loom.weave, mod)
-    })`,
+  const loom = warp.default?.weave ? warp.default : warp;
+  // it's VERY IMPORTANT that controlled flow is reversed
+  // and we pass the weave function from the loom object
+  // exported BY the loaded WARP.ts! This sidesteps identity
+  // (instanceof) issues
+  main(loom.weave, warp)
+  `,
   '--',
   ...args
 ];

@@ -76,17 +76,21 @@ if (isHelp || isVersion) {
        console.error("Couldn't find WARP.ts in workspace loom dir");
        process.exit(1);
      }
-     const { /*warp: { loom },*/ warpPath } = workspace;
+     const { warpPath } = workspace;
      import { main } from '${cliEntry}';
-     import(warpPath)
-      .then(mod => {
-        const loom = mod.default?.weave ? mod.default : mod;
-        // it's VERY IMPORTANT that controlled flow is reversed
-        // and we pass the weave function from the loom object
-        // exported BY the loaded WARP.ts! This sidesteps identity
-        // (instanceof) issues
-        return main(loom.weave, mod)
-      })`,
+     import(warpPath).then(mod => {
+       const warpMod = mod.default?.weave ? mod : mod.default;
+       console.log({warpMod});
+       // it's VERY IMPORTANT that controlled flow is reversed
+       // and we pass the weave function from the loom object
+       // exported BY the loaded WARP.ts! This sidesteps identity
+       // (instanceof) issues
+       return main(() => {
+         console.log('WEAAAAVIIIING', { warpMod });
+         return warpMod.default.weave({workspace}, warpMod)
+        })
+     })
+     `,
     '--',
     ...userArgs
   ];

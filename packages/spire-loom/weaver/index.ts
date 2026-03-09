@@ -12,10 +12,10 @@
  */
 
 import * as path from 'node:path';
-import type { SpiralRing } from '../warp/index.js';
+import type { SpiralRing, WARP } from '../warp/index.js';
 import { createMatrix } from '../machinery/treadles/index.js';
 import { fileSystem, blockRegistry } from '../machinery/sley/index.js';
-import { getWorkspaceInfoFromPath, loadWarp, loadWorkspace } from './workspace-discovery.js';
+import { loadWarp, loadWorkspace } from './workspace-discovery.js';
 import { Loom, type WorkspaceInfo } from '../machinery/loom.js';
 import {
   PatternMatcher,
@@ -75,26 +75,6 @@ export class Weaver {
     if (!this._patternMatcher) throw new Error('no workspace loaded yet!');
     return this._patternMatcher;
   }
-  /*
-   * Detect workspace type and locate loom/WARP.ts.
-   *
-   * Checks for:
-   * - pnpm-workspace.yaml (pnpm workspace)
-   * - Cargo.toml with [workspace] (Cargo workspace)
-   * - loom/ directory with WARP.ts
-   *
-   * If in a package subdirectory, walks up to find parent workspace.
-   */
-  async loadWorkspace(cwd: string = process.cwd()): Promise<WorkspaceInfo | null> {
-    const workspace = await loadWorkspace(cwd);
-
-    if (workspace) {
-      this._loom = new Loom(workspace);
-      return workspace;
-    }
-
-    return null;
-  }
 
   /**
    * Build the weaving plan (intermediate representation).
@@ -107,18 +87,12 @@ export class Weaver {
    * - All nodes grouped by type
    * - Generation tasks derived from matrix matching
    */
-  async buildPlan(workspace: WorkspaceInfo): Promise<WeavingPlan> {
+  async buildPlan(workspace: WorkspaceInfo, warp: WARP): Promise<WeavingPlan> {
     const matrix = await createMatrix(workspace.root);
     this._patternMatcher = new PatternMatcher(matrix);
-    return Object.assign(
-      await this.patternMatcher.buildPlan(
-        workspace.warp as Record<string, SpiralRing>,
-        workspace.root
-      ),
-      {
-        managements: this.loom.heddles!.mgmts
-      }
-    );
+    return Object.assign(await this.patternMatcher.buildPlan(warp, workspace.root), {
+      managements: this.loom.heddles!.mgmts
+    });
   }
 
   /**
@@ -132,15 +106,22 @@ export class Weaver {
    * 2. Execute each generation task (Shuttle)
    * 3. Format the generated code (Beater)
    */
-  async weave(): Promise<WeavingResult> {
+  async weave(warpInput?: WARP): Promise<WeavingResult> {
+    console.log('here');
     const config = this.config;
-    const workspace = config?.workspace ?? (await this.loadWorkspace());
+    const workspace = config?.workspace ?? (await loadWorkspace());
+
     if (!workspace) {
       console.warn('⚠️ No loom/ directory found');
       throw new Error('No loom/ directory found');
-    } else if (config?.verbose) {
+    }
+
+    console.log({ warpInput });
+    const warp = warpInput ?? (await loadWarp(workspace.warpPath, workspace.root));
+    this._loom = new Loom(workspace);
+    if (config?.verbose) {
       console.log('🧵 Configuring workspace');
-      console.log('Rings found:', Object.keys(workspace.warp));
+      console.log('Rings found:', Object.keys(warp));
     }
 
     // Start a new generation for block tracking
@@ -193,7 +174,7 @@ export class Weaver {
     }
 
     // Phase 1: Build the weaving plan (Heddles)
-    const plan = await this.buildPlan(workspace);
+    const plan = await this.buildPlan(workspace, warp);
 
     if (config?.verbose) {
       console.log(`\nPlan built:`);
@@ -505,7 +486,8 @@ Package filter: "${config.packageFilter}"`);
 /**
  * Convenience function to weave a WARP.ts module.
  */
-export async function weave(config?: WeaverConfig): Promise<WeavingResult> {
+export async function weave(config?: WeaverConfig, warp?: WARP): Promise<WeavingResult> {
+  console.log('making weaver', { config, warp });
   const weaver = new Weaver(config);
-  return weaver.weave();
+  return await weaver.weave(warp);
 }
