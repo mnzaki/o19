@@ -146,19 +146,6 @@ export type TypeConstructors = {
 } & Record<string, TypeConstructorDeclaration | null>;
 
 // ============================================================================
-// Function Variant Declarations
-// ============================================================================
-
-export interface FunctionVariantDeclaration<T extends LanguageType = LanguageType> {
-  /** Keyword used for this variant (e.g., 'async', 'unsafe') */
-  prependKeyword?: string;
-  wrapReturnType?: (returnType: T) => T;
-  processParams?: (params: Array<[string, T]>) => Array<[string, T]>;
-  //applyVariant?: (...args: any[]) => any;
-  overrideName?: Name | string;
-}
-
-// ============================================================================
 // Block Syntax Declaration
 // ============================================================================
 
@@ -220,7 +207,6 @@ export interface LanguageDeclaration extends LanguageIdentity {
     /** Type constructor templates */
     types: TypeConstructors;
     /** Function variants (async, unsafe, etc.) */
-    functionVariants: Record<string, FunctionVariantDeclaration>;
     /** Composition templates for code generation */
     composition: CompositionTemplates;
   };
@@ -617,13 +603,6 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
       undefined: 'undefined'
     },
     types: commonLanguageTypes,
-    functionVariants: {
-      async: { prependKeyword: 'async' },
-      public: { prependKeyword: 'public' },
-      private: { prependKeyword: 'private' },
-      protected: { prependKeyword: 'protected' },
-      static: { prependKeyword: 'static' }
-    },
     blockOpen: '{',
     blockClose: '}',
     blockImplicitReturn: false,

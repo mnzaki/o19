@@ -1,8 +1,7 @@
 import type { MethodMetadata } from '../../../warp/metadata.js';
 import { Name } from '../../stringing.js';
-import type { FunctionVariantDeclaration } from './declarative.js';
 import type { LanguageDefinitionImperative, LanguageRenderingConfig } from './imperative.js';
-import { LanguageThing, LanguageValue, type LanguageParam, type LanguageType } from './types.js';
+import { LanguageThing, type FunctionVariantDeclaration, type LanguageType } from './types.js';
 
 /**
  * Language-specific method extends raw with:
@@ -44,12 +43,34 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
   }
 
   set lang(lang: LanguageDefinitionImperative<T>) {
-    (this as any)._lang = lang;
+    if (this._lang === lang) return;
+    if (this._lang) {
+      for (const variantName of Object.keys(this._lang.functionVariants)) {
+        delete (this as any)[variantName];
+      }
+    }
+
+    this._lang = lang;
     this._render = lang.codeGen.rendering;
 
     // Apply language-specific enhancements
     if (lang.enhancements?.methods) {
-      lang.enhancements.methods(this);
+      lang.enhancements.methods(this as unknown as LanguageMethod);
+    }
+
+    // Define getter properties for each function variant declared in the language syntax
+    // This enables method.{variant} access (e.g., method.async, method.unsafe)
+    if (lang.functionVariants) {
+      for (const variantName of Object.keys(lang.functionVariants)) {
+        // Only define if not already defined on this instance
+        if (!(variantName in this)) {
+          Object.defineProperty(this, variantName, {
+            get: () => this.withVariance(variantName),
+            enumerable: true,
+            configurable: true
+          });
+        }
+      }
     }
   }
 
@@ -186,19 +207,62 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
    * @param objectParamName - Optional name to wrap params in an object
    */
   /**
-   * Add a variant to this method instance (mutating).
-   * Used by language enhancements to add variants after construction.
+   * Add a variance (variant) to this method instance (mutating).
+   * Looks up the variant definition from the language's functionVariants by name.
+   * Throws if the variant is not defined in the language syntax.
+   *
+   * @param varianceName - Name of the variance to add (must exist in lang.syntax.functionVariants)
+   * @param overrides - Optional overrides to apply to the looked-up variance definition
    */
-  addVariant(variantName: string, variant: FunctionVariantDeclaration<T>): void {
-    this.appliedVariants[variantName] = variant;
+  addVariance(varianceName: string, overrides?: Partial<FunctionVariantDeclaration<T>>): void {
+    const { functionVariants } = this.lang;
+    if (!functionVariants) {
+      throw new Error(
+        `Cannot add variance '${varianceName}': language '${this.lang.name}' has no functionVariants defined`
+      );
+    }
+
+    const varianceDef = functionVariants[varianceName];
+    if (!varianceDef) {
+      const available = Object.keys(functionVariants).join(', ');
+      throw new Error(
+        `Unknown variance '${varianceName}' for language '${this.lang.name}'. ` +
+          `Available: ${available}`
+      );
+    }
+
+    // Merge the looked-up definition with any overrides
+    this.appliedVariants[varianceName] = {
+      ...varianceDef,
+      ...overrides,
+      name: varianceName
+    } as unknown as FunctionVariantDeclaration<T>;
   }
 
-  createVariant(variantName: string, variant: FunctionVariantDeclaration<T>): LanguageMethod<T> {
+  /**
+   * Create a new method with an additional variance applied (non-mutating).
+   * @param varianceName - Name of the variance to apply
+   * @param variance - Optional custom variance definition (if not provided, looks up from language)
+   */
+  withVariance(varianceName: string, variance?: FunctionVariantDeclaration<T>): LanguageMethod<T> {
+    // If no explicit variance provided, look it up from the language
+    if (!variance) {
+      const { functionVariants } = this.lang;
+      if (!functionVariants?.[varianceName]) {
+        const available = Object.keys(functionVariants ?? {}).join(', ');
+        throw new Error(
+          `Unknown variance '${varianceName}' for language '${this.lang.name}'. ` +
+            `Available: ${available}`
+        );
+      }
+      variance = functionVariants[varianceName] as unknown as FunctionVariantDeclaration<T>;
+    }
+
     const variants = {
       ...this.appliedVariants,
-      [variantName]: variant
+      [varianceName]: { ...variance, name: varianceName }
     };
-    const newMethod = new LanguageMethod(this.raw, variants);
+    const newMethod = new LanguageMethod<T>(this.raw, variants);
     // Propagate language if set
     if (this._lang) {
       newMethod.lang = this._lang;
@@ -207,15 +271,15 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
   }
 
   withNewName(overrideName: Name | string, variantName = 'rename'): LanguageMethod<T> {
-    return this.createVariant(variantName, {
+    return this.withVariance(variantName, {
       overrideName
     });
   }
 
-  withObjectParams(objectParamName: string): LanguageMethod<T> {
+  withObjectParams(objectParamName: string, variantName = 'objectParam'): LanguageMethod<T> {
     const propertyCtor = this.lang.types.property;
     if (!propertyCtor) throw new Error("can't wrap params in a language with no objects...");
-    return this.createVariant('objectParam', {
+    return this.withVariance(variantName, {
       processParams: (params: Array<[string, T]>) => [
         [
           objectParamName,

@@ -335,27 +335,16 @@ export interface LanguageWarpConfig {
 }
 
 // ============================================================================
-// Language Definition (Generic)
+// Function Variant Declarations
 // ============================================================================
 
-/**
- * Complete language definition with full type safety.
- *
- * Languages self-register by calling declareLanguage() at module load time.
- * This enables dynamic language discovery without central configuration.
- *
- * @template P Parameter type extending LanguageParam
- * @template T Type definition extending LanguageType
- */
-export interface LanguageDefinition<
-  T extends LanguageType = LanguageType
-> extends LanguageIdentity {
-  /** Type factory for generating language-specific types */
-  types: TypeFactory<T>;
-
-  /**
-   * WARP integration configuration.
-   * Optional for code-generation-only languages.
-   */
-  warp?: LanguageWarpConfig;
+export interface FunctionVariantDeclaration<T extends LanguageType = LanguageType> {
+  /** Name of this variant (optional, used when looking up by name) */
+  name?: string;
+  /** Keyword used for this variant (e.g., 'async', 'unsafe') */
+  prependKeyword?: string;
+  wrapReturnType?: (returnType: T) => T;
+  processParams?: (params: Array<[string, T]>) => Array<[string, T]>;
+  //applyVariant?: (...args: any[]) => any;
+  overrideName?: Name | string;
 }

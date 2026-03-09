@@ -426,6 +426,7 @@ class RustTypeFactory implements Partial<TypeFactory<LanguageType>> {
 // Language Definition
 // ============================================================================
 
+export const types = new RustTypeFactory();
 /**
  * Rust language definition.
  *
@@ -438,7 +439,36 @@ class RustTypeFactory implements Partial<TypeFactory<LanguageType>> {
 export const rustLanguage = declareLanguage<LanguageType>({
   name: 'rust',
   extensions: ['.rs', '.jni.rs'],
-  types: new RustTypeFactory(),
+  types,
+  conventions: {
+    naming: {
+      function: 'snake_case',
+      type: 'PascalCase',
+      variable: 'snake_case',
+      const: 'SCREAMING_SNAKE',
+      module: 'snake_case',
+      field: 'snake_case',
+      method: 'snake_case',
+      parameter: 'snake_case',
+      generic: 'PascalCase'
+    }
+  },
+  functionVariants: {
+    async: { prependKeyword: 'async' },
+    unsafe: { prependKeyword: 'unsafe' },
+    pub: { prependKeyword: 'pub' },
+    result: {
+      wrapReturnType: (returnType: LanguageType) => {
+        // Don't double-wrap if already a Result
+        if (!returnType.name.toString().startsWith('Result<')) {
+          return types.result(returnType);
+        }
+        return returnType;
+      }
+    }
+  },
+
+  // Declare function variants that can be accessed via method.{variant}
   syntax: {
     keywords: {
       function: 'fn',
@@ -472,37 +502,13 @@ export const rustLanguage = declareLanguage<LanguageType>({
       }
     }
   },
-  conventions: {
-    naming: {
-      function: 'snake_case',
-      type: 'PascalCase',
-      variable: 'snake_case',
-      const: 'SCREAMING_SNAKE',
-      module: 'snake_case',
-      field: 'snake_case',
-      method: 'snake_case',
-      parameter: 'snake_case',
-      generic: 'PascalCase'
-    }
-  },
 
   // Language-specific enhancements applied when language is bound to methods
   enhancements: {
     methods: (method: LanguageMethod) => {
       // Result wrapping for methods tagged with 'rust:result'
       if (method.hasTag('rust:result')) {
-        method.addVariant('result', {
-          wrapReturnType: (returnType) => {
-            // Don't double-wrap if already a Result
-            if (!returnType.name.toString().startsWith('Result<')) {
-              return method.lang.types.result!(
-                returnType,
-                new LanguageType('crate::Error', 'crate::Error')
-              );
-            }
-            return returnType;
-          }
-        });
+        method.addVariance('result');
       }
     }
   },

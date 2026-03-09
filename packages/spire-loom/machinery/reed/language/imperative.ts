@@ -12,7 +12,13 @@
  */
 
 import { declare, getScopeRegistry } from '../../self-declarer.js';
-import { LanguageType, type LanguageDefinition, type TypeFactory } from './types.js';
+import {
+  LanguageType,
+  type FunctionVariantDeclaration,
+  type LanguageIdentity,
+  type LanguageWarpConfig,
+  type TypeFactory
+} from './types.js';
 import type { MethodMetadata } from '../../../warp/metadata.js';
 import type { LanguageMethod } from './method.js';
 import type { LanguageEntity } from './entity.js';
@@ -77,7 +83,17 @@ export interface LanguageEnhancements {
 
 export interface LanguageDefinitionImperative<
   T extends LanguageType = LanguageType
-> extends LanguageDefinition<T> {
+> extends LanguageIdentity {
+  /** Type factory for generating language-specific types */
+  types: TypeFactory<T>;
+
+  functionVariants: Record<string, FunctionVariantDeclaration>;
+
+  /**
+   * WARP integration configuration.
+   * Optional for code-generation-only languages.
+   */
+  warp?: LanguageWarpConfig;
   /** Code generation configuration */
   codeGen: LanguageCodeGenConfig<T>;
   /** Optional enhancements applied when language is bound to LanguageThings */
