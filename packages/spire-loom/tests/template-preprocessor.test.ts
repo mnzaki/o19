@@ -8,6 +8,11 @@ import { mejs, _test } from '../machinery/bobbin/mejs.js';
 // Destructure test internals
 const { preprocess: preprocessTemplate, postprocess: postprocessOutput, process: processTemplate, defaultOptions: defaultPreprocessorOptions } = _test;
 
+// NOTE: With custom EJS delimiters { }, the preprocessor outputs:
+// - {%- expr %} instead of <%- expr %> (unescaped output)
+// - {%= expr %} instead of <%= expr %> (escaped output)
+// - {%_ code _%} for whitespace-trimmed code blocks
+
 // EJS will be dynamically imported for integration tests
 let ejs: typeof import('ejs') | null = null;
 
@@ -17,130 +22,139 @@ beforeAll(async () => {
 
 describe('preprocessTemplate', () => {
   describe('output delimiters', () => {
-    it('should convert {{ expr }} to <%- expr %> (unescaped)', () => {
+    it('should convert {{ expr }} to {%- expr %} (unescaped)', () => {
       const input = 'Hello {{ name }}!';
       const result = preprocessTemplate(input);
-      expect(result).toBe('Hello <%- name %>!');
+      expect(result).toBe('Hello {%- name %}!');
     });
 
-    it('should convert {{ expr }} to <%= expr %> when escapeByDefault is true', () => {
+    it('should convert {{ expr }} to {%= expr %} when escapeByDefault is true', () => {
       const input = 'Hello {{ name }}!';
       const result = preprocessTemplate(input, { escapeByDefault: true });
-      expect(result).toBe('Hello <%= name %>!');
+      expect(result).toBe('Hello {%= name %}!');
     });
 
-    it('should convert {h expr } to <%= expr %> (html escaped)', () => {
+    it('should convert {h expr } to {%= expr %} (html escaped)', () => {
       const input = 'Text: {h content }';
       const result = preprocessTemplate(input);
-      expect(result).toBe('Text: <%= content %>');
+      expect(result).toBe('Text: {%= content %}');
     });
 
-    it('should convert {_ expr } to <%- expr _%> (trim trailing)', () => {
+    it('should convert {_ expr } to {%-_ expr %} (trim trailing)', () => {
       const input = '{_ value }';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%-_ value %>');
+      expect(result).toBe('{%-_ value %}');
     });
 
-    it('should convert {{_ expr _}} to <%-_ expr _%> (trim both)', () => {
+    it('should convert {{_ expr _}} to {%-_ expr _%} (trim both)', () => {
       const input = '{{_ value _}}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%-_ value _%>');
+      expect(result).toBe('{%-_ value _%}');
     });
 
-    it('should convert {h_ expr } to <%=_ expr %> (html + trim trailing)', () => {
+    it('should convert {h_ expr } to {%=_ expr %} (html + trim leading)', () => {
       const input = '{h_ value }';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%=_ value %>');
+      expect(result).toBe('{%=_ value %}');
     });
 
-    it('should convert {_ expr _h} to <%-_ expr _%> (trim both + html)', () => {
+    it('should convert {_ expr _h} to {%=_ expr _%} (trim both + html)', () => {
       const input = '{_ value _h}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%=_ value _%>');
+      expect(result).toBe('{%=_ value _%}');
     });
   });
 
   describe('code blocks', () => {
     it('should NOT process blocks that already have braces (raw JS)', () => {
-      // This has { so it's treated as raw JavaScript and left untouched
+      // This has { so it's treated as raw JavaScript and left untouched by control flow simplification
+      // but code block trimming still adds _%}
       const input = '{% if (x) { %}';
       const result = preprocessTemplate(input);
       // Goes through standard code block processing: trim trailing
-      expect(result).toBe('<% if (x) { _%>');
+      // Note: the whitespace after {% is preserved for blocks with braces
+      expect(result).toBe('{% if (x) { _%}');
     });
 
-    it('should convert {%+ code %} to <% code %> (preserve whitespace)', () => {
+    it('should convert {%+ code %} to {% code %} (preserve whitespace)', () => {
       const input = '{%+ if (x) { %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<% if (x) { %>');
+      // {%+ preserves the + and doesn't add trailing trim
+      expect(result).toBe('{%+ if (x) { %}');
     });
 
     it('should handle multiple code blocks', () => {
       const input = '{% a %}{% b %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<% a _%><% b _%>');
+      expect(result).toBe('{% a _%}{% b _%}');
     });
   });
 
   describe('control flow simplification', () => {
-    it('should convert {% if condition %} to <%_ if (condition) { _%>', () => {
+    it('should convert {% if condition %} to {%_ if (condition) { _%}', () => {
       const input = '{% if isReady %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ if (isReady) { _%>');
+      expect(result).toBe('{%_ if (isReady) { _%}');
     });
 
-    it('should convert {% else %} to <%_ } else { _%>', () => {
+    it('should convert {% else %} to {%_ } else { _%}', () => {
       const input = '{% else %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ } else { _%>');
+      expect(result).toBe('{%_ } else { _%}');
     });
 
-    it('should convert {% elif condition %} to <%_ } else if (condition) { _%>', () => {
+    it('should convert {% elif condition %} to {%_ } else if (condition) { _%}', () => {
       const input = '{% elif isLoading %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ } else if (isLoading) { _%>');
+      expect(result).toBe('{%_ } else if (isLoading) { _%}');
     });
 
-    it('should convert {% else if condition %} to <%_ } else if (condition) { _%>', () => {
+    it('should convert {% else if condition %} to {%_ } else if (condition) { _%}', () => {
       const input = '{% else if isError %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ } else if (isError) { _%>');
+      expect(result).toBe('{%_ } else if (isError) { _%}');
     });
 
-    it('should convert {% endif %} to <%_ } _%>', () => {
+    it('should convert {% elseif condition %} to {%_ } else if (condition) { _%}', () => {
+      const input = '{% elseif isWarning %}';
+      const result = preprocessTemplate(input);
+      expect(result).toBe('{%_ } else if (isWarning) { _%}');
+    });
+
+    it('should convert {% endif %} to {%_ } _%}', () => {
       const input = '{% endif %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ } _%>');
+      expect(result).toBe('{%_ } _%}');
     });
 
-    it('should convert {% for item in items %} to <%_ for (const item of items) { _%>', () => {
+    it('should convert {% for item in items %} to {%_ for (const item of items) { _%}', () => {
       const input = '{% for item in items %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ for (const item of items) { _%>');
+      expect(result).toBe('{%_ for (const item of items) { _%}');
     });
 
-    it('should convert {% endfor %} to <%_ } _%>', () => {
+    it('should convert {% endfor %} to {%_ } _%}', () => {
       const input = '{% endfor %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ } _%>');
+      expect(result).toBe('{%_ } _%}');
     });
 
-    it('should convert {% while condition %} to <%_ while (condition) { _%>', () => {
+    it('should convert {% while condition %} to {%_ while (condition) { _%}', () => {
       const input = '{% while running %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ while (running) { _%>');
+      expect(result).toBe('{%_ while (running) { _%}');
     });
 
-    it('should convert {% endwhile %} to <%_ } _%>', () => {
+    it('should convert {% endwhile %} to {%_ } _%}', () => {
       const input = '{% endwhile %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ } _%>');
+      expect(result).toBe('{%_ } _%}');
     });
 
     it('should convert classic for loop syntax', () => {
       const input = '{% for i=0; i<10; i++ %}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%_ for (i=0; i<10; i++) { _%>');
+      expect(result).toBe('{%_ for (i=0; i<10; i++) { _%}');
     });
 
     it('should handle complex if-elif-else chain', () => {
@@ -154,17 +168,17 @@ zero
 {% endif %}
       `.trim();
       const result = preprocessTemplate(input);
-      expect(result).toContain('<%_ if (x > 0) { _%>');
-      expect(result).toContain('<%_ } else if (x < 0) { _%>');
-      expect(result).toContain('<%_ } else { _%>');
-      expect(result).toContain('<%_ } _%>');
+      expect(result).toContain('{%_ if (x > 0) { _%}');
+      expect(result).toContain('{%_ } else if (x < 0) { _%}');
+      expect(result).toContain('{%_ } else { _%}');
+      expect(result).toContain('{%_ } _%}');
     });
 
     it('should not simplify when simplifyControlFlow is false', () => {
       const input = '{% if condition %}';
       const result = preprocessTemplate(input, { simplifyControlFlow: false });
       // Should go through normal code block processing
-      expect(result).toBe('<% if condition _%>');
+      expect(result).toBe('{% if condition _%}');
     });
   });
 
@@ -178,10 +192,10 @@ zero
 {% endif %}
       `.trim();
       const result = preprocessTemplate(input);
-      expect(result).toContain('<%_ if (isActive) { _%>');
-      expect(result).toContain('<%- name %>');
-      expect(result).toContain('<%_ } else { _%>');
-      expect(result).toContain('<%_ } _%>');
+      expect(result).toContain('{%_ if (isActive) { _%}');
+      expect(result).toContain('{%- name %}');
+      expect(result).toContain('{%_ } else { _%}');
+      expect(result).toContain('{%_ } _%}');
     });
 
     it('should handle for loop with output', () => {
@@ -191,10 +205,10 @@ zero
 {% endfor %}
       `.trim();
       const result = preprocessTemplate(input);
-      expect(result).toContain('<%_ for (const item of items) { _%>');
-      expect(result).toContain('<%- item.name %>');
-      expect(result).toContain('<%- item.value %>');
-      expect(result).toContain('<%_ } _%>');
+      expect(result).toContain('{%_ for (const item of items) { _%}');
+      expect(result).toContain('{%- item.name %}');
+      expect(result).toContain('{%- item.value %}');
+      expect(result).toContain('{%_ } _%}');
     });
 
     it('should handle nested control flow', () => {
@@ -206,9 +220,9 @@ zero
 {% endfor %}
       `.trim();
       const result = preprocessTemplate(input);
-      expect(result).toContain('<%_ for (const user of users) { _%>');
-      expect(result).toContain('<%_ if (user.active) { _%>');
-      expect(result).toContain('<%_ } _%>'); // Two of these
+      expect(result).toContain('{%_ for (const user of users) { _%}');
+      expect(result).toContain('{%_ if (user.active) { _%}');
+      expect(result).toContain('{%_ } _%}'); // Two of these
     });
   });
 
@@ -227,15 +241,32 @@ zero
     it('should handle complex expressions in output', () => {
       const input = '{{ user.name.toUpperCase() }}';
       const result = preprocessTemplate(input);
-      expect(result).toBe('<%- user.name.toUpperCase() %>');
+      expect(result).toBe('{%- user.name.toUpperCase() %}');
     });
 
     it('should handle multiline code blocks with raw JS', () => {
       // Contains { so treated as raw JavaScript
       const input = '{%\n  const x = 1;\n  const y = 2;\n%}';
       const result = preprocessTemplate(input);
-      // Standard processing trims whitespace at ends, including newlines
-      expect(result).toBe('<% const x = 1;\n  const y = 2; _%>');
+      // Multiline code blocks: newline after {% is consumed by content capture
+      // The content is trimmed and reformatted as a single line
+      expect(result).toBe('{% const x = 1;\n  const y = 2; _%}');
+    });
+
+    it('should handle triple braces (nested braces)', () => {
+      // Triple braces: {{{ expr }}} should be parsed as { + {{ expr }} + }
+      // NOT as {{ + { expr } + }}
+      const input = 'use crate::spire::{{{ extensionTraitName }}, Result};';
+      const result = preprocessTemplate(input);
+      // Produces: use crate::spire::{{%- extensionTraitName  %}, Result};
+      expect(result).toBe('use crate::spire::{{%- extensionTraitName %}, Result};');
+    });
+
+    it('should handle Rust raw blocks with nested braces', () => {
+      const input = '{{{{ raw }}}}';
+      const result = preprocessTemplate(input);
+      // Four braces: {{{{ → {{ + {{ → {%- {%- raw %}
+      expect(result).toBe('{{{%- raw %}}}');
     });
   });
 });
@@ -318,12 +349,27 @@ describe('processTemplate (integration)', () => {
     const result3 = await processTemplate(template, { score: 70 }, { ejs });
     expect(result3).toContain('C');
   });
+
+  it('should handle elseif branch', async () => {
+    if (!ejs) throw new Error('EJS not loaded');
+    
+    const template = '{% if score > 90 %}A{% elseif score > 80 %}B{% else %}C{% endif %}';
+    
+    const result1 = await processTemplate(template, { score: 95 }, { ejs });
+    expect(result1).toContain('A');
+    
+    const result2 = await processTemplate(template, { score: 85 }, { ejs });
+    expect(result2).toContain('B');
+    
+    const result3 = await processTemplate(template, { score: 70 }, { ejs });
+    expect(result3).toContain('C');
+  });
 });
 
 describe('defaultPreprocessorOptions', () => {
   it('should have correct default values', () => {
     expect(defaultPreprocessorOptions.escapeByDefault).toBe(false);
     expect(defaultPreprocessorOptions.simplifyControlFlow).toBe(true);
-    expect(defaultPreprocessorOptions.delimiters).toEqual(['{{', '}}', '{%', '%}']);
+    // delimiters option was removed - now hardcoded to MEJS syntax
   });
 });

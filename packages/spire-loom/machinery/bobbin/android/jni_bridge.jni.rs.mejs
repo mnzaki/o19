@@ -1,5 +1,5 @@
 /**
- * JNI Bridge for <%= serviceName %>
+ * JNI Bridge for {{ serviceName }}
  * 
  * This module provides the JNI bindings between the Android Kotlin service
  * and the Rust core library.
@@ -9,7 +9,7 @@
  * - Each JNI call locks the service, executes, then unlocks
  * - The handle pattern ensures thread-safe access to the core
  * 
- * Generated for core: <%= coreName %>
+ * Generated for core: {{ coreName }}
  */
 
 use jni::objects::{JClass, JString};
@@ -20,11 +20,11 @@ use jni::JNIEnv;
 use log::info;
 use std::ffi::c_void;
 use std::sync::{Arc, Mutex, OnceLock};
-use <%= crateNaming.rustIdentifier %> as core;
+use {{ crateNaming.rustIdentifier }} as core;
 
 // Type alias for the service handle used by JNI
-// The core crate's main type is assumed to be <%= coreName.charAt(0).toUpperCase() + coreName.slice(1) %>
-pub type ServiceHandle = core::<%= coreName.charAt(0).toUpperCase() + coreName.slice(1) %>;
+// The core crate's main type is assumed to be {{ coreName.charAt(0).toUpperCase() + coreName.slice(1) }}
+pub type ServiceHandle = core::{{ coreName.charAt(0).toUpperCase() + coreName.slice(1) }};
 
 /// Global service handle storage
 /// 
@@ -55,7 +55,7 @@ pub extern "C" fn JNI_OnLoad(_vm: JavaVM, _reserved: c_void) -> jint {
 /// This initializes the core service and stores the handle globally.
 /// The returned handle ID is passed back to all subsequent native calls.
 #[no_mangle]
-pub extern "C" fn Java_<%- jniPackagePath %>_service_<%- serviceName %>_nativeStartService(
+pub extern "C" fn Java_{{ jniPackagePath }}_service_{{ serviceName }}_nativeStartService(
     mut env: JNIEnv,
     _class: JClass,
     home_dir: JString,
@@ -71,16 +71,16 @@ pub extern "C" fn Java_<%- jniPackagePath %>_service_<%- serviceName %>_nativeSt
         .expect("Failed to get alias")
         .into();
     
-    info!("[<%= serviceName %>] Starting native service: home_dir={}, alias={}", home_dir, alias);
+    info!("[{{ serviceName }}] Starting native service: home_dir={}, alias={}", home_dir, alias);
     
     match initialize_service(&home_dir, &alias) {
         Ok(handle) => {
             let _ = SERVICE_HANDLE.set(Arc::new(Mutex::new(handle)));
-            info!("[<%= serviceName %>] Native service started successfully");
+            info!("[{{ serviceName }}] Native service started successfully");
             1
         }
         Err(e) => {
-            log::error!("[<%= serviceName %>] Failed to start native service: {}", e);
+            log::error!("[{{ serviceName }}] Failed to start native service: {}", e);
             -1
         }
     }
@@ -91,19 +91,19 @@ pub extern "C" fn Java_<%- jniPackagePath %>_service_<%- serviceName %>_nativeSt
 /// Called from Kotlin when the service is being destroyed.
 /// This drops the service handle, cleaning up resources.
 #[no_mangle]
-pub extern "C" fn Java_<%- jniPackagePath %>_service_<%- serviceName %>_nativeStopService(
+pub extern "C" fn Java_{{ jniPackagePath }}_service_{{ serviceName }}_nativeStopService(
     _env: JNIEnv,
     _class: JClass,
     _handle: jlong,
 ) {
-    info!("[<%= serviceName %>] Stopping native service");
+    info!("[{{ serviceName }}] Stopping native service");
     
     // OnceLock can't be cleared, but we can drop the inner value
     // by taking the mutex guard and replacing with None
     if let Some(handle) = SERVICE_HANDLE.get() {
         if let Ok(mut guard) = handle.lock() {
             // The handle will be dropped when the guard is released
-            info!("[<%= serviceName %>] Service handle dropped");
+            info!("[{{ serviceName }}] Service handle dropped");
         }
     }
 }
@@ -115,7 +115,7 @@ fn initialize_service(
     home_dir: &str, 
     alias: &str
 ) -> Result<core::ServiceHandle, Box<dyn std::error::Error>> {
-    info!("[<%= serviceName %>] Initializing core service");
+    info!("[{{ serviceName }}] Initializing core service");
     
     // TODO: Replace with actual core initialization
     // core::ServiceHandle::new(home_dir, alias)
@@ -141,10 +141,10 @@ where
     Ok(f(&mut *guard))
 }
 
-<% methods.forEach(function(method) { -%>
-/// <%- method.description || method.rs.functionName %>
+{% for method in methods %}
+/// {{ method.description || method.name }}
 /// 
-/// JNI Signature: <%= method.rs.typeName %>(long handle<% method.rs.params.forEach(function(p) { %>, <%= p.jniType %><% }); %>) -> <%= method.jniReturnType %>
+/// JNI Signature: {{ method.name.pascalCase }}(long handle{% for param in method.raw.params %}, {{ param.langType || param.tsType }}{% endfor %}) -> {{ method.returnType }}
 /// 
 /// This function:
 /// 1. Locks the service handle (Mutex::lock)
@@ -152,35 +152,32 @@ where
 /// 3. Converts the result to JNI types
 /// 4. Unlocks the handle (when guard drops)
 #[no_mangle]
-pub extern "C" fn Java_<%- jniPackagePath %>_service_<%- serviceName %>_native<%- method.rs.typeName %>(
+pub extern "C" fn Java_{{ jniPackagePath }}_service_{{ serviceName }}_native{{ method.name.pascalCase }}(
     mut env: JNIEnv,
     _class: JClass,
     _handle: jlong,
-    <%- method.rs.params.list %>
-) -> <%- method.jniReturnType %> {
-    <% if (method.rs.params.length > 0) { -%>
+    {{ method.rs.params }}
+) -> {{ method.returnType }} {
+    {% if method.raw.params.length > 0 %}
     // Convert JNI parameters to Rust types
-    <% method.rs.params.forEach(function(param) { -%>
-    <%- param.conversion %>
-    <% }); -%>
-    <% } -%>
+    {% for param in method.raw.params %}
+    // TODO: param conversion for {{ param.name }}
+    {% endfor %}
+    {% endif %}
     
     // Lock handle → execute → unlock
     match with_service(|service| -> Result<_, String> {
-        // Access service field with proper error handling
-        <% method.serviceAccessPreamble.forEach(function(line) { -%>
-        <%- line %>
-        <% }); -%>
-        Ok(__service.<%= method.rs.functionName %>(<%- method.rs.params.names %>))
+        Ok(service.{{ method.name }}({{ method.paramNames.join(', ') }}))
     }) {
         Ok(result) => {
-            <%- method.returnConversion %>
+            // TODO: return conversion
+            result
         }
         Err(e) => {
-            log::error!("[<%= serviceName %>] <%= method.rs.functionName %> failed: {}", e);
-            <%- method.errorValue %>
+            log::error!("[{{ serviceName }}] {{ method.name }} failed: {}", e);
+            // TODO: error value
         }
     }
 }
 
-<% }); -%>
+{% endfor %}

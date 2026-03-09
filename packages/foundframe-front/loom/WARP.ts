@@ -29,16 +29,14 @@ import { dddServicesTreadle } from '@o19/spire-loom/machinery/treadles';
  * - Main WARP.ts tieups run first
  * - Package WARP.ts tieups run second (appended)
  */
-export const front = loom.spiral.typescript
-  .ddd()
-  .tieup({
-    treadles: [
-      {
-        treadle: dddServicesTreadle,
-        warpData: {}
-      }
-    ]
-  });
+export const front = loom.spiral.typescript.ddd().tieup({
+  treadles: [
+    {
+      treadle: dddServicesTreadle,
+      config: {}
+    }
+  ]
+});
 
 // Name must match the export name in workspace WARP.ts
 front.name = 'foundframe-front';

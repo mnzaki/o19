@@ -44,7 +44,8 @@ export class Loom {
     const pipeline: any[] = [];
     const methods = heddles.collectMethods({ mgmts }, pipeline);
     const entities = heddles.collectEntities({ mgmts }, pipeline);
-    const queries = await heddles.collectQueriesFromDirectory(this.workspace.loomDir);
+    // Query collection disabled for now
+    // const queries = await heddles.collectQueriesFromDirectory(this.workspace.loomDir);
 
     // FIXME this should rather be intermediate, and now reed enhancement should be
     // applied and that is what is returned as The Shed that is open
@@ -52,9 +53,9 @@ export class Loom {
       mgmts,
       methods,
       entities,
-      queries: queries.queries,
-      errors: queries.errors,
-      filesProcessed: queries.filesProcessed
+      queries: [],
+      errors: [],
+      filesProcessed: []
     };
 
     return this.heddles;

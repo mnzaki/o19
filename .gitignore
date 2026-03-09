@@ -39,4 +39,4 @@ target
 *.dylib
 *.dll
 
-for_kimi.md
+.axon

@@ -17,12 +17,7 @@
  * > *"The treadle bridges the surface to the spiral."*
  */
 
-import {
-  declareTreadle,
-  generateFromTreadle,
-  addAidlTypesToMethods
-} from '@o19/spire-loom/machinery/treadle-kit';
-import { addManagementPrefix } from '@o19/spire-loom/machinery/sley';
+import { declareTreadle, generateFromTreadle } from '@o19/spire-loom/machinery/treadle-kit';
 
 // ============================================================================
 // Treadle Definition
@@ -37,12 +32,7 @@ export const tauriAndroidCommandsTreadle = declareTreadle({
   // Method filtering and transformation
   methods: {
     filter: 'platform',
-    pipeline: [addManagementPrefix()]
-  },
-
-  // Add AIDL types for Kotlin type compatibility
-  transformMethods: (methods) => {
-    return addAidlTypesToMethods(methods);
+    pipeline: []
   },
 
   // Template data - all from warpData, no context needed
@@ -66,18 +56,16 @@ export const tauriAndroidCommandsTreadle = declareTreadle({
   },
 
   // Output files
-  outputs: [
+  newFiles: [
     // Service Client - binds to AIDL service
     {
-      template: 'tauri/foundframe_radicle_client.kt.ejs',
-      path: 'android/java/{packagePath}/service/{serviceClient}.kt',
-      language: 'kotlin'
+      template: 'tauri/foundframe_radicle_client.kt.mejs',
+      path: 'android/java/{packagePath}/service/{serviceClient}.kt'
     },
     // Command Provider - contains all command handlers
     {
-      template: 'tauri/foundframe_command_provider.kt.ejs',
-      path: 'android/java/{packagePath}/FoundframeCommandProvider.kt',
-      language: 'kotlin'
+      template: 'tauri/foundframe_command_provider.kt.mejs',
+      path: 'android/java/{packagePath}/FoundframeCommandProvider.kt'
     }
   ],
 

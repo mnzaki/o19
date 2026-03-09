@@ -14,5 +14,5 @@ const services = locals.services;
  */
 
 {% for service in services %}
-export { {{ service.serviceName }} } from './{{ service.entityCamelName }}.service.js';
+export { {{ service.serviceName.pascalCase }} } from './{{ service.entityName.camelCase }}.service.js';
 {% endfor %}

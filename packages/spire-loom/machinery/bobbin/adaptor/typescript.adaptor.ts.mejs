@@ -1,57 +1,48 @@
 /**
- * Tauri <%= managementName %> Adaptor
+ * Tauri {{ managementName }} Adaptor
  *
- * Generated adaptor that invokes Tauri commands for <%= managementName %> operations.
+ * Generated adaptor that invokes Tauri commands for {{ managementName }} operations.
  * Delegates to the Platform implementation (local on desktop, service on Android).
  */
 
 import { invoke } from '@tauri-apps/api/core';
-import { <%= extendsClass %> } from '@o19/foundframe-drizzle/adaptors';
-import type { <%= portInterface %> } from '@o19/foundframe-front/ports';
-import type { <%= managementName %> } from '@o19/foundframe-front/domain';
-<% if (hasCrud) { -%>
-import type { Create<%= managementName %>, Update<%= managementName %> } from '@o19/foundframe-front/domain';
-<% } -%>
+import { {{ extendsClass }} } from '@o19/foundframe-drizzle/adaptors';
+import type { {{ portInterface }} } from '@o19/foundframe-front/ports';
+import type { {{ managementName }} } from '@o19/foundframe-front/domain';
+{% if (hasCrud) { -}}
+import type { Create{{ managementName }}, Update{{ managementName }} } from '@o19/foundframe-front/domain';
+{% } -}}
 
-export class Tauri<%= managementName %>Adaptor extends <%= extendsClass %> implements <%= portInterface %> {
-<%# CRUD Methods -%>
-<% crudMethods.forEach(function(method) { -%>
+export class Tauri{{ managementName }}Adaptor extends {{ extendsClass }} implements {{ portInterface }} {
+{# CRUD Methods #}
+{% for method in crudMethods %}
   /**
-   * <%= method.description || method.functionName %>
+   * {{ method.description || method.name }}
    */
-  async <%= method.functionName %>(<%- method.params.listWithOptionality %>): Promise<<%= method.returnType %>> {
-<% if (method.crudOperation === 'create') { -%>
-    const id = await invoke<<%= method.invokeReturnType || 'number' %>>('<%= method.functionName %>', {
-      <%= method.dataTransform %>,
-    });
+  {{ method.async.signature }} {
+{% if method.crudOperation === 'create' %}
+    const id = await invoke<number>('{{ method.name }}', data);
     return this.getById(id);
-<% } else if (method.dataTransform) { -%>
-    const result = await invoke<<%= method.returnType %>>('<%= method.functionName %>', {
-      <%= method.dataTransform %>,
-    });
-    return result;
-<% } else { -%>
-<% if (method.returnType !== 'void') { -%>
-    return invoke<<%= method.returnType %>>('<%= method.functionName %>', <%- method.params.invocation %>);
-<% } else { -%>
-    await invoke<void>('<%= method.functionName %>', <%- method.params.invocation %>);
-<% } -%>
-<% } -%>
+{% elif method.raw.params.length > 0 %}
+    return invoke<{{ method.returnType }}>('{{ method.name }}', { {{ method.paramNames.join(', ') }} });
+{% else %}
+    return invoke<{{ method.returnType }}>('{{ method.name }}');
+{% endif %}
   }
 
-<% }); -%>
-<%# Passthrough Methods -%>
-<% passthroughMethods.forEach(function(method) { -%>
+{% endfor %}
+{# Passthrough Methods #}
+{% for method in passthroughMethods %}
   /**
-   * <%= method.description || method.functionName %>
+   * {{ method.description || method.name }}
    */
-  async <%= method.functionName %>(<%- method.params.listWithOptionality %>): Promise<<%= method.returnType %>> {
-<% if (method.returnType !== 'void') { -%>
-    return invoke<<%= method.returnType %>>('<%= method.functionName %>', <%- method.params.invocation %>);
-<% } else { -%>
-    await invoke<void>('<%= method.functionName %>', <%- method.params.invocation %>);
-<% } -%>
+  {{ method.async.signature }} {
+{% if method.raw.params.length > 0 %}
+    return invoke<{{ method.returnType }}>('{{ method.name }}', { {{ method.paramNames.join(', ') }} });
+{% else %}
+    return invoke<{{ method.returnType }}>('{{ method.name }}');
+{% endif %}
   }
 
-<% }); -%>
+{% endfor %}
 }

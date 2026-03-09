@@ -15,7 +15,7 @@ const services = locals.services;
 
 {% for service in services %}
 export {
-  {{ service.entityName }}Adaptor,
-  {{ service.entityName }}TauriAdaptor
-} from './{{ h.snakeCase(service.entityName) }}.adaptor.js';
+  {{ service.entityName.pascalCase }}Adaptor,
+  {{ service.entityName.pascalCase }}TauriAdaptor
+} from './{{ service.entityName.snakeCase }}.adaptor.js';
 {% endfor %}

@@ -1,20 +1,20 @@
 //! Platform Trait
 //!
-//! Auto-generated from <%= management.name %>
+//! Auto-generated from {{ management.name }}
 //! DO NOT EDIT MANUALLY
 
 pub use crate::models::*;
 use crate::Result;
 
-/// Platform trait abstracts <%= management.name %> operations.
+/// Platform trait abstracts {{ management.name }} operations.
 ///
 /// This allows the tauri-plugin to work on different platforms:
 /// - Desktop: Direct foundframe integration
 /// - Android: Binder IPC to singleton service
 /// - iOS: Not implemented (stub)
-pub trait <%= management.name %>: Send + Sync {
-<% methods.forEach(method => { %>
-  /// <%= method.description || method.functionName %>
-  fn <%= method.functionName %>(&self, <%- method.rs.params.list %>) -> <%- method.returnType %>;
-<% }); %>
+pub trait {{ management.name.pascalCase }}: Send + Sync {
+{% for method in methods %}
+  /// {{ method.description || method.name }}
+  {{ method.signature }};
+{% endfor %}
 }

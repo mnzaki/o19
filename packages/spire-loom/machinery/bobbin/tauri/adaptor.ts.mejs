@@ -6,8 +6,8 @@ import { invoke } from '@tauri-apps/api/core';
  * Generates Tauri adaptor implementations for the front layer
  */
 const service = locals.service;
-const entityPascal = service.entityName;
-const entityCamel = service.entityCamelName;
+const entityPascal = service.entityName.pascalCase;
+const entityCamel = service.entityName.camelCase;
 const pluginName = locals.pluginName || 'foundframe';
 
 // Get methods from context (transformed by generateCode)
@@ -47,7 +47,7 @@ import type { {{ entityPascal }}
 {% endif %}
 
 import type {
-  {{ service.portName }},
+  {{ service.portName.pascalCase }},
   {{ entityPascal }}ReadPort,
   {{ entityPascal }}WritePort
 } from '@o19/foundframe-front/ports';
@@ -58,19 +58,17 @@ import type {
 export class Tauri{{ entityPascal }}Adaptor implements {{ entityPascal }}ReadPort, {{ entityPascal }}WritePort {
 
 {% for method in passthroughMethods %}
-  async {{ method.crudDefinition.withObjectParams('data') }} {
-    return invoke('plugin:{{ pluginName }}|{{ method.functionName }}', data);
+  {{ method.signature }} {
+    return invoke('plugin:{{ pluginName }}|{{ method.name }}', { {{ method.paramNames.join(', ') }} });
   }
 {% endfor %}
 
 {% for method in readMethods %}
-  {{ method.crudDefinition.async }} {
-{% if method.params.length === 0 %}
-    return invoke('plugin:{{ pluginName }}|{{ method.functionName }}');
-{% elif method.params.length === 1 %}
-    return invoke('plugin:{{ pluginName }}|{{ method.functionName }}', { {{ method.params.names }} });
+  {{ method.crud.async.signature }} {
+{% if method.raw.params.length === 0 %}
+    return invoke('plugin:{{ pluginName }}|{{ method.crud.name.camelCase }}');
 {% else %}
-    return invoke('plugin:{{ pluginName }}|{{ method.functionName }}', { {{ method.params.invocation }} });
+    return invoke('plugin:{{ pluginName }}|{{ method.crud.name.camelCase }}', { {{ method.paramNames.join(', ') }} });
 {% endif %}
   }
 {% endfor %}
@@ -80,14 +78,14 @@ export class Tauri{{ entityPascal }}Adaptor implements {{ entityPascal }}ReadPor
   // ============================================================================
 
 {% for method in writeMethods %}
-  {{ method.crudDefinition.withObjectParams('data') }} {
-    return invoke('plugin:{{ pluginName }}|{{ method.functionName }}', data);
+  {{ method.crud.withObjectParams('data').signature }} {
+    return invoke('plugin:{{ pluginName }}|{{ method.crud.name.camelCase }}', data);
   }
 {% endfor %}
 
 {% for method in deleteMethods %}
-  {{ method.crudDefinition }} {
-    return invoke('plugin:{{ pluginName }}|{{ method.functionName }}', { {{ method.params.invocation }} });
+  {{ method.crud.signature }} {
+    return invoke('plugin:{{ pluginName }}|{{ method.crud.name.camelCase }}', { {{ method.paramNames.join(', ') }} });
   }
 {% endfor %}
 

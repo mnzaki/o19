@@ -56,29 +56,23 @@ export type Language = 'kotlin' | 'rust' | 'rust_jni' | 'aidl' | 'typescript' | 
  *
  * @param templatePath - Path to the EJS template
  */
-export function detectLanguage(templatePath: string): LanguageDefinitionImperative {
+export function detectLanguage(templatePath: string): LanguageDefinitionImperative | undefined {
   // Use language registry for detection
-  const lang = languages.detectByExtension(templatePath);
-  if (lang) {
-    return lang;
-  }
-
-  throw new Error('unknown language');
+  return languages.detectByExtension(templatePath);
 }
 
 // ============================================================================
 // Unified Generation API
 // ============================================================================
 
-export interface GenerateOptions {
+/** The GeneratorOptions extend The Shed: all context we enhanced in the reed and heddles */
+export interface GenerateOptions extends Shed {
   /** Template path (absolute or relative to builtin/workspace/templates) */
   template: string;
   /** Output file path (determines transformation language) */
   outputPath: string;
   /** Template data - 'methods' will be auto-transformed based on output extension */
   data: Record<string, unknown>;
-  /** The Shed: all context we enhanced in the reed and heddles */
-  shed: Shed;
   /** EJS rendering options */
   ejsOptions?: import('ejs').Options;
   /**
@@ -99,7 +93,8 @@ export interface GenerateOptions {
  */
 function getBuiltinTemplateDir(): string {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
-  return path.resolve(currentDir);
+  // Templates are in machinery/bobbin/, not machinery/shuttle/
+  return path.resolve(currentDir, '..', 'bobbin');
 }
 
 /**
@@ -219,22 +214,38 @@ export async function generateCode(options: GenerateOptions): Promise<GeneratedF
   );
 
   // Detect language from template filename (double extension pattern)
+  // If no language is detected, proceed without language transformation
   const lang = detectLanguage(templatePath);
-  options.shed.methods.setLang(lang);
-  options.shed.entities.setLang(lang);
+  if (lang) {
+    options.methods.setLang(lang);
+    options.entities.setLang(lang);
+  }
 
   // Build final data with prepared methods
   const data = {
-    lang,
+    ...options,
     ...options.data,
-    ...options.shed
+    lang
   };
 
-  // Render template
-  let content = await mejs.renderFile({
-    templatePath,
-    data
-  });
+  // Render template with error handling
+  let content: string;
+  try {
+    content = await mejs.renderFile({
+      templatePath,
+      data
+    });
+  } catch (error) {
+    // Add context about what we were trying to generate
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to generate "${options.outputPath}"\n` +
+      `  Output: ${options.outputPath}\n` +
+      `  Template: ${options.template}\n` +
+      `  Package: ${options.packagePath || 'unknown'}\n` +
+      `  Reason: ${errorMessage}`
+    );
+  }
 
   // Add header comment based on output file extension
   const headerComment = generateHeaderComment(options.outputPath, templatePath, options.template);
@@ -346,7 +357,7 @@ export async function generateBatch(tasks: GenerationTask[], shed: Shed): Promis
       template: task.template,
       outputPath: task.outputPath,
       data: task.data,
-      shed
+      ...shed
     })
   );
 

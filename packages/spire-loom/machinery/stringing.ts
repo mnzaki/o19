@@ -41,6 +41,15 @@ export class Name {
     }
   }
 
+  static of(name: string | Name) {
+    if (name instanceof Name) return name;
+    else return new Name(name);
+  }
+
+  withSuffix(part: string) {
+    return new Name([...this.parts, part], this.defaultCase);
+  }
+
   withNewDefault(defaultCase: NamingCase) {
     return new Name(this.parts, defaultCase);
   }

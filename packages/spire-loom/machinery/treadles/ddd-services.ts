@@ -16,19 +16,17 @@
  *     .tieup({ treadles: [{ treadle: dddServicesTreadle, config: {} }] });
  */
 
-import {
-  camelCase,
-  declareTreadle,
-  generateFromTreadle,
-  type OutputSpec
-} from '../treadle-kit/index.js';
+import { declareTreadle } from '../treadle-kit/index.js';
 import type { ManagementMethods } from '../heddles/index.js';
+import type { NewFileSpec } from '../treadle-kit/declarative.js';
+
+export type { ManagementMethods as ManagementService };
 
 // ============================================================================
 // Treadle Definition
 // ============================================================================
 
-export const dddServicesTreadle = declareTreadle({
+export const generateDddServices = declareTreadle({
   name: 'ddd-services',
 
   // Tieup treadle - no matches needed
@@ -38,9 +36,9 @@ export const dddServicesTreadle = declareTreadle({
   },
 
   // Generate outputs per management
-  outputs: [
+  newFiles: [
     (ctx) => {
-      const methodsByMgmt = ctx.methods?.byManagement();
+      const methodsByMgmt = ctx.methods.byManagement();
       if (!methodsByMgmt || methodsByMgmt.size === 0) {
         console.log('[ddd-services] No management methods found, skipping generation');
         return [];
@@ -48,14 +46,8 @@ export const dddServicesTreadle = declareTreadle({
 
       // Convert Map values to array for iteration
       // Note: methods will be passed via generateCode transform, not in context
-      const services = Array.from(methodsByMgmt.values()).map((mgmt: ManagementMethods) => ({
-        name: mgmt.name,
-        entityName: mgmt.entityName,
-        serviceName: mgmt.serviceName,
-        entityCamelName: camelCase(mgmt.entityName),
-        portName: mgmt.portName
-      }));
-      const outputs: OutputSpec[] = [];
+      const services = ctx.mgmts.all;
+      const outputs: NewFileSpec[] = [];
 
       console.log(
         `[ddd-services] Generating services for: ${services.map((s) => s.name).join(', ')}`
@@ -63,13 +55,12 @@ export const dddServicesTreadle = declareTreadle({
 
       // Generate one port and service per management
       for (const service of services) {
-        const entityCamel = service.entityCamelName;
+        const entityCamel = service.entityName.camelCase;
 
         // Port interface - methods come from context via generateCode transform
         outputs.push({
           template: 'ddd/port.ts.mejs',
           path: `src/ports/${entityCamel}.port.ts`,
-          language: 'typescript',
           context: { service }
         });
 
@@ -77,7 +68,6 @@ export const dddServicesTreadle = declareTreadle({
         outputs.push({
           template: 'ddd/service.ts.mejs',
           path: `src/services/${entityCamel}.service.ts`,
-          language: 'typescript',
           context: { service }
         });
       }
@@ -85,7 +75,6 @@ export const dddServicesTreadle = declareTreadle({
       outputs.push({
         template: 'ddd/services-index.ts.mejs',
         path: 'src/services/index.ts',
-        language: 'typescript',
         context: { services }
       });
 
@@ -95,19 +84,9 @@ export const dddServicesTreadle = declareTreadle({
 
   // Template data - methods available via context.methods
   data: (ctx) => {
-    const methodsByMgmt = ctx.methods?.byManagement();
-    const services = methodsByMgmt
-      ? Array.from(methodsByMgmt.values()).map((mgmt) => ({
-          name: mgmt.name,
-          entityName: mgmt.entityName,
-          serviceName: mgmt.serviceName,
-          portName: mgmt.portName
-        }))
-      : [];
-
     return {
-      services,
-      hasServices: services.length > 0
+      services: ctx.mgmts.all,
+      hasServices: ctx.mgmts.all.length > 0
     };
   },
 
@@ -125,10 +104,3 @@ export const dddServicesTreadle = declareTreadle({
     */
   ]
 });
-
-// ============================================================================
-// Exports
-// ============================================================================
-
-export type { ManagementMethods as ManagementService };
-export const generateDddServices = generateFromTreadle(dddServicesTreadle);

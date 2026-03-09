@@ -55,14 +55,11 @@ impl<R: Runtime> <%= platformTraitName %> for AndroidPlatform<R> {
     Ok(())
   }
 
-<% methods.forEach(function(method) { -%>
-  fn <%= method.functionName %>(
-    &self,
-    <%- method.rs.params.list %>
-  ) -> <%- method.returnType %> {
-    // TODO: Call into <%= coreName %>-android service via JNI
+{% for method in methods %}
+  {{ method.rs.signature }} {
+    // TODO: Call into {{ coreName }}-android service via JNI
     Err(Error::Other("Android not implemented".into()))
   }
 
-<% }); -%>
+{% endfor %}
 }

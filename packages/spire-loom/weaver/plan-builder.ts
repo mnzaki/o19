@@ -15,7 +15,7 @@ import {
   type LazyTieup
 } from '../warp/tieups.js';
 import {
-  generateFromTreadle,
+  generateFromTreadleDefinition,
   type TreadleDefinition
 } from '../machinery/treadle-kit/declarative.js';
 import { GeneratorMatrix, DEFAULT_MATRIX } from './matrix.js';
@@ -209,7 +209,7 @@ export class PatternMatcher {
 
         let generator: TreadleTrodder;
         if (this.isTreadleDefinition(treadle)) {
-          generator = generateFromTreadle(treadle);
+          generator = generateFromTreadleDefinition(treadle);
         } else {
           generator = treadle as TreadleTrodder;
         }
@@ -381,7 +381,9 @@ export interface GenerationTask {
 /**
  * Generator context passed to generators.
  */
-export interface GeneratorContext {
+export interface GeneratorContext extends Shed {
+  currentRing: SpiralRing;
+  previousRing: SpiralRing;
   /** The weaving plan with all metadata */
   plan: WeavingPlan;
   /** Workspace root directory */
@@ -393,7 +395,6 @@ export interface GeneratorContext {
   /** Full package directory path */
   packageDir: string;
   /** Method collection helpers (populated by treadle-kit) */
-  shed: Shed;
   /**
    * Entity collection helpers (populated by treadle-kit).
    * Provides access to entities associated with managements.

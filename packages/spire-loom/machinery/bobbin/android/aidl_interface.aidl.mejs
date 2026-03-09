@@ -1,41 +1,37 @@
-// <%- interfaceName %>.aidl
-// Generated AIDL interface for <%= coreName %> service
+// {{ interfaceName }}.aidl
+// Generated AIDL interface for {{ coreName }} service
 //
 // This interface defines the contract between the Android service (running in
 // :foundframe process) and client applications (running in their own processes).
 //
 // The NDK aidl tool generates:
-// - <%- interfaceName %>.java (interface)
-// - <%- interfaceName %>.Stub (binder implementation base class)
-// - <%- interfaceName %>.Default (proxy for client-side)
+// - {{ interfaceName }}.java (interface)
+// - {{ interfaceName }}.Stub (binder implementation base class)
+// - {{ interfaceName }}.Default (proxy for client-side)
 
-package <%- packageName %>;
+package {{ packageName }};
 
-<%- imports.map(i => `import ${i};`).join('\n') %>
+{{ imports.map(i => `import ${i};`).join('\n') }}
 
 /**
- * <%- interfaceName %> defines cross-process API for <%= coreName %>.
+ * {{ interfaceName }} defines cross-process API for {{ coreName }}.
  *
  * Methods are called via Binder IPC. All parameters are 'in' (client→service).
  * Return values are marshalled back via Binder.
  *
  * Security: Implementations should verify caller has:
- *   <%- packageName %>.ACCESS_FOUNDFRAME permission (signature level)
+ *   {{ packageName }}.ACCESS_FOUNDFRAME permission (signature level)
  */
-interface <%- interfaceName %> {
-<% methods.forEach(function(method) { %>
+interface {{ interfaceName }} {
+{% for method in methods %}
     /**
-     * <%- method.description || method.kt.functionName %>
-<% method.params.forEach(function(param) { -%>
-     * @param <%- param.name %> <%- param.description || param.name %>
-<% }); -%>
-     * @return <%- method.returnDescription || method.aidlReturnType || method.kt.returnType %>
+     * {{ method.description || method.name }}
+{% for param in method.raw.params %}
+     * @param {{ param.name }} {{ param.description || param.name }}
+{% endfor %}
+     * @return {{ method.returnType }}
      * @throws RemoteException if IPC fails
      */
-    <%- method.aidlReturnType || method.kt.returnType %> <%- method.kt.functionName %>(<%-
-      method.params.map(function(p) {
-        return (p.direction || 'in') + ' ' + (p.aidlType || p.kt?.type || p.type) + ' ' + (p.kt?.variableName || p.name);
-      }).join(', ')
-    %>);
-<% }); %>
+    {{ method.signature }};
+{% endfor %}
 }

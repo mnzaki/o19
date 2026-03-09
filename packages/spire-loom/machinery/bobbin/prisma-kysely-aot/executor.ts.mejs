@@ -22,11 +22,11 @@ interface QueryDef {
 }
 
 // Queries to execute
-const QUERIES: QueryDef[] = <%- JSON.stringify(queries.map(q => ({
+const QUERIES: QueryDef[] = {{ JSON.stringify(queries.map(q => ({
   className: q.className,
   methodName: q.methodName,
   filePath: q.filePath
-})), null, 2) %>;
+})), null, 2) }};
 
 // Track captured queries
 interface CapturedQuery {

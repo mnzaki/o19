@@ -45,6 +45,7 @@ export function getWorkspaceInfoFromPath(p: string): Partial<WorkspaceInfo> {
   return {
     name,
     type: isCargoWorkspace || isPnpmWorkspace ? 'workspace' : 'package',
+    root: p,
     loomDir: fs.existsSync(loomPath) ? loomPath : undefined,
     warpPath: fs.existsSync(warpPath) ? warpPath : undefined
   };

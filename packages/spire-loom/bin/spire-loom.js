@@ -71,16 +71,17 @@ if (isHelp || isVersion) {
     'tsx',
     '-e',
     `import { findWorkspaceConfig } from '@o19/spire-loom/cli';
-     const config = await findWorkspaceConfig(); if (!config) {
+     const result = await findWorkspaceConfig(); if (!result) {
        console.error("Couldn't find WARP.ts in workspace loom dir");
        process.exit(1);
      }
-     const warpPath = config.workspace.warpPath;
+     const { weaver, workspace } = result;
+     const warpPath = workspace.warpPath;
      import { main } from '${cliEntry}';
      import(warpPath)
       .then(mod => {
         mod = mod.default?.weave ? mod : mod.default;
-        return main(() => mod.default.weave(mod, config), mod)
+        return main(() => weaver.weave(), mod)
       })`,
     '--',
     ...userArgs

@@ -38,7 +38,7 @@ export const foundframe = loom.spiral(Foundframe).tieup({
   treadles: [
     {
       treadle: dbBindingTreadle,
-      warpData: {}
+      config: {}
     }
   ]
 });

@@ -18,8 +18,9 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
-import { generateFromTreadle, type TreadleDefinition } from './declarative.js';
+import { generateFromTreadleDefinition, type TreadleDefinition } from './declarative.js';
 import { GeneratorMatrix } from '../../weaver/matrix.js';
+import { getScopeRegistry } from '../self-declarer.js';
 
 // ============================================================================
 // Types
@@ -31,8 +32,8 @@ import { GeneratorMatrix } from '../../weaver/matrix.js';
 export interface DiscoveredTreadle {
   /** The treadle name (from filename or export) */
   name: string;
-  /** The treadle definition */
-  definition: TreadleDefinition;
+  /** The treadle definition or trodder (already-declared treadle) */
+  definition: TreadleDefinition | TreadleTrodder;
   /** Path to the source file */
   sourcePath: string;
   /** Optional: Method contributed to spiraler API */
@@ -62,7 +63,7 @@ export interface SpiralerContribution {
  * Scan a directory for treadle definitions.
  *
  * Looks for files matching: *.ts (excluding *.test.ts, *.spec.ts, index.ts)
- * Each file should export a treadle definition as default or named export.
+ * Each file can export multiple treadle definitions.
  *
  * @param searchPath - Directory to scan
  * @returns Array of discovered treadles
@@ -83,16 +84,16 @@ export async function discoverTreadles(searchPath: string): Promise<DiscoveredTr
     if (entry.name === 'index.ts') continue; // Skip index files
 
     const filePath = path.join(searchPath, entry.name);
-    const name = entry.name.replace(/\.ts$/, '');
+    const baseName = entry.name.replace(/\.ts$/, '');
 
     try {
-      const treadle = await loadTreadleFromFile(filePath, name);
-      if (treadle) {
-        console.log('[DISCOVERY] Discovered treadle:', name);
+      const treadles = await loadTreadlesFromFile(filePath, baseName);
+      for (const treadle of treadles) {
+        console.log('[DISCOVERY] Discovered treadle:', treadle.name);
         discovered.push(treadle);
       }
     } catch (error) {
-      console.warn(`[DISCOVERY] Failed to load treadle from ${filePath}:`, error);
+      console.warn(`[DISCOVERY] Failed to load treadles from ${filePath}:`, error);
     }
   }
 
@@ -100,45 +101,85 @@ export async function discoverTreadles(searchPath: string): Promise<DiscoveredTr
 }
 
 /**
- * Load a single treadle from a file.
+ * Load all treadles from a file.
  */
-async function loadTreadleFromFile(
+async function loadTreadlesFromFile(
   filePath: string,
-  name: string
-): Promise<DiscoveredTreadle | undefined> {
+  baseName: string
+): Promise<DiscoveredTreadle[]> {
+  const discovered: DiscoveredTreadle[] = [];
   const moduleUrl = pathToFileURL(filePath).href;
   const module = await import(moduleUrl);
 
-  // Look for treadle definition in exports
-  // Supports: export default declareTreadle(...) or export const myTreadle = declareTreadle(...)
-  let definition: TreadleDefinition | undefined;
-  let contributes: SpiralerContribution | undefined;
+  // Look for all treadle exports in the module
+  // Supports:
+  // - export default declareTreadle(...)
+  // - export const myTreadle = declareTreadle(...) -> returns TreadleTrodder (function)
+  // - export const myTreadle = { methods: ..., newFiles: ... } -> TreadleDefinition
 
-  if (module.default && isTreadleDefinition(module.default)) {
-    definition = module.default;
-    contributes = module.defaultContributions ?? module.contributes;
-  } else {
-    // Find first export that looks like a treadle definition
-    for (const [key, value] of Object.entries(module)) {
-      if (isTreadleDefinition(value)) {
-        definition = value as TreadleDefinition;
-        const contributionKey = `${key}Contributions`;
-        if (contributionKey in module) {
-          contributes = module[contributionKey];
-        }
-        break;
+  // Check default export first
+  if (module.default) {
+    if (isTreadleTrodder(module.default)) {
+      const name = (module.default as any).treadleName || baseName;
+      discovered.push({
+        name,
+        definition: module.default,
+        sourcePath: filePath,
+        contributes: module.defaultContributions ?? module.contributes
+      });
+    } else if (isTreadleDefinition(module.default)) {
+      module.default.name = baseName;
+      discovered.push({
+        name: baseName,
+        definition: module.default,
+        sourcePath: filePath,
+        contributes: module.defaultContributions ?? module.contributes
+      });
+    }
+  }
+  
+  // Find ALL named exports that look like treadles
+  for (const [key, value] of Object.entries(module)) {
+    // Skip if already added as default
+    if (value === module.default) continue;
+    
+    if (isTreadleTrodder(value)) {
+      const trodder = value as TreadleTrodder;
+      // Use export key name if treadleName is anonymous or not set
+      const trodderName = (trodder as any).treadleName;
+      const name = (trodderName && trodderName !== 'anonymous') ? trodderName : key;
+      
+      if (process.env.DEBUG_MATRIX) {
+        const hasMatches = !!(trodder as any).matches && (trodder as any).matches.length > 0;
+        console.log(`[DISCOVERY DEBUG] Found trodder export: ${key}, name: ${name}, hasMatches: ${hasMatches}`);
       }
+      
+      const contributionKey = `${key}Contributions`;
+      discovered.push({
+        name,
+        definition: trodder,
+        sourcePath: filePath,
+        contributes: module[contributionKey]
+      });
+    } else if (isTreadleDefinition(value)) {
+      if (process.env.DEBUG_MATRIX) {
+        console.log(`[DISCOVERY DEBUG] Found definition export: ${key}`);
+      }
+      
+      const definition = value as TreadleDefinition;
+      definition.name = key;
+      
+      const contributionKey = `${key}Contributions`;
+      discovered.push({
+        name: key,
+        definition,
+        sourcePath: filePath,
+        contributes: module[contributionKey]
+      });
     }
   }
 
-  if (!definition) {
-    return undefined;
-  }
-
-  // Set the treadle name for marker scoping
-  definition.name = name;
-
-  return { name, definition, sourcePath: filePath, contributes };
+  return discovered;
 }
 
 /**
@@ -153,13 +194,31 @@ function isTreadleDefinition(value: unknown): value is TreadleDefinition {
 
   const v = value as Record<string, unknown>;
 
-  // Must have methods and outputs
+  // Must have methods
   const hasMethods = 'methods' in v && typeof v.methods === 'object' && v.methods !== null;
+  
+  // Must have outputs (old name) OR newFiles (new name)
   const hasOutputs = 'outputs' in v && Array.isArray(v.outputs);
+  const hasNewFiles = 'newFiles' in v && Array.isArray(v.newFiles);
 
   // Matrix treadles have matches, tieup treadles don't
   // Both are valid TreadleDefinitions
-  return hasMethods && hasOutputs;
+  return hasMethods && (hasOutputs || hasNewFiles);
+}
+
+/**
+ * Type guard to check if a value is a TreadleTrodder (already-declared treadle).
+ * 
+ * A TreadleTrodder is an async function returned by declareTreadle().
+ * It must have treadle metadata attached (methods, newFiles, etc.)
+ */
+function isTreadleTrodder(value: unknown): value is TreadleTrodder {
+  if (typeof value !== 'function') {
+    return false;
+  }
+  // Check for treadle metadata - any declared treadle will have these
+  const trodder = value as any;
+  return !!(trodder.methods || trodder.newFiles || trodder.hookups || trodder.matches);
 }
 
 // ============================================================================
@@ -176,17 +235,43 @@ export function buildMatrixFromTreadles(treadles: DiscoveredTreadle[]): Generato
   const matrix = new GeneratorMatrix();
 
   for (const { name, definition } of treadles) {
-    // Skip tieup treadles (no matches) - they're invoked directly via .tieup()
-    if (!definition.matches || definition.matches.length === 0) {
-      if (process.env.DEBUG_MATRIX) {
-        console.log(`[MATRIX] Skipping "${name}" (tieup treadle - no matches)`);
+    let matches: Array<{ current: string; previous: string }> | undefined;
+    let generator: TreadleTrodder;
+
+    // Handle already-declared treadles (TreadleTrodder function)
+    // These come from: export const myTreadle = declareTreadle({...})
+    if (isTreadleTrodder(definition)) {
+      generator = definition as TreadleTrodder;
+      
+      // Get matches from attached metadata (if available)
+      const trodder = definition as any;
+      matches = trodder.matches;
+      
+      if (!matches || matches.length === 0) {
+        if (process.env.DEBUG_MATRIX) {
+          console.log(`[MATRIX] Skipping "${name}" (trodder without matches - tieup treadle?)`);
+        }
+        continue;
       }
-      continue;
+    } else {
+      // Handle TreadleDefinition objects (raw definitions not yet processed)
+      const treadleDef = definition as TreadleDefinition;
+      matches = treadleDef.matches;
+      
+      // Skip tieup treadles (no matches) - they're invoked directly via .tieup()
+      if (!matches || matches.length === 0) {
+        if (process.env.DEBUG_MATRIX) {
+          console.log(`[MATRIX] Skipping "${name}" (tieup treadle - no matches)`);
+        }
+        continue;
+      }
+      
+      // Convert definition to trodder
+      generator = generateFromTreadleDefinition(treadleDef);
     }
 
-    const generator = generateFromTreadle(definition);
-
-    for (const match of definition.matches) {
+    // Register in matrix
+    for (const match of matches) {
       matrix.setPair(match.current, match.previous, generator);
       if (process.env.DEBUG_MATRIX) {
         console.log(`[MATRIX] Registered "${name}": ${match.current} → ${match.previous}`);

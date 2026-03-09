@@ -6,7 +6,6 @@
  */
 
 import * as path from 'node:path';
-import type { GeneratorContext } from '../../heddles/index.js';
 import type { HookupSpec, HookupType, HookupResult } from './types.js';
 import { detectHookupType, validateHookup } from './types.js';
 
@@ -19,6 +18,7 @@ import { applyGradleHookup } from './gradle.js';
 import { applyKotlinHookup } from './kotlin.js';
 import { applyViteConfigHookup } from './vite-config.js';
 import { applyFileBlockHookup } from './file-block.js';
+import type { GeneratorContext } from '../../../weaver/plan-builder.js';
 
 // Re-export types
 export * from './types.js';
@@ -33,7 +33,7 @@ export {
   RustMethodConfig,
   KotlinClassPattern,
   TypeScriptClassPattern,
-  RustImplPattern,
+  RustImplPattern
 } from './method-modifier.js';
 
 // Re-export individual handlers for advanced use
@@ -45,7 +45,7 @@ export {
   applyViteConfigHookup,
   applyGradleHookup,
   applyKotlinHookup,
-  applyFileBlockHookup,
+  applyFileBlockHookup
 };
 
 // ============================================================================
@@ -61,7 +61,7 @@ export async function runHookups(
   context: GeneratorContext
 ): Promise<HookupResult[]> {
   const results: HookupResult[] = [];
-  
+
   for (const hookup of hookups) {
     // Validate spec
     const validation = validateHookup(hookup);
@@ -70,24 +70,24 @@ export async function runHookups(
         path: hookup.path,
         type: detectHookupType(hookup.path),
         status: 'error',
-        message: `Validation failed: ${validation.errors.join(', ')}`,
+        message: `Validation failed: ${validation.errors.join(', ')}`
       });
       continue;
     }
-    
+
     // Detect type from path
     const hookupType = detectHookupType(hookup.path);
-    
+
     // Resolve full path
     const fullPath = path.isAbsolute(hookup.path)
       ? hookup.path
       : path.join(context.packageDir, hookup.path);
-    
+
     // Route to appropriate handler
     try {
       const result = await routeHookup(hookupType, fullPath, hookup, context);
       results.push(result);
-      
+
       if (process.env.DEBUG_MATRIX) {
         console.log(`[HOOKUP] ${result.type}: ${result.status} - ${result.message}`);
       }
@@ -96,11 +96,11 @@ export async function runHookups(
         path: fullPath,
         type: hookupType,
         status: 'error',
-        message: error instanceof Error ? error.message : String(error),
+        message: error instanceof Error ? error.message : String(error)
       });
     }
   }
-  
+
   return results;
 }
 
@@ -115,50 +115,70 @@ async function routeHookup(
 ): Promise<HookupResult> {
   switch (type) {
     case 'android-manifest':
-      return applyAndroidManifestHookup(filePath, spec as import('./types.js').AndroidManifestHookup, context);
-    
+      return applyAndroidManifestHookup(
+        filePath,
+        spec as import('./types.js').AndroidManifestHookup,
+        context
+      );
+
     case 'cargo-toml':
       return applyCargoTomlHookup(filePath, spec as import('./types.js').CargoTomlHookup, context);
-    
+
     case 'rust-module':
-      return applyRustModuleHookup(filePath, spec as import('./types.js').RustModuleHookup, context);
-    
+      return applyRustModuleHookup(
+        filePath,
+        spec as import('./types.js').RustModuleHookup,
+        context
+      );
+
     case 'gradle':
       return applyGradleHookup(filePath, spec as import('./types.js').GradleHookup, context);
-    
+
     case 'kotlin':
       return applyKotlinHookup(filePath, spec as import('./types.js').KotlinHookup, context);
-    
+
     case 'typescript':
-      return applyTypeScriptHookup(filePath, spec as import('./types.js').TypeScriptIndexHookup, context);
-    
+      return applyTypeScriptHookup(
+        filePath,
+        spec as import('./types.js').TypeScriptIndexHookup,
+        context
+      );
+
     case 'typescript-file':
-      return applyTypeScriptHookup(filePath, spec as import('./types.js').TypeScriptFileHookup, context);
-    
+      return applyTypeScriptHookup(
+        filePath,
+        spec as import('./types.js').TypeScriptFileHookup,
+        context
+      );
+
     case 'vite-config':
-      return applyViteConfigHookup(filePath, spec as import('./types.js').ViteConfigHookup, context);
-    
+      return applyViteConfigHookup(
+        filePath,
+        spec as import('./types.js').ViteConfigHookup,
+        context
+      );
+
     case 'npm-package':
       // TODO: Implement npm-package handler
       return {
         path: filePath,
         type: 'npm-package',
         status: 'skipped',
-        message: 'npm-package hookup not yet implemented',
+        message: 'npm-package hookup not yet implemented'
       };
-    
+
     case 'ios-plist':
       // TODO: Implement ios-plist handler
       return {
         path: filePath,
         type: 'ios-plist',
         status: 'skipped',
-        message: 'ios-plist hookup not yet implemented',
+        message: 'ios-plist hookup not yet implemented'
       };
-    
+
     case 'file-block':
       return applyFileBlockHookup(filePath, spec as import('./types.js').FileBlockHookup, context);
-    
+
     default:
       throw new Error(`Unknown hookup type: ${type}`);
   }

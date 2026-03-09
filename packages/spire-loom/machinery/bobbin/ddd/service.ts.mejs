@@ -4,8 +4,8 @@
  * Generates the service implementation for a management
  */
 const service = locals.service;
-const entityPascal = service.entityName;
-const entityCamel = service.entityCamelName;
+const entityPascal = service.entityName.pascalCase;
+const entityCamel = service.entityName.camelCase;
 
 // Get methods from context (transformed by generateCode)
 const methods = locals.methods || [];
@@ -49,7 +49,7 @@ import type {
   {{ entityPascal }}WritePort
 } from '@o19/foundframe-front/ports';
 
-export class {{ service.serviceName }} implements {{ service.portName }} {
+export class {{ service.serviceName.pascalCase }} implements {{ service.portName.pascalCase }} {
   constructor(
     private readAdaptor: {{ entityPascal }}ReadPort,
     private writeAdaptor: {{ entityPascal }}WritePort
@@ -60,8 +60,8 @@ export class {{ service.serviceName }} implements {{ service.portName }} {
   // ============================================================================
 {% for method in readMethods %}
 
-  {{ method.crudDefinition.async }} {
-    return this.readAdaptor.{{ method.crudDefinition }}({{ method.params.names }});
+  {{ method.crud.signature }} {
+    return this.readAdaptor.{{ method.crud.signature }}({{ method.paramNames.join(', ') }});
   }
 {% endfor %}
 
@@ -70,8 +70,8 @@ export class {{ service.serviceName }} implements {{ service.portName }} {
   // ============================================================================
 {% for method in writeMethods %}
 
-  {{ method.crudDefinition.withObjectParams('data').async }} {
-    return this.writeAdaptor.{{ method.crudDefinition.withObjectParams('data') }}(data);
+  {{ method.crud.withObjectParams('data').signature }} {
+    return this.writeAdaptor.{{ method.crud.withObjectParams('data').signature }}(data);
   }
 {% endfor %}
 
@@ -79,13 +79,11 @@ export class {{ service.serviceName }} implements {{ service.portName }} {
   // Delete Operations (via Tauri)
   // ============================================================================
 {% for method in deleteMethods %}
-  {{ method.crudDefinition.async }} {
-{% if method.params.length === 0 %}
-    return this.writeAdaptor.{{ method.crudDefinition }}();
-{% elif method.params.length === 1 %}
-    return this.writeAdaptor.{{ method.crudDefinition }}({{ method.params.names }});
+  {{ method.crud.async.signature }} {
+{% if method.raw.params.length === 0 %}
+    return this.writeAdaptor.{{ method.crud.signature }}();
 {% else %}
-    return this.writeAdaptor.{{ method.crudDefinition }}({{ method.params.invocation }});
+    return this.writeAdaptor.{{ method.crud.signature }}({{ method.paramNames.join(', ') }});
 {% endif %}
   }
 {% endfor %}
@@ -95,9 +93,9 @@ export class {{ service.serviceName }} implements {{ service.portName }} {
   // ============================================================================
 {% for method in passthroughMethods %}
 
-  async {{ method.camelName }}(data: { {{ method.params.list }} }): Promise<{{ method.returnType | replace: '[]$', '' }}{% if method.isCollection %}[]{% endif %}> {
+  {{ method.signature }} {
     // Passthrough method - implement based on domain logic
-    throw new Error('{{ method.functionName }} not implemented');
+    throw new Error('{{ method.name }} not implemented');
   }
 {% endfor %}
 }

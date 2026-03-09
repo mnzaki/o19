@@ -6,11 +6,11 @@
  */
 
 import {
-  defineTreadle,
+  declareTreadle,
   generateFromTreadle,
   type OutputSpec
 } from '@o19/spire-loom/machinery/treadle-kit';
-import { HookupSpec } from '../../../../packages/spire-loom/machinery/shuttle/hookups';
+import { HookupSpec } from '../../../../packages/spire-loom/machinery/sley/hookups';
 
 function toSnake(str: string): string {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`).replace(/^_/, '');
@@ -48,7 +48,7 @@ function mapSqlType(rustType: string, tsType: string): string {
   }
 }
 
-export const dbBindingTreadle = defineTreadle({
+export const dbBindingTreadle = declareTreadle({
   name: 'db-binding',
 
   methods: {
@@ -56,7 +56,7 @@ export const dbBindingTreadle = defineTreadle({
     pipeline: []
   },
 
-  outputs: [
+  newFiles: [
     (ctx) => {
       const entities = ctx.entities?.withFields() || [];
 
@@ -103,7 +103,7 @@ export const dbBindingTreadle = defineTreadle({
 
         // Entity data struct file
         outputs.push({
-          template: 'rust/db/entity_data.rs.ejs',
+          template: 'rust/db/entity_data.rs.mejs',
           path: `src/db/entities/${entityLower}_data.gen.rs`,
           language: 'rust',
           context: { entity: entityData }
@@ -111,7 +111,7 @@ export const dbBindingTreadle = defineTreadle({
 
         // Entity trait file
         outputs.push({
-          template: 'rust/db/entity_trait.rs.ejs',
+          template: 'rust/db/entity_trait.rs.mejs',
           path: `src/db/entities/${entityLower}_trait.gen.rs`,
           language: 'rust',
           context: { entity: entityData }
@@ -120,7 +120,7 @@ export const dbBindingTreadle = defineTreadle({
 
       // Generate unified DbCommand enum
       outputs.push({
-        template: 'rust/db/db_command.rs.ejs',
+        template: 'rust/db/db_command.rs.mejs',
         path: `src/db/commands.gen.rs`,
         language: 'rust',
         context: {
@@ -149,7 +149,7 @@ export const dbBindingTreadle = defineTreadle({
 
       // Generate DbHandle methods
       outputs.push({
-        template: 'rust/db/db_handle.rs.ejs',
+        template: 'rust/db/db_handle.rs.mejs',
         path: `src/db/handle.gen.rs`,
         language: 'rust',
         context: {
@@ -178,7 +178,7 @@ export const dbBindingTreadle = defineTreadle({
 
       // Generate complete DbActor implementation in spire/
       outputs.push({
-        template: 'rust/db/db_actor.rs.ejs',
+        template: 'rust/db/db_actor.rs.mejs',
         path: `src/db/actor_impl.gen.rs`,
         language: 'rust',
         context: {
@@ -233,19 +233,19 @@ export const dbBindingTreadle = defineTreadle({
           path: 'src/db/mod.rs',
           moduleDeclarations: [
             {
-              name: `${entity.lower}_data`,
-              path: `../../spire/src/db/entities/${entity.lower}_data.gen.rs`,
+              name: `${toLower(entity.name)}_data`,
+              path: `../../spire/src/db/entities/${toLower(entity.name)}_data.gen.rs`,
               pub: true
             },
             {
-              name: `${entity.lower}_trait`,
-              path: `../../spire/src/db/entities/${entity.lower}_trait.gen.rs`,
+              name: `${toLower(entity.name)}_trait`,
+              path: `../../spire/src/db/entities/${toLower(entity.name)}_trait.gen.rs`,
               pub: true
             }
           ],
           useStatements: [
-            `pub use ${entity.lower}_data::${entity.name}Data;`,
-            `pub use ${entity.lower}_trait::${entity.name}Db;`
+            `pub use ${toLower(entity.name)}_data::${entity.name}Data;`,
+            `pub use ${toLower(entity.name)}_trait::${entity.name}Db;`
           ]
         }) as HookupSpec
     )

@@ -340,7 +340,7 @@ export async function handleCommonArgs(
   return false;
 }
 
-export async function findWorkspaceConfig(): Promise<Weaver | null> {
+export async function findWorkspaceConfig(): Promise<{ weaver: Weaver; workspace: WorkspaceInfo } | null> {
   const args = process.argv.slice(2);
   const options = parseArgs(args);
 
@@ -385,5 +385,5 @@ export async function findWorkspaceConfig(): Promise<Weaver | null> {
     console.log(`📦 Package filter: "${workspace.currentPackage}"\n`);
   }
 
-  return weaver;
+  return { weaver, workspace };
 }

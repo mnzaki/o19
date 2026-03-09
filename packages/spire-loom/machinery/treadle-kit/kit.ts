@@ -106,8 +106,8 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
           }
 
           // Add language to methods and entities BoundQueries
-          context.shed.methods.addLang(lang);
-          context.shed.entities.addLang(lang);
+          context.methods.addLang(lang);
+          context.entities.addLang(lang);
 
           // Track enhanced languages
           const langKey = getLanguageExtensionKey(langName);
@@ -159,17 +159,15 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
         }
 
         // Merge per-output context with main data (context takes precedence)
-        // Entities are available via context.shed.entities
-        const mergedData = output.context
-          ? { ...data, ...output.context }
-          : { ...data };
+        // Entities are available via context.entities
+        const mergedData = output.context ? { ...data, ...output.context } : { ...data };
 
         // Generate the file (workspace → package → builtin templates)
         const file = await generateCode({
+          ...context,
           template: output.template,
           outputPath,
           data: mergedData,
-          shed: context.shed,
           workspaceRoot: context.workspaceRoot,
           packagePath: context.packagePath
         });

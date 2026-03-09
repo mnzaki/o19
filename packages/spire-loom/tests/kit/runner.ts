@@ -6,8 +6,8 @@
  */
 
 import type { SpiralRing } from '../../warp/index.js';
-import type { WeaverConfig, WeavingResult } from '../../machinery/weaver.js';
-import { weave } from '../../machinery/weaver.js';
+import type { WeaverConfig, WeavingResult } from '../../weaver/index.js';
+import { weave } from '../../weaver/index.js';
 
 /**
  * Configuration for the test runner.

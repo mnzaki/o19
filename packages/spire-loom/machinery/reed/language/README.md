@@ -275,6 +275,8 @@ Language methods provide convenient helpers for code generation templates:
 ### `method.signature`
 
 The complete function signature (modifiers, name, params, return type) without body.
+This helper works correctly across all languages, handling the syntax differences
+automatically based on the language context.
 
 ```mejs
 {# Rust: Generate a function with custom body #}
@@ -300,15 +302,66 @@ pub async fn add_bookmark(url: String) -> Result<(), Error> {
 #}
 ```
 
+#### Cross-Language Signatures
+
+`method.signature` adapts to the target language automatically:
+
+```mejs
+{# Rust - method.rs.signature #}
+pub fn add_bookmark(url: String) -> Result<(), Error>
+
+{# TypeScript - method.ts.signature #}
+async addBookmark(url: string): Promise<void>
+
+{# Kotlin - method.kt.signature #}
+fun addBookmark(url: String): Result<Error>
+
+{# AIDL - method.kt.signature (used for Android IPC) #}
+void addBookmark(String url)
+```
+
+Use language variants when generating multi-language bindings:
+
+```mejs
+{# JNI Bridge - Kotlin side #}
+{{ method.kt.signature }} {
+    // Kotlin implementation
+}
+
+{# JNI Bridge - Rust side #}
+{{ method.rs.signature }} {
+    // Rust implementation
+}
+```
+
 ### `method.params`
 
 Just the formatted parameter list.
 
 ```mejs
 {# Rust #}
-fn wrapper{{ method.params }} -> {{ method.returnType.name }}
+fn wrapper{{ method.params }} -> {{ method.returnType }}
 
 {# Output: fn wrapper(url: String, title: Option<String>) -> Result<(), Error> #}
+```
+
+### `method.paramNames`
+
+Array of parameter names (strings) for easy joining.
+
+```mejs
+{# Generate invocation with parameter names #}
+{{ method.paramNames.join(', ') }}
+{# → 'url, title, count' #}
+
+{# Use in function calls #}
+invoke('cmd', { {{ method.paramNames.join(', ') }} })
+{# → invoke('cmd', { url, title, count }) #}
+
+{# Check parameter count #}
+{% if method.paramNames.length > 0 %}
+  // Method has {{ method.paramNames.length }} parameters
+{% endif %}
 ```
 
 ### `method.definition`
@@ -332,6 +385,92 @@ self.foundframe.thestream.lock().unwrap().as_ref().map(|s| s.add_bookmark(url)).
 {{ method.invoke('app_handle.state::<FoundframeState>().inner()') }}
 ```
 
+### `method.returnType`
+
+Returns a `LanguageType` object with intelligent string conversion.
+
+```mejs
+{# Just print the type - toString() returns the type name #}
+{{ method.returnType }}
+
+{# Equivalent explicit access #}
+{{ method.returnType.name }}
+
+{# Get a stub/default value for this type #}
+{{ method.returnType.stub }}
+
+{# Check type properties #}
+{% if method.returnType.isPrimitive %}
+  // Primitive type handling
+{% endif %}
+
+{# Example: Generate a stub implementation #}
+fn {{ method.name }}_stub() -> {{ method.returnType }} {
+    {{ method.returnType.stub }}
+}
+
+{# Output for Result<String, Error>:
+fn some_method_stub() -> Result<String, Error> {
+    Ok("")
+}
+#}
+```
+
+### `method.returnType.stub`
+
+Each `LanguageType` carries a stub value suitable for mock implementations:
+
+| Type | Stub Value |
+|------|-----------|
+| `String` | `""` |
+| `i32` | `0` |
+| `bool` | `false` |
+| `Vec<T>` | `Vec::new()` |
+| `Option<T>` | `None` |
+| `Result<T, E>` | `Ok(T::default())` |
+
+```mejs
+{# Generate match arms with stub implementations #}
+match self {
+{% for method in methods %}
+    Method::{{ method.name.pascalCase }} => {{ method.returnType.stub }},
+{% endfor %}
+}
+```
+
+### `method.name` - Language-Sensitive Naming
+
+The `method.name` property automatically respects the language's naming conventions:
+
+```mejs
+{# In a Rust context - method.name returns snake_case #}
+{{ method.rs.name }}
+{# → 'add_bookmark' #}
+
+{# In a TypeScript context - method.name returns camelCase #}
+{{ method.ts.name }}
+{# → 'addBookmark' #}
+
+{# In a Kotlin context - method.name returns camelCase #}
+{{ method.kt.name }}
+{# → 'addBookmark' #}
+```
+
+**Best Practice**: Use `method.name` directly instead of manual case conversion:
+
+```mejs
+{# DON'T do this - manual case conversion is fragile #}
+{{ method.name.snakeCase }}
+
+{# DO this - trust the language conventions #}
+{{ method.rs.name }}
+```
+
+Only use explicit case accessors (`.pascalCase`, `.snakeCase`) when you need a specific case for:
+- File paths (usually `snake_case`)
+- JNI function names (usually `PascalCase` for the method suffix)
+- Special naming requirements
+
 ### Complete Template Example
 
 ```mejs
@@ -342,6 +481,28 @@ self.foundframe.thestream.lock().unwrap().as_ref().map(|s| s.add_bookmark(url)).
     {{ method.invoke('app_handle.state::<FoundframeState>().inner()') }}
 }
 {% endfor %}
+```
+
+## LanguageType in Templates
+
+The `LanguageType` class provides intelligent rendering:
+
+```mejs
+{# These are equivalent - use whichever reads better #}
+fn foo() -> {{ method.returnType }}
+fn foo() -> {{ method.returnType.name }}
+fn foo() -> {{ method.returnType.toString() }}
+
+{# Access the raw Name object for case variations #}
+fn {{ method.returnType.name.snakeCase }}_handler()
+
+{# The stub value is useful for tests and mocks #}
+#[cfg(test)]
+mod tests {
+    fn mock_{{ method.name }}() -> {{ method.returnType }} {
+        {{ method.returnType.stub }}
+    }
+}
 ```
 
 ## See Also

@@ -46,13 +46,10 @@ impl<R: Runtime> <%= platformTraitName %> for IosPlatform<R> {
     Ok(())
   }
 
-<% methods.forEach(function(method) { -%>
-  fn <%= method.functionName %>(
-    &self,
-    <%- method.rs.params.list %>
-  ) -> <%- method.returnType %> {
+{% for method in methods %}
+  {{ method.rs.signature }} {
     Err(Error::Other("iOS platform not implemented".into()))
   }
 
-<% }); -%>
+{% endfor %}
 }

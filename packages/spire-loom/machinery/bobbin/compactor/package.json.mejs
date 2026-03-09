@@ -7,8 +7,8 @@
     "compact": "tsx src/compact.ts"
   },
   "dependencies": {
-    "@prisma/client": "<%= prismaVersion %>",
-    "prisma": "<%= prismaVersion %>"
+    "@prisma/client": "{{ prismaVersion }}",
+    "prisma": "{{ prismaVersion }}"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

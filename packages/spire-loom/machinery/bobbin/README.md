@@ -50,6 +50,106 @@ The Bobbin uses **MEJS** (Moustacheod-EJS) templates—moustache-style syntax th
 {{ h.indent(code, 4) }}      {# Indent by N spaces #}
 ```
 
+### Method Helpers
+
+When iterating over `methods` from the treadle context, each method provides:
+
+```mejs
+{% for method in methods %}
+  {# Function signature with modifiers - handles params, return type, everything! #}
+  {{ method.signature }}
+  
+  {# With variant modifiers (pub, async, etc.) #}
+  {{ method.pub.async.signature }}
+  
+  {# Just the parameters #}
+  {{ method.params }}
+  
+  {# Parameter names as array - useful for invocation #}
+  {{ method.paramNames.join(', ') }}
+  
+  {# Return type - LanguageType with smart toString() #}
+  -> {{ method.returnType }}
+  
+  {# Stub value for mocks/tests #}
+  {{ method.returnType.stub }}
+  
+  {# Language-specific variants (rs=Rust, kt=Kotlin, ts=TypeScript) #}
+  {# method.name respects each language's naming conventions #}
+  {{ method.rs.name }}      {# snake_case in Rust #}
+  {{ method.ts.name }}      {# camelCase in TypeScript #}
+  {{ method.kt.name }}      {# camelCase in Kotlin #}
+{% endfor %}
+```
+
+#### The Power of `method.signature`
+
+`method.signature` is the most powerful helper - it generates the complete function
+signature including modifiers, name, parameters, and return type. It works correctly
+across all target languages:
+
+```mejs
+{# Rust #}
+{{ method.rs.signature }}
+{# → pub fn add_bookmark(url: String) -> Result<(), Error> #}
+
+{# TypeScript #}
+{{ method.ts.signature }}
+{# → async addBookmark(url: string): Promise<void> #}
+
+{# Kotlin #}
+{{ method.kt.signature }}
+{# → fun addBookmark(url: String): Result<Error> #}
+
+{# AIDL (Android IPC) #}
+{{ method.kt.signature }}
+{# → void addBookmark(String url) #}
+```
+
+**Best Practice**: Use `method.signature` instead of manually constructing signatures:
+
+```mejs
+{# DON'T do this - fragile and language-specific #}
+fn {{ method.name }}({{ method.params }}) -> {{ method.returnType }}
+
+{# DO this - robust and cross-language #}
+{{ method.signature }}
+```
+
+### LanguageType Smart Rendering
+
+`method.returnType` returns a `LanguageType` object that renders intelligently:
+
+```mejs
+{# All equivalent - the type name is printed #}
+{{ method.returnType }}
+{{ method.returnType.name }}
+
+{# Access case variations via the Name object #}
+{{ method.returnType.name.snakeCase }}
+{{ method.returnType.name.pascalCase }}
+
+{# Get a stub/default value for the type #}
+{{ method.returnType.stub }}
+{# Result<String, Error> → Ok("") #}
+{# Option<i32> → None #}
+```
+
+### Name Class Case Accessors
+
+The `Name` class (used for entities, services, methods) provides case variations:
+
+```mejs
+{% for mgmt in managements %}
+  {{ mgmt.serviceName.pascalCase }}   {# BookmarkService #}
+  {{ mgmt.entityName.camelCase }}     {# bookmark #}
+  {{ mgmt.moduleName.snakeCase }}     {# bookmark #}
+  {{ mgmt.portName.pascalCase }}      {# BookmarkPort #}
+{% endfor %}
+```
+
+**Note**: For `method.name`, prefer using `method.rs.name`, `method.ts.name`, etc. which automatically apply the correct naming convention for each language. Only use explicit case accessors (`.pascalCase`, `.snakeCase`) when you need a specific case for file paths or special naming requirements.
+
 ### File Extension
 MEJS templates use `.mejs` extension and live in `machinery/bobbin/{target}/`.
 

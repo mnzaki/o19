@@ -11,16 +11,8 @@
 // Polyfill for decorator metadata
 import 'reflect-metadata';
 
-import type { WeaverConfig, WeavingResult } from '@o19/spire-loom/machinery/weaver';
-import { loadWarp } from '../machinery/sley/workspace-discovery.js';
-import {
-  parseArgs,
-  showVersion,
-  showHelp,
-  printGraph,
-  findWorkspaceConfig,
-  handleCommonArgs
-} from './lib.js';
+import type { WeavingResult } from '@o19/spire-loom/weaver';
+import { handleCommonArgs } from './lib.js';
 
 export {
   parseArgs,

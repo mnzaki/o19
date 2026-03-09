@@ -13,7 +13,7 @@ import {
 } from '../treadle-kit/index.js';
 import { TauriSpiraler } from '../../warp/spiral/spiralers/tauri.js';
 import { RustCore } from '../../warp/spiral/index.js';
-import { hookup } from '../shuttle/index.js';
+import { hookup } from '../sley/index.js';
 import { cargoToml } from '../sley/index.js';
 import { buildCrateNaming } from '../stringing.js';
 import type { GeneratedFile } from '../bobbin/index.js';
@@ -81,7 +81,7 @@ export const tauriPluginTreadle = declareTreadle({
     };
   },
 
-  outputs: [
+  newFiles: [
     { template: 'tauri/README.md.mejs', path: 'README.md' },
     { template: 'tauri/error.rs.mejs', path: 'src/error.rs' },
     { template: 'tauri/models.rs.mejs', path: 'src/models.rs' },

@@ -58,15 +58,15 @@ export interface MethodConfig {
 }
 
 /**
- * Output specification for file generation.
+ * New file specification for file generation.
  * Language is auto-detected from template filename extension.
  */
-export interface OutputSpec {
+export interface NewFileSpec {
   template: string;
   path: string;
   condition?: (context: GeneratorContext) => boolean;
   /**
-   * Per-output context data merged with main data for this output only.
+   * Per-file context data merged with main data for this file only.
    * Useful for per-entity generation with shared templates.
    * Context properties take precedence over main data properties.
    */
@@ -80,10 +80,10 @@ export interface OutputSpec {
  * export type PatchSpecOrFn = ...
  */
 
-/** Output spec or a function that returns one (or an array) based on context */
-export type OutputSpecOrFn =
-  | OutputSpec
-  | ((context: GeneratorContext) => OutputSpec | OutputSpec[] | undefined);
+/** New file spec or a function that returns one (or an array) based on context */
+export type NewFileSpecOrFn =
+  | NewFileSpec
+  | ((context: GeneratorContext) => NewFileSpec | NewFileSpec[] | undefined);
 
 export interface TreadleDefinition {
   /** Treadle name (auto-populated during loading) */
@@ -103,8 +103,8 @@ export interface TreadleDefinition {
    */
   language?: string | string[];
 
-  /** Output files to generate (into spire/). Accepts specs or functions. */
-  outputs: OutputSpecOrFn[];
+  /** New files to generate (into spire/). Accepts specs or functions. */
+  newFiles?: NewFileSpecOrFn[];
 
   /**
    * Declarative hookups - configure external files (AndroidManifest.xml, Cargo.toml, etc.)
@@ -156,7 +156,7 @@ export interface TreadleDefinition {
  *   name: 'my-treadle',
  *   matches: [{ current: 'AndroidSpiraler', previous: 'RustCore' }],
  *   methods: { filter: 'platform', pipeline: [] },
- *   outputs: [{ template: '...', path: '...', language: 'kotlin' }]
+ *   newFiles: [{ template: '...', path: '...', language: 'kotlin' }]
  * });
  * ```
  */
@@ -175,11 +175,8 @@ export const declareTreadle = declare<TreadleDefinition, TreadleTrodder>({
     if (!def.methods) {
       throw new Error('TreadleDefinition must have methods configuration');
     }
-    if (!def.outputs?.length) {
-      throw new Error('TreadleDefinition must have at least one output');
-    }
   },
-  declare: generateFromTreadle
+  declare: generateFromTreadleDefinition
 });
 
 // ============================================================================
@@ -198,7 +195,7 @@ export const declareTreadle = declare<TreadleDefinition, TreadleTrodder>({
  * 2. **Patching** - Patches are applied to any file (including spire/ files)
  * 3. **Hookup** - Custom hookup runs last
  */
-export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodder {
+export function generateFromTreadleDefinition(definition: TreadleDefinition): TreadleTrodder {
   const generator = async (
     current: SpiralNode,
     previous: SpiralNode,
@@ -237,18 +234,17 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
 
     // Method collection using the kit
     const finalMethods = definition.transformMethods
-      ? createQueryAPI(definition.transformMethods(context.shed.methods.all, context))
-      : context.shed.methods;
+      ? createQueryAPI(definition.transformMethods(context.methods.all, context))
+      : context.methods;
 
     // Build data with defaults (entities and methods always available)
     let data: Record<string, unknown> = {
+      // Always provide context.... entities and methods to templates
+      ...context,
       currentType,
       previousType,
       currentRing: current.ring,
-      previousRing: previous.ring,
-      // Always provide entities and methods to templates
-      entities: context.shed.entities,
-      methods: context.shed.methods
+      previousRing: previous.ring
     };
 
     if (definition.data) {
@@ -259,33 +255,37 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
       data = { ...data, ...userData };
     }
 
-    // Resolve output specs (handle functions returning single OR array)
-    const resolvedOutputs = resolveSpecs(definition.outputs, context);
+    let resolvedNewFiles = !definition.newFiles ? [] : resolveSpecs(definition.newFiles, context);
 
-    // Apply declared language enhancement (if specified)
-    if (definition.language) {
-      const langs = Array.isArray(definition.language)
-        ? definition.language
-        : [definition.language];
-      kit.language.add(...langs);
+    let files: GeneratedFile[] = [];
+    if (!resolvedNewFiles.length) {
+      files = [];
+    } else {
+      // Apply declared language enhancement (if specified)
+      if (definition.language) {
+        const langs = Array.isArray(definition.language)
+          ? definition.language
+          : [definition.language];
+        kit.language.add(...langs);
 
-      // Update data with enhanced methods reference
-      data.methods = context.shed.methods;
+        // Update data with enhanced methods reference
+        data.methods = context.methods;
+      }
+
+      // Phase 1: Generate files using the kit (into spire/)
+      // Language is auto-detected from template filename
+      files = await kit.generateFiles(
+        resolvedNewFiles.map((f) => ({
+          template: f.template,
+          path: f.path,
+          condition: f.condition,
+          context: f.context
+        })),
+        data,
+        finalMethods,
+        context.entities
+      );
     }
-
-    // Phase 1: Generate files using the kit (into spire/)
-    // Language is auto-detected from template filename
-    const files = await kit.generateFiles(
-      resolvedOutputs.map((o) => ({
-        template: o.template,
-        path: o.path,
-        condition: o.condition,
-        context: o.context
-      })),
-      data,
-      finalMethods,
-      context.shed.entities
-    );
 
     // Phase 2: Hookup (runs after file generation) (runs last)
     const hookups = Array.isArray(definition.hookups)
@@ -302,7 +302,7 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
       const resolvedHookups = resolveSpecsWithCondition(hookups, context);
 
       if (resolvedHookups.length > 0) {
-        const results = await runHookups(resolvedHookups, context);
+        const results = await runHookups(resolvedHookups, data as unknown as GeneratorContext);
 
         if (process.env.DEBUG_MATRIX) {
           for (const result of results) {
@@ -317,6 +317,13 @@ export function generateFromTreadle(definition: TreadleDefinition): TreadleTrodd
 
   // Attach treadle name for logging
   (generator as any).treadleName = definition.name || 'anonymous';
+  
+  // Attach definition metadata for discovery
+  (generator as any).matches = definition.matches;
+  (generator as any).methods = definition.methods;
+  (generator as any).newFiles = definition.newFiles;
+  (generator as any).hookups = definition.hookups;
+  (generator as any).config = definition.config;
 
   return generator;
 }

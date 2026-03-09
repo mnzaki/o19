@@ -7,13 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-<% tables.forEach(table => { %>
-model <%= pascalCase(table.name) %> {
-<% table.columns.forEach(col => { -%>
-  <%= col.name %> <%= mapToPrismaType(col.type) %><%= col.nullable ? '?' : '' %><%= col.isPrimaryKey ? ' @id' : '' %><%= col.isPrimaryKey && col.type === 'integer' ? ' @default(autoincrement())' : '' %>
-<% }) -%>
-<% table.foreignKeys.forEach(fk => { -%>
-  <%= fk.referencesTable %> <%= pascalCase(fk.referencesTable) %> @relation(fields: [<%= fk.column %>], references: [<%= fk.referencesColumn %>])
-<% }) -%>
+{% tables.forEach(table => { }}
+model {{ pascalCase(table.name) }} {
+{% table.columns.forEach(col => { -}}
+  {{ col.name }} {{ mapToPrismaType(col.type) }}{{ col.nullable ? '?' : '' }}{{ col.isPrimaryKey ? ' @id' : '' }}{{ col.isPrimaryKey && col.type === 'integer' ? ' @default(autoincrement())' : '' }}
+{% }) -}}
+{% table.foreignKeys.forEach(fk => { -}}
+  {{ fk.referencesTable }} {{ pascalCase(fk.referencesTable) }} @relation(fields: [{{ fk.column }}], references: [{{ fk.referencesColumn }}])
+{% }) -}}
 }
-<% }) %>
+{% }) }}

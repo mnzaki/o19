@@ -21,12 +21,7 @@
  * > *"The bridge connects what was separate, the spiral preserves both."*
  */
 
-import {
-  declareTreadle,
-  generateFromTreadle,
-  type OutputSpec
-} from '@o19/spire-loom/machinery/treadle-kit';
-import { addManagementPrefix } from '@o19/spire-loom/machinery/sley';
+import { declareTreadle, generateFromTreadle } from '@o19/spire-loom/machinery/treadle-kit';
 
 // ============================================================================
 // Treadle Definition
@@ -41,7 +36,7 @@ export const tauriDesktopPlatformTreadle = declareTreadle({
   // Method filtering and transformation
   methods: {
     filter: 'platform',
-    pipeline: [addManagementPrefix()]
+    pipeline: []
   },
 
   // Template data from context
@@ -66,12 +61,11 @@ export const tauriDesktopPlatformTreadle = declareTreadle({
   },
 
   // Output files
-  outputs: [
+  newFiles: [
     // Desktop platform bridge - implements mainline Platform using spire
     {
-      template: 'tauri/desktop_mainline_bridge.rs.ejs',
-      path: 'src/desktop_mainline_bridge.rs',
-      language: 'rust'
+      template: 'tauri/desktop_mainline_bridge.rs.mejs',
+      path: 'src/desktop_mainline_bridge.rs'
     }
   ],
 

@@ -68,155 +68,127 @@ interface PreprocessorOptions {
   escapeByDefault?: boolean;
   /** Whether to enable control flow simplification (default: true) */
   simplifyControlFlow?: boolean;
-  /** Custom delimiters to use (default: ['{{', '}}', '{%', '%}']) */
-  delimiters?: [string, string, string, string];
 }
 
 const defaultPreprocessorOptions: Required<PreprocessorOptions> = {
   escapeByDefault: false,
   simplifyControlFlow: true,
-  delimiters: ['{{', '}}', '{%', '%}']
 };
 
 function hasJavaScriptBraces(code: string): boolean {
   return /[{}]/.test(code);
 }
 
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 /**
- * Preprocess mejs syntax to EJS format.
+ * Preprocess mejs syntax to EJS format with custom { } delimiters.
  *
- * COMMENTS:
- * - {# comment #}   → <%# comment %>   (EJS comment, not output)
+ * EJS will be configured to use { } as open/close delimiters, so:
+ * - {% code %} stays as {% code %} (EJS scriptlet with custom delimiters)
+ * - {%- expr %} stays as {%- expr %} (unescaped output)
+ * - {%= expr %} stays as {%= expr %} (escaped output)
+ * - {%# comment %} stays as {%# comment %} (comment)
  *
- * CONTROL FLOW SIMPLIFICATION:
- * - {% if condition %}      → <%_ if (condition) { _%>
- * - {% elif condition %}    → <%_ } else if (condition) { _%>
- * - {% else if condition %} → <%_ } else if (condition) { _%>
- * - {% else %}              → <%_ } else { _%>
- * - {% endif %}             → <%_ } _%>
- * - {% for item in items %} → <%_ for (const item of items) { _%>
- * - {% endfor %}            → <%_ } _%>
- * - {% while condition %}   → <%_ while (condition) { _%>
- * - {% endwhile %}          → <%_ } _%>
- *
- * OUTPUT VARIANTS:
- * - {{ expr }}      → <%- expr %>     (unescaped output)
- * - {h expr }       → <%= expr %>     (html escaped)
- * - {_ expr }       → <%- expr _%>    (trim trailing)
- * - {{_ expr _}}    → <%-_ expr _%>   (trim both)
+ * We only need to convert:
+ * - {{ expr }} → {%- expr %} (mejs output → EJS unescaped output)
+ * - {h expr } → {%= expr %} (mejs html-escaped → EJS escaped output)
+ * - {_ expr } → {%-_ expr %} (trim trailing)
+ * - {{_ expr _}} → {%-_ expr _%} (trim both)
+ * - {# comment #} → {%# comment %} (comments)
+ * - Control flow simplification: {% if x %} → {%_ if (x) { _%}
  */
 export function preprocessTemplate(template: string, options: PreprocessorOptions = {}): string {
   const opts = { ...defaultPreprocessorOptions, ...options };
-  const [outOpen, outClose, codeOpen, codeClose] = opts.delimiters;
-
+  
   let result = template;
 
-  // === COMMENTS ===
-  // {# comment #} → <%# comment %>
-  result = result.replace(/\{#\s*([\s\S]*?)\s*#\}/g, '<%# $1 %>');
+  // === STEP 1: COMMENTS ===
+  // {# comment #} → {%# comment %}
+  result = result.replace(/\{#\s*([\s\S]*?)\s*#\}/g, '{%# $1 %}');
 
-  // === CONTROL FLOW SIMPLIFICATION ===
+  // === STEP 2: WHITESPACE-TRIMMED VARIANTS (process before standard forms) ===
+  
+  // {{_ expr _}} → {%-_ expr _%} (unescaped, trim both sides)
+  result = result.replace(/\{\{_\s*([\s\S]*?)\s*_\}\}/g, '{%-_ $1 _%}');
+  
+  // {_ expr _h} → {%=_ expr _%} (escaped, trim both sides)
+  result = result.replace(/\{_\s*([\s\S]*?)\s*_h\}/g, '{%=_ $1 _%}');
+  
+  // {_ expr } → {%-_ expr %} (unescaped, trim trailing)
+  result = result.replace(/\{_\s*([\s\S]*?)\s*\}/g, '{%-_ $1 %}');
+  
+  // {h_ expr } → {%=_ expr %} (escaped, trim leading)
+  result = result.replace(/\{h_\s*([\s\S]*?)\s*\}/g, '{%=_ $1 %}');
+
+  // === STEP 3: STANDARD OUTPUT FORMS ===
+  
+  // {h expr } → {%= expr %} (escaped output)
+  result = result.replace(/\{h\s*([\s\S]*?)\s*\}/g, '{%= $1 %}');
+  
+  // {{ expr }} → {%- expr %} (unescaped output, default for code gen)
+  // Use negative lookbehind/lookahead to handle triple braces correctly:
+  // {{{ expr }}} should be parsed as { + {{ expr }} + }, not {{ + { expr } + }}
+  // (?<!\{) ensures not preceded by {, (?!\}) ensures not followed by }
+  result = result.replace(/\{\{(?!\{)\s*([\s\S]*?)(?<!\})\s*\}\}/g, opts.escapeByDefault ? '{%= $1 %}' : '{%- $1 %}');
+
+  // === STEP 4: CONTROL FLOW SIMPLIFICATION ===
   if (opts.simplifyControlFlow) {
-    result = simplifyControlFlow(result, codeOpen, codeClose);
+    result = simplifyControlFlow(result);
   }
 
-  // === WHITESPACE-TRIMMED OUTPUT VARIANTS ===
-  result = result.replace(
-    new RegExp(escapeRegex(outOpen) + '_\\s*([\\s\\S]*?)\\s*_' + escapeRegex(outClose), 'g'),
-    '<%-_ $1 _%>'
-  );
-
-  result = result.replace(/\{_\s*([\s\S]*?)\s*_h\}/g, '<%=_ $1 _%>');
-
-  result = result.replace(/\{_\s*([\s\S]*?)\s*\}/g, '<%-_ $1 %>');
-
-  result = result.replace(/\{h_\s*([\s\S]*?)\s*\}/g, '<%=_ $1 %>');
-
-  // === STANDARD OUTPUT FORMS ===
-  result = result.replace(/\{h\s*([\s\S]*?)\s*\}/g, '<%= $1 %>');
-
-  const outputRegex = new RegExp(
-    escapeRegex(outOpen) + '\\s*([\\s\\S]*?)\\s*' + escapeRegex(outClose),
-    'g'
-  );
-  result = result.replace(outputRegex, opts.escapeByDefault ? '<%= $1 %>' : '<%- $1 %>');
-
-  // === CODE BLOCKS ===
-  const codePreserveRegex = new RegExp(
-    escapeRegex(codeOpen) + '\\+\\s*([\\s\\S]*?)\\s*' + escapeRegex(codeClose),
-    'g'
-  );
-  result = result.replace(codePreserveRegex, '<% $1 %>');
-
-  const codeRegex = new RegExp(
-    escapeRegex(codeOpen) + '\\s*([\\s\\S]*?)\\s*' + escapeRegex(codeClose),
-    'g'
-  );
-  result = result.replace(codeRegex, '<% $1 _%>');
+  // === STEP 5: CODE BLOCK WHITESPACE TRIMMING ===
+  // For remaining {% ... %} blocks that don't have special prefixes, add trailing trim
+  // Match {% ... %} but not {%- ..., {%= ..., {%_ ..., {%# ..., {%+
+  // Preserve the original whitespace behavior: keep content as-is, just add _%} at end
+  result = result.replace(/\{%(?!\s*[\-=_%#+])\s*([^%\n][^%]*?)\s*%\}/g, '{% $1 _%}');
 
   return result;
 }
 
-function simplifyControlFlow(template: string, codeOpen: string, codeClose: string): string {
+function simplifyControlFlow(template: string): string {
   let result = template;
-  const open = escapeRegex(codeOpen);
-  const close = escapeRegex(codeClose);
-  const ws = '\\s*';
+  
+  // Match {% tag ... %} patterns and convert to proper JavaScript control flow
+  // The underscore prefix/suffix means "trim whitespace"
+  
+  // End blocks (no content to check)
+  result = result.replace(/\{\%\s*endif\s*\%\}/g, '{%_ } _%}');
+  result = result.replace(/\{\%\s*endfor\s*\%\}/g, '{%_ } _%}');
+  result = result.replace(/\{\%\s*endwhile\s*\%\}/g, '{%_ } _%}');
+
+  // Else (no condition to check)
+  result = result.replace(/\{\%\s*else\s*\%\}/g, '{%_ } else { _%}');
 
   // Helper to replace only if content doesn't have JavaScript braces
   const simplify = (pattern: RegExp, replacement: string) => {
     result = result.replace(pattern, (match, ...args) => {
-      // Check if any captured argument has braces (content groups)
-      const hasBracesInContent = args
-        .slice(0, -2)
-        .some((arg) => typeof arg === 'string' && hasJavaScriptBraces(arg));
-      // Also check the full inner content
-      const innerContent = match.slice(codeOpen.length, match.length - codeClose.length);
-      if (hasBracesInContent || hasJavaScriptBraces(innerContent)) {
-        return match; // Leave unchanged - will be processed as raw EJS
+      // Check if any captured group has braces
+      const hasBraces = args.slice(0, -2).some((arg) => 
+        typeof arg === 'string' && hasJavaScriptBraces(arg)
+      );
+      if (hasBraces) {
+        return match; // Leave unchanged - raw JavaScript
       }
       // Apply replacement with captured groups
       return replacement.replace(/\$(\d+)/g, (_, n) => args[parseInt(n) - 1] ?? '');
     });
   };
 
-  // End blocks (no content to check)
-  result = result.replace(new RegExp(open + ws + 'endif' + ws + close, 'g'), '<%_ } _%>');
-  result = result.replace(new RegExp(open + ws + 'endfor' + ws + close, 'g'), '<%_ } _%>');
-  result = result.replace(new RegExp(open + ws + 'endwhile' + ws + close, 'g'), '<%_ } _%>');
-
-  // Else (no condition to check)
-  result = result.replace(new RegExp(open + ws + 'else' + ws + close, 'g'), '<%_ } else { _%>');
-
-  // Else-if/elif with condition
-  simplify(
-    new RegExp(open + ws + 'else' + ws + 'if' + ws + '(.+?)' + ws + close, 'g'),
-    '<%_ } else if ($1) { _%>'
-  );
-  simplify(
-    new RegExp(open + ws + 'elif' + ws + '(.+?)' + ws + close, 'g'),
-    '<%_ } else if ($1) { _%>'
-  );
+  // Else-if/elif/elseif with condition
+  simplify(/\{\%\s*else\s+if\s+(.+?)\s*\%\}/g, '{%_ } else if ($1) { _%}');
+  simplify(/\{\%\s*elif\s+(.+?)\s*\%\}/g, '{%_ } else if ($1) { _%}');
+  simplify(/\{\%\s*elseif\s+(.+?)\s*\%\}/g, '{%_ } else if ($1) { _%}');
 
   // While with condition
-  simplify(
-    new RegExp(open + ws + 'while' + ws + '(.+?)' + ws + close, 'g'),
-    '<%_ while ($1) { _%>'
-  );
+  simplify(/\{\%\s*while\s+(.+?)\s*\%\}/g, '{%_ while ($1) { _%}');
 
-  // For loops
-  simplify(
-    new RegExp(open + ws + 'for' + ws + '(\\w+)' + ws + 'in' + ws + '(.+?)' + ws + close, 'g'),
-    '<%_ for (const $1 of $2) { _%>'
-  );
-  simplify(new RegExp(open + ws + 'for' + ws + '(.+?)' + ws + close, 'g'), '<%_ for ($1) { _%>');
+  // For loops - "for item in items" syntax
+  simplify(/\{\%\s*for\s+(\w+)\s+in\s+(.+?)\s*\%\}/g, '{%_ for (const $1 of $2) { _%}');
+  
+  // For loops - classic JS syntax (e.g., "for i=0; i<10; i++")
+  simplify(/\{\%\s*for\s+(.+?)\s*\%\}/g, '{%_ for ($1) { _%}');
 
   // If with condition
-  simplify(new RegExp(open + ws + 'if' + ws + '(.+?)' + ws + close, 'g'), '<%_ if ($1) { _%>');
+  simplify(/\{\%\s*if\s+(.+?)\s*\%\}/g, '{%_ if ($1) { _%}');
 
   return result;
 }
@@ -297,19 +269,31 @@ interface GenerateOptions extends RenderFileOptions {
  *
  * Automatically preprocesses mejs syntax before rendering.
  */
-function render(options: RenderOptions): string {
-  // Preprocess: mejs syntax → EJS
+function render(options: RenderOptions & { templatePath?: string }): string {
+  // Preprocess: mejs syntax → EJS with { } delimiters
   const ejsTemplate = preprocessTemplate(options.template);
 
-  // Render with EJS
-  return ejs.render(
-    ejsTemplate,
-    { h: templateHelpers, ...options.data },
-    {
-      beautify: true,
-      escape: (str: string) => str // No escaping for code generation
+  try {
+    // Render with EJS using custom { } delimiters
+    return ejs.render(ejsTemplate, { h: templateHelpers, ...options.data }, {
+      openDelimiter: '{',
+      closeDelimiter: '}',
+    });
+  } catch (error) {
+    // Enhance error with template information
+    const templateInfo = options.templatePath ? `\n  Template: ${options.templatePath}` : '';
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Show context around the error if possible
+    let contextInfo = '';
+    if (errorMessage.includes('while compiling ejs') && error instanceof SyntaxError) {
+      contextInfo = '\n  Hint: Check for syntax errors in MEJS tags ({{ }}, {% %})';
     }
-  );
+    
+    throw new Error(
+      `Template rendering failed:${templateInfo}\n  Error: ${errorMessage}${contextInfo}`
+    );
+  }
 }
 
 /**
@@ -329,7 +313,7 @@ export async function processTemplate(
  */
 export async function renderFile(options: RenderFileOptions): Promise<string> {
   const template = loadTemplate(options.templatePath);
-  return render({ template, data: options.data });
+  return render({ template, data: options.data, templatePath: options.templatePath });
 }
 
 /**

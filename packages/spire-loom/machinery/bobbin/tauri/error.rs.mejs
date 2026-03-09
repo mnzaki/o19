@@ -2,10 +2,10 @@
 
 use serde::{Serialize, ser::Serializer};
 
-/// Result type alias for <%= coreName %> operations.
+/// Result type alias for {{ coreName }} operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Errors that can occur in <%= coreName %> operations.
+/// Errors that can occur in {{ coreName }} operations.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   #[error(transparent)]

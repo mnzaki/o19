@@ -68,7 +68,7 @@ export const kyselyAdaptorTreadle = declareTreadle({
   },
 
   // Dynamic outputs - one per entity + index + factory
-  outputs: [
+  newFiles: [
     (ctx) => {
       const config = ctx.config as KyselyAdaptorConfig | undefined;
       if (!config?.entities) {
@@ -85,7 +85,7 @@ export const kyselyAdaptorTreadle = declareTreadle({
         const entityPascal = toPascal(entity);
 
         outputs.push({
-          template: 'kysely/adaptor.ts.ejs',
+          template: 'kysely/adaptor.ts.mejs',
           path: `src/adaptors/${entityLower}.adaptor.ts`,
           language: 'typescript',
           // Per-output context with entity-specific data
@@ -102,7 +102,7 @@ export const kyselyAdaptorTreadle = declareTreadle({
 
       // Index file
       outputs.push({
-        template: 'kysely/index.ts.ejs',
+        template: 'kysely/index.ts.mejs',
         path: 'src/adaptors/index.ts',
         language: 'typescript',
         context: {
@@ -117,7 +117,7 @@ export const kyselyAdaptorTreadle = declareTreadle({
 
       // Factory file
       outputs.push({
-        template: 'kysely/factory.ts.ejs',
+        template: 'kysely/factory.ts.mejs',
         path: 'src/adaptors/factory.ts',
         language: 'typescript',
         context: {

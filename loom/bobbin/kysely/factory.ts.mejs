@@ -3,24 +3,24 @@
 
 import { Kysely } from 'kysely';
 import type { DB } from '../db/types.js';
-<% entities.forEach(function(entity) { -%>
-import { Kysely<%= entity.pascal %>Adaptor } from './<%= entity.lower %>.adaptor.js';
-<% }); -%>
+{% entities.forEach(function(entity) { -}}
+import { Kysely{{ entity.pascal }}Adaptor } from './{{ entity.lower }}.adaptor.js';
+{% }); -}}
 
 // Import port types
 import type {
-<% entities.forEach(function(entity, i) { -%>
-  <%= entity.pascal %>Port<%= i < entities.length - 1 ? ',' : '' %>
-<% }); -%>
+{% entities.forEach(function(entity, i) { -}}
+  {{ entity.pascal }}Port{{ i < entities.length - 1 ? ',' : '' }}
+{% }); -}}
 } from '../ports/index.js';
 
 /**
  * All database ports interface
  */
 export interface DatabasePorts {
-<% entities.forEach(function(entity) { -%>
-  <%= entity.lower %>: <%= entity.pascal %>Port;
-<% }); -%>
+{% entities.forEach(function(entity) { -}}
+  {{ entity.lower }}: {{ entity.pascal }}Port;
+{% }); -}}
 }
 
 /**
@@ -38,14 +38,14 @@ export interface DatabasePorts {
  * const adaptors = createKyselyAdaptors(db);
  *
  * // Use adaptors
- * const <%= entities[0]?.lower || 'entity' %> = await adaptors.<%= entities[0]?.lower || 'entity' %>.getById(1);
+ * const {{ entities[0]?.lower || 'entity' }} = await adaptors.{{ entities[0]?.lower || 'entity' }}.getById(1);
  * ```
  */
 export function createKyselyAdaptors(db: Kysely<DB>): DatabasePorts {
   return {
-<% entities.forEach(function(entity, i) { -%>
-    <%= entity.lower %>: new Kysely<%= entity.pascal %>Adaptor(db)<%= i < entities.length - 1 ? ',' : '' %>
-<% }); -%>
+{% entities.forEach(function(entity, i) { -}}
+    {{ entity.lower }}: new Kysely{{ entity.pascal }}Adaptor(db){{ i < entities.length - 1 ? ',' : '' }}
+{% }); -}}
   };
 }
 
@@ -53,7 +53,7 @@ export function createKyselyAdaptors(db: Kysely<DB>): DatabasePorts {
  * Convenience export for single adaptor creation
  */
 export {
-<% entities.forEach(function(entity, i) { -%>
-  Kysely<%= entity.pascal %>Adaptor<%= i < entities.length - 1 ? ',' : '' %>
-<% }); -%>
+{% entities.forEach(function(entity, i) { -}}
+  Kysely{{ entity.pascal }}Adaptor{{ i < entities.length - 1 ? ',' : '' }}
+{% }); -}}
 };

@@ -10,16 +10,17 @@
  */
 
 import { RustAndroidSpiraler } from '../../warp/spiral/spiralers/rust/android.js';
-import { RustCore, SpiralOut } from '../../warp/spiral/index.js';
-import { buildCrateNaming } from '../stringing.js';
-import { hookup } from '../sley/index.js';
-import { declareTreadle, generateFromTreadle } from './index.js';
+import { RustCore, SpiralOut, SpiralRing } from '../../warp/spiral/index.js';
+import { buildCrateNaming, buildAndroidPackageData } from '../stringing.js';
+import { declareTreadle } from './index.js';
+import type { AndroidManifestHookup, GradleHookup } from '../sley/hookups/types.js';
+import type { GeneratorContext } from '../../weaver/plan-builder.js';
 
 // ============================================================================
 // Treadle Definition
 // ============================================================================
 
-export const androidServiceTreadle = declareTreadle({
+export const generateAndroidService = declareTreadle({
   // When does this run?
   matches: [{ current: 'RustAndroidSpiraler.foregroundService', previous: 'RustCore' }],
 
@@ -86,47 +87,96 @@ export const androidServiceTreadle = declareTreadle({
       homeDirName: `.${metadata.packageName}`,
 
       // AIDL imports
-      imports: [`${paths.packageName}.IEventCallback`],
-
-      // Store current ring for hookup
-      _currentRing: current.ring
+      imports: [`${paths.packageName}.IEventCallback`]
     };
   },
 
-  // Output files - language auto-detected from template extensions
-  outputs: [
+  // Output files - generated into spire/ directory
+  // Language is auto-detected from template file extensions
+  newFiles: [
     {
       template: 'android/service.kt.mejs',
       path: 'android/java/{packagePath}/service/{serviceName}.kt'
     },
-    // AIDL language auto-detected from .aidl extension
+    // AIDL interface - auto-detected as AIDL language from .aidl extension
     {
       template: 'android/aidl_interface.aidl.mejs',
       path: 'android/aidl/{packagePath}/{interfaceName}.aidl'
     },
-    // Rust JNI bridge
+    // AIDL callback - also an output (generated file)
+    {
+      template: 'android/aidl_callback.aidl.mejs',
+      path: 'android/aidl/{packagePath}/IEventCallback.aidl'
+    },
+    // Rust JNI bridge - auto-detected as Rust from .rs extension
     {
       template: 'android/jni_bridge.jni.rs.mejs',
       path: 'src/lib.rs'
     }
   ],
 
-  // Package integration
-  hookup: {
-    type: 'custom',
-    async customHookup(context, files, data) {
-      await hookup.executeAndroidHookup(context, files, {
-        workspaceRoot: context.workspaceRoot ?? process.cwd(),
-        packageDir: context.packageDir,
-        coreName: data.coreName as string,
-        coreNamePascal: data.coreNamePascal as string,
-        packageName: data.packageName as string,
-        packagePath: data.packagePath as string,
-        serviceName: data.serviceName as string,
-        interfaceName: data.interfaceName as string,
-        currentRing: data._currentRing
-      });
+  // Hookups - modifications to existing external files
+  hookups: (ctx: GeneratorContext) => {
+    if (!(ctx.currentRing instanceof SpiralOut)) {
+      return [];
     }
+    const android = ctx.currentRing.spiraler as RustAndroidSpiraler;
+    const core = ctx.previousRing as RustCore;
+    const metadata = core.getMetadata();
+    const naming = buildServiceNaming(metadata.packageName, android.getNameAffix());
+    const paths = buildAndroidPackageData(
+      metadata.packageName,
+      android.getGradleNamespace(metadata.packageName)
+    );
+
+    const bindPermissionName = `${paths.packageName}.BIND_${naming.pascalAffix.toUpperCase()}_SERVICE`;
+
+    return [
+      // AndroidManifest.xml - modify existing file
+      {
+        path: 'src/main/AndroidManifest.xml',
+        permissions: [
+          { name: 'android.permission.FOREGROUND_SERVICE' },
+          { name: 'android.permission.FOREGROUND_SERVICE_DATA_SYNC' }
+        ],
+        permissionDefinitions: [
+          {
+            name: bindPermissionName,
+            label: `Bind to ${naming.pascalAffix} Service`,
+            protectionLevel: 'signature|normal'
+          }
+        ],
+        services: [
+          {
+            name: `.service.${naming.serviceName}`,
+            process: `:${metadata.packageName}`,
+            exported: true,
+            permission: bindPermissionName,
+            foregroundServiceType: 'dataSync'
+          }
+        ]
+      },
+      // Gradle build file - modify existing file
+      {
+        path: 'build.gradle.kts',
+        plugins: [
+          { id: 'com.android.application' },
+          { id: 'org.mozilla.rust-android-gradle.rust-android' }
+        ],
+        android: {
+          sourceSets: {
+            main: {
+              aidl: { srcDirs: ['spire/android/aidl'] }
+            }
+          }
+        },
+        spireTask: {
+          name: `buildRust${naming.pascalAffix}`,
+          targetDirectory: `../${metadata.crateName}`,
+          profile: 'release'
+        }
+      }
+    ];
   }
 });
 
@@ -141,10 +191,8 @@ export type AndroidGenerationOptions = {
   serviceName: string;
 };
 
-export const generateAndroidService = generateFromTreadle(androidServiceTreadle);
-
 // ============================================================================
-// Helpers (moved from helpers.ts - TODO: consolidate)
+// Helpers
 // ============================================================================
 
 function buildServiceNaming(packageName: string, nameAffix: string) {
@@ -164,13 +212,4 @@ function buildServiceNaming(packageName: string, nameAffix: string) {
   };
 }
 
-function buildAndroidPackageData(packageName: string, gradleNamespace?: string) {
-  // Use gradle namespace if available, otherwise convert package name
-  const namespace = gradleNamespace || `com.${packageName.replace(/-/g, '_')}`;
-  const packagePath = namespace.replace(/\./g, '/');
 
-  return {
-    packageName: namespace,
-    packagePath
-  };
-}

@@ -111,28 +111,24 @@ import { spiral, link, reach, crud, Management, typescript, rust } from './warp/
 // What we export, the        loom               remembers
 export { rust, typescript, Management, crud, reach, link, spiral } from './warp/index.js';
 
-import { weave, type WeaverConfig } from './machinery/weaver.js';
-                                  /*         */
-// The pattern conserves          /*         */
-export const loom = {             /*         */
-  spiral,/*  growth that preserves/*         /*
-*/link,/*  connection across    ///*         */
-  reach,/*  how far  we extend  ///*         /*
-*/crud,/*  what we leave behind ///*         */
-  Management,/*  how we tend    ///*         /*
-*/rust,/*  what endures         ///*         */
-//  /**************//* is woven ///}/*         /*
-//*/weave: <Warp extends Parameters</*         */
-//  /*****************/typeof/*****//*         /*
-//*/weave/*************/>[0]>/*****//*         */
-//  /*****/(ur: string)/****/=>{/**//*         *///@ts-ignore
-// import(  ur ).then( (warp:   Warp) =>(c) => /*
-//*/weave/******/(warp, c  ))/***/;}/*         */
-
-  weave: (warp: any, config: WeaverConfig) => weave(warp, config),
-  
-};
-
+import { weave, type WeaverConfig } from './weaver/index.js';
+                                  /*         */                                    
+// The pattern conserves          /*         */                                    
+export const loom = {             /*         */                                    
+  spiral,/*  growth that preserves/*         /*                                    
+*/link,/*     connection across////*         */                                    
+  reach,/*   how far  we  extend  /*         /*                                    
+*/crud,/*    what we leave behind//*         */                                    
+  Management,/*   how we    tend///*         /*                                    
+*/rust,/*   what endures       ////*         */                                    
+  /*************/ /***is woven/////*         /*                                    
+*/weave: <Conf extends Parameters</*         */                                    
+  /*****************/typeof/*****//*         /*                                    
+*/weave/*************/>[0]>/*****//*         */                                    
+  /*******/(ur: Conf)/****/=>{/**//*         /*                                    
+*/weave/**/(ur)/******/;}/*******//*         */                                    
+};                                                                                 
+                                                                                   
 /* The weft in bloom                                                             */
 export default  loom                                                             /*
  *                                                                               /*

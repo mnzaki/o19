@@ -47,10 +47,10 @@ export {
 // Declarative API
 export {
   declareTreadle,
-  generateFromTreadle,
+  generateFromTreadleDefinition,
   type TreadleDefinition,
   type MatchPattern,
-  type OutputSpec
+  type NewFileSpec
 } from '../treadle-kit/declarative.js';
 
 // Discovery
@@ -94,7 +94,7 @@ export { generateAndroidService, type AndroidGenerationOptions } from './android
 export { generateTauriPlugin, type TauriGenerationOptions } from './tauri-generator.js';
 
 // DDD Services Treadle - TypeScript domain layer generation
-export { dddServicesTreadle } from './ddd-services.js';
+export { generateDddServices } from './ddd-services.js';
 
 // Tauri Adaptor Treadle - Tauri command binding generation
 export {

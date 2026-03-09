@@ -1,4 +1,4 @@
-package <%- packageName %>.service
+package {{ packageName }}.service
 
 import android.content.ComponentName
 import android.content.Context
@@ -7,17 +7,17 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
 import android.util.Log
-import <%- servicePackage %>.<%- interfaceName %>
+import {{ servicePackage }}.{{ interfaceName }}
 
 /**
- * <%- serviceClient %> - Generated service client for AIDL IPC
+ * {{ serviceClient }} - Generated service client for AIDL IPC
  *
  * This client binds to the FoundframeRadicleService (running in :foundframe process)
  * and provides typed methods for all AIDL operations.
  *
  * Usage:
  * ```kotlin
- * val client = <%- serviceClient %>(context)
+ * val client = {{ serviceClient }}(context)
  * client.ensureStarted()  // Start the service first
  * client.connect { success ->
  *     if (success) {
@@ -27,30 +27,30 @@ import <%- servicePackage %>.<%- interfaceName %>
  * ```
  *
  * Security: Requires caller to have permission:
- *   <%- permission %>
+ *   {{ permission }}
  */
-class <%- serviceClient %>(private val context: Context) {
+class {{ serviceClient }}(private val context: Context) {
     
     companion object {
-        private const val TAG = "<%- serviceClient %>"
-        private const val SERVICE_PACKAGE = "<%- servicePackage %>"
-        private const val SERVICE_CLASS = "<%- servicePackage %>.service.FoundframeRadicleService"
+        private const val TAG = "{{ serviceClient }}"
+        private const val SERVICE_PACKAGE = "{{ servicePackage }}"
+        private const val SERVICE_CLASS = "{{ servicePackage }}.service.FoundframeRadicleService"
         
         /**
          * Permission required to bind to the service.
          * This is a signature-level permission - only apps signed with the same
          * certificate can bind.
          */
-        const val PERMISSION = "<%- permission %>"
+        const val PERMISSION = "{{ permission }}"
     }
     
-    private var service: <%- interfaceName %>? = null
+    private var service: {{ interfaceName }}? = null
     private var isConnected = false
     
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             Log.i(TAG, "Connected to FoundframeRadicleService")
-            service = <%- interfaceName %>.Stub.asInterface(binder)
+            service = {{ interfaceName }}.Stub.asInterface(binder)
             isConnected = true
         }
         
@@ -144,26 +144,22 @@ class <%- serviceClient %>(private val context: Context) {
     fun isConnected(): Boolean = isConnected
     
     // Generated convenience methods
-<% methods.forEach(function(method) { -%>
+{% for method in methods %}
     
     /**
-     * <%- method.description || method.kt.functionName %>
+     * {{ method.description }}
      *
-<% method.params.forEach(function(param) { -%>
-     * @param <%- param.kt?.variableName || param.name %> <%- param.description || param.name %>
-<% }); -%>
-     * @return <%- method.returnDescription || method.kt.returnType %>
+{% for param in method.params %}
+     * @param {{ param.name }} {{ param.description }}
+{% endfor %}
+     * @return {{ method.returnDescription }}
      * @throws IllegalStateException if not connected
      * @throws RemoteException if IPC fails
      */
     @Throws(RemoteException::class)
-    fun <%- method.kt.functionName %>(<%-
-      method.params.map(function(p) {
-        return (p.kt?.variableName || p.name) + ': ' + (p.aidlType || p.kt?.type || p.type);
-      }).join(', ')
-    %>): <%- method.aidlReturnType || method.kt.returnType %> {
+    fun {{ method.name.camelCase }}({% for param in method.params %}{{ param.name }}: {{ param.type }}{% endfor %}): {{ method.returnType }} {
         val s = service ?: throw IllegalStateException("Not connected to service. Call connect() first.")
-        return s.<%- method.kt.functionName %>(<%- method.params.map(function(p) { return p.kt?.variableName || p.name; }).join(', ') %>)
+        return s.{{ method.name.camelCase }}({% for param in method.params %}{{ param.name }}{% endfor %})
     }
-<% }); %>
+{% endfor %}
 }

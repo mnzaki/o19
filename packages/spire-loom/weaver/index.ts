@@ -363,12 +363,12 @@ Package filter: "${config.packageFilter}"`);
 
     // Call the generator with context
     const context = {
+      ...this.loom.shed,
       plan,
       workspaceRoot: config?.workspace?.root ?? process.cwd(),
       outputDir: config?.scrimName,
       packagePath,
       packageDir,
-      shed: this.loom.shed,
       config: task.config // Pass tieup config as context.config
     };
 

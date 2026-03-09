@@ -76,7 +76,7 @@ tauri.tieup({
   treadles: [
     {
       treadle: tauriAndroidCommandsTreadle,
-      warpData: {
+      config: {
         servicePackage: 'ty.circulari.o19',
         serviceClient: 'FoundframeRadicleClient'
       }
@@ -88,7 +88,7 @@ tauri.tieup({
   treadles: [
     {
       treadle: tauriDesktopPlatformTreadle,
-      warpData: {
+      config: {
         coreName: 'foundframe',
         coreCrateName: 'o19-foundframe'
       }
@@ -109,7 +109,7 @@ export const myTauriApp = loom.spiral.tauri.app().tieup({
   treadles: [
     {
       treadle: appHookupTreadle,
-      warpData: {
+      config: {
         appName: 'MyTauriApp',
         template: 'vanilla'
       }

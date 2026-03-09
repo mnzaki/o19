@@ -264,6 +264,30 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
     ]);
   }
 
+  /**
+   * Raw parameter names as an array.
+   * Useful for generating invocation lists or destructuring.
+   *
+   * @example
+   * // method with params: url: String, title: Option<String>
+   * method.paramNames
+   * // → ['url', 'title']
+   *
+   * @example Template usage:
+   * ```mejs
+   * {# Invocation: method.paramNames.join(', ') #}
+   * invoke('cmd', {{ method.paramNames.join(', ') }})
+   * // → invoke('cmd', url, title)
+   *
+   * {# Destructuring: object style #}
+   * invoke('cmd', { {{ method.paramNames.join(', ') }} })
+   * // → invoke('cmd', { url, title })
+   * ```
+   */
+  get paramNames(): string[] {
+    return this.raw.params.map((p) => p.name);
+  }
+
   // ============================================================================
   // Variant Views - chainable function modifiers
   // ============================================================================

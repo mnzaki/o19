@@ -8,9 +8,13 @@
 
 import { TypescriptSpiraler } from '../../warp/spiral/spiralers/typescript/index.js';
 import { TsCore } from '../../warp/spiral/index.js';
-import { declareTreadle, generateFromTreadle, type OutputSpec } from '../treadle-kit/declarative.js';
-import type { ManagementMethods } from '../heddles/types.js';
-import { camelCase } from '../treadle-kit/index.js';
+import {
+  declareTreadle,
+  generateFromTreadleDefinition,
+  type NewFileSpec
+} from '../treadle-kit/declarative.js';
+import { camelCase } from '../stringing.js';
+import type { ManagementMethods } from '../heddles/index.js';
 
 // ============================================================================
 // Treadle Definition
@@ -56,7 +60,7 @@ export const typescriptDDDTreadle = declareTreadle({
 
   // Output files
   // Note: paths are relative to the package directory (packageDir is prepended by weaver)
-  outputs: [
+  newFiles: [
     (ctx) => {
       const methodsByMgmt = ctx.methods?.byManagement();
       if (!methodsByMgmt || methodsByMgmt.size === 0) {
@@ -73,11 +77,10 @@ export const typescriptDDDTreadle = declareTreadle({
         serviceName: mgmt.serviceName,
         portName: mgmt.portName
       }));
-      const outputs: OutputSpec[] = [];
+      const outputs: NewFileSpec[] = [];
       outputs.push({
         template: 'typescript/ports.ts.mejs',
         path: 'src/ports/index.ts',
-        language: 'typescript',
         context: { services }
       });
       return outputs;
@@ -89,4 +92,4 @@ export const typescriptDDDTreadle = declareTreadle({
 // Exports
 // ============================================================================
 
-export const generateTypescriptDDD = generateFromTreadle(typescriptDDDTreadle);
+export const generateTypescriptDDD = generateFromTreadleDefinition(typescriptDDDTreadle);

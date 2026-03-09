@@ -7,9 +7,9 @@
     "capture": "tsx src/capture.ts"
   },
   "dependencies": {
-    "@prisma/client": "<%= prismaVersion %>",
+    "@prisma/client": "{{ prismaVersion }}",
     "kysely": "^0.27.0",
-    "prisma": "<%= prismaVersion %>"
+    "prisma": "{{ prismaVersion }}"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

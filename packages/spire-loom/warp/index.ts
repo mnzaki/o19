@@ -19,6 +19,9 @@ export * as typescript from './typescript.js';
 // Rust generation helpers
 export * as rust from './rust.js';
 
+// AIDL generation helpers
+export * as aidl from './aidl.js';
+
 // === REFINEMENT SYSTEM (TEMPORARILY DISABLED) ===
 // Refinement providers and decorators (@loom.refine.withPrisma)
 // export * as refinement from './refine/index.js';

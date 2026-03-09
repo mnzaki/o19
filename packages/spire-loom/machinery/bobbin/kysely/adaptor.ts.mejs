@@ -2,32 +2,32 @@
 
 import { Kysely } from 'kysely';
 import type { DB } from '../db/types.js';
-import { <%= entity.pascal %>Adaptor, type <%= entity.pascal %>Port } from '../ports/<%= entity.lower %>.port.js';
+import { {{ entity.pascal }}Adaptor, type {{ entity.pascal }}Port } from '../ports/{{ entity.lower }}.port.js';
 import type {
-  <%= entity.pascal %>,
-  Create<%= entity.pascal %>,
-  Update<%= entity.pascal %>,
-  <%= entity.pascal %>Filters
-} from '../domain/entities/<%= entity.lower %>.js';
+  {{ entity.pascal }},
+  Create{{ entity.pascal }},
+  Update{{ entity.pascal }},
+  {{ entity.pascal }}Filters
+} from '../domain/entities/{{ entity.lower }}.js';
 
 // Re-export for convenience
-export type { <%= entity.pascal %>Port };
+export type { {{ entity.pascal }}Port };
 
 /**
- * Kysely implementation of <%= entity.pascal %>Port
+ * Kysely implementation of {{ entity.pascal }}Port
  *
  * Generated adaptor that uses Kysely for type-safe SQL queries.
  */
-export class Kysely<%= entity.pascal %>Adaptor extends <%= entity.pascal %>Adaptor implements <%= entity.pascal %>Port {
+export class Kysely{{ entity.pascal }}Adaptor extends {{ entity.pascal }}Adaptor implements {{ entity.pascal }}Port {
   constructor(private db: Kysely<DB>) {
     super();
   }
 
-<% if (operations.includes('create')) { -%>
-  async create(data: Create<%= entity.pascal %>): Promise<<%= entity.pascal %>> {
+{% if (operations.includes('create')) { -}}
+  async create(data: Create{{ entity.pascal }}): Promise<{{ entity.pascal }}> {
     const dbData = this.toDb(data);
     const result = await this.db
-      .insertInto('<%= entity.lower %>')
+      .insertInto('{{ entity.lower }}')
       .values(dbData)
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -35,11 +35,11 @@ export class Kysely<%= entity.pascal %>Adaptor extends <%= entity.pascal %>Adapt
     return this.toDomain(result);
   }
 
-<% } -%>
-<% if (operations.includes('read')) { -%>
-  async getById(id: number): Promise<<%= entity.pascal %> | null> {
+{% } -}}
+{% if (operations.includes('read')) { -}}
+  async getById(id: number): Promise<{{ entity.pascal }} | null> {
     const result = await this.db
-      .selectFrom('<%= entity.lower %>')
+      .selectFrom('{{ entity.lower }}')
       .where('id', '=', id)
       .selectAll()
       .executeTakeFirst();
@@ -47,9 +47,9 @@ export class Kysely<%= entity.pascal %>Adaptor extends <%= entity.pascal %>Adapt
     return result ? this.toDomain(result) : null;
   }
 
-  async getByUrl(url: string): Promise<<%= entity.pascal %> | null> {
+  async getByUrl(url: string): Promise<{{ entity.pascal }} | null> {
     const result = await this.db
-      .selectFrom('<%= entity.lower %>')
+      .selectFrom('{{ entity.lower }}')
       .where('url', '=', url)
       .selectAll()
       .executeTakeFirst();
@@ -57,11 +57,11 @@ export class Kysely<%= entity.pascal %>Adaptor extends <%= entity.pascal %>Adapt
     return result ? this.toDomain(result) : null;
   }
 
-<% } -%>
-<% if (operations.includes('list')) { -%>
-  async query(filters?: <%= entity.pascal %>Filters): Promise<<%= entity.pascal %>[]> {
+{% } -}}
+{% if (operations.includes('list')) { -}}
+  async query(filters?: {{ entity.pascal }}Filters): Promise<{{ entity.pascal }}[]> {
     let query = this.db
-      .selectFrom('<%= entity.lower %>')
+      .selectFrom('{{ entity.lower }}')
       .selectAll();
 
     // Apply pagination if provided
@@ -79,10 +79,10 @@ export class Kysely<%= entity.pascal %>Adaptor extends <%= entity.pascal %>Adapt
     return results.map(r => this.toDomain(r));
   }
 
-  async searchByKeyword(keyword: string): Promise<<%= entity.pascal %>[]> {
+  async searchByKeyword(keyword: string): Promise<{{ entity.pascal }}[]> {
     // Generic search - subclasses can override for entity-specific search
     const results = await this.db
-      .selectFrom('<%= entity.lower %>')
+      .selectFrom('{{ entity.lower }}')
       .where((eb) => eb.or([
         eb('url', 'like', `%${keyword}%`),
         eb('title', 'like', `%${keyword}%`),
@@ -94,45 +94,45 @@ export class Kysely<%= entity.pascal %>Adaptor extends <%= entity.pascal %>Adapt
     return results.map(r => this.toDomain(r));
   }
 
-<% } -%>
-<% if (operations.includes('update')) { -%>
-  async update(id: number, data: Update<%= entity.pascal %>): Promise<void> {
+{% } -}}
+{% if (operations.includes('update')) { -}}
+  async update(id: number, data: Update{{ entity.pascal }}): Promise<void> {
     const dbData = this.toDb(data);
 
     await this.db
-      .updateTable('<%= entity.lower %>')
+      .updateTable('{{ entity.lower }}')
       .set(dbData)
       .where('id', '=', id)
       .execute();
   }
 
-<% } -%>
-<% if (operations.includes('delete')) { -%>
+{% } -}}
+{% if (operations.includes('delete')) { -}}
   async delete(id: number): Promise<void> {
     await this.db
-      .deleteFrom('<%= entity.lower %>')
+      .deleteFrom('{{ entity.lower }}')
       .where('id', '=', id)
       .execute();
   }
 
-<% } -%>
+{% } -}}
   /**
    * Map database row to domain entity
    */
-  private toDomain(row: any): <%= entity.pascal %> {
+  private toDomain(row: any): {{ entity.pascal }} {
     // TODO: Customize mapping based on entity structure
     return {
       id: row.id,
       ...row,
       createdAt: row.created_at,
       updatedAt: row.updated_at
-    } as <%= entity.pascal %>;
+    } as {{ entity.pascal }};
   }
 
   /**
    * Map domain entity to database row
    */
-  private toDb(data: Partial<<%= entity.pascal %>>): Record<string, any> {
+  private toDb(data: Partial<{{ entity.pascal }}>): Record<string, any> {
     const dbData: Record<string, any> = {};
 
     // Map camelCase to snake_case
