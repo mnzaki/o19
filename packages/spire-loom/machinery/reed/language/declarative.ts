@@ -214,12 +214,13 @@ export interface LanguageDeclaration extends LanguageIdentity {
     paramsSeparator: string;
     paramsClose: string;
     propertyNameSeparator: string;
+    functionReturnTypeSeparator: string;
     /** Keyword mappings (null means unsupported) */
     keywords: Keywords;
     /** Type constructor templates */
     types: TypeConstructors;
     /** Function variants (async, unsafe, etc.) */
-    variants: Record<string, FunctionVariantDeclaration>;
+    functionVariants: Record<string, FunctionVariantDeclaration>;
     /** Composition templates for code generation */
     composition: CompositionTemplates;
   };
@@ -235,31 +236,9 @@ export interface LanguageDeclaration extends LanguageIdentity {
 // Template Rendering (Runtime)
 // ============================================================================
 
-import ejs from 'ejs';
-import { preprocessTemplate } from '../../bobbin/mejs.js';
+import { mejs } from '../../bobbin/index.js';
 import type { TransformEnhancer } from '../transform-pipeline.js';
 import type { LanguageMethod } from './method.js';
-/**
- * Renders a template with data at runtime.
- *
- * This function:
- * 1. Preprocesses the template (custom syntax → EJS)
- * 2. Renders with EJS and data
- * 3. Returns the result
- *
- * Used by executive functions to render declarative templates.
- */
-function renderTemplate(template: string, data: Record<string, any>): string {
-  // Import preprocessor and EJS at runtime
-
-  // Preprocess: custom syntax → EJS
-  const ejsTemplate = preprocessTemplate(template);
-
-  // Render with EJS
-  return ejs.render(ejsTemplate, data, {
-    escape: (str: string) => str // No escaping for code generation
-  });
-}
 
 /**
  * Formats a name according to naming convention.
@@ -475,22 +454,27 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
   const rendering: LanguageRenderingConfig = {
     // Parameters use parameter naming convention (falls back to variable, then snake)
     formatParam: (name: string, type: LanguageType) => {
-      return renderTemplate(composition.parameter.source, { ...languageContext, name, type });
+      const formattedName = new Name(name, naming.parameter).toString();
+      return mejs.renderTemplate(composition.parameter.source, {
+        ...languageContext,
+        name: formattedName,
+        type
+      });
     },
 
     renderParams: (params: string[]) => {
-      return renderTemplate(composition.functionParams.source, { ...languageContext, params });
+      return mejs.renderTemplate(composition.functionParams.source, { ...languageContext, params });
     },
 
     functionSignature: (method: LanguageMethod) => {
-      return renderTemplate(
+      return mejs.renderTemplate(
         composition.functionSignature.source,
         method.asContextWith(languageContext)
       );
     },
 
     renderDefinition: (method: LanguageMethod) => {
-      return renderTemplate(
+      return mejs.renderTemplate(
         composition.functionDefinition.source,
         method.asContextWith(languageContext)
       );
@@ -512,7 +496,7 @@ export function compileToExecutive<T extends LanguageDeclaration = LanguageDecla
     //    params: method.params
     //  };
 
-    //  return renderTemplate(composition.objectWrappedParams.source, context);
+    //  return mejs.renderTemplate(composition.objectWrappedParams.source, context);
     //}
   };
 
@@ -633,7 +617,7 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
       undefined: 'undefined'
     },
     types: commonLanguageTypes,
-    variants: {
+    functionVariants: {
       async: { prependKeyword: 'async' },
       public: { prependKeyword: 'public' },
       private: { prependKeyword: 'private' },
@@ -648,10 +632,11 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
     paramsSeparator: ', ',
     paramsClose: ')',
     propertyNameSeparator: ': ',
+    functionReturnTypeSeparator: ': ',
     composition: {
       functionSignature: {
         source:
-          '{{ prependedKeywords }} function {{name}}{{generics}}{{params}}{% if returnType %}: {{returnType}}{% endif %}'
+          '{{ prependedKeywords }} {{keywords.function}} {{name}}{{generics}}{{params}}{% if returnType %}{{functionReturnTypeSeparator}}{{returnType}}{% endif %}'
       },
       parameter: {
         source: '{{name}}: {{type}}'

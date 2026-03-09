@@ -12,12 +12,10 @@
  */
 
 import { declare, getScopeRegistry } from '../../self-declarer.js';
-import { type TransformEnhancer } from '../transform-pipeline.js';
-
-// Import LanguageType class (not just type) for runtime use
 import { LanguageType, type LanguageDefinition, type TypeFactory } from './types.js';
 import type { MethodMetadata } from '../../../warp/metadata.js';
 import type { LanguageMethod } from './method.js';
+import type { LanguageEntity } from './entity.js';
 
 // ============================================================================
 // Language Rendering Configuration
@@ -26,25 +24,25 @@ import type { LanguageMethod } from './method.js';
 /**
  * Configuration for rendering language-specific code constructs.
  */
-export interface LanguageRenderingConfig {
+export interface LanguageRenderingConfig<T extends LanguageType = LanguageType> {
   // TODO remove
   /** Format a parameter name (e.g., snake_case, camelCase) */
-  formatParam: (name: string, type: LanguageType) => string;
+  formatParam: (name: string, type: T) => string;
 
   /** render a list of formatted params */
   renderParams: (params: string[]) => string;
 
   /** Generate function signature */
-  functionSignature: (method: LanguageMethod) => string;
+  functionSignature: (method: LanguageMethod<T>) => string;
 
   /** Render full function definition with variant options (optional) */
-  renderDefinition: (method: LanguageMethod) => string;
+  renderDefinition: (method: LanguageMethod<T>) => string;
 
   /**
    * Render parameters wrapped in an object (optional).
    * Used by withObjectParams() for DDD service/port patterns.
    */
-  renderObjectWrappedParams?: (method: LanguageMethod, objectParamName: string) => string;
+  renderObjectWrappedParams?: (method: LanguageMethod<T>, objectParamName: string) => string;
 }
 
 // ============================================================================
@@ -56,11 +54,11 @@ export interface LanguageRenderingConfig {
  */
 export interface LanguageCodeGenConfig<T extends LanguageType = LanguageType> {
   /** Rendering configuration for code generation */
-  rendering: LanguageRenderingConfig;
+  rendering: LanguageRenderingConfig<T>;
 
   /** Optional custom transform enhancers */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  enhancers?: TransformEnhancer<any, any>[];
+  //enhancers?: TransformEnhancer<any, any>[];
 
   /**
    * Optional custom transform function.
@@ -70,11 +68,20 @@ export interface LanguageCodeGenConfig<T extends LanguageType = LanguageType> {
   transform?: (methods: MethodMetadata[]) => LanguageMethod<T>[];
 }
 
+export interface LanguageEnhancements {
+  /** Enhance LanguageMethod instances when language is set */
+  methods?: (method: LanguageMethod) => void;
+  /** Enhance LanguageEntity instances when language is set */
+  entities?: (entity: LanguageEntity) => void;
+}
+
 export interface LanguageDefinitionImperative<
   T extends LanguageType = LanguageType
 > extends LanguageDefinition<T> {
   /** Code generation configuration */
   codeGen: LanguageCodeGenConfig<T>;
+  /** Optional enhancements applied when language is bound to LanguageThings */
+  enhancements?: LanguageEnhancements;
 }
 
 // ============================================================================

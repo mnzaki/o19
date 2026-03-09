@@ -11,105 +11,26 @@
  * @module machinery/reed/language
  */
 
-// ============================================================================
-// Types (re-exported from implementation)
-// ============================================================================
-
-export type {
-  // Layer 1: Declarative types
-  CoreKeywordType,
-  KeywordType,
-  KeywordDeclaration,
-  Keywords,
-  CoreTypeConstructor,
-  TypeConstructorDeclaration,
-  TypeConstructors,
-  FunctionVariantDeclaration,
-  BlockSyntaxDeclaration,
-  CompositionTemplate,
-  CompositionTemplates,
-  LanguageDeclaration
-} from './declarative.js';
-
-export type {
-  // Layer 2: Executive types
-  LanguageIdentity,
-  LanguageDefinition,
-  LanguageRenderingConfig
-} from './imperative.js';
-
-/**
- * Apply naming convention to a name.
- */
-export function applyNamingConvention(
-  name: string,
-  convention: NamingConventions[keyof NamingConventions] | null | undefined
-): string {
-  if (!convention) return name;
-
-  switch (convention) {
-    case 'snake_case':
-      return toSnakeCase(name);
-    case 'camelCase':
-      return camelCase(name);
-    case 'PascalCase':
-      return pascalCase(name);
-    case 'SCREAMING_SNAKE':
-      return toSnakeCase(name).toUpperCase();
-    case 'kebab-case':
-      return toSnakeCase(name).replace(/_/g, '-');
-    default:
-      return name;
-  }
-}
-
-// ============================================================================
-// Runtime Values (re-exported from implementation)
-// ============================================================================
-
-export {
-  // Layer 1: Imperative
-  languages,
-  LanguageRegistry,
-  getLanguageExtensionKey,
-  declareLanguageImperatively
-} from './imperative.js';
-
-export {
-  // Layer 2: Declarative
-  CORE_KEYWORD_TYPES,
-  CORE_TYPE_CONSTRUCTORS,
-  commonLanguageDeclaration,
-  cFamilyLanguageDeclaration,
-  compileToExecutive
-} from './declarative.js';
-
-export * from './types.js';
+import type { LanguageDeclaration } from './declarative.js';
+import { compileToExecutive } from './declarative.js';
+import { declareLanguageImperatively, type LanguageDefinitionImperative } from './imperative.js';
+import deepmerge from 'deepmerge';
+import type { LanguageIdentity, LanguageType } from './types.js';
 
 // ============================================================================
 // Public API: Unified declareLanguage
 // ============================================================================
 
-import type { LanguageDeclaration } from './declarative.js';
-import { compileToExecutive } from './declarative.js';
-import type { LanguageDefinition, LanguageIdentity } from './imperative.js';
-import { declareLanguageImperatively } from './imperative.js';
-import deepmerge from 'deepmerge';
-import type { LanguageParam, LanguageType, NamingConventions } from './types.js';
-import { camelCase, pascalCase, toSnakeCase } from '../../stringing.js';
-
 export type RecursivePartial<T> = {
   [P in keyof T]?: T[P] extends object ? RecursivePartial<T[P]> : T[P];
 };
+
 /**
  * Input for declaring a language. Allows partial declarations
  * when extending an existing language.
  */
-export type LanguageDeclarationInput<
-  P extends LanguageParam,
-  T extends LanguageType
-> = LanguageIdentity<P, T> &
-  Partial<Omit<LanguageDefinition<P, T>, 'conventions'>> &
+export type LanguageDeclarationInput<T extends LanguageType> = LanguageIdentity &
+  RecursivePartial<LanguageDefinitionImperative<T>> &
   RecursivePartial<LanguageDeclaration>;
 /**
  * Declare a language.
@@ -136,17 +57,17 @@ export type LanguageDeclarationInput<
  *   identity: { name: 'myLang', extensions: ['.my'] },
  *   conventions: { ... },
  *   syntax: { ... },
- *   enhancers: [myCustomEnhancer]  // Passed through to executive layer
+ *   enhancements [myCustomEnhancer]  // Passed through to executive layer
  * });
  * ```
  */
-export function declareLanguage<P extends LanguageParam, T extends LanguageType>(
-  input: LanguageDeclarationInput<P, T>
-): LanguageDefinition {
-  let executiveConfig: LanguageDefinition;
+export function declareLanguage<T extends LanguageType>(
+  input: LanguageDeclarationInput<T>
+): LanguageDefinitionImperative {
+  let executiveConfig: LanguageDefinitionImperative;
 
   // Check if this is a declarative (Layer 1) or executive (Layer 2) input
-  if ('identity' in input && 'syntax' in input) {
+  if ('syntax' in input) {
     // Layer 1: Compile declarative to executive
     const compiledConfig = compileToExecutive(input as LanguageDeclaration);
 
@@ -157,8 +78,52 @@ export function declareLanguage<P extends LanguageParam, T extends LanguageType>
     executiveConfig.name = input.name;
   } else {
     // Layer 2: Use executive config directly
-    executiveConfig = input as unknown as LanguageDefinition;
+    executiveConfig = input as unknown as LanguageDefinitionImperative;
   }
 
   return declareLanguageImperatively(executiveConfig);
 }
+
+export type {
+  // Layer 1: Declarative types
+  CoreKeywordType,
+  KeywordType,
+  Keywords,
+  CoreTypeConstructor,
+  TypeConstructorDeclaration,
+  TypeConstructors,
+  FunctionVariantDeclaration,
+  BlockSyntaxDeclaration,
+  CompositionTemplate,
+  CompositionTemplates,
+  LanguageDeclaration
+} from './declarative.js';
+
+export type {
+  // Layer 2: Executive types
+  LanguageDefinitionImperative,
+  LanguageRenderingConfig
+} from './imperative.js';
+
+// ============================================================================
+// Runtime Values (re-exported from implementation)
+// ============================================================================
+
+export {
+  // Layer 1: Imperative
+  languages,
+  LanguageRegistry,
+  getLanguageExtensionKey,
+  declareLanguageImperatively
+} from './imperative.js';
+
+export {
+  // Layer 2: Declarative
+  CORE_KEYWORD_TYPES,
+  CORE_TYPE_CONSTRUCTORS,
+  commonLanguageDeclaration,
+  cFamilyLanguageDeclaration,
+  compileToExecutive
+} from './declarative.js';
+
+export * from './types.js';

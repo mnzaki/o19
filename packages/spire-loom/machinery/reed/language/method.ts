@@ -16,23 +16,25 @@ import { LanguageThing, LanguageValue, type LanguageParam, type LanguageType } f
  * idiomatic naming via conventions.
  */
 export class LanguageMethod<T extends LanguageType = LanguageType> extends LanguageThing<T> {
-  private _render!: LanguageRenderingConfig;
+  private _render!: LanguageRenderingConfig<T>;
   public tags: string[];
   readonly mgmtName: string;
+  appliedVariants: Record<string, FunctionVariantDeclaration<T>>;
 
   /** Reference to underlying LanguageMethod */
 
   constructor(
     readonly raw: MethodMetadata,
-    readonly appliedVariants: Record<string, FunctionVariantDeclaration<T>> = {}
+    appliedVariants: Record<string, FunctionVariantDeclaration<T>> = {}
   ) {
     super(raw.name);
     this.tags = raw.tags ?? [];
     this.mgmtName = raw.managementName;
+    this.appliedVariants = appliedVariants;
   }
 
   get name() {
-    let name: Name | string = super.name;
+    let name: Name | string = this._name;
     for (const variant of Object.values(this.appliedVariants)) {
       if (variant.overrideName) {
         name = variant.overrideName;
@@ -41,9 +43,14 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
     return name instanceof Name ? name : new Name(name);
   }
 
-  set lang(lang: LanguageDefinitionImperative) {
-    super.lang = lang;
+  set lang(lang: LanguageDefinitionImperative<T>) {
+    (this as any)._lang = lang;
     this._render = lang.codeGen.rendering;
+
+    // Apply language-specific enhancements
+    if (lang.enhancements?.methods) {
+      lang.enhancements.methods(this);
+    }
   }
 
   get prependedKeywords() {
@@ -102,8 +109,15 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
     return this.raw.params.map((p) => this.lang.types.fromTsType(p.tsType, false));
   }
 
-  get returnType() {
-    return this.lang.types.fromTsType(this.raw.returnType, !!this.raw.isCollection);
+  get returnType(): T {
+    let type = this.lang.types.fromTsType(this.raw.returnType, !!this.raw.isCollection) as T;
+    // Apply variant return type wrappers
+    for (const variant of Object.values(this.appliedVariants)) {
+      if (variant.wrapReturnType) {
+        type = variant.wrapReturnType(type);
+      }
+    }
+    return type;
   }
 
   get params() {
@@ -171,13 +185,24 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
    * @param nameOverride - Optional name to use instead of method.name (for crudDefinition)
    * @param objectParamName - Optional name to wrap params in an object
    */
+  /**
+   * Add a variant to this method instance (mutating).
+   * Used by language enhancements to add variants after construction.
+   */
+  addVariant(variantName: string, variant: FunctionVariantDeclaration<T>): void {
+    this.appliedVariants[variantName] = variant;
+  }
+
   createVariant(variantName: string, variant: FunctionVariantDeclaration<T>): LanguageMethod<T> {
     const variants = {
       ...this.appliedVariants,
       [variantName]: variant
     };
     const newMethod = new LanguageMethod(this.raw, variants);
-
+    // Propagate language if set
+    if (this._lang) {
+      newMethod.lang = this._lang;
+    }
     return newMethod;
   }
 
@@ -202,5 +227,21 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
 
   get crud(): LanguageMethod<T> {
     return this.crudName ? this.withNewName(this.crudName) : this;
+  }
+
+  /**
+   * Override to clear appliedVariants when cloning to a different language.
+   * Variants are language-specific and should be re-applied by the new language's enhancements.
+   */
+  copyOwnProperties(clone: LanguageMethod<T>): void {
+    // Copy all properties from this instance
+    for (const key of Object.getOwnPropertyNames(this)) {
+      const descriptor = Object.getOwnPropertyDescriptor(this, key);
+      if (descriptor) {
+        Object.defineProperty(clone, key, descriptor);
+      }
+    }
+    // Clear variants for the clone - new language will apply its own
+    clone.appliedVariants = {};
   }
 }

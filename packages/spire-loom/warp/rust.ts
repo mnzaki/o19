@@ -341,27 +341,6 @@ function createRustStructClass<T extends new (...args: any[]) => any>(OriginalCl
 type RustStructWithFields<T extends new (...args: any[]) => any> = {
   new (): RustStruct & { [P in keyof T]: RustExternalLayer };
 };
-// ============================================================================
-// Rust Data Types (for method signatures)
-// ============================================================================
-
-/**
- * A Rust method signature (for use in method metadata).
- * Pure metadata - no implementation.
- */
-export class RustMethodSignature {
-  constructor(
-    public params: RustDataType[],
-    public returnType: RustDataType | RustExternalLayer
-  ) {}
-}
-
-/**
- * A Rust data type (for params/returns).
- */
-export class RustDataType {
-  constructor(public rustType: string) {}
-}
 
 // ============================================================================
 // Helper exports for heddles
@@ -371,19 +350,19 @@ export class RustDataType {
  * Get rust struct metadata from a class if it exists.
  * Used by heddles for further processing.
  */
-export function getRustStructMetadata(
-  target: unknown
-): { name: string; fields: Map<string, RustFieldMetadata> } | undefined {
-  if (!RustExternalLayer.isRustStruct(target)) {
-    return undefined;
-  }
-
-  const ctor = target as any;
-  return {
-    name: ctor.name,
-    fields: ctor[RUST_STRUCT_FIELDS] || new Map()
-  };
-}
+//export function getRustStructMetadata(
+//  target: unknown
+//): { name: string; fields: Map<string, RustFieldMetadata> } | undefined {
+//  if (!RustExternalLayer.isRustStruct(target)) {
+//    return undefined;
+//  }
+//
+//  const ctor = target as any;
+//  return {
+//    name: ctor.name,
+//    fields: ctor[RUST_STRUCT_FIELDS] || new Map()
+//  };
+//}
 
 // ============================================================================
 // Language Definition 🌾
@@ -400,40 +379,12 @@ export function getRustStructMetadata(
 import {
   declareLanguage,
   LanguageType,
-  type TypeFactory,
-  type LanguageParam
+  type TypeFactory
 } from '../machinery/reed/language/index.js';
-import { toSnakeCase } from '../machinery/stringing.js';
 import { RustCore, rustCore } from './spiral/rust.js';
 import { RustAndroidSpiraler } from './spiral/spiralers/rust/index.js';
 import { DesktopSpiraler } from './spiral/spiralers/desktop.js';
-import type { TransformEnhancer } from '../machinery/reed/index.js';
-import type { MethodMetadata } from './metadata.js';
 import type { LanguageMethod } from '../machinery/reed/language/method.js';
-
-// ============================================================================
-// Rust-Specific Types
-// ============================================================================
-
-/**
- * Rust parameter with language-specific metadata.
- */
-interface RustParam extends LanguageParam {
-  /** Rust type name (e.g., 'i64', 'String', 'Vec<T>') */
-  rsType: string;
-  /** snake_case parameter name */
-  rsName: string;
-}
-
-/**
- * Rust method with language-specific metadata.
- */
-interface RustMethod extends LanguageMethod {
-  /** Inner return type (without Result wrapper) for use in Result<innerReturnType, Error> */
-  innerReturnType: string;
-  /** Service access preamble for error handling */
-  serviceAccessPreamble: string[];
-}
 
 // ============================================================================
 // Rust Type Factory
@@ -446,14 +397,6 @@ interface RustMethod extends LanguageMethod {
  * and provides stub return values for each type.
  */
 class RustTypeFactory implements Partial<TypeFactory<LanguageType>> {
-  // Primitive types
-  boolean = new LanguageType('bool', 'false', true);
-  string = new LanguageType('String', 'String::new()', true);
-  signed = new LanguageType('i64', '0', true);
-  unsigned = new LanguageType('u64', '0', true);
-  number = new LanguageType('i64', '0', true);
-  void = new LanguageType('()', '()', true);
-
   // Entity type factory
   class(name: string, fields: Record<string, LanguageType>): LanguageType {
     return new RustStruct(name, fields);
@@ -461,11 +404,11 @@ class RustTypeFactory implements Partial<TypeFactory<LanguageType>> {
 
   // Generic type factories
   array(itemType: LanguageType): LanguageType {
-    return new LanguageType(`Vec<${itemType.name}>`, 'Vec::new()');
+    return new LanguageType(`Vec<${itemType}>`, 'Vec::new()');
   }
 
   optional(innerType: LanguageType): LanguageType {
-    return new LanguageType(`Option<${innerType.name}>`, 'None');
+    return new LanguageType(`Option<${innerType}>`, 'None');
   }
 
   promise(innerType: LanguageType): LanguageType {
@@ -475,148 +418,8 @@ class RustTypeFactory implements Partial<TypeFactory<LanguageType>> {
 
   result(okType: LanguageType, errType: string | LanguageType = 'crate::Error'): LanguageType {
     const errName = typeof errType === 'string' ? errType : errType.name;
-    return new LanguageType(`Result<${okType.name}, ${errName}>`, 'Ok(Default::default())');
+    return new LanguageType(`Result<${okType}, ${errName}>`, 'Ok(Default::default())');
   }
-
-  // Map TypeScript type to Rust type
-  fromTsType(tsType: string, isCollection: boolean): LanguageType {
-    // Handle TypeScript array syntax: T[] -> Vec<T>
-    let normalizedType = tsType.trim();
-    let isArraySyntax = false;
-
-    if (normalizedType.endsWith('[]')) {
-      normalizedType = normalizedType.slice(0, -2).trim();
-      isArraySyntax = true;
-    }
-
-    // Final collection flag is true if either passed in or detected from syntax
-    const finalIsCollection = isCollection || isArraySyntax;
-
-    const baseType = (() => {
-      switch (normalizedType) {
-        case 'string':
-          return this.string;
-        case 'number':
-          return this.number;
-        case 'boolean':
-          return this.boolean;
-        case 'void':
-          return this.void;
-        case 'Date':
-          // Date is typically represented as i64 (timestamp) or String in Rust
-          return new LanguageType('String', 'String::new()', true);
-        default:
-          // Complex type / entity TODO FIXME REMOVE THIS it's conflation of
-          // layers ya kimi
-          //return this.class(normalizedType);
-          throw new Error('unknown type!');
-      }
-    })();
-
-    return finalIsCollection ? this.array(baseType) : baseType;
-  }
-}
-
-// ============================================================================
-// Rust-Specific Transform Enhancer
-// ============================================================================
-
-/**
- * Custom enhancer adding Rust-specific metadata.
- *
- * - Adds implName (snake_case)
- * - Generates service access preamble for Mutex/Option wrappers
- */
-const rustEnhancer: TransformEnhancer<MethodMetadata, MethodMetadata> = (methods) => {
-  return methods.map((method) => {
-    // Get link metadata for service access
-    const link = (method as any).link;
-    const preamble = buildServiceAccessPreamble(link);
-    (method as any).serviceAccessPreamble = preamble;
-
-    return method;
-  });
-};
-
-/**
- * Result-wrapping enhancer.
- *
- * Wraps return types in Result<T, crate::Error> for methods tagged with 'rust:result'.
- * This is applied after base type mapping so the returnTypeDef is already set.
- */
-const resultWrappingEnhancer: TransformEnhancer<RustMethod, RustMethod> = (methods) => {
-  return methods.map((method) => {
-    // Check if method has the rust:result tag
-    if (method.hasTag?.('rust:result')) {
-      const innerType = method.returnTypeDef.name;
-      // Don't double-wrap if already a Result
-      if (!innerType.startsWith('Result<')) {
-        return {
-          ...method,
-          returnTypeDef: {
-            ...method.returnTypeDef,
-            name: `Result<${innerType}, crate::Error>`
-          }
-        } as RustMethod;
-      }
-    }
-    return method;
-  });
-};
-
-/**
- * Build Rust service access preamble based on link metadata.
- *
- * Handles wrapper patterns for struct fields:
- * - Mutex<Option<T>>: lock mutex, then access Option
- * - Option<Mutex<T>>: access Option, then lock Mutex
- * - Option<T>: optional services
- * - Mutex<T>: mutex-wrapped services
- */
-function buildServiceAccessPreamble(
-  link: { fieldName: string; wrappers?: string[] } | undefined
-): string[] {
-  if (!link) {
-    return ['let __service = foundframe;'];
-  }
-
-  const fieldName = link.fieldName;
-  const wrappers = link.wrappers || [];
-
-  // Determine wrapper order: decorators apply bottom-to-top
-  const mutexIndex = wrappers.indexOf('Mutex');
-  const optionIndex = wrappers.indexOf('Option');
-  const mutexIsOuter = mutexIndex > optionIndex;
-
-  if (wrappers.includes('Mutex') && wrappers.includes('Option')) {
-    if (mutexIsOuter) {
-      // Mutex<Option<T>> - lock first, then access Option
-      return [
-        `let __field = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`,
-        `let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`
-      ];
-    } else {
-      // Option<Mutex<T>> - access Option, then lock
-      return [
-        `let __field = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`,
-        `let mut __service = __field.lock().map_err(|_| "${fieldName} mutex poisoned")?;`
-      ];
-    }
-  }
-
-  if (wrappers.includes('Option')) {
-    return [
-      `let __service = service.${fieldName}.as_ref().ok_or("${fieldName} not initialized")?;`
-    ];
-  }
-
-  if (wrappers.includes('Mutex')) {
-    return [
-      `let mut __service = service.${fieldName}.lock().map_err(|_| "${fieldName} mutex poisoned")?;`
-    ];
-  }
-
-  return [`let __service = service.${fieldName};`];
 }
 
 // ============================================================================
@@ -632,9 +435,43 @@ function buildServiceAccessPreamble(
  * - Transform is auto-generated from these primitives
  * - Custom enhancer adds Rust-specific metadata
  */
-export const rustLanguage = declareLanguage<RustParam, LanguageType>({
+export const rustLanguage = declareLanguage<LanguageType>({
   name: 'rust',
   extensions: ['.rs', '.jni.rs'],
+  types: new RustTypeFactory(),
+  syntax: {
+    keywords: {
+      function: 'fn',
+      public: 'pub'
+    },
+    functionReturnTypeSeparator: ' -> ',
+    types: {
+      boolean: {
+        template: 'bool',
+        stub: 'false'
+      },
+      string: {
+        template: 'String',
+        stub: 'String::new()'
+      },
+      signed: {
+        template: 'i64',
+        stub: '0'
+      },
+      unsigned: {
+        template: 'u64',
+        stub: '0'
+      },
+      number: {
+        template: 'i64',
+        stub: '0'
+      },
+      void: {
+        template: '()',
+        stub: '()'
+      }
+    }
+  },
   conventions: {
     naming: {
       function: 'snake_case',
@@ -649,30 +486,25 @@ export const rustLanguage = declareLanguage<RustParam, LanguageType>({
     }
   },
 
-  codeGen: {
-    // Type factory defines how TS types map to Rust
-    types: new RustTypeFactory(),
-
-    // Rendering config defines code formatting
-    rendering: {
-      formatParamName: toSnakeCase,
-      functionSignature: (method) => {
-        const params = method.params.map((p) => `${p.formattedName}: ${p.langType}`).join(', ');
-        return `fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
-      },
-      asyncFunctionSignature: (method) => {
-        const params = method.params.map((p) => `${p.formattedName}: ${p.langType}`).join(', ');
-        return `async fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
-      },
-      renderDefinition: (method, opts) => {
-        const pub = opts.public ? 'pub ' : '';
-        const params = method.params.map((p) => `${p.formattedName}: ${p.langType}`).join(', ');
-        return `${pub}fn ${method.snakeName}(${params}) -> ${method.returnTypeDef.name}`;
+  // Language-specific enhancements applied when language is bound to methods
+  enhancements: {
+    methods: (method: LanguageMethod) => {
+      // Result wrapping for methods tagged with 'rust:result'
+      if (method.hasTag('rust:result')) {
+        method.addVariant('result', {
+          wrapReturnType: (returnType) => {
+            // Don't double-wrap if already a Result
+            if (!returnType.name.toString().startsWith('Result<')) {
+              return method.lang.types.result!(
+                returnType,
+                new LanguageType('crate::Error', 'crate::Error')
+              );
+            }
+            return returnType;
+          }
+        });
       }
-    },
-
-    // Custom enhancers: result wrapping first, then metadata
-    enhancers: [resultWrappingEnhancer, rustEnhancer]
+    }
   },
 
   warp: {

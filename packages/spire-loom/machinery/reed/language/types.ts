@@ -33,8 +33,8 @@ export type CoreConvention =
   | 'generic';
 
 export type NamingConventions = {
-  [K in CoreConvention]: NamingCase | null;
-} & Record<string, NamingCase | null>;
+  [K in CoreConvention]?: NamingCase;
+} & Record<string, NamingCase>;
 
 // ============================================================================
 // Language Identity
@@ -147,18 +147,26 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
     // Create new object with same prototype
     const clone = Object.create(Object.getPrototypeOf(this)) as typeof this;
 
-    // Copy all own properties
+    // Copy all own properties (subclasses may override copyOwnProperties to filter)
+    this.copyOwnProperties(clone);
+
+    // Set the new language (triggers enhancements)
+    clone.lang = lang;
+
+    return clone;
+  }
+
+  /**
+   * Copy own properties to a clone. Subclasses can override to filter.
+   * Must be public so LanguageMethod can call super.copyOwnProperties()
+   */
+  copyOwnProperties(clone: typeof this): void {
     for (const key of Object.getOwnPropertyNames(this)) {
       const descriptor = Object.getOwnPropertyDescriptor(this, key);
       if (descriptor) {
         Object.defineProperty(clone, key, descriptor);
       }
     }
-
-    // Set the new language
-    clone.lang = lang;
-
-    return clone;
   }
 
   asContextWith(extra: Record<string, unknown>) {

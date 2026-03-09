@@ -37,14 +37,7 @@ import { toSnakeCase, camelCase, pascalCase } from '../stringing.js';
 // ============================================================================
 
 // EJS will be dynamically imported
-let ejsLib: typeof import('ejs') | null = null;
-
-async function getEjs(): Promise<typeof import('ejs')> {
-  if (!ejsLib) {
-    ejsLib = await import('ejs');
-  }
-  return ejsLib;
-}
+import ejs from 'ejs';
 
 // ============================================================================
 // Template Loading (Internal)
@@ -304,9 +297,7 @@ interface GenerateOptions extends RenderFileOptions {
  *
  * Automatically preprocesses mejs syntax before rendering.
  */
-async function render(options: RenderOptions): Promise<string> {
-  const ejs = await getEjs();
-
+function render(options: RenderOptions): string {
   // Preprocess: mejs syntax → EJS
   const ejsTemplate = preprocessTemplate(options.template);
 
@@ -393,10 +384,7 @@ export function inline(
  * Render a mejs template string.
  * Main entry point for template rendering.
  */
-export async function renderTemplate(
-  template: string,
-  data: Record<string, unknown>
-): Promise<string> {
+export function renderTemplate(template: string, data: Record<string, unknown>): string {
   return render({ template, data });
 }
 
