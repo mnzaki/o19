@@ -20,7 +20,7 @@ import * as fs from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { generateFromTreadleDefinition, type TreadleDefinition } from './declarative.js';
 import { GeneratorMatrix } from '../../weaver/matrix.js';
-import { getScopeRegistry } from '../self-declarer.js';
+import type { TreadleTrodder } from './types.js';
 
 // ============================================================================
 // Types
@@ -117,43 +117,21 @@ async function loadTreadlesFromFile(
   // - export const myTreadle = declareTreadle(...) -> returns TreadleTrodder (function)
   // - export const myTreadle = { methods: ..., newFiles: ... } -> TreadleDefinition
 
-  // Check default export first
-  if (module.default) {
-    if (isTreadleTrodder(module.default)) {
-      const name = (module.default as any).treadleName || baseName;
-      discovered.push({
-        name,
-        definition: module.default,
-        sourcePath: filePath,
-        contributes: module.defaultContributions ?? module.contributes
-      });
-    } else if (isTreadleDefinition(module.default)) {
-      module.default.name = baseName;
-      discovered.push({
-        name: baseName,
-        definition: module.default,
-        sourcePath: filePath,
-        contributes: module.defaultContributions ?? module.contributes
-      });
-    }
-  }
-  
   // Find ALL named exports that look like treadles
   for (const [key, value] of Object.entries(module)) {
-    // Skip if already added as default
-    if (value === module.default) continue;
-    
     if (isTreadleTrodder(value)) {
       const trodder = value as TreadleTrodder;
       // Use export key name if treadleName is anonymous or not set
       const trodderName = (trodder as any).treadleName;
-      const name = (trodderName && trodderName !== 'anonymous') ? trodderName : key;
-      
+      const name = trodderName && trodderName !== 'anonymous' ? trodderName : key;
+
       if (process.env.DEBUG_MATRIX) {
         const hasMatches = !!(trodder as any).matches && (trodder as any).matches.length > 0;
-        console.log(`[DISCOVERY DEBUG] Found trodder export: ${key}, name: ${name}, hasMatches: ${hasMatches}`);
+        console.log(
+          `[DISCOVERY DEBUG] Found trodder export: ${key}, name: ${name}, hasMatches: ${hasMatches}`
+        );
       }
-      
+
       const contributionKey = `${key}Contributions`;
       discovered.push({
         name,
@@ -165,10 +143,10 @@ async function loadTreadlesFromFile(
       if (process.env.DEBUG_MATRIX) {
         console.log(`[DISCOVERY DEBUG] Found definition export: ${key}`);
       }
-      
+
       const definition = value as TreadleDefinition;
-      definition.name = key;
-      
+      definition.name ??= key;
+
       const contributionKey = `${key}Contributions`;
       discovered.push({
         name: key,
@@ -196,7 +174,7 @@ function isTreadleDefinition(value: unknown): value is TreadleDefinition {
 
   // Must have methods
   const hasMethods = 'methods' in v && typeof v.methods === 'object' && v.methods !== null;
-  
+
   // Must have outputs (old name) OR newFiles (new name)
   const hasOutputs = 'outputs' in v && Array.isArray(v.outputs);
   const hasNewFiles = 'newFiles' in v && Array.isArray(v.newFiles);
@@ -208,7 +186,7 @@ function isTreadleDefinition(value: unknown): value is TreadleDefinition {
 
 /**
  * Type guard to check if a value is a TreadleTrodder (already-declared treadle).
- * 
+ *
  * A TreadleTrodder is an async function returned by declareTreadle().
  * It must have treadle metadata attached (methods, newFiles, etc.)
  */
@@ -218,7 +196,7 @@ function isTreadleTrodder(value: unknown): value is TreadleTrodder {
   }
   // Check for treadle metadata - any declared treadle will have these
   const trodder = value as any;
-  return !!(trodder.methods || trodder.newFiles || trodder.hookups || trodder.matches);
+  return !!(trodder.methods || trodder.matches || trodder.treadleName);
 }
 
 // ============================================================================
@@ -242,11 +220,10 @@ export function buildMatrixFromTreadles(treadles: DiscoveredTreadle[]): Generato
     // These come from: export const myTreadle = declareTreadle({...})
     if (isTreadleTrodder(definition)) {
       generator = definition as TreadleTrodder;
-      
+
       // Get matches from attached metadata (if available)
-      const trodder = definition as any;
-      matches = trodder.matches;
-      
+      matches = generator.matches;
+
       if (!matches || matches.length === 0) {
         if (process.env.DEBUG_MATRIX) {
           console.log(`[MATRIX] Skipping "${name}" (trodder without matches - tieup treadle?)`);
@@ -257,7 +234,7 @@ export function buildMatrixFromTreadles(treadles: DiscoveredTreadle[]): Generato
       // Handle TreadleDefinition objects (raw definitions not yet processed)
       const treadleDef = definition as TreadleDefinition;
       matches = treadleDef.matches;
-      
+
       // Skip tieup treadles (no matches) - they're invoked directly via .tieup()
       if (!matches || matches.length === 0) {
         if (process.env.DEBUG_MATRIX) {
@@ -265,7 +242,7 @@ export function buildMatrixFromTreadles(treadles: DiscoveredTreadle[]): Generato
         }
         continue;
       }
-      
+
       // Convert definition to trodder
       generator = generateFromTreadleDefinition(treadleDef);
     }

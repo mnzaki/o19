@@ -39,23 +39,13 @@ import { createTreadleKit } from './kit.js';
 import { resolveSpecs, resolveSpecsWithCondition, type SpecOrFn } from './spec-resolver.js';
 import type { hookup } from '../sley/index.js';
 import type { LanguageMethod } from '../reed/index.js';
-import type { MethodMetadata } from '../../warp/metadata.js';
-import type { GeneratedFile, GeneratorContext, TreadleTrodder } from '../../weaver/plan-builder.js';
+import type { GeneratedFile, GeneratorContext } from '../../weaver/plan-builder.js';
 import { createQueryAPI } from '../sley/query.js';
+import type { TreadleInfo, TreadleTrodder } from './types.js';
 
 // ============================================================================
 // Types
 // ============================================================================
-
-export interface MatchPattern {
-  current: string;
-  previous: string;
-}
-
-export interface MethodConfig {
-  filter: 'core' | 'platform' | 'front';
-  pipeline: Array<(methods: MethodMetadata[]) => MethodMetadata[]>;
-}
 
 /**
  * New file specification for file generation.
@@ -85,16 +75,7 @@ export type NewFileSpecOrFn =
   | NewFileSpec
   | ((context: GeneratorContext) => NewFileSpec | NewFileSpec[] | undefined);
 
-export interface TreadleDefinition {
-  /** Treadle name (auto-populated during loading) */
-  name?: string;
-  /**
-   * Match patterns for matrix-based generation.
-   * Optional for tieup treadles (invoked directly via .tieup()).
-   */
-  matches?: MatchPattern[];
-  methods: MethodConfig;
-
+export interface TreadleDefinition extends TreadleInfo {
   /**
    * Language enhancement configuration.
    * - string: Single language (default for all methods)
@@ -196,7 +177,7 @@ export const declareTreadle = declare<TreadleDefinition, TreadleTrodder>({
  * 3. **Hookup** - Custom hookup runs last
  */
 export function generateFromTreadleDefinition(definition: TreadleDefinition): TreadleTrodder {
-  const generator = async (
+  const generator: Partial<TreadleTrodder> = async (
     current: SpiralNode,
     previous: SpiralNode,
     context?: GeneratorContext
@@ -232,8 +213,15 @@ export function generateFromTreadleDefinition(definition: TreadleDefinition): Tr
       if (result === false) return [];
     }
 
-    // Method collection using the kit
-    const finalMethods = definition.transformMethods
+    // Apply declared language enhancement (if specified)
+    if (definition.language) {
+      const langs = Array.isArray(definition.language)
+        ? definition.language
+        : [definition.language];
+      kit.language.add(...langs);
+    }
+
+    context.methods = definition.transformMethods
       ? createQueryAPI(definition.transformMethods(context.methods.all, context))
       : context.methods;
 
@@ -261,17 +249,6 @@ export function generateFromTreadleDefinition(definition: TreadleDefinition): Tr
     if (!resolvedNewFiles.length) {
       files = [];
     } else {
-      // Apply declared language enhancement (if specified)
-      if (definition.language) {
-        const langs = Array.isArray(definition.language)
-          ? definition.language
-          : [definition.language];
-        kit.language.add(...langs);
-
-        // Update data with enhanced methods reference
-        data.methods = context.methods;
-      }
-
       // Phase 1: Generate files using the kit (into spire/)
       // Language is auto-detected from template filename
       files = await kit.generateFiles(
@@ -282,7 +259,7 @@ export function generateFromTreadleDefinition(definition: TreadleDefinition): Tr
           context: f.context
         })),
         data,
-        finalMethods,
+        context.methods,
         context.entities
       );
     }
@@ -316,14 +293,11 @@ export function generateFromTreadleDefinition(definition: TreadleDefinition): Tr
   };
 
   // Attach treadle name for logging
-  (generator as any).treadleName = definition.name || 'anonymous';
-  
-  // Attach definition metadata for discovery
-  (generator as any).matches = definition.matches;
-  (generator as any).methods = definition.methods;
-  (generator as any).newFiles = definition.newFiles;
-  (generator as any).hookups = definition.hookups;
-  (generator as any).config = definition.config;
+  generator.treadleName = definition.name || 'anonymous';
 
-  return generator;
+  // Attach definition metadata for discovery
+  generator.matches = definition.matches;
+  generator.methods = definition.methods;
+
+  return generator as TreadleTrodder;
 }

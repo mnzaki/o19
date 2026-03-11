@@ -12,18 +12,14 @@
  */
 
 import * as path from 'node:path';
-import type { SpiralRing, WARP } from '../warp/index.js';
+import type { WARP } from '../warp/index.js';
 import { createMatrix } from '../machinery/treadles/index.js';
 import { fileSystem, blockRegistry } from '../machinery/sley/index.js';
 import { loadWarp, loadWorkspace } from './workspace-discovery.js';
 import { Loom, type WorkspaceInfo } from '../machinery/loom.js';
-import {
-  PatternMatcher,
-  type GeneratedFile,
-  type GenerationTask,
-  type TreadleTrodder
-} from './plan-builder.js';
+import { PatternMatcher, type GeneratedFile, type GenerationTask } from './plan-builder.js';
 import type { WeavingPlan } from './plan.js';
+import type { TreadleTrodder } from '../machinery/treadle-kit/types.js';
 
 // Placeholder for future implementation
 export interface WeaverConfig {
@@ -106,19 +102,17 @@ export class Weaver {
    * 2. Execute each generation task (Shuttle)
    * 3. Format the generated code (Beater)
    */
-  async weave(warpInput?: WARP): Promise<WeavingResult> {
+  async weave(loomMods: Record<string, any>, loom?: Loom): Promise<WeavingResult> {
     console.log('here');
     const config = this.config;
-    const workspace = config?.workspace ?? (await loadWorkspace());
+    const workspace = config?.workspace ?? loadWorkspace();
 
     if (!workspace) {
       console.warn('⚠️ No loom/ directory found');
       throw new Error('No loom/ directory found');
     }
 
-    console.log({ warpInput });
-    const warp = warpInput ?? (await loadWarp(workspace.warpPath, workspace.root));
-    this._loom = new Loom(workspace);
+    const warp = loadWarp(loomMods['WARP.ts'] ?? loomMods['WARP.js']);
     if (config?.verbose) {
       console.log('🧵 Configuring workspace');
       console.log('Rings found:', Object.keys(warp));
@@ -132,8 +126,10 @@ export class Weaver {
     let filesModified = 0;
     let filesUnchanged = 0;
 
+    this._loom = loom ?? new Loom(workspace);
+
     // Phase 0: Collect from loom/ directory (Reed)
-    const heddles = await this.loom.buildHeddles();
+    const heddles = await this.loom.buildHeddles(loomMods);
 
     if (heddles.errors.length) {
       console.error(
@@ -164,8 +160,8 @@ export class Weaver {
       //  }
       //}
 
-      console.log(`Managements found: ${shed.mgmts.all.length}`);
-      for (const mgmt of shed.mgmts) {
+      console.log(`Managements found: ${shed.mgmts.source.length}`);
+      for (const mgmt of shed.mgmts.source) {
         console.log(`  - ${mgmt.name} (@reach ${mgmt.reach})`);
         console.log(
           `    Methods: ${mgmt.methods.map((m) => `${m.name} (${m.crudOperation})`).join(', ')}\n`
@@ -254,15 +250,12 @@ Package filter: "${config.packageFilter}"`);
         filesUnchanged += result.unchanged;
       } catch (error) {
         errors.push(error as Error);
-        if (config?.verbose || process.env.DEBUG) {
-          console.error(`Error executing task ${task.match.join('→')}:`, error);
-        }
-        // Always log full error in DEBUG mode for easier debugging
-        if (process.env.DEBUG) {
-          console.error('Full error details:', error);
-          if (error instanceof Error && error.stack) {
-            console.error('Stack trace:', error.stack);
-          }
+        // Print full error details inline for immediate visibility
+        console.error(`\n❌ Error in task ${task.match.join('→')}:`);
+        console.error(`   ${error instanceof Error ? error.message : String(error)}`);
+        if (error instanceof Error && error.stack) {
+          console.error('\nStack trace:');
+          console.error(error.stack);
         }
       }
     }
@@ -486,8 +479,11 @@ Package filter: "${config.packageFilter}"`);
 /**
  * Convenience function to weave a WARP.ts module.
  */
-export async function weave(config?: WeaverConfig, warp?: WARP): Promise<WeavingResult> {
-  console.log('making weaver', { config, warp });
+export async function weave(
+  loomMods: Record<string, any>,
+  config?: WeaverConfig
+): Promise<WeavingResult> {
+  console.log('making weaver', { config, loomMods });
   const weaver = new Weaver(config);
-  return await weaver.weave(warp);
+  return await weaver.weave(loomMods);
 }

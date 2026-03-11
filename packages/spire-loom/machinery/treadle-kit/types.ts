@@ -13,6 +13,37 @@ import type { LanguageMethod, LanguageEntity } from '../reed/index.js';
 import type { BoundQuery } from '../sley/query.js';
 import { hookup } from '../sley/index.js';
 
+export interface MatchPattern {
+  current: string;
+  previous: string;
+}
+
+export interface MethodConfig {
+  filter: 'core' | 'platform' | 'front';
+  pipeline: Array<(methods: MethodMetadata[]) => MethodMetadata[]>;
+}
+
+export interface TreadleInfo {
+  /** Treadle name (auto-populated during loading) */
+  name?: string;
+
+  /**
+   * Match patterns for matrix-based generation.
+   * Optional for tieup treadles (invoked directly via .tieup()).
+   */
+  matches?: MatchPattern[];
+  methods: MethodConfig;
+}
+
+/**
+ * A trodder that, when it finds (current, previous) match, trods a treadle with
+ * the context
+ */
+export type TreadleTrodder = TreadleInfo & {
+  treadleName: string;
+  (current: SpiralNode, previous: SpiralNode, context?: GeneratorContext): Promise<GeneratedFile[]>;
+};
+
 /**
  * Method filtering and transformation configuration.
  * Mirrors the type in declarative.ts for kit usage.

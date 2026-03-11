@@ -40,6 +40,8 @@ export const generateAndroidService = declareTreadle({
     pipeline: []
   },
 
+  language: ['rust', 'kotlin'],
+
   // Template data
   data: (_context, current, previous) => {
     if (!(current.ring instanceof SpiralOut)) {
@@ -211,5 +213,3 @@ function buildServiceNaming(packageName: string, nameAffix: string) {
     channelName: `${pascalAffix} Service`
   };
 }
-
-

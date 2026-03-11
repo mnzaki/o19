@@ -47,7 +47,7 @@ export const tauri = loom.spiral.tauri
     treadles: [
       {
         treadle: tauriAdaptorTreadle,
-        warpData: {
+        config: {
           pluginName: 'o19-foundframe-tauri',
           entities: ['Bookmark', 'Media', 'Post', 'Person', 'Conversation'],
           operations: ['create', 'read', 'update', 'delete', 'list']

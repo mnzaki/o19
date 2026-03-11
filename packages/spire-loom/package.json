@@ -98,6 +98,11 @@
       "import": "./machinery/sley/index.ts",
       "default": "./machinery/sley/index.ts"
     },
+    "./machinery": {
+      "types": "./machinery/loom.ts",
+      "import": "./machinery/loom.ts",
+      "default": "./machinery/loom.ts"
+    },
     "./warp/field": {
       "types": "./warp/field.ts",
       "import": "./warp/field.ts",

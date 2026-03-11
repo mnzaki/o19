@@ -218,6 +218,7 @@ export interface LanguageDeclaration extends LanguageIdentity {
 
 import { mejs } from '../../bobbin/index.js';
 import type { LanguageMethod } from '../method.js';
+import deepmerge from 'deepmerge';
 
 // ============================================================================
 // Type Factory Generation
@@ -359,7 +360,7 @@ function createTypeFactoryFromConstructors<T extends LanguageType>(
           case 'void':
             return this.void;
           default:
-            throw new Error('wtf');
+            throw new Error(`Unknown type in declarative type(): "${normalizedType}" (original: "${tsType}")`);
           //return this.entity(normalizedType);
         }
       })();
@@ -381,14 +382,13 @@ function createTypeFactoryFromConstructors<T extends LanguageType>(
  * @param declaration - The declarative language definition
  * @returns Executive language definition compatible with declareLanguage
  */
-export function compileToExecutive<T extends LanguageDeclaration = LanguageDeclaration>(
-  declaration: T
+export function compileToImperative<T extends LanguageDeclaration = LanguageDeclaration>(
+  declarationInput: T
 ): Partial<LanguageDefinitionImperative> {
+  let declaration = deepmerge({}, commonLanguageDeclaration);
+  declaration = deepmerge(declaration, declarationInput);
   // Merge with defaults to fill in any missing conventions
-  const naming: NamingConventions = {
-    ...DEFAULT_NAMING_CONVENTIONS,
-    ...declaration.conventions.naming
-  };
+  const naming: NamingConventions = declaration.conventions.naming;
 
   // Create type factory from constructors
   const types = createTypeFactoryFromConstructors(declaration.syntax);
@@ -513,17 +513,7 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
   name: 'common',
   extensions: [],
   conventions: {
-    naming: {
-      function: 'snake_case',
-      type: 'PascalCase',
-      variable: 'snake_case',
-      const: 'SCREAMING_SNAKE',
-      module: 'snake_case',
-      field: 'snake_case',
-      method: 'snake_case',
-      parameter: 'snake_case',
-      generic: 'PascalCase'
-    }
+    naming: DEFAULT_NAMING_CONVENTIONS
   },
   syntax: {
     keywords: {
@@ -591,7 +581,7 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
         source: '{{name}}: {{type}}'
       },
       functionParams: {
-        source: '{{ paramsOpen }}{{ params.join(paramSeparator) }}{{ paramsClose }}'
+        source: '{{ paramsOpen }}{{ params.join(paramsSeparator) }}{{ paramsClose }}'
       },
       functionDefinition: {
         source: '{{signature}} {{blockOpen}}\n{{body}}\n{{blockClose}}'
@@ -620,24 +610,5 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
         whitespace: 'trim'
       }
     }
-  }
-};
-
-/**
- * C-Family language declaration.
- * Base for Rust, TypeScript, C++, Java, etc.
- */
-export const cFamilyLanguageDeclaration: LanguageDeclaration = {
-  ...commonLanguageDeclaration,
-  name: 'c_family',
-  extends: 'common',
-  extensions: ['.c', '.h'],
-  conventions: {
-    naming: {
-      ...commonLanguageDeclaration.conventions.naming
-    }
-  },
-  syntax: {
-    ...commonLanguageDeclaration.syntax
   }
 };

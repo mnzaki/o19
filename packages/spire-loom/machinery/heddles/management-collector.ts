@@ -8,7 +8,6 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import {
   getReach,
@@ -17,7 +16,7 @@ import {
   getEntities,
   Management,
   getLinkMetadata
-} from '../../warp/imprint.js';
+} from '../../warp/index.js';
 import { getEntityFields } from './entity-field-collector.js';
 
 import type {
@@ -152,90 +151,33 @@ function parseMethodSignatures(sourceFile: string): Map<string, ParsedMethod> {
  * @param loomDir - Path to the loom/ directory (e.g., /project/code/loom)
  * @returns Array of ManagementMetadata for all discovered managements
  */
-export async function collectManagements<T extends typeof Management>(
-  loomDir: string
+export async function collectManagements(
+  loomDir: string,
+  loomMods: Record<string, any>
 ): Promise<ManagementMetadata[]> {
   const managements: ManagementMetadata[] = [];
   // Track seen classes to prevent duplicates between phase 1 and phase 2
-  const seenClasses = new Set<T>();
+  const seenClasses = new Set<any>();
 
-  // Determine workspace root from loomDir (parent of loom/)
-  const workspaceRoot = path.dirname(loomDir);
-  const originalCwd = process.cwd();
-
-  // Temporarily change to workspace root for consistent module resolution
-  // This ensures imports like @o19/foundframe-front resolve correctly
-  // regardless of where spire-loom is run from
-  process.chdir(workspaceRoot);
-
-  if (process.env.DEBUG_MANAGEMENT) {
-    console.log(`[DEBUG] Changed cwd to workspace root: ${workspaceRoot}`);
-  }
-
-  try {
-    // ═══════════════════════════════════════════════════════════════════════════
-    // PHASE 1: Scan exports from WARP.ts
-    // ═══════════════════════════════════════════════════════════════════════════
-    // WARP.ts is the central registry that re-exports managements from other
-    // packages. We scan it first to pick up shared managements.
-    const warpPath = path.join(loomDir, 'WARP.ts');
-    if (fs.existsSync(warpPath)) {
-      try {
-        const moduleUrl = pathToFileURL(warpPath).href;
-        const warpModule = await import(moduleUrl);
-
-        for (const [exportName, exported] of Object.entries(warpModule)) {
-          // Check if this export is a class with @reach decorator
-          if (typeof exported === 'function' && getReach(exported)) {
-            if (!seenClasses.has(exported as T)) {
-              seenClasses.add(exported as T);
-              const mgmt = extractMetadata(exported as T, warpPath);
-              managements.push(mgmt);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn(`Warning: Could not scan WARP.ts exports:`, error);
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // PHASE 2: Scan individual .ts files in loom/
-    // ═══════════════════════════════════════════════════════════════════════════
-    // This picks up any managements defined locally, not via re-export.
-    const files = fs
-      .readdirSync(loomDir)
-      .filter((f) => f.endsWith('.ts') && f !== 'WARP.ts')
-      .map((f) => path.join(loomDir, f));
-
-    if (process.env.DEBUG_MANAGEMENT) {
-      console.log(`[DEBUG] Phase 2: Scanning ${files.length} files in ${loomDir}`);
-      console.log(`[DEBUG] Files: ${files.map((f) => path.basename(f)).join(', ')}`);
-    }
-
-    for (const file of files) {
-      try {
-        const mgmt = await loadManagement(file, seenClasses);
-        if (mgmt) {
-          if (process.env.DEBUG_MANAGEMENT) {
+  for (const [file, mod] of Object.entries(loomMods)) {
+    try {
+      const filePath = path.join(loomDir, file);
+      const newManagements = await loadManagements(filePath, mod, seenClasses);
+      if (newManagements.length) {
+        if (process.env.DEBUG_MANAGEMENT) {
+          for (const mgmt of newManagements) {
             console.log(`[DEBUG] Loaded management: ${mgmt.name} from ${path.basename(file)}`);
           }
-          managements.push(mgmt);
-        } else if (process.env.DEBUG_MANAGEMENT) {
-          console.log(`[DEBUG] No management found in ${path.basename(file)}`);
         }
-      } catch (error) {
-        console.warn(`Warning: Could not load ${file}:`, error);
-        if (process.env.DEBUG_MANAGEMENT) {
-          console.log(`[DEBUG] Error loading ${path.basename(file)}:`, error);
-        }
+        managements.push(...newManagements);
+      } else if (process.env.DEBUG_MANAGEMENT) {
+        console.log(`[DEBUG] No management found in ${path.basename(file)}`);
       }
-    }
-  } finally {
-    // Always restore original cwd
-    process.chdir(originalCwd);
-    if (process.env.DEBUG_MANAGEMENT) {
-      console.log(`[DEBUG] Restored cwd to: ${originalCwd}`);
+    } catch (error) {
+      console.warn(`Warning: Could not load ${file}:`, error);
+      if (process.env.DEBUG_MANAGEMENT) {
+        console.log(`[DEBUG] Error loading ${path.basename(file)}:`, error);
+      }
     }
   }
 
@@ -302,18 +244,12 @@ export function collectEntities(
  *
  * @param seenClasses - Optional Set of already-seen classes to avoid duplicates
  */
-async function loadManagement<T extends typeof Management>(
+async function loadManagements(
   filePath: string,
-  seenClasses?: Set<T>
-): Promise<ManagementMetadata | null> {
-  // Import the module
-  const moduleUrl = pathToFileURL(filePath).href;
-
-  if (process.env.DEBUG_MANAGEMENT) {
-    console.log(`[DEBUG] Loading: ${path.basename(filePath)}`);
-  }
-
-  const module = await import(moduleUrl);
+  module: any,
+  seenClasses?: Set<any>
+): Promise<ManagementMetadata[]> {
+  const managements: ManagementMetadata[] = [];
 
   if (process.env.DEBUG_MANAGEMENT) {
     console.log(`[DEBUG]   Exports: ${Object.keys(module).join(', ')}`);
@@ -321,31 +257,32 @@ async function loadManagement<T extends typeof Management>(
 
   // Find classes with @reach decorator (indicated by reachMetadata)
   for (const [exportName, exported] of Object.entries(module)) {
-    const hasReach = getReach(exported as T);
+    const hasReach = getReach(exported as any);
     if (process.env.DEBUG_MANAGEMENT) {
-      console.log(`[DEBUG]   ${exportName}: type=${typeof exported}, hasReach=${!!hasReach}`);
+      console.log(
+        `[DEBUG]   ${exportName} ${exported?.constructor.name} ctor: type=${typeof exported}, hasReach=${!!hasReach}`
+      );
     }
-    if (exported instanceof Management) {
-      const mgmtClass = exported as T;
-
+    if ((exported as any).prototype instanceof Management) {
+      ////(exported?.constructor.name === 'Management') {
       // Skip if already seen (prevents duplicates from WARP.ts scanning)
-      if (seenClasses?.has(mgmtClass)) {
+      if (seenClasses?.has(exported)) {
         if (process.env.DEBUG_MANAGEMENT) {
           console.log(`[DEBUG]   Skipping ${exportName} - already seen`);
         }
         continue;
       }
-      seenClasses?.add(mgmtClass);
+      seenClasses?.add(exported);
 
       // This is a Management class
       if (process.env.DEBUG_MANAGEMENT) {
         console.log(`[DEBUG]   Found management: ${exportName}`);
       }
-      return extractMetadata(mgmtClass, filePath);
+      managements.push(extractMetadata(exported as any, filePath));
     }
   }
 
-  return null;
+  return managements;
 }
 
 /**

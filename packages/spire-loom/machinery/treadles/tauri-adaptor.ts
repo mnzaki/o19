@@ -56,6 +56,8 @@ export const tauriAdaptorTreadle = declareTreadle({
     pipeline: []
   },
 
+  language: ['typescript'],
+
   // Dynamic outputs based on configuration
   newFiles: [
     (ctx) => {
@@ -82,9 +84,11 @@ export const tauriAdaptorTreadle = declareTreadle({
       const services = mgmts.map((mgmt) => ({
         name: mgmt.name,
         entityName: mgmt.entityName,
-        entityCamelName: camelCase(mgmt.entityName),
+        entityCamelName: mgmt.entityName.camelCase,
         portName: mgmt.portName
       }));
+
+      const entities = ctx.entities.all;
 
       const outputs: OutputSpec[] = [];
 
@@ -95,19 +99,12 @@ export const tauriAdaptorTreadle = declareTreadle({
 
       // Generate command handlers for each entity
       for (const entity of entities) {
-        const entityCamel = camelCase(entity.name);
-        const entityPascal = pascalCase(entity.name);
-
         outputs.push({
           template: 'tauri/commands.ts.mejs',
-          path: `ts/commands/${entityCamel}.commands.ts`,
+          path: `ts/commands/${entity.name.camelCase}.commands.ts`,
           language: 'typescript',
           context: {
-            entity: {
-              name: entity.name,
-              pascal: entityPascal,
-              camel: entityCamel
-            },
+            entity,
             operations: operations,
             pluginName: config.pluginName
           }
@@ -116,10 +113,9 @@ export const tauriAdaptorTreadle = declareTreadle({
 
       // Generate adaptor wiring for each service
       for (const service of services) {
-        const entityCamel = camelCase(service.entityName);
         outputs.push({
           template: 'tauri/adaptor.ts.mejs',
-          path: `ts/adaptors/${entityCamel}.adaptor.ts`,
+          path: `ts/adaptors/${service.entityName.camelCase}.adaptor.ts`,
           language: 'typescript',
           context: { service, pluginName: config.pluginName }
         });
@@ -131,11 +127,7 @@ export const tauriAdaptorTreadle = declareTreadle({
         path: 'ts/commands/index.ts',
         language: 'typescript',
         context: {
-          entities: entities.map((e) => ({
-            name: e,
-            pascal: pascalCase(e.name),
-            camel: camelCase(e.name)
-          })),
+          entities: entities,
           operations: operations
         }
       });
@@ -146,13 +138,7 @@ export const tauriAdaptorTreadle = declareTreadle({
         path: 'ts/adaptors/index.ts',
         language: 'typescript',
         context: {
-          entities: mgmts.map((e) => ({
-            name: e,
-            pascal: pascalCase(e.name),
-            camel: camelCase(e.name),
-            serviceName: e.serviceName,
-            serviceNameCamel: camelCase(e.serviceName)
-          })),
+          entities,
           operations: operations,
           pluginName: config.pluginName
         }

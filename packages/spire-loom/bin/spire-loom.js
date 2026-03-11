@@ -70,27 +70,29 @@ if (isHelp || isVersion) {
     '--import',
     'tsx',
     '-e',
-    `import { findWorkspaceConfig } from '@o19/spire-loom/cli';
-     const workspace = await findWorkspaceConfig();
-     if (!workspace) {
-       console.error("Couldn't find WARP.ts in workspace loom dir");
-       process.exit(1);
-     }
-     const { warpPath } = workspace;
-     import { main } from '${cliEntry}';
-     import(warpPath).then(mod => {
-       const warpMod = mod.default?.weave ? mod : mod.default;
-       console.log({warpMod});
-       // it's VERY IMPORTANT that controlled flow is reversed
-       // and we pass the weave function from the loom object
-       // exported BY the loaded WARP.ts! This sidesteps identity
-       // (instanceof) issues
-       return main(() => {
-         console.log('WEAAAAVIIIING', { warpMod });
-         return warpMod.default.weave({workspace}, warpMod)
-        })
-     })
-     `,
+    `
+    import * as path from 'node:path'
+
+    import { findWorkspaceConfig } from '@o19/spire-loom/cli';
+    const workspace = findWorkspaceConfig();
+    if (!workspace) {
+      console.error("Couldn't find WARP.ts in workspace loom dir");
+      process.exit(1);
+    }
+    const originalCwd = process.cwd();
+    process.chdir(workspace.root)
+
+    const { loomFiles } = workspace;
+    const loomMods = {}
+    for (const loomFile of loomFiles) {
+      const parts = loomFile.split('/')
+      const file = \`./\${parts[parts.length - 2]}/\${parts[parts.length - 1]}\`
+      console.log({ loomPath: file })
+      loomMods[path.basename(file)] = await import(file);
+    }
+    import { main } from '@o19/spire-loom/cli' //${cliEntry}'
+    main(loomMods)
+    `,
     '--',
     ...userArgs
   ];

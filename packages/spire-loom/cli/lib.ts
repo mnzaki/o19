@@ -317,12 +317,10 @@ export function printGraph(warp: Record<string, any>): void {
  * Returns true if an action was taken and the program should exit.
  */
 export async function handleCommonArgs(
-  args: string[],
+  options: CliOptions,
   warp: Record<string, any> | null,
   mode: 'classic' | 'interactive' = 'classic'
 ): Promise<boolean> {
-  const options = parseArgs(args);
-
   if (options.help) {
     showHelp(mode);
     return true;
@@ -341,11 +339,11 @@ export async function handleCommonArgs(
   return false;
 }
 
-export async function findWorkspaceConfig(): Promise<WorkspaceInfo | null> {
+export function findWorkspaceConfig(): WorkspaceInfo | null {
   const args = process.argv.slice(2);
   const options = parseArgs(args);
 
-  const workspace = await loadWorkspace();
+  const workspace = loadWorkspace();
 
   if (!workspace || workspace.type === 'unknown') {
     console.error('❌ Not in a workspace or package directory');

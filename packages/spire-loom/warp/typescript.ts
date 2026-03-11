@@ -49,7 +49,9 @@ export interface TsFieldMetadata {
  * Base class for TypeScript external types.
  * Can be subclassed by @typescript.Class or used directly.
  */
-export class TsExternalLayer<T = any> extends ExternalLayer {
+export class TsExternalLayer<T = any> extends ExternalLayer<TsCore> {
+  static [EXTERNAL_LAYER_CORE] = TsCore;
+
   /** Field name if this represents a class field */
   fieldName?: string;
   /** Parent class (when this is a field) */
@@ -207,10 +209,10 @@ import {
   LanguageType,
   type TypeFactory
 } from '../machinery/reed/language/index.js';
-import { camelCase } from '../machinery/stringing.js';
 import { TsCore, tsCore } from './spiral/typescript.js';
 import { TypescriptSpiraler } from './spiral/spiralers/typescript/index.js';
 import type { LanguageMethod } from '../machinery/reed/method.js';
+import { EXTERNAL_LAYER_CORE } from './layers.js';
 
 // ============================================================================
 // TypeScript Type Factory
@@ -244,8 +246,7 @@ class TypeScriptTypeFactory implements Partial<TypeFactory<LanguageType>> {
 
   result(okType: LanguageType, _errType?: string | LanguageType): LanguageType {
     // TypeScript typically doesn't use Result<T, E> pattern
-    // but we provide it for compatibility with Rust patterns
-    return new LanguageType(okType.name, okType.stub);
+    throw new Error('no Result in Typescript....');
   }
 
   // Entity type factory
@@ -307,7 +308,6 @@ export const types = new TypeScriptTypeFactory();
 export const typescriptLanguage = declareLanguage<LanguageType>({
   name: 'typescript',
   extensions: ['.ts', '.tsx'],
-  types,
 
   conventions: {
     naming: {
@@ -387,6 +387,9 @@ export const typescriptLanguage = declareLanguage<LanguageType>({
       }
     }
   },
+  codeGen: {
+    types
+  },
 
   warp: {
     externalLayerClass: TsExternalLayer,
@@ -397,7 +400,7 @@ export const typescriptLanguage = declareLanguage<LanguageType>({
       Boolean,
       Date
     },
-    classDecorator: Class,
+    //classDecorator: Class,
     core: {
       coreClass: TsCore,
       createCore: (layer) => tsCore(layer || new TsExternalLayer())

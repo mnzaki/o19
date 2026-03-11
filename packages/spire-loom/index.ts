@@ -107,11 +107,12 @@ import stuff from     'future-neighbours';
 //export *    from      './warp/imprint.js';
 // We  Import the spiral's          reach,
 // link the rust to       Management
-import { spiral, link, reach, crud, Management, typescript, rust } from './warp/index.js';
+import './machinery/heddles/index.js';
+import { spiral, link, reach, crud, Management, typescript, rust, type WARP } from '@o19/spire-loom/warp';
 // What we export, the        loom               remembers
-export { rust, typescript, Management, crud, reach, link, spiral } from './warp/index.js';
+export { rust, typescript, Management, crud, reach, link, spiral } from '@o19/spire-loom/warp';
 
-import { weave } from './weaver/index.js';
+import { weave } from '@o19/spire-loom/weaver';
                                   /*         */                                    
 // The pattern conserves          /*         */                                    
 export const loom = {             /*         */                                    
@@ -125,13 +126,13 @@ export const loom = {             /*         */
 */weave: <Cnf extends  Parameters</*         */                                    
   /*****************/typeof /****//*         /*                                    
 */weave/*************/>[0]>/****///*         */                                    
-  /*******/(ur: Cnf)/**/=>/*///////*         /*                                    
-*/weave/**/(ur)/**//**////*////////*         */                                    
-};                                                                                 
-                                                                                   
-/* The weft in bloom                                                             */
-export default  loom                                                             /*
- *                                                                               /*
+  /***/(ur: Cnf, w: WARP)/**/=>/*//*         /*                                    
+*/weave/***/(ur, w)/**///**////*///*         */                                    
+};                                /*         /*                                    
+                                  /*         */                                    
+/* The weft in bloom              /*         /*                                  */
+export default  loom             /*           /*                                 /*
+ *                              /*             /*                                /*
  *=══════════════════════════════════════════════════════════════════════════════=*
  *=                           ⚠️🔴🛑 RED ROPE 🛑🔴⚠️                             =*
  *=══════════════════════════════════════════════════════════════════════════════=*

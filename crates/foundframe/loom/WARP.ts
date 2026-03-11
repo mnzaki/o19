@@ -13,21 +13,18 @@ import { dbBindingTreadle } from './treadles/dbbindings.js';
 // CORE STRUCTURES
 // ============================================================================
 
-@rust.Struct
-export class TheStream {}
+export class TheStream extends rust.Struct {}
 
-@rust.Struct
-export class DeviceManager {}
+export class DeviceManager extends rust.Struct {}
 
-@rust.Struct({ useResult: true })
-export class Foundframe {
+export class Foundframe extends rust.Struct {
   @rust.Mutex
   @rust.Option
-  thestream = TheStream;
+  thestream = new TheStream();
 
   @rust.Mutex
   @rust.Option
-  device_manager = DeviceManager;
+  device_manager = new DeviceManager();
 }
 
 // ============================================================================

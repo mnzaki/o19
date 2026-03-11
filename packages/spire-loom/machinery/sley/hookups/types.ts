@@ -5,7 +5,7 @@
  * Hookup type is inferred from the file path.
  */
 
-import type { GeneratorContext } from '../../heddles/index.js';
+import type { GeneratorContext } from '../../../weaver/plan-builder.js';
 
 // ============================================================================
 // Hookup Type Detection
@@ -29,7 +29,7 @@ export type HookupType =
  */
 export function detectHookupType(filePath: string): HookupType {
   const lowerPath = filePath.toLowerCase();
-  
+
   if (lowerPath.endsWith('androidmanifest.xml')) {
     return 'android-manifest';
   }
@@ -48,7 +48,12 @@ export function detectHookupType(filePath: string): HookupType {
   if (lowerPath.endsWith('index.ts') || lowerPath.endsWith('index.js')) {
     return 'typescript';
   }
-  if (lowerPath.endsWith('.ts') || lowerPath.endsWith('.js') || lowerPath.endsWith('.tsx') || lowerPath.endsWith('.jsx')) {
+  if (
+    lowerPath.endsWith('.ts') ||
+    lowerPath.endsWith('.js') ||
+    lowerPath.endsWith('.tsx') ||
+    lowerPath.endsWith('.jsx')
+  ) {
     return 'typescript-file';
   }
   if (lowerPath.includes('vite.config')) {
@@ -60,7 +65,7 @@ export function detectHookupType(filePath: string): HookupType {
   if (lowerPath.endsWith('info.plist')) {
     return 'ios-plist';
   }
-  
+
   return 'file-block';
 }
 
@@ -111,19 +116,19 @@ export type AndroidPermissionDefinition = {
 
 export interface AndroidManifestHookup extends BaseHookup {
   path: `${string}AndroidManifest.xml`;
-  
+
   /** Permissions to add to <manifest> */
   permissions?: AndroidPermission[];
-  
+
   /** Permission definitions with custom protection levels */
   permissionDefinitions?: AndroidPermissionDefinition[];
-  
+
   /** Services to add to <application> */
   services?: AndroidService[];
-  
+
   /** Raw XML blocks to add to <application> */
   applicationBlocks?: string[];
-  
+
   /** Raw XML blocks to add to <manifest> (outside <application>) */
   manifestBlocks?: string[];
 }
@@ -147,19 +152,19 @@ export type CargoDependencyValue = string | CargoDependency;
 
 export interface CargoTomlHookup extends BaseHookup {
   path: `${string}Cargo.toml`;
-  
+
   /** Dependencies to add to [dependencies] or [workspace.dependencies] */
   dependencies?: Record<string, CargoDependencyValue>;
-  
+
   /** Dev dependencies */
   devDependencies?: Record<string, CargoDependencyValue>;
-  
+
   /** Build dependencies */
   buildDependencies?: Record<string, CargoDependencyValue>;
-  
+
   /** Features to add to [features] */
   features?: Record<string, string[]>;
-  
+
   /** [lib] configuration */
   lib?: {
     'crate-type'?: string[];
@@ -167,8 +172,8 @@ export interface CargoTomlHookup extends BaseHookup {
     path?: string;
     [key: string]: unknown;
   };
-  
-  /** 
+
+  /**
    * If true, modify workspace root Cargo.toml [workspace.dependencies]
    * instead of this package's [dependencies]
    */
@@ -201,26 +206,29 @@ export interface SpireGradleTask {
 
 export interface GradleHookup extends BaseHookup {
   path: `${string}build.gradle${string}`;
-  
+
   /** Plugins to apply */
   plugins?: GradlePluginEntry[];
-  
+
   /** Dependencies by configuration (implementation, api, etc.) */
   dependencies?: Record<string, string[]>;
-  
+
   /** Android block configuration */
   android?: {
     /** Source sets configuration */
-    sourceSets?: Record<string, {
-      java?: { srcDirs?: string[] };
-      aidl?: { srcDirs?: string[] };
-    }>;
+    sourceSets?: Record<
+      string,
+      {
+        java?: { srcDirs?: string[] };
+        aidl?: { srcDirs?: string[] };
+      }
+    >;
     [key: string]: unknown;
   };
-  
+
   /** Spire Rust build task configuration */
   spireTask?: SpireGradleTask;
-  
+
   /** Raw Gradle blocks to add */
   blocks?: Array<{
     name: string;
@@ -260,17 +268,17 @@ export interface RustPluginInit {
 export interface RustVariableDeclaration {
   /** Variable name (e.g., 'aidl_dir') */
   name: string;
-  /** 
+  /**
    * Variable type (e.g., 'PathBuf', 'String', 'bool')
    * Used for type checking during hookup.
    */
   type: string;
-  /** 
+  /**
    * Initial value as Rust code (e.g., 'PathBuf::from("spire/android/aidl")')
    * This is the EXACT code that will be inserted after the = sign.
    */
   value: string;
-  /** 
+  /**
    * Whether the variable is mutable (mut keyword).
    * Default: false
    */
@@ -289,33 +297,33 @@ export interface RustVariableDeclaration {
 
 export interface RustModuleHookup extends BaseHookup {
   path: `${string}src/lib.rs` | `${string}src/main.rs` | `${string}build.rs`;
-  
+
   /** Module declarations to add (e.g., 'pub mod spire;') - lib.rs/main.rs only */
   moduleDeclarations?: RustModuleEntry[];
-  
+
   /** use statements to add */
   useStatements?: string[];
-  
-  /** 
+
+  /**
    * Tauri plugin initialization.
    * If provided, injects plugin setup code.
    */
   pluginInit?: RustPluginInit;
-  
+
   /** Commands to inject into tauri::generate_handler![] */
   tauriCommands?: string[];
-  
+
   /**
    * Variable declarations for build.rs hookup.
    * Supports deep matching and smart replacement.
-   * 
+   *
    * Each entry defines a variable that should exist in build.rs.
    * The hookup system will:
    * 1. Check if the variable exists
    * 2. If it has a non-spire value → ERROR (manual conflict)
    * 3. If it has a spire-generated value → REPLACE
    * 4. If it doesn't exist → ADD
-   * 
+   *
    * Example:
    * ```typescript
    * variables: [{
@@ -327,11 +335,11 @@ export interface RustModuleHookup extends BaseHookup {
    * ```
    */
   variables?: RustVariableDeclaration[];
-  
+
   /**
    * impl block modifications by type name.
    * Key is the type name (e.g., 'MyStruct', 'MyTrait for MyType').
-   * 
+   *
    * Example:
    * ```typescript
    * impls: {
@@ -344,7 +352,7 @@ export interface RustModuleHookup extends BaseHookup {
    * ```
    */
   impls?: Record<string, ClassModifications>;
-  
+
   /**
    * Standalone function modifications (not in an impl block).
    * Key is the function name.
@@ -370,10 +378,10 @@ export type TypeScriptExportEntry = string | TypeScriptExport;
 
 export interface TypeScriptIndexHookup extends BaseHookup {
   path: `${string}index.ts` | `${string}index.js`;
-  
+
   /** Export statements to add */
   exports?: TypeScriptExportEntry[];
-  
+
   /** Import statements to add (for side effects or types) */
   imports?: TypeScriptImportEntry[];
 }
@@ -384,20 +392,20 @@ export interface TypeScriptIndexHookup extends BaseHookup {
 
 export interface TypeScriptFileHookup extends BaseHookup {
   path: `${string}.ts` | `${string}.js` | `${string}.tsx` | `${string}.jsx`;
-  
+
   /**
    * Import statements to add.
    * Each string should be a valid TypeScript import.
    * Supports template functions.
    */
   imports?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
-  
+
   /**
    * Class modifications by class name.
    * Key is the class name (e.g., 'MyService').
    */
   classes?: Record<string, ClassModifications>;
-  
+
   /**
    * Standalone function modifications (not in a class).
    * Key is the function name.
@@ -427,8 +435,8 @@ export type TypeScriptImportEntry = string | TypeScriptImport;
 
 export interface ViteConfigHookup extends BaseHookup {
   path: `${string}vite.config.ts` | `${string}vite.config.js` | `${string}vite.config.mts`;
-  
-  /** 
+
+  /**
    * Build configuration to add/modify.
    * Supports rollupOptions.input for multi-entry builds.
    */
@@ -438,19 +446,19 @@ export interface ViteConfigHookup extends BaseHookup {
       input?: string | Record<string, string>;
     };
   };
-  
-  /** 
+
+  /**
    * Environment variable defines to add.
    * Maps to define: { 'import.meta.env.X': JSON.stringify(value) }
    */
   define?: Record<string, string>;
-  
+
   /**
    * Plugins to add to the plugins array.
    * Each plugin is a string that will be injected as code.
    */
   plugins?: string[];
-  
+
   /**
    * Server configuration.
    */
@@ -458,14 +466,14 @@ export interface ViteConfigHookup extends BaseHookup {
     port?: number;
     host?: string | boolean;
   };
-  
+
   /**
    * CSS configuration.
    */
   css?: {
     devSourcemap?: boolean;
   };
-  
+
   /**
    * Raw config lines to append (escape hatch).
    */
@@ -478,26 +486,26 @@ export interface ViteConfigHookup extends BaseHookup {
 
 export interface NpmPackageHookup extends BaseHookup {
   path: `${string}package.json`;
-  
+
   /** Dependencies to add */
   dependencies?: Record<string, string>;
-  
+
   /** Dev dependencies to add */
   devDependencies?: Record<string, string>;
-  
+
   /** Peer dependencies to add */
   peerDependencies?: Record<string, string>;
-  
+
   /** Scripts to add */
   scripts?: Record<string, string>;
-  
-  /** 
+
+  /**
    * Any other top-level fields to set.
    * These are merged with existing package.json
    */
   fields?: Record<string, unknown>;
-  
-  /** 
+
+  /**
    * Fields to remove if they exist.
    * Useful for cleaning up old configuration.
    */
@@ -519,16 +527,16 @@ export interface IosPlistEntry {
 
 export interface IosPlistHookup extends BaseHookup {
   path: `${string}Info.plist`;
-  
+
   /** Entries to add/update */
   entries?: IosPlistEntry[];
-  
+
   /** URL scheme handlers to add */
   urlSchemes?: Array<{
     name: string;
     schemes: string[];
   }>;
-  
+
   /** Background modes to enable */
   backgroundModes?: string[];
 }
@@ -544,7 +552,7 @@ export interface MethodModifications {
    * Supports template functions.
    */
   prepend?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
-  
+
   /**
    * Code to append at the end of the method body.
    * Array of valid statements.
@@ -559,19 +567,21 @@ export interface ClassModifications {
    * Supports template functions.
    */
   fields?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
-  
+
   /**
    * Method modifications by method name.
    * Key is the method name (e.g., 'load', 'onDestroy').
    */
   methods?: Record<string, MethodModifications>;
-  
+
   /**
    * New methods to add to the class.
    * Each string should be a complete valid method.
    * Supports template functions.
    */
-  newMethods?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
+  newMethods?: Array<
+    string | ((context: GeneratorContext, data: Record<string, unknown>) => string)
+  >;
 }
 
 // ============================================================================
@@ -580,19 +590,19 @@ export interface ClassModifications {
 
 export interface KotlinHookup extends BaseHookup {
   path: `${string}.kt`;
-  
+
   /**
    * Import statements to add.
    * Each string should be a valid Kotlin import: "import package.ClassName"
    * Supports template functions: (ctx, data) => string
    */
   imports?: Array<string | ((context: GeneratorContext, data: Record<string, unknown>) => string)>;
-  
+
   /**
    * Class modifications by class name.
    * Key is the simple class name (e.g., 'ApiPlugin').
    */
-  classes?: Record<string, KotlinClassModifications>;
+  classes?: Record<string, ClassModifications>;
 }
 
 // Generic File Block Hookup (fallback)
@@ -607,11 +617,11 @@ export interface TomlArrayHookup {
 
 export interface FileBlockHookup extends BaseHookup {
   path: string;
-  
-  /** 
+
+  /**
    * Language for marker formatting.
    * Auto-detected from file extension if not specified.
-   * 
+   *
    * Detected mappings:
    * - `.rs` → rust
    * - `.ts`, `.tsx`, `.js`, `.jsx` → typescript
@@ -622,8 +632,8 @@ export interface FileBlockHookup extends BaseHookup {
    * - `.json` → json
    */
   language?: 'rust' | 'typescript' | 'javascript' | 'kotlin' | 'xml' | 'toml' | 'json' | 'gradle';
-  
-  /** 
+
+  /**
    * Custom markers (if not using file-type defaults).
    * Most hookups auto-detect markers from file type.
    */
@@ -631,13 +641,13 @@ export interface FileBlockHookup extends BaseHookup {
     start: string;
     end: string;
   };
-  
+
   /** Block content to insert (required unless tomlArray is specified) */
   content?: string;
-  
+
   /** TOML array manipulation - for adding items to TOML arrays */
   tomlArray?: TomlArrayHookup;
-  
+
   /** Insertion position hints */
   position?: {
     /** Insert after this pattern */
@@ -693,18 +703,23 @@ export interface ValidationResult {
  */
 export function validateHookup(spec: HookupSpec): ValidationResult {
   const errors: string[] = [];
-  
+
   if (!spec.path) {
     errors.push('Hookup must have a path');
   }
-  
+
   const hookupType = detectHookupType(spec.path);
-  
+
   // Type-specific validation
   switch (hookupType) {
     case 'android-manifest': {
       const android = spec as AndroidManifestHookup;
-      if (!android.permissions && !android.services && !android.applicationBlocks && !android.manifestBlocks) {
+      if (
+        !android.permissions &&
+        !android.services &&
+        !android.applicationBlocks &&
+        !android.manifestBlocks
+      ) {
         errors.push('AndroidManifest hookup should have permissions, services, or blocks');
       }
       break;
@@ -718,8 +733,16 @@ export function validateHookup(spec: HookupSpec): ValidationResult {
     }
     case 'rust-module': {
       const rust = spec as RustModuleHookup;
-      if (!rust.moduleDeclarations && !rust.useStatements && !rust.pluginInit && !rust.tauriCommands && !rust.variables) {
-        errors.push('Rust module hookup should have moduleDeclarations, useStatements, pluginInit, tauriCommands, or variables');
+      if (
+        !rust.moduleDeclarations &&
+        !rust.useStatements &&
+        !rust.pluginInit &&
+        !rust.tauriCommands &&
+        !rust.variables
+      ) {
+        errors.push(
+          'Rust module hookup should have moduleDeclarations, useStatements, pluginInit, tauriCommands, or variables'
+        );
       }
       break;
     }
@@ -737,9 +760,9 @@ export function validateHookup(spec: HookupSpec): ValidationResult {
       break;
     }
   }
-  
+
   return {
     valid: errors.length === 0,
-    errors,
+    errors
   };
 }

@@ -22,6 +22,7 @@ import {
 import type { MethodMetadata } from '../../../warp/metadata.js';
 import type { LanguageMethod } from '../method.js';
 import type { LanguageEntity } from '../entity.js';
+import type { ExternalLayer } from '../../../warp/imprint.js';
 
 // ============================================================================
 // Language Rendering Configuration
@@ -85,7 +86,8 @@ export interface LanguageEnhancements {
 }
 
 export interface LanguageDefinitionImperative<
-  T extends LanguageType = LanguageType
+  T extends LanguageType = LanguageType,
+  EL extends ExternalLayer<any> = ExternalLayer<any>
 > extends LanguageIdentity {
   functionVariants: Record<string, FunctionVariantDeclaration>;
 
@@ -93,7 +95,7 @@ export interface LanguageDefinitionImperative<
    * WARP integration configuration.
    * Optional for code-generation-only languages.
    */
-  warp?: LanguageWarpConfig;
+  warp?: LanguageWarpConfig<EL>;
   /** Code generation configuration */
   codeGen: LanguageCodeGenConfig<T>;
   /** Optional enhancements applied when language is bound to LanguageThings */

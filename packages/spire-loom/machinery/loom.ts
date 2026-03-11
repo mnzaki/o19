@@ -1,7 +1,5 @@
-import * as sley from './sley/index.js';
 import * as heddles from './heddles/index.js';
 import * as reed from './reed/index.js';
-import type { EntityMetadata, ManagementMetadata } from '../warp/metadata.js';
 
 export interface WorkspaceInfo {
   /** The name of the workspace **/
@@ -15,6 +13,9 @@ export interface WorkspaceInfo {
 
   /** loom directory of the workspace */
   loomDir: string;
+
+  /** all loom file paths */
+  loomFiles: string[];
 
   /** Path to loom/WARP.ts if found */
   warpPath: string;
@@ -39,8 +40,8 @@ export class Loom {
 
   constructor(public workspace: WorkspaceInfo) {}
 
-  async buildHeddles(): Promise<heddles.Heddles> {
-    const mgmts = await heddles.collectManagements(this.workspace.loomDir);
+  async buildHeddles(loomMods: Record<string, any>): Promise<heddles.Heddles> {
+    const mgmts = await heddles.collectManagements(this.workspace.loomDir, loomMods);
     const pipeline: any[] = [];
     const methods = heddles.collectMethods({ mgmts }, pipeline);
     const entities = heddles.collectEntities({ mgmts }, pipeline);
@@ -63,7 +64,7 @@ export class Loom {
 
   async openShed(): Promise<Shed> {
     if (!this.heddles) {
-      this.heddles = await this.buildHeddles();
+      throw new Error('buildHeddles() first!');
     }
 
     if (!this.reed) {

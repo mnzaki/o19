@@ -11,8 +11,8 @@
 // Polyfill for decorator metadata
 import 'reflect-metadata';
 
-import type { WeaverConfig, WeavingResult } from '../weaver/index.js';
-import { handleCommonArgs } from './lib.js';
+import { weave, type WeaverConfig, type WeavingResult } from '../weaver/index.js';
+import { parseArgs, handleCommonArgs } from './lib.js';
 
 export {
   parseArgs,
@@ -33,14 +33,13 @@ export type { CliOptions } from './lib.js';
  * issues with tsx creating multiple instances of the module which makes
  * instanceof tests fail.
  */
-export async function main(
-  weave: () => Promise<WeavingResult>,
-  warp: Record<string, any>
-): Promise<void> {
-  const args = process.argv.slice(2);
+export async function main(loomMods: Record<string, any>): Promise<void> {
+  const args = process.argv.slice(1);
+  const options = parseArgs(args);
+  const warp = loomMods['WARP.ts'] ?? loomMods['WARP.js'];
 
   // Handle common args (help, version, graph)
-  const handled = await handleCommonArgs(args, warp, 'classic');
+  const handled = await handleCommonArgs(options, warp, 'classic');
   if (handled) {
     process.exit(0);
   }
@@ -48,7 +47,10 @@ export async function main(
   console.log('🧵 Spire-Loom - Weaving spires from surfaces\n');
 
   try {
-    const result = await weave();
+    const result = await weave(loomMods, {
+      verbose: options.verbose,
+      packageFilter: options.package
+    });
 
     console.log('\n✅ Weaving complete!');
     console.log(`   Files generated: ${result.filesGenerated}`);
@@ -56,12 +58,9 @@ export async function main(
     console.log(`   Files unchanged: ${result.filesUnchanged}`);
 
     if (result.errors.length > 0) {
-      console.log(`\n❌ Errors: ${result.errors.length}`);
-      for (const error of result.errors) {
-        console.error(`   - ${error.message}`);
-      }
-      // Re-throw the first error to show full stack trace
-      throw result.errors[0];
+      console.log(`\n❌ ${result.errors.length} error(s) occurred during weaving`);
+      console.log('   (See full details above in the log)');
+      process.exit(1);
     }
   } catch (error) {
     console.error('\n❌ Error:', error);

@@ -17,10 +17,7 @@
  */
 
 import { declareTreadle } from '../treadle-kit/index.js';
-import type { ManagementMethods } from '../heddles/index.js';
 import type { NewFileSpec } from '../treadle-kit/declarative.js';
-
-export type { ManagementMethods as ManagementService };
 
 // ============================================================================
 // Treadle Definition

@@ -27,7 +27,7 @@ import type { LanguageDefinitionImperative } from '../reed/language/imperative.j
 /**
  * Query API interface - chainable filters and terminal operations.
  */
-export interface QueryAPI<T extends Queryable> {
+export interface QueryAPI<T extends Queryable<T>> {
   /** Filter by tag */
   tag(tag: string): BoundQuery<T>;
 
@@ -98,11 +98,12 @@ export interface QueryAPI<T extends Queryable> {
 // Implementation
 // ============================================================================
 
-interface Queryable {
+interface Queryable<T extends any> {
   lang: LanguageDefinitionImperative;
   tags?: string[];
   crudOperation?: string;
   managementName?: string;
+  cloneWithLang(lang: LanguageDefinitionImperative): T;
 }
 
 /**
@@ -114,8 +115,8 @@ interface Queryable {
  * Supports multiple languages - the first language is the primary language,
  * additional languages are accessible via properties (rs, ts, kt, etc.)
  */
-export class BoundQuery<T extends Queryable> {
-  private source: T[];
+export class BoundQuery<T extends Queryable<T>> {
+  readonly source: T[];
   private filters: Array<(m: T) => boolean>;
   private cachedResult: T[] | undefined;
 
@@ -136,8 +137,8 @@ export class BoundQuery<T extends Queryable> {
    * First language becomes primary (item.lang), others accessible as item.rs, item.ts, etc.
    */
   addLang(lang: LanguageDefinitionImperative): void {
+    if (this._langs.includes(lang)) return;
     this._langs.push(lang);
-    this.cachedResult = undefined;
   }
 
   /**
@@ -145,7 +146,11 @@ export class BoundQuery<T extends Queryable> {
    * Clears any previously added languages.
    */
   setLang(lang: LanguageDefinitionImperative): void {
-    this._langs = [lang];
+    const langIdx = this._langs.findIndex((l) => l === lang);
+    if (langIdx !== -1) {
+      this._langs.splice(langIdx, 1);
+    }
+    this._langs.unshift(lang);
     this.cachedResult = undefined;
   }
 
@@ -170,28 +175,15 @@ export class BoundQuery<T extends Queryable> {
     if (this._langs.length === 0) throw new Error('no language specified');
 
     if (this.cachedResult === undefined) {
-      this.cachedResult = this.filters.reduce(
-        (methods, filter) => methods.filter(filter),
-        this.source
-      );
+      this.cachedResult = this.filters.reduce((item, filter) => item.filter(filter), this.source);
 
       const primaryLang = this._langs[0];
-      const additionalLangs = this._langs.slice(1);
 
       // Get language property name from extension (rust -> rs, typescript -> ts, etc.)
       const getLangPropName = (lang: LanguageDefinitionImperative): string => {
-        const ext = lang.extensions?.[0]?.replace('.', '').replace('.mejs', '');
+        const ext = lang.extensions?.[0]?.replace('.mejs', '').replace('.', '');
         if (ext) {
-          // Handle special cases
-          if (ext === 'rs') return 'rs';
-          if (ext === 'ts') return 'ts';
-          if (ext === 'kt') return 'kt';
-          if (ext === 'swift') return 'swift';
-          if (ext === 'py') return 'py';
-          if (ext === 'go') return 'go';
-          if (ext === 'cpp' || ext === 'cc' || ext === 'cxx') return 'cpp';
-          if (ext === 'java') return 'java';
-          if (ext === 'cs') return 'cs';
+          return ext;
         }
         // Fallback to language name
         return lang.name;
@@ -202,17 +194,11 @@ export class BoundQuery<T extends Queryable> {
         item.lang = primaryLang;
 
         // Add property accessors for additional languages
-        for (const lang of additionalLangs) {
+        for (const lang of this._langs) {
           const propName = getLangPropName(lang);
           Object.defineProperty(item, propName, {
             get: () => {
-              // Clone the item with the different language
-              const cloned = (
-                item as unknown as {
-                  cloneWithLang(lang: LanguageDefinitionImperative): typeof item;
-                }
-              ).cloneWithLang(lang);
-              return cloned;
+              return item.cloneWithLang(lang);
             },
             enumerable: true,
             configurable: true
@@ -399,13 +385,6 @@ export class BoundQuery<T extends Queryable> {
  *   .all;
  * ```
  */
-export function createQueryAPI<
-  T extends {
-    lang: LanguageDefinitionImperative;
-    tags?: string[];
-    crudOperation?: string;
-    managementName?: string;
-  }
->(stuff: T[]) {
+export function createQueryAPI<T extends Queryable<T>>(stuff: T[]) {
   return new BoundQuery(stuff);
 }

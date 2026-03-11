@@ -5,7 +5,7 @@
  */
 
 import * as path from 'node:path';
-import type { SpiralNode, GeneratorContext } from '../heddles/index.js';
+import type { SpiralNode } from '../heddles/index.js';
 import {
   declareTreadle,
   generateFromTreadle,
@@ -15,8 +15,9 @@ import { TauriSpiraler } from '../../warp/spiral/spiralers/tauri.js';
 import { RustCore } from '../../warp/spiral/index.js';
 import { hookup } from '../sley/index.js';
 import { cargoToml } from '../sley/index.js';
-import { buildCrateNaming } from '../stringing.js';
+import { buildCrateNaming, Name } from '../stringing.js';
 import type { GeneratedFile } from '../bobbin/index.js';
+import { languages } from '../reed/index.js';
 
 /**
  * Convert snake_case command name to kebab-case permission identifier.
@@ -45,7 +46,11 @@ export const tauriPluginTreadle = declareTreadle({
     pipeline: []
   },
 
-  data: (_context, current, previous) => {
+  language: ['rust', 'kotlin'],
+
+  data: (context, current, previous) => {
+    context.methods.addLang(languages.get('rust')!);
+    console.log('heres a clone', { clone: context.methods.all[0].rs });
     const spiraler = (current.ring as any).spiraler as TauriSpiraler;
     const core = previous.ring as RustCore;
     const metadata = core.getMetadata();
@@ -54,7 +59,7 @@ export const tauriPluginTreadle = declareTreadle({
     const coreName = spiraler._config?.coreName || metadata.packageName || 'unknown';
     const coreCrateName = spiraler._config?.coreCrateName || metadata.crateName || coreName;
 
-    const pascalCore = coreName.charAt(0).toUpperCase() + coreName.slice(1);
+    const pascalCore = new Name(coreName).pascalCase;
     const base = buildTauriPluginNaming(coreName, '');
 
     // Build crate naming data for Rust code generation
@@ -75,7 +80,7 @@ export const tauriPluginTreadle = declareTreadle({
       platformStructName: `Spire${pascalCore}Platform`,
       platformSetupFn: `setupSpire${pascalCore}`,
       platformTraitName: `Spire${pascalCore}PlatformTrait`,
-      pluginName: `o19-${coreName}-tauri`,
+      pluginName: `${coreName}-tauri`,
       _currentRing: current.ring,
       _previousRing: previous.ring
     };

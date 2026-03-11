@@ -55,6 +55,7 @@ class {{ serviceName }} : Service() {
     private external fun nativeStopService(handle: Long)
 
 {% for method in methods %}
+    {% console.log('WE IN HERE service.kt.mejs', {raw: method.raw, kt: method.kotlin, rs: method.rs }) %}
     /** {{ method.description || method.name }} */
     private external fun native{{ method.name.pascalCase }}(
         handle: Long{% if method.raw.params.length > 0 %}, {{ method.kt.params }}{% endif %}

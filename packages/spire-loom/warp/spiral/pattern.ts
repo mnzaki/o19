@@ -5,7 +5,7 @@
  * A spiral can wrap one ring (linear) or multiple rings (multiplexed).
  */
 
-import { Layer, Layering } from '../layers.js';
+import { ExternalLayer, Layer, Layering } from '../layers.js';
 import type { TieupConfig } from '../tieups.js';
 
 // ============================================================================
@@ -60,8 +60,7 @@ export interface RingPackageMetadata {
  */
 export abstract class CoreRing<
   S extends Partial<Spiralers>,
-  L extends SpiralRing = SpiralRing,
-  CoreData = unknown
+  L extends ExternalLayer<any>
 > extends SpiralRing {
   /** Internal storage for the name property */
   private _name?: string;
@@ -69,13 +68,11 @@ export abstract class CoreRing<
 
   constructor(
     /** The external layer (struct definition) backing this core */
-    public layer: L,
-    /** The core data/struct that defines the domain model */
-    public core: CoreData,
+    public core: L,
     /** Package metadata for file generation */
-    public metadata?: RingPackageMetadata
+    public metadata?: Partial<RingPackageMetadata>
   ) {
-    super();
+    super(core);
   }
 
   /**
@@ -83,7 +80,7 @@ export abstract class CoreRing<
    * Returns the explicitly set name, or falls back to the layer's name.
    */
   get name(): string | undefined {
-    return this._name ?? (this.layer as any)?.name;
+    return this._name ?? (this.core as any)?.name;
   }
 
   /**

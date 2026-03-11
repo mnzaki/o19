@@ -35,11 +35,13 @@ export abstract class Layering {
  * Layers have their own tieup mechanism separate from Layering.
  */
 export abstract class Layer {
+  constructor(public _core?: any) {}
+
   /** Get the layer name */
   get name(): string | undefined {
     return layerNameStorage.get(this);
   }
-  
+
   /** Set the layer name */
   set name(value: string | undefined) {
     layerNameStorage.set(this, value);
@@ -62,9 +64,16 @@ export abstract class Layer {
   }
 }
 
+export const EXTERNAL_LAYER_CORE = Symbol.for('warp:externalLayer');
 /**
  * ExternalLayer - A layer defined outside the core system.
  *
  * Used for struct definitions and external bindings.
  */
-export abstract class ExternalLayer extends Layer {}
+export abstract class ExternalLayer<T extends Layer> extends Layer {
+  //static [EXTERNAL_LAYER_CORE]: new <T2 extends ExternalLayer<any>>(...args: any[]) => T2;
+
+  constructor(public core?: T) {
+    super(core);
+  }
+}

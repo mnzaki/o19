@@ -33,11 +33,9 @@ import {
   findNodeForRing
 } from '../machinery/heddles/traversal.js';
 import { ensureMetadata } from '../warp/metadata.js';
-import { loadWarp } from './workspace-discovery.js';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import type { WeavingPlan } from './plan.js';
 import type { Shed } from '../machinery/loom.js';
+import type { TreadleTrodder } from '../machinery/treadle-kit/types.js';
 
 export class PatternMatcher {
   private matrix: GeneratorMatrix;
@@ -92,46 +90,14 @@ export class PatternMatcher {
     }
 
     // ==========================================================================
-    // Phase 1: Auto-load package WARPs and merge lazy tieups
+    // Phase 1: Do something else that requires that tieups not be applied yet
     // ==========================================================================
 
-    if (workspaceRoot) {
-      for (const [exportName, ring] of Object.entries(mutableWarp)) {
-        if (!(ring instanceof SpiralRing)) continue;
-
-        const packagePath = (ring as any).metadata?.packagePath;
-        if (!packagePath) continue;
-
-        const packageWarpPath = path.join(workspaceRoot, packagePath, 'loom', 'WARP.ts');
-        if (!fs.existsSync(packageWarpPath)) continue;
-
-        try {
-          const packageWarp = await loadWarp(packageWarpPath, workspaceRoot);
-          const packageRing = packageWarp[exportName];
-
-          if (packageRing instanceof SpiralRing) {
-            // Ensure metadata on package ring
-            ensureMetadata(packageRing, exportName);
-
-            // Collect lazy tieups from package WARP
-            const packageLazyTieups = getLazyTieups(packageRing);
-
-            // Merge: main tieups first, then package tieups
-            const existingTieups = lazyTieupRegistry.get(exportName) || [];
-            const mergedTieups = [...existingTieups, ...packageLazyTieups];
-            lazyTieupRegistry.set(exportName, mergedTieups);
-
-            // Use package ring as the base
-            mutableWarp[exportName] = packageRing;
-          }
-        } catch (error) {
-          // Log error for debugging but continue - package WARP is optional
-          if (process.env.DEBUG_PACKAGE_WARP) {
-            console.error(`[DEBUG] Failed to load package WARP from ${packageWarpPath}:`, error);
-          }
-        }
-      }
-    }
+    /* The architecture was such that this was needed (we used to manually load
+     * nested packages in the workspace) so that's why there's a lazyTieupRegistry
+     * here, and it's left so that we may use this in the future for other crazy
+     * things
+     */
 
     // ==========================================================================
     // Phase 2: Apply merged lazy tieups to resolved rings
@@ -341,15 +307,6 @@ export interface SpiralNode {
   /** Export name from WARP.ts */
   exportName?: string;
 }
-/**
- * A trodder that, when it finds (current, previous) match, trods a treadle with
- * the context
- */
-export type TreadleTrodder = (
-  current: SpiralNode,
-  previous: SpiralNode,
-  context?: GeneratorContext
-) => Promise<GeneratedFile[]>;
 
 /**
  * A generated file specification.

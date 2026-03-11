@@ -33,6 +33,8 @@ pub trait {{ platformTraitName }}: Send + Sync {
 
 {% for method in methods %}
   /// {{ method.description || method.name }}
+  {% console.log('INSIDE THE platform.rs.mejs!!!', { methodrs: method.rs,
+  render: method.rs._render }) %}
   {{ method.rs.signature }};
 
 {% endfor %}

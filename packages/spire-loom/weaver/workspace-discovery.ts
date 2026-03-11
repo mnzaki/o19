@@ -40,14 +40,31 @@ export function getWorkspaceInfoFromPath(p: string): Partial<WorkspaceInfo> {
   }
 
   // No parent workspace found - standalone package
-  const loomPath = path.join(p, 'loom');
-  const warpPath = path.join(loomPath, 'WARP.ts');
+  let loomDir = path.join(p, 'loom');
+  let warpPath = path.join(loomDir, 'WARP.ts');
+  let loomFiles: string[] = [];
+
+  if (fs.existsSync(loomDir)) {
+    loomFiles = fs
+      .readdirSync(loomDir)
+      .filter((f) => f.match(/\.[tj]s$/))
+      .map((f) => path.join(loomDir, f));
+  } else {
+    loomDir = '';
+  }
+
+  if (!fs.existsSync(warpPath)) {
+    // Check if this is a workspace root
+    warpPath = '';
+  }
+
   return {
     name,
     type: isCargoWorkspace || isPnpmWorkspace ? 'workspace' : 'package',
     root: p,
-    loomDir: fs.existsSync(loomPath) ? loomPath : undefined,
-    warpPath: fs.existsSync(warpPath) ? warpPath : undefined
+    loomDir: loomDir || undefined,
+    loomFiles,
+    warpPath: warpPath || undefined
   };
 }
 
@@ -66,37 +83,13 @@ export function getWorkspaceInfoFromPath(p: string): Partial<WorkspaceInfo> {
  * @param warpPath - Path to WARP.ts
  * @param workspaceRoot - Optional workspace root for consistent module resolution
  */
-export async function loadWarp(
-  warpPath: string,
-  workspaceRoot?: string
-): Promise<Record<string, any>> {
-  console.log('🧵 Loading WARP.ts', { warpPath, workspaceRoot });
-  const { pathToFileURL } = await import('node:url');
-  const warpUrl = pathToFileURL(warpPath).href;
-
-  // If workspaceRoot is provided, temporarily change cwd for consistent module resolution
-  // This ensures imports from WARP.ts resolve the same regardless of where spire-loom runs
-  const originalCwd = process.cwd();
-  if (workspaceRoot) {
-    process.chdir(workspaceRoot);
-  }
-
-  let warp: Record<string, any>;
-  try {
-    warp = await import(warpUrl);
-  } finally {
-    // Always restore original cwd
-    if (workspaceRoot) {
-      process.chdir(originalCwd);
-    }
-  }
-
+export function loadWarp(warp: Record<string, any>): Record<string, any> {
   // Track which CoreRing instances have been configured to avoid overwriting
   // when multiple spiralers wrap the same core (e.g., foundframe and android)
   const configuredCores = new Set();
 
   for (const [exportName, value] of Object.entries(warp)) {
-    let core: CoreRing<any, any, any>;
+    let core: CoreRing<any, any>;
     // For a CoreRing directly exported, set crateName/packageName from export name
     if (value instanceof CoreRing) {
       // Configure CoreRing instances that are directly exported
@@ -130,7 +123,7 @@ export function getSuggestedPackageFilter(info: WorkspaceInfo): string | undefin
   return undefined;
 }
 */
-export async function loadWorkspace(cwd: string = process.cwd()): Promise<WorkspaceInfo | null> {
+export function loadWorkspace(cwd: string = process.cwd()): WorkspaceInfo | null {
   let ret = getWorkspaceInfoFromPath(cwd);
 
   if (ret.type == 'package') {
@@ -149,7 +142,6 @@ export async function loadWorkspace(cwd: string = process.cwd()): Promise<Worksp
   }
 
   if (ret.name && ret.loomDir && ret.warpPath && ret.type !== 'unknown') {
-    //ret.warp = await loadWarp(ret.warpPath, ret.root);
     return ret as WorkspaceInfo;
   }
 

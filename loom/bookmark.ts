@@ -17,6 +17,7 @@
  */
 
 import loom, { crud } from '@o19/spire-loom';
+import { Management } from '@o19/spire-loom/warp';
 import { foundframe } from './WARP.js';
 
 // ============================================================================
@@ -40,13 +41,9 @@ export interface BookmarkFilter {
   before?: number;
 }
 
-// ============================================================================
-// MANAGEMENT (defined first to avoid TDZ)
-// ============================================================================
-
 @loom.reach('Global')
 @loom.link(foundframe.inner.core.thestream)
-export class BookmarkMgmt extends loom.Management {
+export class BookmarkMgmt extends Management {
   VALID_URL_REGEX = /^https?:\/.+/;
   MAX_TITLE_LENGTH = 200;
   MAX_NOTES_LENGTH = 2000;
@@ -70,23 +67,19 @@ export class BookmarkMgmt extends loom.Management {
 
   /**
    * List bookmarks with optional filtering.
-   * 
+   *
    * @example
    * // Basic pagination
    * listBookmarks(50, 0)
-   * 
+   *
    * // By URI
    * listBookmarks(50, 0, { uri: 'https://example.com' })
-   * 
+   *
    * // Recent bookmarks
    * listBookmarks(50, 0, { after: Date.now() - 86400000 })
    */
-  @loom.crud.list({ collection: true })
-  listBookmarks(
-    limit?: number,
-    offset?: number,
-    filter?: BookmarkFilter
-  ): Bookmark[] {
+  @loom.crud.list
+  listBookmarks(limit?: number, offset?: number, filter?: BookmarkFilter): Bookmark[] {
     throw new Error('Imprint only');
   }
 

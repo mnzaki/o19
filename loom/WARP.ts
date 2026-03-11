@@ -18,23 +18,10 @@ import { tauriAndroidCommandsTreadle } from './treadles/tauri-android-commands.j
 import { tauriDesktopPlatformTreadle } from './treadles/tauri-desktop-platform.js';
 import { appHookupTreadle } from './treadles/app-hookups.js';
 
-// ============================================================================
-// PLACEHOLDER SPIRALS - Replaced by Package WARPs
-// ============================================================================
-// Package WARPs are auto-discovered at {packagePath}/loom/WARP.ts
-// and replace these placeholders while merging tieups.
-
-// Placeholder for foundframe - package WARP at o19/crates/foundframe/loom/WARP.ts
-export const foundframe = loom.spiral(loom.spiral.rust.core());
-
-// Placeholder for tauri - package WARP at o19/crates/foundframe-tauri/loom/WARP.ts
-// Note: Workspace tieups are defined below and will be merged with package WARP tieups
-export const tauri = loom.spiral(loom.spiral.tauri.core());
-tauri.name = 'foundframe-tauri';
-
-// Placeholder for front - package WARP at packages/foundframe-front/loom/WARP.ts
-export const front = loom.spiral(loom.spiral.typescript.core());
-front.name = 'foundframe-front';
+import { foundframe } from '../crates/foundframe/loom/WARP.js';
+import { tauri } from '../crates/foundframe-tauri/loom/WARP.js';
+import { front } from '../packages/foundframe-front/loom/WARP.js';
+export { foundframe, tauri, front };
 
 // ============================================================================
 // PLATFORM RINGS (spiral out from Core)

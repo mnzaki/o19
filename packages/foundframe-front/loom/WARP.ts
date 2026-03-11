@@ -11,7 +11,7 @@
  */
 
 import loom from '@o19/spire-loom';
-import { dddServicesTreadle } from '@o19/spire-loom/machinery/treadles';
+import { generateDddServices } from '@o19/spire-loom/machinery/treadles';
 
 // ============================================================================
 // FRONT SPIRAL - TypeScript Domain Layer
@@ -32,7 +32,7 @@ import { dddServicesTreadle } from '@o19/spire-loom/machinery/treadles';
 export const front = loom.spiral.typescript.ddd().tieup({
   treadles: [
     {
-      treadle: dddServicesTreadle,
+      treadle: generateDddServices,
       config: {}
     }
   ]

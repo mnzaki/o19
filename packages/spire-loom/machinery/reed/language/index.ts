@@ -18,7 +18,7 @@
  */
 
 import type { LanguageDeclaration } from './declarative.js';
-import { compileToExecutive } from './declarative.js';
+import { compileToImperative } from './declarative.js';
 import { declareLanguageImperatively, type LanguageDefinitionImperative } from './imperative.js';
 import deepmerge from 'deepmerge';
 import type { LanguageIdentity, LanguageType } from './types.js';
@@ -89,7 +89,7 @@ export function declareLanguage<T extends LanguageType>(
     // compileToExecutive() generates:
     // - codeGen.types from syntax.types (TypeFactory)
     // - codeGen.rendering from syntax.composition (RenderingConfig)
-    const compiledConfig = compileToExecutive(input as LanguageDeclaration);
+    const compiledConfig = compileToImperative(input as LanguageDeclaration);
 
     // Deep merge: explicit config overrides compiled config
     // This allows imperative overrides of generated parts
@@ -125,8 +125,7 @@ export {
   CORE_KEYWORD_TYPES,
   CORE_TYPE_CONSTRUCTORS,
   commonLanguageDeclaration,
-  cFamilyLanguageDeclaration,
-  compileToExecutive
+  compileToImperative as compileToExecutive
 } from './declarative.js';
 
 export * from './types.js';

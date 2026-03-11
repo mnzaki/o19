@@ -22,18 +22,14 @@ export interface RustCoreMetadata {
  *   new RustCore(Foundframe)  // layer first, then options
  *   new RustCore(Foundframe, { packageName: 'foundframe' })
  */
-export class RustCore<
-  Layer extends RustExternalLayer = RustExternalLayer,
-  StructClass = Layer
-> extends p.CoreRing<
+export class RustCore<Layer extends RustExternalLayer = RustExternalLayer> extends p.CoreRing<
   {
     android: spiralers.RustAndroidSpiraler;
     desktop: spiralers.DesktopSpiraler;
   },
-  Layer,
-  Layer & StructClass
+  Layer
 > {
-  declare core: Layer & StructClass;
+  declare core: Layer;
 
   constructor(
     layer: Layer,
@@ -45,7 +41,7 @@ export class RustCore<
   ) {
     // Metadata is enriched by heddles from export name after loadWarp sets .name
     // We set language here so it's available immediately; heddles will add packageName/path
-    super(layer, layer as any, { language: 'rust' } as any);
+    super(layer, { ...options, language: 'rust' });
 
     // Ensure layer has a name - use constructor name as fallback
     // This handles cases like loom.spiral.tauri where layer is created inline
@@ -65,7 +61,7 @@ export class RustCore<
 
   getMetadata(): RustCoreMetadata {
     // Use layer.name (set by loadWarp from export name) or fall back to constructor name
-    const layerName = this.layer.name || (this.layer?.constructor as any)?.name || 'unknown';
+    const layerName = this.core.name || (this.core?.constructor as any)?.name || 'unknown';
 
     const packageName = this.options.packageName || layerName;
     const crateName = this.options.crateName || layerName;

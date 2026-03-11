@@ -151,7 +151,9 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
     this.copyOwnProperties(clone);
 
     // Set the new language (triggers enhancements)
+    console.log(`[CLONE] cloning ${this.name} with ${lang.name}`);
     clone.lang = lang;
+    console.log(`[CLONE] after setting lang, _render:`, (clone as any)._render);
 
     return clone;
   }
@@ -160,7 +162,7 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
    * Copy own properties to a clone. Subclasses can override to filter.
    * Must be public so LanguageMethod can call super.copyOwnProperties()
    */
-  copyOwnProperties(clone: typeof this): void {
+  copyOwnProperties(clone: any): void {
     for (const key of Object.getOwnPropertyNames(this)) {
       const descriptor = Object.getOwnPropertyDescriptor(this, key);
       if (descriptor) {
@@ -171,12 +173,24 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
 
   asContextWith(extra: Record<string, unknown>) {
     const context = { ...extra };
-    Object.entries(Object.getOwnPropertyDescriptors(this)).forEach(([key, descriptor]) => {
-      if (descriptor.get) {
+    const props = Object.getOwnPropertyDescriptors(this);
+    let prototype = Object.getPrototypeOf(this);
+    while (prototype) {
+      Object.assign(props, Object.getOwnPropertyDescriptors(prototype), props);
+      prototype = Object.getPrototypeOf(prototype);
+    }
+    for (const [key, descriptor] of Object.entries(props)) {
+      if (descriptor?.get) {
         context[key] = descriptor.get.bind(this);
+      } else if (descriptor?.value) {
+        context[key] = descriptor.value;
+      } else if (typeof this[key as keyof this] !== 'function') {
+        context[key] = this[key as keyof this];
+      } else {
+        context[key] = (this[key as keyof this] as Function).bind(this);
       }
-    });
-
+      console.log('asContextWith context', { key, value: context[key] });
+    }
     return context;
   }
 }
@@ -232,6 +246,10 @@ export class LanguageValue<T extends LanguageType = LanguageType> extends Langua
     } else {
       return this._type;
     }
+  }
+
+  get lang() {
+    return super.lang;
   }
 
   set lang(lang: LanguageDefinitionImperative<T>) {
@@ -307,9 +325,9 @@ export interface TypeFactory<T extends LanguageType = LanguageType> {
 /**
  * WARP integration configuration for a language.
  */
-export interface LanguageWarpConfig {
+export interface LanguageWarpConfig<T extends ExternalLayer<any>> {
   /** ExternalLayer subclass for this language */
-  externalLayerClass: new () => ExternalLayer;
+  externalLayerClass: new (...args: any[]) => T;
 
   /**
    * Field decorator functions (e.g., { Mutex, Option, i64 }).
@@ -319,15 +337,15 @@ export interface LanguageWarpConfig {
   fieldDecorators: Record<string, any>;
 
   /** Class decorator function (e.g., Struct) - can be direct or factory */
-  classDecorator: ClassDecorator | ((options?: any) => ClassDecorator);
+  //classDecorator: ClassDecorator | ((options?: any) => ClassDecorator);
 
   /** Core ring configuration */
   core: {
     /** The CoreRing subclass (e.g., RustCore) */
-    coreClass: new (...args: any[]) => CoreRing<any, any, any>;
+    coreClass: new (...args: any[]) => CoreRing<any, any>;
     /** Factory to create core instance */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    createCore: (layer?: any) => CoreRing<any, any, any>;
+    createCore: (layer?: any) => CoreRing<any, any>;
   };
 
   /**

@@ -18,6 +18,11 @@ import type { GeneratorContext } from '../../weaver/plan-builder.js';
 import type { EntityMetadata } from '../../warp/metadata.js';
 import { hookup } from '../sley/index.js';
 
+// Import languages to ensure they're registered before the kit runs
+import '../../warp/rust.js';
+import '../../warp/typescript.js';
+import '../../warp/kotlin.js';
+
 /**
  * Create a treadle kit for building generators.
  *
@@ -102,12 +107,13 @@ export function createTreadleKit(context: GeneratorContext): TreadleKit {
           const lang = languages.get(langName);
           if (!lang) {
             console.warn(`[KIT] Unknown language: ${langName}`);
-            continue;
+            throw new Error(`[KIT] Unknown language: ${langName}`);
           }
 
           // Add language to methods and entities BoundQueries
           context.methods.addLang(lang);
           context.entities.addLang(lang);
+          context.mgmts.addLang(lang);
 
           // Track enhanced languages
           const langKey = getLanguageExtensionKey(langName);
