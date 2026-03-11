@@ -151,9 +151,7 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
     this.copyOwnProperties(clone);
 
     // Set the new language (triggers enhancements)
-    console.log(`[CLONE] cloning ${this.name} with ${lang.name}`);
     clone.lang = lang;
-    console.log(`[CLONE] after setting lang, _render:`, (clone as any)._render);
 
     return clone;
   }
@@ -212,7 +210,9 @@ export class LanguageType extends LanguageThing {
     /** Inner types that this type wraps */
     readonly innerTypes: LanguageType[] = [],
     /** Whether this is an entity/complex type */
-    readonly isEntity: boolean = false
+    readonly isEntity: boolean = false,
+    /** Import path if this type requires an import */
+    readonly importPath?: string
   ) {
     super(name);
   }
@@ -307,6 +307,13 @@ export interface TypeFactory<T extends LanguageType = LanguageType> {
   result: ((okType: T, errType: T) => T) | null;
   object(...innerProperties: T[]): T;
   //function(name: string, params: T[], returnType: T): T;
+
+  /**
+   * Create an entity type.
+   * @param name - Entity name (e.g., 'Bookmark')
+   * @param importPath - Optional import path for the entity
+   */
+  entity(name: string, importPath?: string): T;
 
   /**
    * Map a TypeScript type to this language's type.

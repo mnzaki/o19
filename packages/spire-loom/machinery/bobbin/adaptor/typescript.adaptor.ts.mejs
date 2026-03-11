@@ -5,6 +5,8 @@
  * Delegates to the Platform implementation (local on desktop, service on Android).
  */
 
+{{ methods.imports }}
+
 import { invoke } from '@tauri-apps/api/core';
 import { {{ extendsClass }} } from '@o19/foundframe-drizzle/adaptors';
 import type { {{ portInterface }} } from '@o19/foundframe-front/ports';

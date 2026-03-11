@@ -2,7 +2,67 @@
 
 ## Active Work
 
+Actual divining.
+
+```
+const importsDiviner = declareDiviner({
+  /* wrap return type to collect imports without having calculated import path */
+})
+export const createMethodsDiviners: { runDiviners, extendBoundQuery } = declareDivinerSet({
+  imports: importsDiviner,
+})
+
+const newFilesDiviner = declareDiviner({
+  newFiles: (ctx) => {
+    
+  },
+  /* wrap a diviner given as argument, make their `toString()` nested one more
+  time to increase the number of runs needed
+  */
+})
+
+export const createEntitiesDiviners: { runDiviners, extendBoundQuery } = declareDivinerSet({
+  newFiles: newFilesDiviner
+})
+
+```
+
+`extendBoundQuery = { imports: importsDiviner }` for example
+
+We define a `runDiviners(extendBoundQuery, items, accumulator): boolean` function which returns
+true if the diviner still requires running again
+
 ---
+
+the treadle says
+
+```
+newFiles = (ctx) => {
+  const methodsDiviner = createMethodsDiviners(ctx)
+  const methods = createQueryAPI(..., methodsDiviner)
+  const entitiesToProduce = methods.imports.map(import => /* importToEntity */)
+  const entities = createQueryAPI(..., createEntitiesDiviners(entitiesToProduce))
+  
+  const entityPathPrefix = 'ts/entities/'
+  const entityFiles = entities.newFiles
+  const someFilesThatUseEntityReturnTypes = [{ template: 'sometemplate.ts.ejs' }]
+  return [...entityFiles, ...someFilesThatUseEntityReturnTypes]
+}
+```
+
+The important points are:
+1. `methods.imports is itself a BoundQuery of course! so
+    imports needs to be defined as `extends LanguageThing` and should have language
+    propagated correctly.
+2. `createEntitiesDiviners` should return `{ newFiles }` should the
+   `createQueryAPI should apply to the BoundQuery object appropriately. Those
+   diviners are of course 2 stage, because they wait for the imports diviner to
+   return! and this part needs thinking, to synthesize the previous ideas'
+   sections and this functionality/usage
+
+so how do you think we achieve this in a minimally beautiful way? give me your
+ideas
+
 
 ## Critical TODOs
 

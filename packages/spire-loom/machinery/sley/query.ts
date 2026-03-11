@@ -19,6 +19,11 @@
 
 import type { CrudOperation } from '../../warp/crud.js';
 import type { LanguageDefinitionImperative } from '../reed/language/imperative.js';
+import type {
+  DivinerSet,
+  InstantiatedDiviner,
+  PostrequisiteAccumulator
+} from '../reed/postrequisites.js';
 
 // ============================================================================
 // Types
@@ -123,9 +128,25 @@ export class BoundQuery<T extends Queryable<T>> {
   /** Multiple languages - first is primary, others accessible as properties */
   private _langs: LanguageDefinitionImperative[] = [];
 
-  constructor(source: T[], filters: Array<(m: T) => boolean> = []) {
+  /** Diviner set for this query (type-specific) */
+  readonly diviners: DivinerSet;
+
+  /** Accumulators by diviner name */
+  readonly accumulators: Map<string, PostrequisiteAccumulator> = new Map();
+
+  /** Context name for template access */
+  readonly contextName: string;
+
+  constructor(
+    source: T[],
+    filters: Array<(m: T) => boolean> = [],
+    contextName: string = 'ctx',
+    diviners: DivinerSet = {}
+  ) {
     this.source = source;
     this.filters = filters;
+    this.contextName = contextName;
+    this.diviners = diviners;
   }
 
   transform(transform: (m: T) => T): BoundQuery<T> {
@@ -152,6 +173,7 @@ export class BoundQuery<T extends Queryable<T>> {
     }
     this._langs.unshift(lang);
     this.cachedResult = undefined;
+    this.accumulators.clear();
   }
 
   /** Get the primary language */
@@ -189,9 +211,20 @@ export class BoundQuery<T extends Queryable<T>> {
         return lang.name;
       };
 
+      // Apply diviners once to initialize accumulators
+      for (const [name, diviner] of Object.entries(this.diviners)) {
+        diviner.applyToItems(this as any);
+        this.accumulators.set(name, diviner.accumulator);
+      }
+
       this.cachedResult.forEach((item) => {
         // Set primary language
         item.lang = primaryLang;
+
+        // Attach diviner accumulators to each item
+        for (const [name, acc] of this.accumulators) {
+          (item as any)[name] = acc;
+        }
 
         // Add property accessors for additional languages
         for (const lang of this._langs) {
@@ -214,12 +247,28 @@ export class BoundQuery<T extends Queryable<T>> {
    * Immutable - doesn't modify the current query.
    */
   private withFilter(filter: (m: T) => boolean): BoundQuery<T> {
-    const newQuery = new BoundQuery(this.source, [...this.filters, filter]);
+    const newQuery = new BoundQuery(
+      this.source,
+      [...this.filters, filter],
+      this.contextName,
+      this.diviners
+    );
     // Propagate languages to the new query
     for (const lang of this._langs) {
       newQuery.addLang(lang);
     }
+    // Share accumulators map
+    (newQuery as any).accumulators = this.accumulators;
     return newQuery;
+  }
+
+  /**
+   * Get imports accumulator for template access.
+   * Available as {{ methods.imports }} in templates.
+   */
+  get imports(): PostrequisiteAccumulator | undefined {
+    this.evaluate();
+    return this.accumulators.get('imports');
   }
 
   // ========================================================================
@@ -385,6 +434,10 @@ export class BoundQuery<T extends Queryable<T>> {
  *   .all;
  * ```
  */
-export function createQueryAPI<T extends Queryable<T>>(stuff: T[]) {
-  return new BoundQuery(stuff);
+export function createQueryAPI<T extends Queryable<T>>(
+  stuff: T[],
+  contextName: string = 'ctx',
+  diviners: DivinerSet = {}
+) {
+  return new BoundQuery(stuff, [], contextName, diviners);
 }

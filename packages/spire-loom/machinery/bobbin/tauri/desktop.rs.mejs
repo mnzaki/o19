@@ -6,6 +6,8 @@
 //! - thestream operations use with_thestream(|stream| ...)
 //! - device_manager operations use with_device_manager(|dm| ...)
 
+{{ methods.imports }}
+
 use crate::spire::platform::{{ platformTraitName }};
 use crate::spire::error::{Error, Result};
 use crate::spire::models::*;

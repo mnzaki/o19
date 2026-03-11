@@ -1,13 +1,27 @@
 /**
  * Declarative Language Schema 🌾
  *
- * Layer 1: Declarative language definition system.
- * Describes what a language IS, not how to generate code.
+ * LAYER 1: DECLARATIVE LANGUAGE DEFINITION
  *
- * The declarative layer compiles to the executive layer (executive.ts),
- * which handles actual code generation.
+ * Users define languages using templates and declarations.
+ * This layer describes WHAT the language looks like.
+ *
+ * ⚠️ ARCHITECTURAL BOUNDARY ⚠️
+ * Code at runtime should NEVER access these templates directly.
+ * Instead, use the compiled methods from LanguageDefinitionImperative.
+ *
+ * The compilation bridge: compileToImperative() transforms templates into
+ * executable rendering methods in the imperative layer.
+ *
+ * To add a new feature:
+ * 1. Add template to LanguageDeclaration.syntax.composition.*
+ * 2. Add method signature to LanguageRenderingConfig (imperative.ts)
+ * 3. Implement compilation in compileToImperative() below
+ * 4. Use the compiled method in your runtime code
  *
  * @module machinery/reed/language/declarative
+ * @see imperative.ts for the runtime layer
+ * @see DEV.md "The Two-Layer Language Architecture" for full guide
  */
 
 import type {
@@ -127,7 +141,8 @@ export const CORE_TYPE_CONSTRUCTORS = [
   'union',
   'intersection',
   'reference',
-  'promise'
+  'promise',
+  'entity'
 ] as const;
 
 export type CoreTypeConstructor = (typeof CORE_TYPE_CONSTRUCTORS)[number];
@@ -332,9 +347,19 @@ function createTypeFactoryFromConstructors<T extends LanguageType>(
 
     result: ctors.result && createWrapper.bind(null, ctors.result),
 
-    //entity(name: string): LanguageType {
-    //  return new LanguageType(name, `Default::default()`, false, true);
-    //},
+    entity(name: string, importPath?: string): T {
+      // Create entity type with isEntity flag and import path
+      const stub = ctors.entity?.stub ?? 'Default::default()';
+      const stubValue = typeof stub === 'function' ? stub() : stub;
+      return new LanguageType(
+        name,
+        stubValue,
+        false,      // not primitive
+        [],         // no inner types
+        true,       // isEntity
+        importPath  // may be undefined, resolved later
+      ) as T;
+    },
 
     fromTsType(tsType: string, isCollection: boolean): T {
       // Handle TypeScript array syntax: T[]
@@ -360,8 +385,9 @@ function createTypeFactoryFromConstructors<T extends LanguageType>(
           case 'void':
             return this.void;
           default:
-            throw new Error(`Unknown type in declarative type(): "${normalizedType}" (original: "${tsType}")`);
-          //return this.entity(normalizedType);
+            // Treat unknown types as entity references
+            // Import path will be resolved during import collection
+            return this.entity(normalizedType);
         }
       })();
 
@@ -434,6 +460,13 @@ export function compileToImperative<T extends LanguageDeclaration = LanguageDecl
         composition.functionDefinition.source,
         method.asContextWith(languageContext)
       );
+    },
+
+    renderImportStatement: (importSpec: string, modulePath: string) => {
+      return mejs.renderTemplate(
+        composition.importStatement.source,
+        { importSpec, modulePath }
+      );
     }
 
     //renderObjectWrappedParams: (method: LanguageMethod, objectParamName: string) => {
@@ -465,11 +498,41 @@ export function compileToImperative<T extends LanguageDeclaration = LanguageDecl
   // Build partial language definition
   // Note: warp config must be provided by the caller as it requires
   // runtime classes (ExternalLayer, CoreRing, Spiraler)
-  return {
+  const imperativeConfig: Partial<LanguageDefinitionImperative> = {
     name: declaration.name,
     extensions: declaration.extensions.map((ext) => (ext.startsWith('.') ? ext : `.${ext}`)),
     codeGen
   };
+
+  // 🌀 ARCHITECTURAL GUARDRAIL 🌀
+  // Prevent direct access to syntax from imperative layer.
+  // This enforces the two-layer architecture where syntax templates
+  // are compiled into rendering methods, not accessed directly.
+  Object.defineProperty(imperativeConfig, 'syntax', {
+    get: () => {
+      throw new Error(
+        '\n🌀 ARCHITECTURAL VIOLATION 🌀\n\n' +
+        'Attempted to access "lang.syntax" from the imperative layer.\n\n' +
+        'The imperative layer (LanguageDefinitionImperative) does NOT have\n' +
+        'direct access to syntax templates. Templates are compiled into\n' +
+        'rendering methods at build time.\n\n' +
+        '❌ WRONG:\n' +
+        '  lang.syntax.composition.importStatement.source\n\n' +
+        '✅ CORRECT:\n' +
+        '  lang.codeGen.rendering.renderImportStatement(spec, path)\n\n' +
+        'To add a new feature:\n' +
+        '1. Add template to LanguageDeclaration.syntax.composition.*\n' +
+        '2. Add method to LanguageRenderingConfig\n' +
+        '3. Compile in compileToImperative()\n' +
+        '4. Use rendering method at runtime\n\n' +
+        'See: machinery/reed/language/README.md\n'
+      );
+    },
+    enumerable: false,
+    configurable: false
+  });
+
+  return imperativeConfig;
 }
 
 // ============================================================================
@@ -506,7 +569,11 @@ export const commonLanguageTypes: TypeConstructors = {
   union: null,
   intersection: null,
   reference: null,
-  promise: null
+  promise: null,
+  entity: {
+    template: (T: LanguageType) => T.name.toString(),
+    stub: 'Default::default()'
+  }
 };
 
 export const commonLanguageDeclaration: LanguageDeclaration = {

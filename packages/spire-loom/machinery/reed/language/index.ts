@@ -1,20 +1,40 @@
 /**
  * Language System 🌾
  *
- * Two-layer language definition architecture:
- * - Layer 1: Declarative (what the language IS)
- * - Layer 2: Executive (how to generate code)
+ * TWO-LAYER ARCHITECTURE:
  *
- * COMPILATION FLOW:
- * 1. User provides mixed declarative + optional imperative config
- * 2. If 'syntax' field present: compileToExecutive() generates codeGen from syntax
- * 3. Deep merge: explicit config overrides compiled config
- * 4. Register final config via declareLanguageImperatively()
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │  LAYER 1: DECLARATIVE (declarative.ts)                      │
+ * │  - Define languages using templates                         │
+ * │  - "What does the output look like?"                        │
+ * │  - Example: syntax.composition.importStatement.source       │
+ * └──────────────────────────┬──────────────────────────────────┘
+ *                            │ compileToImperative()
+ *                            ▼
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │  LAYER 2: IMPERATIVE (imperative.ts)                        │
+ * │  - Runtime uses compiled methods                            │
+ * │  - "How do I generate it?"                                  │
+ * │  - Example: codeGen.rendering.renderImportStatement()       │
+ * └─────────────────────────────────────────────────────────────┘
  *
- * This module provides the public API for language definitions.
- * Implementation details are in sibling modules - never import from them directly.
+ * THREE ENTRY POINTS:
+ *
+ * 1. declareLanguage({ syntax: {...} })  ← Pure declarative (recommended)
+ *    Path: declarative config → compileToImperative() → register
+ *
+ * 2. declareLanguage({ syntax: {...}, codeGen: {...} })  ← Mixed
+ *    Compiled config is deep-merged with explicit codeGen overrides
+ *
+ * 3. declareLanguageImperatively({ codeGen: {...} })  ← Pure imperative
+ *    Direct registration, no compilation. For specialized cases.
+ *
+ * ARCHITECTURAL GUARDRAIL:
+ * Accessing lang.syntax from imperative layer throws an error.
+ * Use lang.codeGen.rendering.* methods instead.
  *
  * @module machinery/reed/language
+ * @see DEV.md "The Two-Layer Language Architecture" for full guide
  */
 
 import type { LanguageDeclaration } from './declarative.js';

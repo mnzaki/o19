@@ -1,14 +1,28 @@
 /**
  * Language System Kernel 🌾
  *
- * Single source of truth for language definitions in spire-loom.
+ * LAYER 2: IMPERATIVE LANGUAGE DEFINITION
+ *
+ * Runtime configuration with executable methods for code generation.
+ * This layer handles HOW to generate code.
+ *
+ * ⚠️ ARCHITECTURAL BOUNDARY ⚠️
+ * This layer does NOT have access to syntax templates directly.
+ * All template usage happens through compiled rendering methods.
+ * Accessing lang.syntax throws a descriptive error (see compileToImperative()).
+ *
+ * The rendering methods in LanguageRenderingConfig are COMPILED from
+ * declarative syntax templates. Add new features by:
+ * 1. Adding template to LanguageDeclaration.syntax.composition.* (declarative.ts)
+ * 2. Adding method signature to LanguageRenderingConfig (this file)
+ * 3. Implementing compilation in compileToImperative() (declarative.ts)
  *
  * Pulled inward from self-declarer.ts - languages declare themselves
  * in the 'warp' scope (workspace session).
  *
- * Languages self-register by importing and calling declareLanguage().
- *
  * @module machinery/reed/language
+ * @see declarative.ts for the template layer
+ * @see DEV.md "The Two-Layer Language Architecture" for full guide
  */
 
 import { declare, getScopeRegistry } from '../../self-declarer.js';
@@ -30,6 +44,16 @@ import type { ExternalLayer } from '../../../warp/imprint.js';
 
 /**
  * Configuration for rendering language-specific code constructs.
+ *
+ * 🌀 ARCHITECTURAL NOTE 🌀
+ * These methods are COMPILED from declarative syntax templates.
+ * Do not implement template logic here - implement compilation logic
+ * in compileToImperative() that uses the templates.
+ *
+ * Pattern for adding new features:
+ * 1. Add template to LanguageDeclaration.syntax.composition.*
+ * 2. Add method signature here
+ * 3. Compile in compileToImperative()
  */
 export interface LanguageRenderingConfig<T extends LanguageType = LanguageType> {
   // TODO remove
@@ -50,6 +74,14 @@ export interface LanguageRenderingConfig<T extends LanguageType = LanguageType> 
    * Used by withObjectParams() for DDD service/port patterns.
    */
   renderObjectWrappedParams?: (method: LanguageMethod<T>, objectParamName: string) => string;
+
+  /**
+   * Render an import statement.
+   * @param importSpec - The import specifier (e.g., "{ Bookmark, Media }")
+   * @param modulePath - The module path (e.g., "\"./types\"")
+   * @returns The rendered import statement
+   */
+  renderImportStatement?: (importSpec: string, modulePath: string) => string;
 }
 
 // ============================================================================

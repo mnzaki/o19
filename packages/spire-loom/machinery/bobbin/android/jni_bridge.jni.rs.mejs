@@ -1,16 +1,18 @@
 /**
  * JNI Bridge for {{ serviceName }}
- * 
+ *
  * This module provides the JNI bindings between the Android Kotlin service
  * and the Rust core library.
- * 
+ *
  * Architecture:
  * - Kotlin holds an opaque handle (jlong) to the Rust service
  * - Each JNI call locks the service, executes, then unlocks
  * - The handle pattern ensures thread-safe access to the core
- * 
+ *
  * Generated for core: {{ coreName }}
  */
+
+{{ methods.imports }}
 
 use jni::objects::{JClass, JString};
 use jni::signature::JavaType;

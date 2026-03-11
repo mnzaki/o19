@@ -648,9 +648,9 @@ machinery/
 │   │   ├── methods.ts        # Implementation: method enhancement
 │   │   └── entities.ts       # Implementation: entity enhancement
 │   └── language/
-│       ├── index.ts          # Façade: declareLanguage(), compileToExecutive()
-│       ├── declarative.ts    # Layer 1: declarative schema
-│       └── executive.ts      # Layer 2: executive implementation
+│       ├── index.ts          # Façade: declareLanguage(), compileToImperative()
+│       ├── declarative.ts    # Layer 1: declarative schema (templates)
+│       └── imperative.ts     # Layer 2: imperative implementation (methods)
 ├── shuttle/
 │   ├── index.ts              # Namespace barrel: fileSystem, gradle, cargoToml, etc.
 │   ├── file-system-operations.ts
@@ -661,6 +661,135 @@ machinery/
     ├── kit.ts                # Implementation: TreadleKit class
     ├── declarative.ts        # Implementation: declareTreadle
     └── context-methods.ts    # Implementation: context method helpers
+```
+
+---
+
+## The Two-Layer Language Architecture
+
+Spire-loom's language system uses a strict **two-layer architecture** to separate concerns between language definition and code generation.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         LAYER 1: DECLARATIVE                                │
+│                      File: language/declarative.ts                          │
+│                                                                              │
+│  Users define languages using templates and declarations:                    │
+│                                                                              │
+│  syntax: {                                                                   │
+│    composition: {                                                            │
+│      importStatement: {                                                      │
+│        source: 'import {{importSpec}} from {{modulePath}};'                  │
+│      }                                                                       │
+│    }                                                                         │
+│  }                                                                           │
+│                                                                              │
+│  → "What does the output look like?"                                         │
+└──────────────────────────────┬──────────────────────────────────────────────┘
+                               │ compileToImperative()
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         LAYER 2: IMPERATIVE                                 │
+│                      File: language/imperative.ts                           │
+│                                                                              │
+│  Runtime uses compiled methods for code generation:                          │
+│                                                                              │
+│  codeGen: {                                                                  │
+│    rendering: {                                                              │
+│      renderImportStatement(spec, path) {                                     │
+│        return mejs.renderTemplate(source, {spec, path})                      │
+│      }                                                                       │
+│    }                                                                         │
+│  }                                                                           │
+│                                                                              │
+│  → "How do I generate it?"                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Adding New Language Features
+
+To add a new code generation feature (e.g., type aliases, exports, decorators):
+
+**Step 1: Add template to declarative layer**
+```typescript
+// machinery/reed/language/declarative.ts
+// In CompositionTemplates interface:
+typeAlias: CompositionTemplate;  // NEW
+```
+
+**Step 2: Add method signature to imperative layer**
+```typescript
+// machinery/reed/language/imperative.ts
+// In LanguageRenderingConfig:
+renderTypeAlias: (name: string, type: string) => string;  // NEW
+```
+
+**Step 3: Compile template to method**
+```typescript
+// machinery/reed/language/declarative.ts
+// In compileToImperative():
+renderTypeAlias: (name, type) => {
+  return mejs.renderTemplate(
+    composition.typeAlias.source,
+    { name, type }
+  );
+}
+```
+
+**Step 4: Use at runtime**
+```typescript
+// Your code (e.g., postrequisites.ts, templates, etc.)
+const rendered = lang.codeGen.rendering.renderTypeAlias('UserId', 'number');
+```
+
+### 🚨 Common Mistake: Accessing Syntax from Imperative Layer
+
+**❌ WRONG - Direct syntax access:**
+```typescript
+// This throws an error!
+const template = lang.syntax.composition.importStatement.source
+```
+
+**✅ CORRECT - Use compiled rendering method:**
+```typescript
+const rendered = lang.codeGen.rendering.renderImportStatement(spec, path)
+```
+
+The imperative layer has an **architectural guardrail** - accessing `lang.syntax` throws a descriptive error explaining the two-layer pattern.
+
+### Why Two Layers?
+
+1. **Declarative for authors** - Easier to write, read, and maintain templates
+2. **Imperative for performance** - Compiled methods run faster than parsing templates at runtime
+3. **Flexibility** - Can bypass declarative for pure logic (no templates) using `declareLanguageImperatively()`
+
+### The Three Entry Points
+
+```typescript
+// Path 1: Pure declarative (recommended)
+declareLanguage({
+  name: 'kotlin',
+  syntax: { ... },  // Templates compiled automatically
+})
+
+// Path 2: Declarative + imperative overrides
+declareLanguage({
+  name: 'custom',
+  syntax: { ... },           // Most things
+  codeGen: {                 // Override specific methods
+    rendering: {
+      renderImportStatement: (spec, path) => `...`  // Custom implementation
+    }
+  }
+})
+
+// Path 3: Pure imperative (advanced)
+declareLanguageImperatively({
+  name: 'specialized',
+  codeGen: { ... }  // No templates, pure code
+})
 ```
 
 ---
