@@ -12,14 +12,6 @@ import {
 } from '@o19/spire-loom/machinery/treadle-kit';
 import { HookupSpec } from '../../../../packages/spire-loom/machinery/sley/hookups';
 
-function toSnake(str: string): string {
-  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`).replace(/^_/, '');
-}
-
-function toLower(str: string): string {
-  return str.toLowerCase();
-}
-
 /**
  * Map Rust types to SQLite types
  */
@@ -58,7 +50,9 @@ export const dbBindingTreadle = declareTreadle({
 
   newFiles: [
     (ctx) => {
-      const entities = ctx.entities?.withFields() || [];
+      // ctx.entities is BoundQuery<LanguageEntity> - use .all to get entities
+      // Each LanguageEntity has .name (Name object) and .fields
+      const entities = ctx.entities?.all || [];
 
       if (entities.length === 0) {
         return [];
@@ -67,9 +61,6 @@ export const dbBindingTreadle = declareTreadle({
       const outputs: OutputSpec[] = [];
 
       for (const entity of entities) {
-        const entityName = entity.name;
-        const entityLower = toLower(entityName);
-
         // Build field data for templates from entity metadata
         const fields = (entity.fields || []).map((f: any) => {
           let baseRustType = f.rustType || 'String';
@@ -81,7 +72,8 @@ export const dbBindingTreadle = declareTreadle({
 
           return {
             name: f.name,
-            snakeName: toSnake(f.name),
+            snakeName: f.name.snakeCase || f.name,
+            type: rustType,  // Template uses field.type
             rustType: rustType,
             baseRustType: baseRustType,
             sqlType: sqlType,
@@ -94,9 +86,9 @@ export const dbBindingTreadle = declareTreadle({
         });
 
         const entityData = {
-          name: entityName,
-          lower: entityLower,
-          snake: toSnake(entityName),
+          name: entity.name,  // Name object - templates use {{ entity.name }}
+          lower: entity.name.camelCase,  // camelCase for filenames
+          snake: entity.name.snakeCase,
           managementName: entity.managementName,
           fields
         };
@@ -104,7 +96,7 @@ export const dbBindingTreadle = declareTreadle({
         // Entity data struct file
         outputs.push({
           template: 'rust/db/entity_data.rs.mejs',
-          path: `src/db/entities/${entityLower}_data.gen.rs`,
+          path: `src/db/entities/${entity.name.camelCase}_data.gen.rs`,
           language: 'rust',
           context: { entity: entityData }
         });
@@ -112,7 +104,7 @@ export const dbBindingTreadle = declareTreadle({
         // Entity trait file
         outputs.push({
           template: 'rust/db/entity_trait.rs.mejs',
-          path: `src/db/entities/${entityLower}_trait.gen.rs`,
+          path: `src/db/entities/${entity.name.camelCase}_trait.gen.rs`,
           language: 'rust',
           context: { entity: entityData }
         });
@@ -123,28 +115,7 @@ export const dbBindingTreadle = declareTreadle({
         template: 'rust/db/db_command.rs.mejs',
         path: `src/db/commands.gen.rs`,
         language: 'rust',
-        context: {
-          entities: entities.map((e: any) => ({
-            name: e.name,
-            lower: toLower(e.name),
-            snake: toSnake(e.name),
-            fields: (e.fields || []).map((f: any) => {
-              let baseRustType = f.rustType || 'String';
-              if (f.tsType === 'object' && baseRustType === 'String') {
-                baseRustType = 'serde_json::Value';
-              }
-              return {
-                name: f.name,
-                snakeName: toSnake(f.name),
-                rustType: f.nullable ? `Option<${baseRustType}>` : baseRustType,
-                nullable: f.nullable,
-                isPrimary: f.isPrimary,
-                isCreatedAt: f.isCreatedAt,
-                isUpdatedAt: f.isUpdatedAt
-              };
-            })
-          }))
-        }
+        context: { entities }
       });
 
       // Generate DbHandle methods
@@ -152,28 +123,7 @@ export const dbBindingTreadle = declareTreadle({
         template: 'rust/db/db_handle.rs.mejs',
         path: `src/db/handle.gen.rs`,
         language: 'rust',
-        context: {
-          entities: entities.map((e: any) => ({
-            name: e.name,
-            lower: toLower(e.name),
-            snake: toSnake(e.name),
-            fields: (e.fields || []).map((f: any) => {
-              let baseRustType = f.rustType || 'String';
-              if (f.tsType === 'object' && baseRustType === 'String') {
-                baseRustType = 'serde_json::Value';
-              }
-              return {
-                name: f.name,
-                snakeName: toSnake(f.name),
-                rustType: f.nullable ? `Option<${baseRustType}>` : baseRustType,
-                nullable: f.nullable,
-                isPrimary: f.isPrimary,
-                isCreatedAt: f.isCreatedAt,
-                isUpdatedAt: f.isUpdatedAt
-              };
-            })
-          }))
-        }
+        context: { entities }
       });
 
       // Generate complete DbActor implementation in spire/
@@ -181,31 +131,7 @@ export const dbBindingTreadle = declareTreadle({
         template: 'rust/db/db_actor.rs.mejs',
         path: `src/db/actor_impl.gen.rs`,
         language: 'rust',
-        context: {
-          entities: entities.map((e: any) => ({
-            name: e.name,
-            lower: toLower(e.name),
-            snake: toSnake(e.name),
-            fields: (e.fields || []).map((f: any) => {
-              let baseRustType = f.rustType || 'String';
-              if (f.tsType === 'object' && baseRustType === 'String') {
-                baseRustType = 'serde_json::Value';
-              }
-              const sqlType = mapSqlType(baseRustType, f.tsType || 'string');
-              return {
-                name: f.name,
-                snakeName: toSnake(f.name),
-                rustType: f.nullable ? `Option<${baseRustType}>` : baseRustType,
-                baseRustType: baseRustType,
-                sqlType: sqlType,
-                nullable: f.nullable,
-                isPrimary: f.isPrimary,
-                isCreatedAt: f.isCreatedAt,
-                isUpdatedAt: f.isUpdatedAt
-              };
-            })
-          }))
-        }
+        context: { entities }
       });
 
       return outputs;
@@ -213,19 +139,14 @@ export const dbBindingTreadle = declareTreadle({
   ],
 
   data: (ctx) => {
-    const entities = ctx.entities?.withFields() || [];
+    // ctx.entities is BoundQuery<LanguageEntity> with .all getter
+    // Pass entities directly - templates use Name object's toString()
+    const entities = ctx.entities?.all || [];
 
-    return {
-      entities: entities.map((e: any) => ({
-        name: e.name,
-        lower: toLower(e.name),
-        snake: toSnake(e.name)
-      }))
-    };
+    return { entities };
   },
 
   // Use hookups instead of patches (patches are deprecated)
-  // // Update mod.rs to include entity modules
   hookups: (ctx) =>
     ctx.entities!.all.map(
       (entity) =>
@@ -233,19 +154,19 @@ export const dbBindingTreadle = declareTreadle({
           path: 'src/db/mod.rs',
           moduleDeclarations: [
             {
-              name: `${toLower(entity.name)}_data`,
-              path: `../../spire/src/db/entities/${toLower(entity.name)}_data.gen.rs`,
+              name: `${entity.name.camelCase}_data`,
+              path: `../../spire/src/db/entities/${entity.name.camelCase}_data.gen.rs`,
               pub: true
             },
             {
-              name: `${toLower(entity.name)}_trait`,
-              path: `../../spire/src/db/entities/${toLower(entity.name)}_trait.gen.rs`,
+              name: `${entity.name.camelCase}_trait`,
+              path: `../../spire/src/db/entities/${entity.name.camelCase}_trait.gen.rs`,
               pub: true
             }
           ],
           useStatements: [
-            `pub use ${toLower(entity.name)}_data::${entity.name}Data;`,
-            `pub use ${toLower(entity.name)}_trait::${entity.name}Db;`
+            `pub use ${entity.name.camelCase}_data::${entity.name.pascalCase}Data;`,
+            `pub use ${entity.name.camelCase}_trait::${entity.name.pascalCase}Db;`
           ]
         }) as HookupSpec
     )

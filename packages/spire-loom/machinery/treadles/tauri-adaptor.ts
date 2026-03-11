@@ -88,7 +88,15 @@ export const tauriAdaptorTreadle = declareTreadle({
         portName: mgmt.portName
       }));
 
-      const entities = ctx.entities.all;
+      // Map entities to template-friendly format
+      const entities = ctx.entities.all.map((entity) => ({
+        name: entity.raw.name,
+        pascal: entity.pascalName,
+        camel: entity.camelName,
+        snake: entity.snakeName,
+        serviceName: entity.pascalName + 'Service',
+        serviceNameCamel: entity.camelName + 'Service'
+      }));
 
       const outputs: OutputSpec[] = [];
 

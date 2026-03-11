@@ -1,0 +1,10 @@
+{#
+   ============================================================================
+   TypeScript Domain Entity Template
+   ============================================================================
+   Context:
+     - entity: LanguageEntity - The entity to render
+   ============================================================================
+#}
+
+<%= entity.lang.codeGen.rendering.renderEntityClass(entity) %>

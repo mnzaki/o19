@@ -172,7 +172,21 @@ export class LanguageEntity extends LanguageThing {
   /** Enhance a raw field with language-specific types */
   private enhanceField(field: RawEntityField): LanguageEntityField {
     const langTypeDef = this.lang.codeGen.types.fromTsType(field.tsType, false);
-    const langType = langTypeDef.name.toString();
+    // Get the type name - handle LanguageType
+    // Use _name directly since the getter might not work in some environments
+    const nameObj = (langTypeDef as any)._name || langTypeDef.name;
+    let langType: string;
+    if (nameObj && typeof nameObj === 'object' && nameObj.parts) {
+      // It's a Name object (possibly serialized) - reconstruct the name
+      // PascalCase: capitalize first letter of each part
+      langType = nameObj.parts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+    } else if (nameObj && typeof nameObj === 'object') {
+      // Fallback to toString if available
+      langType = String(nameObj);
+    } else {
+      // It's already a string
+      langType = String(nameObj);
+    }
 
     // SQL type mapping (simplified)
     const sqlType = (() => {

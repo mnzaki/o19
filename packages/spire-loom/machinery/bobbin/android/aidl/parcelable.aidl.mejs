@@ -1,0 +1,12 @@
+{#
+   ============================================================================
+   AIDL Parcelable Declaration Template
+   ============================================================================
+   Context:
+     - packageName: string    - Package name (e.g., 'com.example.app')
+     - entity: LanguageEntity - The entity to render
+   ============================================================================
+#}
+
+package <%= packageName %>.entity;
+parcelable <%= entity.name.pascalCase %>;

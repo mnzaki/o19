@@ -34,18 +34,12 @@ export class TheStreamService implements TheStreamPort {
   // Read Operations (via Tauri)
   // ============================================================================
 
-  async list( data: { limit?: number, offset?: number, filter?: TheStreamEntryFilter } ): Promise<TheStreamEntry[]> {
-    return this.readAdaptor.list(
-   data );
+  async list(limit?: number, offset?: number, filter?: TheStreamEntryFilter): Promise<TheStreamEntry[]> {
+    return this.readAdaptor.list(limit, offset, filter);
   }
 
-  async getById(
-    id: number
-  ): Promise<TheStreamEntry> {
-    return this.readAdaptor.getById(
-  
-    id
-   );
+  async getById(id: number): Promise<TheStreamEntry> {
+    return this.readAdaptor.getById(id);
   }
 
   // ============================================================================
@@ -63,38 +57,38 @@ export class TheStreamService implements TheStreamPort {
   // Passthrough Operations (implementation-specific)
   // ============================================================================
 
-  async getEntriesByKind(data: { kind: 'media' | 'post' | 'bookmark' | 'person' | 'conversation', limit?: number, before?: number }): Promise<TheStreamEntry> {
+  async getEntriesByKind(data: { kind: 'media' | 'post' | 'bookmark' | 'person' | 'conversation', limit: number, before: number }): Promise<TheStreamEntry> {
     // Passthrough method - implement based on domain logic
-    throw new Error('get_entries_by_kind not implemented');
+    throw new Error('getEntriesByKind not implemented');
   }
 
-  async search(data: { query: string, kinds?: string[], limit?: number }): Promise<TheStreamEntry> {
+  async search(data: { query: string, kinds: string[], limit: number }): Promise<TheStreamEntry> {
     // Passthrough method - implement based on domain logic
     throw new Error('search not implemented');
   }
 
-  async addBookmark(data: { bookmarkId: number, seenAt?: number }): Promise<TheStreamEntry> {
+  async addBookmark(data: { bookmarkId: number, seenAt: number }): Promise<TheStreamEntry> {
     // Passthrough method - implement based on domain logic
-    throw new Error('add_bookmark not implemented');
+    throw new Error('addBookmark not implemented');
   }
 
-  async addPost(data: { postId: number, seenAt?: number }): Promise<TheStreamEntry> {
+  async addPost(data: { postId: number, seenAt: number }): Promise<TheStreamEntry> {
     // Passthrough method - implement based on domain logic
-    throw new Error('add_post not implemented');
+    throw new Error('addPost not implemented');
   }
 
-  async addMedia(data: { mediaId: number, seenAt?: number }): Promise<TheStreamEntry> {
+  async addMedia(data: { mediaId: number, seenAt: number }): Promise<TheStreamEntry> {
     // Passthrough method - implement based on domain logic
-    throw new Error('add_media not implemented');
+    throw new Error('addMedia not implemented');
   }
 
-  async addPerson(data: { personId: number, seenAt?: number }): Promise<TheStreamEntry> {
+  async addPerson(data: { personId: number, seenAt: number }): Promise<TheStreamEntry> {
     // Passthrough method - implement based on domain logic
-    throw new Error('add_person not implemented');
+    throw new Error('addPerson not implemented');
   }
 
-  async addConversation(data: { conversationId: number, seenAt?: number }): Promise<TheStreamEntry> {
+  async addConversation(data: { conversationId: number, seenAt: number }): Promise<TheStreamEntry> {
     // Passthrough method - implement based on domain logic
-    throw new Error('add_conversation not implemented');
+    throw new Error('addConversation not implemented');
   }
 }

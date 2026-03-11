@@ -72,10 +72,10 @@ export const typescriptDDDTreadle = declareTreadle({
       // Note: methods will be passed via generateCode transform, not in context
       const services = Array.from(methodsByMgmt.values()).map((mgmt: ManagementMethods) => ({
         name: mgmt.name,
-        entityName: mgmt.entityName,
-        entityCamelName: camelCase(mgmt.entityName),
-        serviceName: mgmt.serviceName,
-        portName: mgmt.portName
+        entityName: mgmt.entityName || mgmt.name,
+        entityCamelName: camelCase(mgmt.entityName || mgmt.name || 'unknown'),
+        serviceName: mgmt.serviceName || mgmt.name,
+        portName: mgmt.portName || mgmt.name
       }));
       const outputs: NewFileSpec[] = [];
       outputs.push({

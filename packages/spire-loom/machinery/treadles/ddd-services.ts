@@ -18,6 +18,7 @@
 
 import { declareTreadle } from '../treadle-kit/index.js';
 import type { NewFileSpec } from '../treadle-kit/declarative.js';
+import { map, toArray } from '../sley/iterators.js';
 
 // ============================================================================
 // Treadle Definition
@@ -32,7 +33,7 @@ export const generateDddServices = declareTreadle({
     pipeline: []
   },
 
-  // Generate outputs per management
+  // Generate outputs per management using iterators (APP-004)
   newFiles: [
     (ctx) => {
       const methodsByMgmt = ctx.methods.byManagement();
@@ -41,49 +42,50 @@ export const generateDddServices = declareTreadle({
         return [];
       }
 
-      // Convert Map values to array for iteration
-      // Note: methods will be passed via generateCode transform, not in context
-      const services = ctx.mgmts.all;
-      const outputs: NewFileSpec[] = [];
+      // APP-004: Use iterator utilities for lazy, composable generation
+      // Generate one port and service per management using map
+      const serviceOutputs = toArray(
+        map(ctx.mgmts, (service) => {
+          const entityCamel = service.entityName.camelCase;
+          return [
+            // Port interface - methods come from context via generateCode transform
+            {
+              template: 'ddd/port.ts.mejs',
+              path: `src/ports/${entityCamel}.port.ts`,
+              context: { service }
+            },
+            // Service implementation
+            {
+              template: 'ddd/service.ts.mejs',
+              path: `src/services/${entityCamel}.service.ts`,
+              context: { service }
+            }
+          ];
+        })
+      ).flat();
 
       console.log(
-        `[ddd-services] Generating services for: ${services.map((s) => s.name).join(', ')}`
+        `[ddd-services] Generating services for: ${toArray(map(ctx.mgmts, (s) => s.name)).join(', ')}`
       );
 
-      // Generate one port and service per management
-      for (const service of services) {
-        const entityCamel = service.entityName.camelCase;
-
-        // Port interface - methods come from context via generateCode transform
-        outputs.push({
-          template: 'ddd/port.ts.mejs',
-          path: `src/ports/${entityCamel}.port.ts`,
-          context: { service }
-        });
-
-        // Service implementation
-        outputs.push({
-          template: 'ddd/service.ts.mejs',
-          path: `src/services/${entityCamel}.service.ts`,
-          context: { service }
-        });
-      }
-
-      outputs.push({
-        template: 'ddd/services-index.ts.mejs',
-        path: 'src/services/index.ts',
-        context: { services }
-      });
-
-      return outputs;
+      // Append index file
+      return [
+        ...serviceOutputs,
+        {
+          template: 'ddd/services-index.ts.mejs',
+          path: 'src/services/index.ts',
+          context: { services: toArray(ctx.mgmts) }
+        }
+      ];
     }
   ],
 
   // Template data - methods available via context.methods
+  // APP-004: Use countItems instead of .all.length for lazy counting
   data: (ctx) => {
     return {
-      services: ctx.mgmts.all,
-      hasServices: ctx.mgmts.all.length > 0
+      services: toArray(ctx.mgmts),
+      hasServices: ctx.mgmts.count > 0
     };
   },
 

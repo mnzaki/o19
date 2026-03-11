@@ -31,39 +31,33 @@ import type {
  */
 export class TauriTheStreamAdaptor implements TheStreamReadPort, TheStreamWritePort {
 
-  async getEntriesByKind(data: { kind: 'media' | 'post' | 'bookmark' | 'person' | 'conversation', limit?: number, before?: number }): Promise<TheStreamEntry> {
-    return invoke('plugin:o19-foundframe-tauri|get_entries_by_kind', data);
+  async getEntriesByKind(data: { kind: 'media' | 'post' | 'bookmark' | 'person' | 'conversation', limit: number, before: number }): Promise<TheStreamEntry> {
+    return invoke('plugin:o19-foundframe-tauri|getEntriesByKind', data);
   }
-  async search(data: { query: string, kinds?: string[], limit?: number }): Promise<TheStreamEntry> {
+  async search(data: { query: string, kinds: string[], limit: number }): Promise<TheStreamEntry> {
     return invoke('plugin:o19-foundframe-tauri|search', data);
   }
-  async addBookmark(data: { bookmarkId: number, seenAt?: number }): Promise<TheStreamEntry> {
-    return invoke('plugin:o19-foundframe-tauri|add_bookmark', data);
+  async addBookmark(data: { bookmarkId: number, seenAt: number }): Promise<TheStreamEntry> {
+    return invoke('plugin:o19-foundframe-tauri|addBookmark', data);
   }
-  async addPost(data: { postId: number, seenAt?: number }): Promise<TheStreamEntry> {
-    return invoke('plugin:o19-foundframe-tauri|add_post', data);
+  async addPost(data: { postId: number, seenAt: number }): Promise<TheStreamEntry> {
+    return invoke('plugin:o19-foundframe-tauri|addPost', data);
   }
-  async addMedia(data: { mediaId: number, seenAt?: number }): Promise<TheStreamEntry> {
-    return invoke('plugin:o19-foundframe-tauri|add_media', data);
+  async addMedia(data: { mediaId: number, seenAt: number }): Promise<TheStreamEntry> {
+    return invoke('plugin:o19-foundframe-tauri|addMedia', data);
   }
-  async addPerson(data: { personId: number, seenAt?: number }): Promise<TheStreamEntry> {
-    return invoke('plugin:o19-foundframe-tauri|add_person', data);
+  async addPerson(data: { personId: number, seenAt: number }): Promise<TheStreamEntry> {
+    return invoke('plugin:o19-foundframe-tauri|addPerson', data);
   }
-  async addConversation(data: { conversationId: number, seenAt?: number }): Promise<TheStreamEntry> {
-    return invoke('plugin:o19-foundframe-tauri|add_conversation', data);
+  async addConversation(data: { conversationId: number, seenAt: number }): Promise<TheStreamEntry> {
+    return invoke('plugin:o19-foundframe-tauri|addConversation', data);
   }
 
-  async list( data: { limit?: number, offset?: number, filter?: TheStreamEntryFilter } ): Promise<TheStreamEntry[]> {
-    return invoke('plugin:o19-foundframe-tauri|get_entries' 
-      , data
-    );
+  async list(limit?: number, offset?: number, filter?: TheStreamEntryFilter): Promise<TheStreamEntry[]> {
+    return invoke('plugin:o19-foundframe-tauri|getEntries', { limit, offset, filter });
   }
-  async getById(
-  id: number
-  ): Promise<TheStreamEntry> {
-    return invoke('plugin:o19-foundframe-tauri|get_entry' 
-      , { id }
-    );
+  async getById(id: number): Promise<TheStreamEntry> {
+    return invoke('plugin:o19-foundframe-tauri|getEntry', { id });
   }
 
 /**
@@ -73,7 +67,7 @@ export class TauriTheStreamAdaptor implements TheStreamReadPort, TheStreamWriteP
 
 
   delete(id: number): Promise<boolean> {
-    return invoke('plugin:o19-foundframe-tauri|delete_entry', { id });
+    return invoke('plugin:o19-foundframe-tauri|deleteEntry', id);
   }
 
 }

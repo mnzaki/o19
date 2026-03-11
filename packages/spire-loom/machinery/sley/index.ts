@@ -27,6 +27,32 @@ export {
 // Query Builder - Chainable queries over methods (APP-009)
 export { createQueryAPI, type BoundQuery, type QueryAPI } from './query.js';
 
+// Iterator Utilities - Lazy functional operations on Iterables (APP-004)
+export {
+  map,
+  filter,
+  flat,
+  flatMap,
+  take,
+  skip,
+  zip,
+  enumerate,
+  chain,
+  uniq,
+  toArray,
+  reduce,
+  find,
+  some,
+  every,
+  countItems,
+  groupBy,
+  partition,
+  join,
+  asyncMap,
+  asyncFilter,
+  asyncToArray
+} from './iterators.js';
+
 // Entity Pipeline - composable translations for Entity classes
 export {
   // Core types

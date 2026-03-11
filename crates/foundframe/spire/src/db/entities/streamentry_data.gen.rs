@@ -14,27 +14,27 @@
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StreamEntryData {
   /// id
-  pub id: i64,
+  pub id: ,
   /// seenAt
-  pub seen_at: number,
+  pub seen_at: ,
   /// personId
-  pub person_id: Option<number>,
+  pub person_id: ,
   /// postId
-  pub post_id: Option<number>,
+  pub post_id: ,
   /// mediaId
-  pub media_id: Option<number>,
+  pub media_id: ,
   /// bookmarkId
-  pub bookmark_id: Option<number>,
+  pub bookmark_id: ,
   /// conversationId
-  pub conversation_id: Option<number>,
+  pub conversation_id: ,
   /// directory
-  pub directory: Option<string>,
+  pub directory: ,
   /// kind
-  pub kind: Option<string>,
+  pub kind: ,
   /// contentHash
-  pub content_hash: Option<string>,
+  pub content_hash: ,
   /// createdAt
-  pub created_at: i64,
+  pub created_at: ,
 }
 
 impl StreamEntryData {

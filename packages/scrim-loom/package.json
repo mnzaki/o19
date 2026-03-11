@@ -1,0 +1,43 @@
+{
+  "name": "@o19/scrim-loom",
+  "version": "0.1.0",
+  "description": "Spiritual successor to spire-loom with Three Friends architecture",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./weaver": {
+      "import": "./dist/weaver/index.js",
+      "types": "./dist/weaver/index.d.ts"
+    },
+    "./heddles": {
+      "import": "./dist/heddles/index.js",
+      "types": "./dist/heddles/index.d.ts"
+    },
+    "./warp": {
+      "import": "./dist/warp/index.js",
+      "types": "./dist/warp/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "tsx test-integration.ts",
+    "test:divination": "tsx test-divination-integration.ts"
+  },
+  "dependencies": {
+    "@o19/spire-loom": "workspace:*",
+    "@o19/aaaarchi": "workspace:*",
+    "@o19/ferror": "workspace:*",
+    "@o19/orka": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "tsx": "^4.21.0"
+  }
+}

@@ -19,6 +19,7 @@ import { loadWarp, loadWorkspace } from './workspace-discovery.js';
 import { Loom, type WorkspaceInfo } from '../machinery/loom.js';
 import { PatternMatcher, type GeneratedFile, type GenerationTask } from './plan-builder.js';
 import type { WeavingPlan } from './plan.js';
+export type { WeavingPlan } from './plan.js';
 import type { TreadleTrodder } from '../machinery/treadle-kit/types.js';
 
 // Placeholder for future implementation

@@ -1,3 +1,7 @@
+pub use streamEntry_trait::StreamEntryDb;
+pub use streamEntry_data::StreamEntryData;
+pub use mediaSource_trait::MediaSourceDb;
+pub use mediaSource_data::MediaSourceData;
 pub use bookmark_data::BookmarkData;
 pub use bookmark_trait::BookmarkDb;
 pub use conversation_data::ConversationData;
@@ -27,6 +31,14 @@ pub use view_data::ViewData;
 pub use view_trait::ViewDb;
 pub mod oneshot;
 
+#[path = "../../spire/src/db/entities/streamEntry_trait.gen.rs"]
+pub mod streamEntry_trait;
+#[path = "../../spire/src/db/entities/streamEntry_data.gen.rs"]
+pub mod streamEntry_data;
+#[path = "../../spire/src/db/entities/mediaSource_trait.gen.rs"]
+pub mod mediaSource_trait;
+#[path = "../../spire/src/db/entities/mediaSource_data.gen.rs"]
+pub mod mediaSource_data;
 pub mod actor;
 #[path = "../../spire/src/db/entities/bookmark_data.gen.rs"]
 pub mod bookmark_data;

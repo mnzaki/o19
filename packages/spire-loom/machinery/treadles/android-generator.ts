@@ -13,6 +13,7 @@ import { RustAndroidSpiraler } from '../../warp/spiral/spiralers/rust/android.js
 import { RustCore, SpiralOut, SpiralRing } from '../../warp/spiral/index.js';
 import { buildCrateNaming, buildAndroidPackageData } from '../stringing.js';
 import { declareTreadle } from './index.js';
+import { map, toArray } from '../sley/iterators.js';
 import type { AndroidManifestHookup, GradleHookup } from '../sley/hookups/types.js';
 import type { GeneratorContext } from '../../weaver/plan-builder.js';
 
@@ -118,6 +119,7 @@ export const generateAndroidService = declareTreadle({
   ],
 
   // Hookups - modifications to existing external files
+  // APP-004: Uses iterators for permission generation from methods
   hookups: (ctx: GeneratorContext) => {
     if (!(ctx.currentRing instanceof SpiralOut)) {
       return [];
@@ -133,13 +135,23 @@ export const generateAndroidService = declareTreadle({
 
     const bindPermissionName = `${paths.packageName}.BIND_${naming.pascalAffix.toUpperCase()}_SERVICE`;
 
+    // APP-004: Generate method-specific permissions using iterator map
+    const methodPermissions = ctx.methods && ctx.methods.count > 0
+      ? toArray(map(ctx.methods, (method) => ({
+          name: `${paths.packageName}.PERMISSION_${method.name.screamingSname}`,
+          label: `Execute ${method.name.pascalCase}`,
+          protectionLevel: 'signature'
+        })))
+      : [];
+
     return [
       // AndroidManifest.xml - modify existing file
       {
         path: 'src/main/AndroidManifest.xml',
         permissions: [
           { name: 'android.permission.FOREGROUND_SERVICE' },
-          { name: 'android.permission.FOREGROUND_SERVICE_DATA_SYNC' }
+          { name: 'android.permission.FOREGROUND_SERVICE_DATA_SYNC' },
+          ...methodPermissions
         ],
         permissionDefinitions: [
           {

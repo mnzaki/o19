@@ -179,7 +179,43 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
     }
     for (const [key, descriptor] of Object.entries(props)) {
       if (descriptor?.get) {
-        context[key] = descriptor.get.bind(this);
+        // Create a wrapper object that defers getter execution until accessed
+        // The wrapper's toString() handles deepmerged LanguageType/Name objects
+        const self = this;
+        const getter = descriptor.get;
+        context[key] = {
+          toString() {
+            const value = getter.call(self);
+            // Handle LanguageType-like objects (including deepmerged plain objects)
+            if (value && typeof value === 'object') {
+              const nameObj = (value as Record<string, unknown>)._name ?? (value as Record<string, unknown>).name;
+              if (nameObj && typeof nameObj === 'object') {
+                const parts = (nameObj as Record<string, unknown>).parts;
+                if (Array.isArray(parts)) {
+                  // Reconstruct name from parts based on defaultCase
+                  const defaultCase = ((nameObj as Record<string, unknown>).defaultCase as string) ?? 'SCREAMING_SNAKE';
+                  switch (defaultCase) {
+                    case 'camelCase':
+                      return parts.map((p: string, i: number) => i === 0 ? p : p.charAt(0).toUpperCase() + p.slice(1)).join('');
+                    case 'PascalCase':
+                      return parts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+                    case 'kebab-case':
+                      return parts.join('-');
+                    case 'SCREAMING_SNAKE':
+                      return parts.join('_').toUpperCase();
+                    case 'snake_case':
+                    default:
+                      return parts.join('_');
+                  }
+                }
+              }
+            }
+            return String(value);
+          },
+          valueOf() {
+            return getter.call(self);
+          }
+        };
       } else if (descriptor?.value) {
         context[key] = descriptor.value;
       } else if (typeof this[key as keyof this] !== 'function') {
@@ -187,7 +223,6 @@ export class LanguageThing<T extends LanguageType = LanguageType> {
       } else {
         context[key] = (this[key as keyof this] as Function).bind(this);
       }
-      console.log('asContextWith context', { key, value: context[key] });
     }
     return context;
   }

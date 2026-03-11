@@ -3,43 +3,42 @@
 /// {{ entity.name }} data structure.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct {{ entity.name }}Data {
-{% (entity.fields || []).forEach(function(field) { -}}
+{% entity.fields.forEach(function(field) { %}
   /// {{ field.name }}
-  pub {{ h.snakeCase(field.name) }}: {{ field.type }},
-{% }); -}}
+  pub {{ field.name.snakeCase }}: {{ field.type }},
+{% }); %}
 }
 
 impl {{ entity.name }}Data {
   /// Create new with default values
   pub fn new() -> Self {
     Self {
-{% (entity.fields || []).forEach(function(field) { -}}
-{% if (field.nullable) { -}}
-      {{ h.snakeCase(field.name) }}: None,
-{% } else if (field.name === 'id') { -}}
-      {{ h.snakeCase(field.name) }}: 0,
-{% } else if (field.tsType === 'number') { -}}
-      {{ h.snakeCase(field.name) }}: 0,
-{% } else if (field.tsType === 'string') { -}}
-      {{ h.snakeCase(field.name) }}: String::new(),
-{% } else if (field.tsType === 'boolean') { -}}
-      {{ h.snakeCase(field.name) }}: false,
-{% } else { -}}
-      {{ h.snakeCase(field.name) }}: Default::default(),
-{% } -}}
-{% }); -}}
+{% entity.fields.forEach(function(field) { %}
+{% if (field.nullable) { %}
+      {{ field.name.snakeCase }}: None,
+{% } else if (field.name === 'id') { %}
+      {{ field.name.snakeCase }}: 0,
+{% } else if (field.tsType === 'number') { %}
+      {{ field.name.snakeCase }}: 0,
+{% } else if (field.tsType === 'string') { %}
+      {{ field.name.snakeCase }}: String::new(),
+{% } else if (field.tsType === 'boolean') { %}
+      {{ field.name.snakeCase }}: false,
+{% } else { %}
+      {{ field.name.snakeCase }}: Default::default(),
+{% } %}
+{% }); %}
     }
   }
 
-{% if (entity.fields.some(f => f.name === 'id')) { -}}
-
+{% if (entity.fields.some(function(f) { return f.name === 'id'; })) { %}
   /// Create new with id
   pub fn with_id(id: i64) -> Self {
     let mut data = Self::new();
     data.id = id;
     data
   }
-{% } -}}
+{% } %}
 }
 
 impl Default for {{ entity.name }}Data {

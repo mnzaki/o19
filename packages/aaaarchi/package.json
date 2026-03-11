@@ -5,14 +5,22 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
-  "keywords": ["architecture", "dag", "metadata", "aardvark"],
+  "keywords": [
+    "architecture",
+    "dag",
+    "metadata",
+    "aardvark"
+  ],
   "author": "circulari.ty",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^25.3.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.0"
   }
 }

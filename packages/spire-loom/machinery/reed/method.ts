@@ -303,6 +303,28 @@ export class LanguageMethod<T extends LanguageType = LanguageType> extends Langu
     return this.raw.params.map((p) => p.name);
   }
 
+  /**
+   * Safe JSON serialization that avoids infinite recursion.
+   * 
+   * The variant getters (async, pub, etc.) call cloneWithLang() which creates
+   * new instances with their own variant getters. JSON.stringify would trigger
+   * all getters, causing infinite recursion.
+   * 
+   * This method returns a plain object with only the essential data.
+   */
+  toJSON(): Record<string, unknown> {
+    return {
+      name: this.name.toString(),
+      mgmtName: this.mgmtName,
+      raw: this.raw,
+      tags: this.tags,
+      lang: this._lang?.name,
+      appliedVariants: Object.keys(this.appliedVariants),
+      isAsync: this.isAsync,
+      isPublic: this.isPublic
+    };
+  }
+
   // ============================================================================
   // Variant Views - chainable function modifiers
   // ============================================================================

@@ -1,0 +1,12 @@
+{#
+   ============================================================================
+   Rust Model Struct Template
+   ============================================================================
+   Context:
+     - entity: LanguageEntity - The entity to render
+   ============================================================================
+#}
+
+use serde::{Serialize, Deserialize};
+
+<%= entity.lang.codeGen.rendering.renderEntityClass(entity) %>

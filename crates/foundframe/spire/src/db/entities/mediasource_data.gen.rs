@@ -14,27 +14,27 @@
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MediaSourceData {
   /// id
-  pub id: i64,
+  pub id: ,
   /// url
-  pub url: string,
+  pub url: ,
   /// adapterType
-  pub adapter_type: string,
+  pub adapter_type: ,
   /// cursorState
-  pub cursor_state: Option<serde_json::Value>,
+  pub cursor_state: ,
   /// capabilities
-  pub capabilities: serde_json::Value,
+  pub capabilities: ,
   /// config
-  pub config: Option<serde_json::Value>,
+  pub config: ,
   /// lastPolledAt
-  pub last_polled_at: Option<number>,
+  pub last_polled_at: ,
   /// lastError
-  pub last_error: Option<string>,
+  pub last_error: ,
   /// isActive
-  pub is_active: boolean,
+  pub is_active: ,
   /// createdAt
-  pub created_at: i64,
+  pub created_at: ,
   /// updatedAt
-  pub updated_at: i64,
+  pub updated_at: ,
 }
 
 impl MediaSourceData {

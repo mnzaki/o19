@@ -37,6 +37,8 @@ pub use platform::{PairedDeviceInfo, PairingQrResponse, Platform, ScannedPairing
 
 #[cfg(desktop)]
 mod desktop;
+#[path = "../spire/src/desktop_mainline_bridge.rs"]
+pub mod desktop_mainline_bridge;
 #[cfg(mobile)]
 mod mobile;
 

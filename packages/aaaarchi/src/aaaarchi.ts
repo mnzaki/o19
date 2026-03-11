@@ -83,23 +83,28 @@ class FileScopeImpl implements FileScope {
     this.file = filePath;
     this.config = config;
     
-    // STUB: Infer domain and layer from file path
-    // In real implementation: parse path, check config files, etc.
+    // Infer domain and layer from file path
+    // Strategy: check folder names, then filename
     const parts = filePath.split('/');
+    const fileName = parts[parts.length - 1];
+    const fileNameWithoutExt = fileName.replace(/\.(ts|js|tsx|jsx)$/, '');
     
-    // Try to infer layer from path
-    const layerMatch = parts.find(p => p in config.layers);
+    // Try to infer layer from path (folder or filename)
+    const layerMatch = parts.find(p => p in config.layers) || 
+                       (fileNameWithoutExt in config.layers ? fileNameWithoutExt : undefined);
     this.layer = layerMatch || 'unknown';
     
     // Try to infer domain from path (usually parent of layer)
     const layerIndex = parts.indexOf(this.layer);
     this.domain = layerIndex > 0 ? parts[layerIndex - 1] : 'unknown';
     
-    // Fallback: use filename as hint
+    // Fallback: extract domain hints from filename or path
     if (this.domain === 'unknown') {
-      const fileName = parts[parts.length - 1];
-      if (fileName.includes('user')) this.domain = 'user';
-      else if (fileName.includes('auth')) this.domain = 'auth';
+      // Remove file extension and check for domain hints
+      const nameHints = fileNameWithoutExt.toLowerCase();
+      if (nameHints.includes('user')) this.domain = 'user';
+      else if (nameHints.includes('auth')) this.domain = 'auth';
+      else if (nameHints.includes('bookmark')) this.domain = 'bookmark';
       else this.domain = 'app';
     }
   }

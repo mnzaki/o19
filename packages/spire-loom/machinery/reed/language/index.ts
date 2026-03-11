@@ -109,7 +109,13 @@ export function declareLanguage<T extends LanguageType>(
     // compileToExecutive() generates:
     // - codeGen.types from syntax.types (TypeFactory)
     // - codeGen.rendering from syntax.composition (RenderingConfig)
-    const compiledConfig = compileToImperative(input as LanguageDeclaration);
+    // Pass base type factory to preserve language-specific fromTsType
+    // Support both input.codeGen.types and top-level input.types for backwards compatibility
+    const baseTypeFactory = input.codeGen?.types || (input as any).types;
+    const compiledConfig = compileToImperative(
+      input as LanguageDeclaration,
+      baseTypeFactory
+    );
 
     // Deep merge: explicit config overrides compiled config
     // This allows imperative overrides of generated parts

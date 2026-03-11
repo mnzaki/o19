@@ -11,7 +11,7 @@
 
 package {{ packageName }};
 
-{{ imports.map(i => `import ${i};`).join('\n') }}
+{{ imports.map(function(i) { return 'import ' + i + ';'; }).join('\n') }}
 
 /**
  * {{ interfaceName }} defines cross-process API for {{ coreName }}.
@@ -32,6 +32,6 @@ interface {{ interfaceName }} {
      * @return {{ method.returnType }}
      * @throws RemoteException if IPC fails
      */
-    {{ method.signature }};
+    {{ method.kt.returnType.name }} {{ method.name.camelCase }}({{ method.raw.params.map((p, i) => p.tsType + ' ' + p.name).join(', ') }});
 {% endfor %}
 }

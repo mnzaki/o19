@@ -22,30 +22,51 @@
  */
 
 /**
- * A spec item, an array of specs, or a function returning either.
+ * A spec item, an iterable of specs, or a function returning either.
  * The standard pattern for treadle-kit specs (outputs, patches, hookups).
+ * 
+ * APP-004: Now accepts Iterable<T> for lazy evaluation (generators, BoundQuery, etc.)
  */
-export type SpecOrFn<T, C> = T | T[] | ((context: C) => T | T[] | undefined);
+export type SpecOrFn<T, C> = T | Iterable<T> | ((context: C) => T | Iterable<T> | undefined);
+
+/**
+ * Check if value is an Iterable (but not a string or array).
+ * Used to detect generators and BoundQuery instances.
+ */
+function isIterable<T>(value: unknown): value is Iterable<T> {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return false; // Strings are iterable but we don't want to spread them
+  if (Array.isArray(value)) return false; // Arrays handled separately
+  return typeof (value as Iterable<T>)[Symbol.iterator] === 'function';
+}
 
 /**
  * Resolve a single spec that may be:
  * - A single spec
  * - An array of specs
- * - A function returning a spec or array
+ * - An iterable of specs (generators, BoundQuery, etc.)
+ * - A function returning a spec, array, or iterable
  * - A function returning undefined (filtered out)
  *
- * @param specOrFn The spec, array, or function to resolve
+ * APP-004: Now supports Iterable<T> for lazy evaluation.
+ *
+ * @param specOrFn The spec, array, iterable, or function to resolve
  * @param context Context passed to functions
  * @returns Flattened array of resolved specs
  */
 export function resolveSpec<T, C>(specOrFn: SpecOrFn<T, C>, context: C): T[] {
   if (typeof specOrFn === 'function') {
-    const result = (specOrFn as (context: C) => T | T[] | undefined)(context);
+    const result = (specOrFn as (context: C) => T | Iterable<T> | undefined)(context);
     if (result === undefined) return [];
-    return Array.isArray(result) ? result : [result];
+    if (Array.isArray(result)) return result;
+    if (isIterable(result)) return Array.from(result);
+    return [result];
   }
   if (Array.isArray(specOrFn)) {
     return specOrFn;
+  }
+  if (isIterable(specOrFn)) {
+    return Array.from(specOrFn);
   }
   return [specOrFn];
 }

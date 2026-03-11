@@ -35,7 +35,7 @@ import {
 } from './types.js';
 import type { MethodMetadata } from '../../../warp/metadata.js';
 import type { LanguageMethod } from '../method.js';
-import type { LanguageEntity } from '../entity.js';
+import type { LanguageEntity, LanguageEntityField } from '../entity.js';
 import type { ExternalLayer } from '../../../warp/imprint.js';
 
 // ============================================================================
@@ -82,6 +82,30 @@ export interface LanguageRenderingConfig<T extends LanguageType = LanguageType> 
    * @returns The rendered import statement
    */
   renderImportStatement?: (importSpec: string, modulePath: string) => string;
+
+  // ===== Entity Rendering Methods =====
+
+  /**
+   * Render a single entity field declaration.
+   * @param field - The entity field to render
+   * @returns The rendered field (e.g., "val name: String")
+   */
+  renderEntityField: (field: LanguageEntityField) => string;
+
+  /**
+   * Render all fields of an entity.
+   * @param entity - The entity whose fields to render
+   * @returns The rendered fields list
+   */
+  renderEntityFields: (entity: LanguageEntity) => string;
+
+  /**
+   * Render a complete entity class declaration.
+   * @param entity - The entity to render
+   * @param variant - Optional variant for specialized rendering (e.g., 'json', 'parcelize')
+   * @returns The rendered class declaration
+   */
+  renderEntityClass: (entity: LanguageEntity, variant?: string) => string;
 }
 
 // ============================================================================

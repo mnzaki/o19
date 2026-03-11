@@ -32,6 +32,7 @@ import type {
 import { DEFAULT_NAMING_CONVENTIONS, LanguageType } from './types.js';
 import type { TypeFactory, NamingConventions, LanguageIdentity } from './types.js';
 import { formatName } from '../../stringing.js';
+import type { LanguageEntity, LanguageEntityField } from '../entity.js';
 
 // ============================================================================
 // Core Keyword Types (Well-Known)
@@ -197,6 +198,16 @@ export interface CompositionTemplates {
   importStatement: CompositionTemplate;
   /** Template for wrapping parameters in an object (e.g., `data: { name: string }`) */
   objectWrappedParams: CompositionTemplate;
+  /** Template for entity field declaration (e.g., `val name: String`) */
+  entityField: CompositionTemplate;
+  /** Template for entity fields list (comma-separated) */
+  entityFields: CompositionTemplate;
+  /** Template for entity class declaration */
+  entityClass: CompositionTemplate;
+  /** Template for JSON-serializable entity class (Kotlin) */
+  jsonSerializableEntity?: CompositionTemplate;
+  /** Template for Parcelize entity class (Kotlin) */
+  parcelizeEntity?: CompositionTemplate;
 }
 
 // ============================================================================
@@ -263,9 +274,13 @@ function applyTypeTemplate(
  *
  * This generates a class that implements TypeFactory by interpreting
  * the type constructor templates (e.g., `Vec<{{T}}>`).
+ * 
+ * If a baseTypeFactory is provided, its fromTsType method will be used
+ * to preserve language-specific type mappings.
  */
 function createTypeFactoryFromConstructors<T extends LanguageType>(
-  syntax: LanguageDeclaration['syntax']
+  syntax: LanguageDeclaration['syntax'],
+  baseTypeFactory?: TypeFactory<LanguageType>
 ): TypeFactory<T> {
   const ctors = syntax.types;
   function createPrimitive(raw: TypeConstructorDeclaration | null): T {
@@ -362,6 +377,11 @@ function createTypeFactoryFromConstructors<T extends LanguageType>(
     },
 
     fromTsType(tsType: string, isCollection: boolean): T {
+      // Use base type factory's fromTsType if available for language-specific mappings
+      if (baseTypeFactory?.fromTsType) {
+        return baseTypeFactory.fromTsType(tsType, isCollection) as T;
+      }
+      
       // Handle TypeScript array syntax: T[]
       let normalizedType = tsType.trim();
       let isArraySyntax = false;
@@ -406,18 +426,20 @@ function createTypeFactoryFromConstructors<T extends LanguageType>(
  * This is the bridge from Layer 1 (Declarative) to Layer 2 (Executive).
  *
  * @param declaration - The declarative language definition
+ * @param baseTypeFactory - Optional base type factory to extend (for language-specific fromTsType)
  * @returns Executive language definition compatible with declareLanguage
  */
 export function compileToImperative<T extends LanguageDeclaration = LanguageDeclaration>(
-  declarationInput: T
+  declarationInput: T,
+  baseTypeFactory?: TypeFactory<LanguageType>
 ): Partial<LanguageDefinitionImperative> {
   let declaration = deepmerge({}, commonLanguageDeclaration);
   declaration = deepmerge(declaration, declarationInput);
   // Merge with defaults to fill in any missing conventions
   const naming: NamingConventions = declaration.conventions.naming;
 
-  // Create type factory from constructors
-  const types = createTypeFactoryFromConstructors(declaration.syntax);
+  // Create type factory from constructors, optionally extending a base factory
+  const types = createTypeFactoryFromConstructors(declaration.syntax, baseTypeFactory);
 
   // Build rendering config from composition templates
   const composition = declaration.syntax.composition;
@@ -437,10 +459,38 @@ export function compileToImperative<T extends LanguageDeclaration = LanguageDecl
     // Parameters use parameter naming convention (falls back to variable, then snake)
     formatParam: (name: string, type: LanguageType) => {
       const formattedName = formatName(name, naming.parameter);
+      // Handle plain objects from deepmerge - extract type name from _name.parts
+      const typeObj = type as unknown as Record<string, unknown>;
+      const nameObj = (typeObj?._name ?? typeObj?.name) as Record<string, unknown> | undefined;
+      let typeStr: string;
+      if (nameObj?.parts && Array.isArray(nameObj.parts)) {
+        // Reconstruct name from parts based on defaultCase
+        const parts = nameObj.parts as string[];
+        const defaultCase = (nameObj.defaultCase as string) ?? 'SCREAMING_SNAKE';
+        switch (defaultCase) {
+          case 'camelCase':
+            typeStr = parts.map((p, i) => i === 0 ? p : p.charAt(0).toUpperCase() + p.slice(1)).join('');
+            break;
+          case 'PascalCase':
+            typeStr = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+            break;
+          case 'kebab-case':
+            typeStr = parts.join('-');
+            break;
+          case 'SCREAMING_SNAKE':
+            typeStr = parts.join('_').toUpperCase();
+            break;
+          case 'snake_case':
+          default:
+            typeStr = parts.join('_');
+        }
+      } else {
+        typeStr = String(type);
+      }
       return mejs.renderTemplate(composition.parameter.source, {
         ...languageContext,
         name: formattedName,
-        type
+        type: typeStr
       });
     },
 
@@ -467,6 +517,83 @@ export function compileToImperative<T extends LanguageDeclaration = LanguageDecl
         composition.importStatement.source,
         { importSpec, modulePath }
       );
+    },
+
+    // ===== Entity Rendering Methods =====
+
+    renderEntityField: (field) => {
+      return mejs.renderTemplate(composition.entityField.source, {
+        ...languageContext,
+        name: field.name,
+        type: { name: field.langType }
+      });
+    },
+
+    renderEntityFields: (entity) => {
+      // Pre-render all fields
+      const fields = entity.fields.map((field) =>
+        mejs.renderTemplate(composition.entityField.source, {
+          ...languageContext,
+          name: field.name,
+          type: { name: field.langType }
+        })
+      );
+      return mejs.renderTemplate(composition.entityFields.source, {
+        ...languageContext,
+        fields,
+        entity,
+        renderEntityField: (f: typeof entity.fields[0]) =>
+          mejs.renderTemplate(composition.entityField.source, {
+            ...languageContext,
+            name: f.name,
+            type: { name: f.langType }
+          })
+      });
+    },
+
+    renderEntityClass: (entity, variant?: string) => {
+      // Determine which template to use based on variant
+      let template = composition.entityClass;
+      if (variant === 'json' && composition.jsonSerializableEntity) {
+        template = composition.jsonSerializableEntity;
+      } else if (variant === 'parcelize' && composition.parcelizeEntity) {
+        template = composition.parcelizeEntity;
+      }
+
+      // Pre-render fields for the template
+      const fields = entity.fields.map((field) =>
+        mejs.renderTemplate(composition.entityField.source, {
+          ...languageContext,
+          name: field.name,
+          type: { name: field.langType }
+        })
+      );
+
+      return mejs.renderTemplate(template.source, {
+        ...languageContext,
+        name: { pascalCase: entity.typeName },
+        sourceName: entity.raw.name,
+        entity,
+        fields,
+        renderEntityField: (f: typeof entity.fields[0]) =>
+          mejs.renderTemplate(composition.entityField.source, {
+            ...languageContext,
+            name: f.name,
+            type: { name: f.langType }
+          }),
+        renderEntityFields: () =>
+          mejs.renderTemplate(composition.entityFields.source, {
+            ...languageContext,
+            fields,
+            entity,
+            renderEntityField: (f: typeof entity.fields[0]) =>
+              mejs.renderTemplate(composition.entityField.source, {
+                ...languageContext,
+                name: f.name,
+                type: { name: f.langType }
+              })
+          })
+      });
     }
 
     //renderObjectWrappedParams: (method: LanguageMethod, objectParamName: string) => {
@@ -674,6 +801,18 @@ export const commonLanguageDeclaration: LanguageDeclaration = {
       },
       objectWrappedParams: {
         source: '{{objectParamName}}: { {{innerParamList}} }',
+        whitespace: 'trim'
+      },
+      entityField: {
+        source: '{{name}}: {{type}}',
+        whitespace: 'trim'
+      },
+      entityFields: {
+        source: '{% for field in fields %}{{ field }}{% if not loop.last %}, {% endif %}{% endfor %}',
+        whitespace: 'trim'
+      },
+      entityClass: {
+        source: 'class {{name}} { {{fields}} }',
         whitespace: 'trim'
       }
     }

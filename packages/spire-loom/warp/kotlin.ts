@@ -112,7 +112,6 @@ export const types = new KotlinTypeFactory();
 export const kotlinLanguage = declareLanguage<LanguageType>({
   name: 'kotlin',
   extensions: ['.kt', '.kts'],
-  types,
 
   conventions: {
     naming: {
@@ -139,6 +138,15 @@ export const kotlinLanguage = declareLanguage<LanguageType>({
 
   // Syntax definitions for code generation
   syntax: {
+    blockOpen: '{',
+    blockClose: '}',
+    blockImplicitReturn: false,
+    blockStatementSeparator: '',
+    paramsOpen: '(',
+    paramsSeparator: ', ',
+    paramsClose: ')',
+    propertyNameSeparator: ': ',
+    functionReturnTypeSeparator: ': ',
     keywords: {
       function: 'fun',
       public: 'public',
@@ -146,7 +154,6 @@ export const kotlinLanguage = declareLanguage<LanguageType>({
       protected: 'protected',
       internal: 'internal'
     },
-    functionReturnTypeSeparator: ': ',
     types: {
       boolean: {
         template: 'Boolean',
@@ -175,6 +182,69 @@ export const kotlinLanguage = declareLanguage<LanguageType>({
       array: {
         template: (T: LanguageType) => `List<${T.name}>`,
         stub: 'emptyList()'
+      }
+    },
+    composition: {
+      functionSignature: {
+        source:
+          '{{ prependedKeywords }} {{keywords.function}} {{name}}{{generics}}{{params}}{% if returnType %}{{functionReturnTypeSeparator}}{{returnType}}{% endif %}'
+      },
+      parameter: {
+        source: '{{name}}: {{type}}'
+      },
+      functionParams: {
+        source: '{{ paramsOpen }}{{ params.join(paramsSeparator) }}{{ paramsClose }}'
+      },
+      functionDefinition: {
+        source: '{{signature}} {{blockOpen}}\n{{body}}\n{{blockClose}}'
+      },
+      typeDefinition: {
+        source:
+          '{% if isExport %}export {% endif %}{% if isAbstract %}abstract {% endif %}class {{name}}{% if generics %}{{generics}}{% endif %}{% if base %} extends {{base}}{% endif %} {{blockOpen}}{{members}}{{blockClose}}',
+        whitespace: 'trim'
+      },
+      interfaceDefinition: {
+        source:
+          '{% if isExport %}export {% endif %}interface {{name}}{{generics}} {{blockOpen}}{{members}}{{blockClose}}',
+        whitespace: 'trim'
+      },
+      enumDefinition: {
+        source:
+          '{% if isExport %}export {% endif %}enum {{name}} {{blockOpen}}{{variants}}{{blockClose}}',
+        whitespace: 'trim'
+      },
+      importStatement: {
+        source: 'import {{importSpec}}',
+        whitespace: 'trim'
+      },
+      objectWrappedParams: {
+        source: '{{objectParamName}}: { {{innerParamList}} }',
+        whitespace: 'trim'
+      },
+      // Entity composition templates
+      entityField: {
+        source: 'val {{ name }}: {{ type.name }}'
+      },
+      entityFields: {
+        source: '{% fields.forEach(function(field, i) { %}{{ field }}{% if (i < fields.length - 1) { %},\n    {% } %}{% }) %}'
+      },
+      entityClass: {
+        source: `data class {{ name.pascalCase }}(
+    {{ renderEntityFields(entity) }}
+)`
+      },
+      jsonSerializableEntity: {
+        source: `@Serializable
+@SerialName("{{ sourceName }}")
+data class {{ name.pascalCase }}Json(
+    {{ renderEntityFields(entity) }}
+)`
+      },
+      parcelizeEntity: {
+        source: `@Parcelize
+data class {{ name.pascalCase }}(
+    {{ renderEntityFields(entity) }}
+) : Parcelable`
       }
     }
   }

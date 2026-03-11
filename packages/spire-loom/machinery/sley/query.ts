@@ -156,10 +156,21 @@ export class BoundQuery<T extends Queryable<T>> {
   /**
    * Add a language for enhancement.
    * First language becomes primary (item.lang), others accessible as item.rs, item.ts, etc.
+   * 
+   * Also initializes diviner accumulators with the new language.
    */
   addLang(lang: LanguageDefinitionImperative): void {
     if (this._langs.includes(lang)) return;
     this._langs.push(lang);
+    
+    // Phase 1: Initialize diviner accumulators with the new language
+    // This makes accumulators available immediately without waiting for evaluation
+    for (const [name, diviner] of Object.entries(this.diviners)) {
+      if (!this.accumulators.has(name)) {
+        diviner.initAccumulator(this, lang);
+        this.accumulators.set(name, diviner.accumulator);
+      }
+    }
   }
 
   /**
@@ -211,10 +222,10 @@ export class BoundQuery<T extends Queryable<T>> {
         return lang.name;
       };
 
-      // Apply diviners once to initialize accumulators
+      // Phase 2: Apply property wrappers (if not already done)
+      // Phase 1 (initAccumulator) already happened in addLang()
       for (const [name, diviner] of Object.entries(this.diviners)) {
-        diviner.applyToItems(this as any);
-        this.accumulators.set(name, diviner.accumulator);
+        diviner.applyWrappers(this.cachedResult!);
       }
 
       this.cachedResult.forEach((item) => {
@@ -386,6 +397,113 @@ export class BoundQuery<T extends Queryable<T>> {
 
   every(predicate: (method: T) => boolean): boolean {
     return this.evaluate().every(predicate);
+  }
+
+  // =======================================================================
+  // Lazy Iterator Methods (APP-004)
+  // =======================================================================
+
+  /**
+   * Lazy map - returns Iterable instead of array.
+   * Does not materialize results until iterated.
+   *
+   * @example
+   * ```typescript
+   * const names = methods.mapIter(m => m.name.pascalCase);
+   * for (const name of names) { ... } // Lazy iteration
+   * ```
+   */
+  mapIter<U>(fn: (item: T) => U): Iterable<U> {
+    return function* (self) {
+      for (const item of self) {
+        yield fn(item);
+      }
+    }(this);
+  }
+
+  /**
+   * Lazy filter - returns Iterable instead of new BoundQuery.
+   * Does not materialize results until iterated.
+   *
+   * @example
+   * ```typescript
+   * const creates = methods.filterIter(m => m.crudOperation === 'create');
+   * for (const method of creates) { ... } // Lazy iteration
+   * ```
+   */
+  filterIter(predicate: (item: T) => boolean): Iterable<T> {
+    return function* (self) {
+      for (const item of self) {
+        if (predicate(item)) {
+          yield item;
+        }
+      }
+    }(this);
+  }
+
+  /**
+   * Entries with index - lazy generator of [index, item] pairs.
+   *
+   * @example
+   * ```typescript
+   * for (const [i, method] of methods.entries()) {
+   *   console.log(`${i}: ${method.name}`);
+   * }
+   * ```
+   */
+  *entries(): Generator<[number, T]> {
+    let i = 0;
+    for (const item of this) {
+      yield [i++, item];
+    }
+  }
+
+  /**
+   * Take first n items lazily.
+   *
+   * @example
+   * ```typescript
+   * const first5 = methods.takeIter(5);
+   * ```
+   */
+  takeIter(n: number): Iterable<T> {
+    return function* (self) {
+      let i = 0;
+      for (const item of self) {
+        if (i >= n) break;
+        yield item;
+        i++;
+      }
+    }(this);
+  }
+
+  /**
+   * Skip first n items lazily.
+   *
+   * @example
+   * ```typescript
+   * const rest = methods.skipIter(10);
+   * ```
+   */
+  skipIter(n: number): Iterable<T> {
+    return function* (self) {
+      let i = 0;
+      for (const item of self) {
+        if (i < n) {
+          i++;
+          continue;
+        }
+        yield item;
+      }
+    }(this);
+  }
+
+  /**
+   * Convert to array - materializes the query results.
+   * Same as `.all` but explicit about materialization.
+   */
+  toArray(): T[] {
+    return this.evaluate();
   }
 
   // =======================================================================

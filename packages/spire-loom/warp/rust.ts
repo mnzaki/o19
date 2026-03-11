@@ -386,6 +386,44 @@ class RustTypeFactory implements Partial<TypeFactory<LanguageType>> {
     const errName = typeof errType === 'string' ? errType : errType.name;
     return new LanguageType(`Result<${okType}, ${errName}>`, 'Ok(Default::default())');
   }
+
+  // Primitive types
+  boolean = new LanguageType('bool', 'false', true);
+  string = new LanguageType('String', 'String::new()', true);
+  number = new LanguageType('i64', '0', true);
+  void = new LanguageType('()', '()', true);
+
+  fromTsType(tsType: string, isCollection: boolean): LanguageType {
+    // Handle TypeScript array syntax: T[]
+    let normalizedType = tsType.trim();
+    let isArraySyntax = false;
+
+    if (normalizedType.endsWith('[]')) {
+      normalizedType = normalizedType.slice(0, -2).trim();
+      isArraySyntax = true;
+    }
+
+    const finalIsCollection = isCollection || isArraySyntax;
+
+    const baseType = (() => {
+      switch (normalizedType.toLowerCase()) {
+        case 'string':
+          return this.string;
+        case 'number':
+          return this.number;
+        case 'boolean':
+        case 'bool':
+          return this.boolean;
+        case 'void':
+          return this.void;
+        default:
+          // Complex type / entity
+          return new LanguageType(normalizedType, 'Default::default()', false, [], true);
+      }
+    })();
+
+    return finalIsCollection ? this.array(baseType) : baseType;
+  }
 }
 
 // ============================================================================
@@ -435,11 +473,19 @@ export const rustLanguage = declareLanguage<LanguageType>({
 
   // Declare function variants that can be accessed via method.{variant}
   syntax: {
+    blockOpen: '{',
+    blockClose: '}',
+    blockImplicitReturn: false,
+    blockStatementSeparator: ';',
+    paramsOpen: '(',
+    paramsSeparator: ', ',
+    paramsClose: ')',
+    propertyNameSeparator: ': ',
+    functionReturnTypeSeparator: ' -> ',
     keywords: {
       function: 'fn',
       public: 'pub'
     },
-    functionReturnTypeSeparator: ' -> ',
     types: {
       boolean: {
         template: 'bool',
@@ -468,6 +514,56 @@ export const rustLanguage = declareLanguage<LanguageType>({
       array: {
         template: (T: LanguageType) => `Vec<${T.name}>`,
         stub: 'Vec::new()'
+      }
+    },
+    composition: {
+      functionSignature: {
+        source:
+          '{% if prependedKeywords %}{{ prependedKeywords }} {% endif %}{{keywords.function}} {{name}}{{generics}}{{params}}{% if returnType %}{{functionReturnTypeSeparator}}{{returnType}}{% endif %}'
+      },
+      parameter: {
+        source: '{{name}}: {{type}}'
+      },
+      functionParams: {
+        source: '{{ paramsOpen }}{{ params.join(paramsSeparator) }}{{ paramsClose }}'
+      },
+      functionDefinition: {
+        source: '{{signature}} {{blockOpen}}\n{{body}}\n{{blockClose}}'
+      },
+      typeDefinition: {
+        source:
+          '{% if isExport %}pub {% endif %}struct {{name}}{% if generics %}{{generics}}{% endif %} {{blockOpen}}{{members}}{{blockClose}}',
+        whitespace: 'trim'
+      },
+      interfaceDefinition: {
+        source:
+          '{% if isExport %}pub {% endif %}trait {{name}}{{generics}} {{blockOpen}}{{members}}{{blockClose}}',
+        whitespace: 'trim'
+      },
+      enumDefinition: {
+        source:
+          '{% if isExport %}pub {% endif %}enum {{name}} {{blockOpen}}{{variants}}{{blockClose}}',
+        whitespace: 'trim'
+      },
+      importStatement: {
+        source: 'use {{modulePath}};',
+        whitespace: 'trim'
+      },
+      objectWrappedParams: {
+        source: '{{objectParamName}}: { {{innerParamList}} }',
+        whitespace: 'trim'
+      },
+      // Entity composition templates
+      entityField: {
+        source: 'pub {{ name }}: {{ type.name }}'
+      },
+      entityFields: {
+        source: '{% fields.forEach(function(field) { %}    {{ field }},\n{% }) %}'
+      },
+      entityClass: {
+        source: `#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct {{ name.pascalCase }} {
+{{ renderEntityFields(entity) }}}`
       }
     }
   },

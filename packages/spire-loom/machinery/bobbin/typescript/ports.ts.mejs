@@ -4,7 +4,7 @@
  * Re-exports all generated ports
  */
 const services = locals.services;
--}}
+%}
 /**
  * Ports Index
  * 
@@ -14,5 +14,5 @@ const services = locals.services;
  */
 
 {% for service in services %}
-export type * from './{{ service.entityName.camelCase }}.port.js';
+export type * from './{{ service.entityCamelName }}.port.js';
 {% endfor %}

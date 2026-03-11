@@ -23,11 +23,9 @@ import type { TheStreamEntry, TheStreamEntryFilter } from '@o19/foundframe-front
  * Implements read/list operations
  */
 export interface TheStreamReadPort {
-  list( data: { limit?: number, offset?: number, filter?: TheStreamEntryFilter } ): Promise<TheStreamEntry[]>;
+  list(limit?: number, offset?: number, filter?: TheStreamEntryFilter): Promise<TheStreamEntry[]>;
 
-  getById(
-    id: number
-  ): Promise<TheStreamEntry>;
+  getById(id: number): Promise<TheStreamEntry>;
 
 }
 
@@ -49,29 +47,29 @@ export interface TheStreamPort extends TheStreamReadPort, TheStreamWritePort {
   /**
    * TheStreamMgmt.getEntriesByKind
    */
-  getEntriesByKind(data: { kind: 'media' | 'post' | 'bookmark' | 'person' | 'conversation', limit?: number, before?: number }): Promise<TheStreamEntry>;
+  getEntriesByKind(data: { kind: 'media' | 'post' | 'bookmark' | 'person' | 'conversation', limit: number, before: number }): Promise<TheStreamEntry>;
   /**
    * TheStreamMgmt.search
    */
-  search(data: { query: string, kinds?: string[], limit?: number }): Promise<TheStreamEntry>;
+  search(data: { query: string, kinds: string[], limit: number }): Promise<TheStreamEntry>;
   /**
    * TheStreamMgmt.addBookmark
    */
-  addBookmark(data: { bookmarkId: number, seenAt?: number }): Promise<TheStreamEntry>;
+  addBookmark(data: { bookmarkId: number, seenAt: number }): Promise<TheStreamEntry>;
   /**
    * TheStreamMgmt.addPost
    */
-  addPost(data: { postId: number, seenAt?: number }): Promise<TheStreamEntry>;
+  addPost(data: { postId: number, seenAt: number }): Promise<TheStreamEntry>;
   /**
    * TheStreamMgmt.addMedia
    */
-  addMedia(data: { mediaId: number, seenAt?: number }): Promise<TheStreamEntry>;
+  addMedia(data: { mediaId: number, seenAt: number }): Promise<TheStreamEntry>;
   /**
    * TheStreamMgmt.addPerson
    */
-  addPerson(data: { personId: number, seenAt?: number }): Promise<TheStreamEntry>;
+  addPerson(data: { personId: number, seenAt: number }): Promise<TheStreamEntry>;
   /**
    * TheStreamMgmt.addConversation
    */
-  addConversation(data: { conversationId: number, seenAt?: number }): Promise<TheStreamEntry>;
+  addConversation(data: { conversationId: number, seenAt: number }): Promise<TheStreamEntry>;
 }

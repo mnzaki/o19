@@ -135,11 +135,18 @@ export function preprocessTemplate(template: string, options: PreprocessorOption
     result = simplifyControlFlow(result);
   }
 
-  // === STEP 5: CODE BLOCK WHITESPACE TRIMMING ===
+  // === STEP 5: CONVERT EJS-STYLE WHITESPACE SLURPING ===
+  // EJS uses -%} to trim trailing whitespace. With custom delimiters { }, this doesn't work.
+  // Must run BEFORE Step 6 to consume the dash before regular trimming adds a space.
+  // Convert {% ... -%} → {% ..._%} (consume the dash, no space before _%})
+  result = result.replace(/\{%\s*([^%\n][^%]*?)\s*-\%\}/g, '{% $1_%}');
+
+  // === STEP 6: CODE BLOCK WHITESPACE TRIMMING ===
   // For remaining {% ... %} blocks that don't have special prefixes, add trailing trim
-  // Match {% ... %} but not {%- ..., {%= ..., {%_ ..., {%# ..., {%+
+  // Match {% ... %} but not {%- ..., {%= ..., {%_ ..., {%# ..., {%+ ... %}
+  // Also skip {% ... _%} (already trimmed from Step 5)
   // Preserve the original whitespace behavior: keep content as-is, just add _%} at end
-  result = result.replace(/\{%(?!\s*[\-=_%#+])\s*([^%\n][^%]*?)\s*%\}/g, '{% $1 _%}');
+  result = result.replace(/\{%(?!\s*[\-=_%#+])\s*([^%\n][^%]*?)\s*(?<!_)%\}/g, '{% $1 _%}');
 
   return result;
 }

@@ -710,6 +710,119 @@ data: (ctx) => {
 }
 ```
 
+### Entity Generation from Methods
+
+Methods declare their return types. The loom remembers. When you generate entity files, you don't need to list them—`entities.newFiles` already knows[^4].
+
+```typescript
+// The Thread™ reveals what methods need
+newFiles: [
+  // Static files
+  { template: 'service.kt.mejs', path: 'android/Service.kt' },
+  
+  // Dynamic: One file per entity referenced by method return types
+  (ctx) => {
+    // ctx.entities.newFiles contains files for all entities
+    // referenced by method return types (collected via diviners)
+    const entityFiles = ctx.entities.newFiles?.all || [];
+    
+    return entityFiles.map(file => ({
+      template: 'entity/domain-entity.ts.mejs',
+      path: `src/entities/${file.name.camelCase}.ts`,
+      context: { 
+        entity: file.context.entity,
+        // Entity has lang-specific rendering via APP-005
+        render: file.context.entity.lang.codeGen.rendering
+      }
+    }));
+  }
+]
+```
+
+#### The Imports Diviner
+
+Methods that return entities automatically register those entities for generation:
+
+```typescript
+// In your Management
+@loom.crud.read
+getRegret(id: number): Regret {  // ← Returns Regret entity
+  throw new Error('Imprint only');
+}
+
+@loom.crud.list({ collection: true })
+listRegrets(): Regret[] {  // ← Returns array of Regret entities
+  throw new Error('Imprint only');
+}
+```
+
+The loom's **imports diviner** (`ctx.methods.diviners.imports`) tracks these return types. When you access `ctx.entities.newFiles`, it transforms those imports into file specifications[^5].
+
+#### The FilesAccumulator Pattern
+
+`ctx.entities.newFiles` is a **FilesAccumulator**—a lazy transformer:
+
+```typescript
+// In newFiles function
+(ctx) => {
+  // Access the accumulator
+  const accumulator = ctx.entities.newFiles;
+  
+  // Get all files as array
+  const allFiles = accumulator.all;
+  
+  // Or use BoundQuery for filtering
+  const bookmarkFiles = accumulator.files
+    .filter(f => f.name.pascalCase === 'Bookmark')
+    .all;
+  
+  // Transform to output specs
+  return allFiles.map(file => ({
+    template: 'kotlin/entity/json-serializable.kt.mejs',
+    path: `android/entity/${file.name.pascalCase}Json.kt`,
+    context: {
+      // file.context.entity is the LanguageEntity
+      entity: file.context.entity,
+      // file.context.imports is the accumulator itself
+      imports: file.context.imports
+    }
+  }));
+}
+```
+
+**Key Properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `.all` | `LanguageFile[]` | All entity files as array |
+| `.files` | `BoundQuery` | Query API for filtering |
+| `.count` | `number` | Number of entity files |
+
+#### Template Data for Entities
+
+Templates receive **LanguageEntity** with language-native rendering (APP-005):
+
+```ejs
+<%# kotlin/entity/json-serializable.kt.mejs %>
+package <%= packageName %>.entity
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+<%# Use language-native rendering via APP-005 %>
+<%= entity.lang.codeGen.rendering.renderEntityClass(entity, 'json') %>
+```
+
+The `renderEntityClass(entity, 'json')` generates:
+```kotlin
+@Serializable
+@SerialName("bookmark")
+data class BookmarkJson(
+    val id: Long,
+    val url: String,
+    val title: String
+)
+```
+
 ### Tieup Style (Direct Invocation)
 
 No matches needed—invoke directly from WARP.ts:
@@ -1169,6 +1282,7 @@ hookups: [{
 7. **Workspace templates override builtins** - Place in `loom/bobbin/`
 8. **Query API for complex filtering** - Chainable: `.crud().tag().management()`
 9. **Hookups modify external files** - `patches` deprecated; use declarative hookups
+10. **Methods declare, entities emerge** - Return types in methods populate `entities.newFiles`
 
 ---
 
@@ -1185,6 +1299,10 @@ hookups: [{
 [^2]: The spiral contracts before it expands. The self-declarer (machinery/self-declarer.ts) is the contraction—unique in the loom's architecture for being pulled inward rather than pushing outward. It declares itself, then declares languages ('warp' scope) and treadles ('weave' scope).
 
 [^3]: Languages self-register in 'warp' scope via declareLanguage(); treadles self-register in 'weave' scope via declareTreadle(). Both pull from the self-declarer. The pattern: declare in scope, register in consumer, generate in weave.
+
+[^4]: The `entities.newFiles` accumulator is the bridge between method return types and entity file generation. It transforms the imports collected by `ctx.methods.diviners.imports` into file specifications. This is how the loom knows which entities need files without explicit enumeration—methods declare what they return; entities emerge from those declarations. See APP-005 for the language-native entity composition system that enables `renderEntityClass()`.
+
+[^5]: The imports diviner (`machinery/reed/postrequisites.ts`) is a postrequisite accumulator—it runs after method collection and scans method return types for entity references. When it finds `Regret` or `Regret[]`, it registers those entities for file generation. The FilesAccumulator then transforms these into `LanguageFile` objects with proper naming, paths, and template context. This is the "postrequisite pattern": collect first, transform second, generate third.
 
 ---
 

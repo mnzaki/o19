@@ -152,12 +152,14 @@ export interface TreadleKit {
    * Generate multiple files from templates.
    *
    * Auto-enhances methods for each output's detected language.
+   * 
+   * APP-004: Now accepts Iterable for lazy evaluation.
    */
   generateFiles(
     outputs: OutputSpec[],
     data: Record<string, unknown>,
-    methods: BoundQuery<LanguageMethod>,
-    entities?: BoundQuery<LanguageEntity>
+    methods: Iterable<LanguageMethod>,
+    entities?: Iterable<LanguageEntity>
   ): Promise<GeneratedFile[]>;
 
   /**

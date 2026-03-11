@@ -262,6 +262,15 @@ zero
       expect(result).toBe('use crate::spire::{{%- extensionTraitName %}, Result};');
     });
 
+    it('should convert EJS-style -%} to MEJS _%}', () => {
+      // The -%} syntax is EJS whitespace-slurping (trim trailing).
+      // MEJS converts it to _%} (no space before _%}) which has the same meaning.
+      const input = '{% if (x) { -%}\nhello\n{% } -%}';
+      const result = preprocessTemplate(input);
+      // -%} becomes _%} (no space before closing)
+      expect(result).toBe('{% if (x) {_%}\nhello\n{% }_%}');
+    });
+
     it('should handle Rust raw blocks with nested braces', () => {
       const input = '{{{{ raw }}}}';
       const result = preprocessTemplate(input);

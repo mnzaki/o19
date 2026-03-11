@@ -371,6 +371,55 @@ export const typescriptLanguage = declareLanguage<LanguageType>({
         template: (T: LanguageType) => `${T.name}[]`,
         stub: '[]'
       }
+    },
+    composition: {
+      functionSignature: {
+        source:
+          '{% if prependedKeywords %}{{ prependedKeywords }} {% endif %}{{keywords.function}} {{name}}{{generics}}{{params}}{% if returnType %}{{functionReturnTypeSeparator}}{{returnType}}{% endif %}'
+      },
+      parameter: {
+        source: '{{name}}: {{type}}'
+      },
+      functionParams: {
+        source: '{{ paramsOpen }}{{ params.join(paramsSeparator) }}{{ paramsClose }}'
+      },
+      functionDefinition: {
+        source: '{{signature}} {{blockOpen}}\n{{body}}\n{{blockClose}}'
+      },
+      typeDefinition: {
+        source:
+          '{% if isExport %}export {% endif %}{% if isAbstract %}abstract {% endif %}class {{name}}{% if generics %}{{generics}}{% endif %}{% if base %} extends {{base}}{% endif %} {{blockOpen}}{{members}}{{blockClose}}',
+        whitespace: 'trim'
+      },
+      interfaceDefinition: {
+        source:
+          '{% if isExport %}export {% endif %}interface {{name}}{{generics}} {{blockOpen}}{{members}}{{blockClose}}',
+        whitespace: 'trim'
+      },
+      enumDefinition: {
+        source:
+          '{% if isExport %}export {% endif %}enum {{name}} {{blockOpen}}{{variants}}{{blockClose}}',
+        whitespace: 'trim'
+      },
+      importStatement: {
+        source: 'import {{importSpec}} from {{modulePath}};',
+        whitespace: 'trim'
+      },
+      objectWrappedParams: {
+        source: '{{objectParamName}}: { {{innerParamList}} }',
+        whitespace: 'trim'
+      },
+      // Entity composition templates
+      entityField: {
+        source: '{{ name }}: {{ type.name }}'
+      },
+      entityFields: {
+        source: '{% fields.forEach(function(field) { %}  {{ field }};\n{% }) %}'
+      },
+      entityClass: {
+        source: `export interface {{ name.pascalCase }} {
+{{ renderEntityFields(entity) }}}`
+      }
     }
   },
 

@@ -53,9 +53,9 @@ export class TsCore<
 
   getMetadata(): TsCoreMetadata {
     // Use layer.name (set by loadWarp from export name) or fall back to constructor name
-    const layerName = this.layer.name || (this.layer?.constructor as any)?.name || 'unknown';
+    const layerName = this.layer?.name || (this.layer?.constructor as any)?.name || 'unknown';
 
-    const packageName = this.options.packageName || layerName;
+    const packageName = this.options?.packageName || layerName;
 
     return {
       language: 'typescript',

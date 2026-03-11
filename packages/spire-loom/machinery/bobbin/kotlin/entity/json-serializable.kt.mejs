@@ -1,0 +1,16 @@
+{#
+   ============================================================================
+   Kotlin JSON-Serializable Entity Template
+   ============================================================================
+   Context:
+     - packageName: string    - Package name (e.g., 'com.example.app')
+     - entity: LanguageEntity - The entity to render
+   ============================================================================
+#}
+
+package <%= packageName %>.entity
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+<%= entity.lang.codeGen.rendering.renderEntityClass(entity, 'json') %>
