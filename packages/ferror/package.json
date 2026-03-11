@@ -1,0 +1,21 @@
+{
+  "name": "@o19/ferror",
+  "version": "0.1.0",
+  "description": "🦀 The Ferris Error System - Contextual error handling",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["error", "context", "architecture", "ferris"],
+  "author": "circulari.ty",
+  "license": "ISC",
+  "dependencies": {
+    "@o19/aaaarchi": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
